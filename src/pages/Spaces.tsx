@@ -3,10 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, LogOut, Search } from "lucide-react";
+import { Plus, LogOut, Search, Settings } from "lucide-react";
 import { toast } from "sonner";
 import { SpaceCard } from "@/components/spaces/SpaceCard";
 import { CreateSpaceDialog } from "@/components/spaces/CreateSpaceDialog";
+import { useUserRole } from "@/hooks/useUserRole";
 interface Space {
   id: string;
   name: string;
@@ -20,6 +21,7 @@ const Spaces = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const navigate = useNavigate();
+  const { isAdmin, loading: roleLoading } = useUserRole();
   useEffect(() => {
     checkAuth();
     fetchSpaces();
@@ -63,10 +65,26 @@ const Spaces = () => {
             <h1 className="text-4xl font-bold mb-2">Story TLRS</h1>
             <p className="text-muted-foreground">Your client spaces</p>
           </div>
-          <Button variant="outline" onClick={handleSignOut} className="rounded-[35px] border-foreground">
-            <LogOut className="w-4 h-4 mr-2" />
-            Sign Out
-          </Button>
+          <div className="flex gap-2">
+            {isAdmin && (
+              <Button
+                onClick={() => navigate("/admin")}
+                variant="outline"
+                size="icon"
+                className="rounded-[35px]"
+              >
+                <Settings className="h-4 w-4" />
+              </Button>
+            )}
+            <Button
+              onClick={handleSignOut}
+              variant="outline"
+              size="icon"
+              className="rounded-[35px]"
+            >
+              <LogOut className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
 
         {/* Search and Create */}
@@ -75,10 +93,12 @@ const Spaces = () => {
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
             <Input placeholder="Search spaces..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-12 rounded-[35px] border-foreground h-12" />
           </div>
-          <Button onClick={() => setIsCreateDialogOpen(true)} className="rounded-[35px] h-12 px-6 text-primary bg-accent-green">
-            <Plus className="w-5 h-5 mr-2" />
-            New Space
-          </Button>
+          {isAdmin && (
+            <Button onClick={() => setIsCreateDialogOpen(true)} className="rounded-[35px] h-12 px-6">
+              <Plus className="w-5 h-5 mr-2" />
+              New Space
+            </Button>
+          )}
         </div>
 
         {/* Spaces Grid */}
@@ -86,7 +106,7 @@ const Spaces = () => {
             <p className="text-muted-foreground mb-4">
               {searchQuery ? "No spaces found" : "No spaces yet"}
             </p>
-            {!searchQuery && <Button onClick={() => setIsCreateDialogOpen(true)} className="rounded-[35px] bg-accent-green text-primary">
+            {!searchQuery && isAdmin && <Button onClick={() => setIsCreateDialogOpen(true)} className="rounded-[35px]">
                 Create your first space
               </Button>}
           </div> : <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
