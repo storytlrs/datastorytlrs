@@ -13,9 +13,10 @@ export interface ColumnDef {
   label: string;
   type: ColumnType;
   editable?: boolean;
+  calculated?: boolean;
   options?: { value: string; label: string }[];
   width?: string;
-  format?: (value: any) => string;
+  format?: (value: any, row?: any) => string;
 }
 
 interface EditableDataTableProps {
@@ -86,7 +87,12 @@ export const EditableDataTable = ({
     const isEditing = editingCell?.id === row.id && editingCell?.field === column.key;
     const isSaving = savingCell === `${row.id}-${column.key}`;
     const value = row[column.key];
-    const displayValue = column.format ? column.format(value) : value;
+    const displayValue = column.format ? column.format(value, row) : value;
+
+    // Calculated columns are never editable
+    if (column.calculated) {
+      return <span className="text-muted-foreground">{displayValue ?? "-"}</span>;
+    }
 
     if (isEditing) {
       if (column.type === "select" && column.options) {
