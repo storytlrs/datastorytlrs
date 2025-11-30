@@ -691,7 +691,7 @@ export type Database = {
       import_status: "pending" | "processing" | "completed" | "failed"
       platform_type: "instagram" | "tiktok" | "youtube" | "facebook" | "twitter"
       report_status: "draft" | "active" | "archived"
-      report_type: "influencer" | "social" | "ads"
+      report_type: "influencer" | "social" | "ads" | "always_on"
       sentiment_type: "positive" | "negative" | "neutral"
     }
     CompositeTypes: {
@@ -826,7 +826,7 @@ export const Constants = {
       import_status: ["pending", "processing", "completed", "failed"],
       platform_type: ["instagram", "tiktok", "youtube", "facebook", "twitter"],
       report_status: ["draft", "active", "archived"],
-      report_type: ["influencer", "social", "ads"],
+      report_type: ["influencer", "social", "ads", "always_on"],
       sentiment_type: ["positive", "negative", "neutral"],
     },
   },
