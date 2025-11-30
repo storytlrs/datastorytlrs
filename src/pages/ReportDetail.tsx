@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { OverviewTab } from "@/components/reports/OverviewTab";
@@ -11,6 +11,7 @@ import { CreatorsTab } from "@/components/reports/CreatorsTab";
 import { ContentTab } from "@/components/reports/ContentTab";
 import { KPITargetsTab } from "@/components/reports/KPITargetsTab";
 import { AdsTab } from "@/components/reports/AdsTab";
+import { ImportDataDialog } from "@/components/reports/ImportDataDialog";
 
 interface Report {
   id: string;
@@ -27,6 +28,7 @@ const ReportDetail = () => {
   const navigate = useNavigate();
   const [report, setReport] = useState<Report | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
 
   useEffect(() => {
     if (reportId) {
@@ -91,6 +93,13 @@ const ReportDetail = () => {
                 </p>
               )}
             </div>
+            <Button
+              onClick={() => setIsImportDialogOpen(true)}
+              className="rounded-[35px]"
+            >
+              <Upload className="w-4 h-4 mr-2" />
+              Import Data
+            </Button>
           </div>
         </div>
 
@@ -147,6 +156,13 @@ const ReportDetail = () => {
           </TabsContent>
         </Tabs>
       </div>
+
+      <ImportDataDialog
+        open={isImportDialogOpen}
+        onOpenChange={setIsImportDialogOpen}
+        reportId={reportId!}
+        onSuccess={fetchReport}
+      />
     </div>
   );
 };
