@@ -13,12 +13,21 @@ interface Space {
 
 interface AssignUserToSpaceProps {
   userId: string | null;
+  existingSpaceIds: string[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onSuccess?: () => void;
 }
 
-export const AssignUserToSpace = ({ userId, open, onOpenChange }: AssignUserToSpaceProps) => {
+export const AssignUserToSpace = ({ 
+  userId, 
+  existingSpaceIds, 
+  open, 
+  onOpenChange,
+  onSuccess 
+}: AssignUserToSpaceProps) => {
   const [spaces, setSpaces] = useState<Space[]>([]);
+  const [availableSpaces, setAvailableSpaces] = useState<Space[]>([]);
   const [selectedSpaceId, setSelectedSpaceId] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -27,6 +36,12 @@ export const AssignUserToSpace = ({ userId, open, onOpenChange }: AssignUserToSp
       fetchSpaces();
     }
   }, [open]);
+
+  useEffect(() => {
+    const filtered = spaces.filter((space) => !existingSpaceIds.includes(space.id));
+    setAvailableSpaces(filtered);
+    setSelectedSpaceId("");
+  }, [spaces, existingSpaceIds]);
 
   const fetchSpaces = async () => {
     try {
@@ -68,6 +83,7 @@ export const AssignUserToSpace = ({ userId, open, onOpenChange }: AssignUserToSp
       toast.success("User assigned to space successfully");
       setSelectedSpaceId("");
       onOpenChange(false);
+      onSuccess?.();
     } catch (error: any) {
       console.error("Error assigning user to space:", error);
       toast.error(error?.message || "Failed to assign user to space");
@@ -86,21 +102,27 @@ export const AssignUserToSpace = ({ userId, open, onOpenChange }: AssignUserToSp
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="space">Space</Label>
-            <Select value={selectedSpaceId} onValueChange={setSelectedSpaceId}>
-              <SelectTrigger className="rounded-[35px] border-foreground">
-                <SelectValue placeholder="Select a space" />
-              </SelectTrigger>
-              <SelectContent>
-                {spaces.map((space) => (
-                  <SelectItem key={space.id} value={space.id}>
-                    {space.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {availableSpaces.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              This user already has access to all spaces.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              <Label htmlFor="space">Space</Label>
+              <Select value={selectedSpaceId} onValueChange={setSelectedSpaceId}>
+                <SelectTrigger className="rounded-[35px] border-foreground">
+                  <SelectValue placeholder="Select a space" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableSpaces.map((space) => (
+                    <SelectItem key={space.id} value={space.id}>
+                      {space.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           <div className="flex gap-2 pt-4">
             <Button
@@ -115,7 +137,7 @@ export const AssignUserToSpace = ({ userId, open, onOpenChange }: AssignUserToSp
             <Button
               onClick={handleAssign}
               className="flex-1 rounded-[35px]"
-              disabled={loading || !selectedSpaceId}
+              disabled={loading || !selectedSpaceId || availableSpaces.length === 0}
             >
               {loading ? "Assigning..." : "Assign"}
             </Button>
