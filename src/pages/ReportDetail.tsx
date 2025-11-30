@@ -12,6 +12,7 @@ import { ContentTab } from "@/components/reports/ContentTab";
 import { KPITargetsTab } from "@/components/reports/KPITargetsTab";
 import { AdsTab } from "@/components/reports/AdsTab";
 import { ImportDataDialog } from "@/components/reports/ImportDataDialog";
+import { DataTab } from "@/components/reports/DataTab";
 
 interface Report {
   id: string;
@@ -109,6 +110,9 @@ const ReportDetail = () => {
             <TabsTrigger value="overview" className="rounded-[35px]">
               Overview
             </TabsTrigger>
+            <TabsTrigger value="data" className="rounded-[35px]">
+              Data
+            </TabsTrigger>
             <TabsTrigger value="creators" className="rounded-[35px]">
               Creators
             </TabsTrigger>
@@ -128,6 +132,10 @@ const ReportDetail = () => {
 
           <TabsContent value="overview">
             <OverviewTab />
+          </TabsContent>
+
+          <TabsContent value="data">
+            <DataTab reportId={reportId!} />
           </TabsContent>
 
           <TabsContent value="creators">
