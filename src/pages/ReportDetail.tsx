@@ -10,6 +10,7 @@ import { OverviewTab } from "@/components/reports/OverviewTab";
 import { CreatorsTab } from "@/components/reports/CreatorsTab";
 import { ContentTab } from "@/components/reports/ContentTab";
 import { KPITargetsTab } from "@/components/reports/KPITargetsTab";
+import { AdsTab } from "@/components/reports/AdsTab";
 
 interface Report {
   id: string;
@@ -129,12 +130,7 @@ const ReportDetail = () => {
           </TabsContent>
 
           <TabsContent value="ads">
-            <Card className="p-8 rounded-[35px] border-foreground">
-              <h2 className="text-2xl font-bold mb-4">Ads Performance</h2>
-              <p className="text-muted-foreground">
-                Campaign, adset, and ad performance metrics will be displayed here.
-              </p>
-            </Card>
+            <AdsTab />
           </TabsContent>
 
           <TabsContent value="kpi">
