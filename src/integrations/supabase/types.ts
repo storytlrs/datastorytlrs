@@ -14,6 +14,353 @@ export type Database = {
   }
   public: {
     Tables: {
+      audit_log: {
+        Row: {
+          action_type: string
+          created_at: string
+          details: Json | null
+          id: string
+          report_id: string
+          user_id: string
+        }
+        Insert: {
+          action_type: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          report_id: string
+          user_id: string
+        }
+        Update: {
+          action_type?: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          report_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_log_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      content: {
+        Row: {
+          aqs: number | null
+          brand_minutes: number | null
+          branded_views: number | null
+          comments: number | null
+          content_type: Database["public"]["Enums"]["content_type"]
+          cost: number | null
+          cpe: number | null
+          cpm: number | null
+          cpv: number | null
+          created_at: string
+          creator_id: string
+          engagement_rate: number | null
+          id: string
+          impressions: number | null
+          is_branded: boolean | null
+          likes: number | null
+          main_usp: string | null
+          notes: string | null
+          organic_views: number | null
+          paid_views: number | null
+          platform: Database["public"]["Enums"]["platform_type"]
+          published_date: string | null
+          report_id: string
+          saves: number | null
+          sentiment: Database["public"]["Enums"]["sentiment_type"] | null
+          shares: number | null
+          thumbnail_url: string | null
+          updated_at: string
+          url: string | null
+          views: number | null
+          watch_time: number | null
+        }
+        Insert: {
+          aqs?: number | null
+          brand_minutes?: number | null
+          branded_views?: number | null
+          comments?: number | null
+          content_type: Database["public"]["Enums"]["content_type"]
+          cost?: number | null
+          cpe?: number | null
+          cpm?: number | null
+          cpv?: number | null
+          created_at?: string
+          creator_id: string
+          engagement_rate?: number | null
+          id?: string
+          impressions?: number | null
+          is_branded?: boolean | null
+          likes?: number | null
+          main_usp?: string | null
+          notes?: string | null
+          organic_views?: number | null
+          paid_views?: number | null
+          platform: Database["public"]["Enums"]["platform_type"]
+          published_date?: string | null
+          report_id: string
+          saves?: number | null
+          sentiment?: Database["public"]["Enums"]["sentiment_type"] | null
+          shares?: number | null
+          thumbnail_url?: string | null
+          updated_at?: string
+          url?: string | null
+          views?: number | null
+          watch_time?: number | null
+        }
+        Update: {
+          aqs?: number | null
+          brand_minutes?: number | null
+          branded_views?: number | null
+          comments?: number | null
+          content_type?: Database["public"]["Enums"]["content_type"]
+          cost?: number | null
+          cpe?: number | null
+          cpm?: number | null
+          cpv?: number | null
+          created_at?: string
+          creator_id?: string
+          engagement_rate?: number | null
+          id?: string
+          impressions?: number | null
+          is_branded?: boolean | null
+          likes?: number | null
+          main_usp?: string | null
+          notes?: string | null
+          organic_views?: number | null
+          paid_views?: number | null
+          platform?: Database["public"]["Enums"]["platform_type"]
+          published_date?: string | null
+          report_id?: string
+          saves?: number | null
+          sentiment?: Database["public"]["Enums"]["sentiment_type"] | null
+          shares?: number | null
+          thumbnail_url?: string | null
+          updated_at?: string
+          url?: string | null
+          views?: number | null
+          watch_time?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      content_tags: {
+        Row: {
+          content_id: string
+          created_at: string
+          id: string
+          tag_id: string
+        }
+        Insert: {
+          content_id: string
+          created_at?: string
+          id?: string
+          tag_id: string
+        }
+        Update: {
+          content_id?: string
+          created_at?: string
+          id?: string
+          tag_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_tags_content_id_fkey"
+            columns: ["content_id"]
+            isOneToOne: false
+            referencedRelation: "content"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_tags_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "tags"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      creators: {
+        Row: {
+          audience_breakdown: Json | null
+          avatar_url: string | null
+          created_at: string
+          followers: number | null
+          handle: string
+          id: string
+          notes: string | null
+          platform: Database["public"]["Enums"]["platform_type"]
+          profile_url: string | null
+          report_id: string
+          sentiment_summary: Json | null
+          updated_at: string
+        }
+        Insert: {
+          audience_breakdown?: Json | null
+          avatar_url?: string | null
+          created_at?: string
+          followers?: number | null
+          handle: string
+          id?: string
+          notes?: string | null
+          platform: Database["public"]["Enums"]["platform_type"]
+          profile_url?: string | null
+          report_id: string
+          sentiment_summary?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          audience_breakdown?: Json | null
+          avatar_url?: string | null
+          created_at?: string
+          followers?: number | null
+          handle?: string
+          id?: string
+          notes?: string | null
+          platform?: Database["public"]["Enums"]["platform_type"]
+          profile_url?: string | null
+          report_id?: string
+          sentiment_summary?: Json | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creators_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      data_imports: {
+        Row: {
+          created_at: string
+          errors: Json | null
+          file_name: string
+          file_type: string
+          id: string
+          mapping_config: Json | null
+          processed_at: string | null
+          report_id: string
+          rows_failed: number | null
+          rows_imported: number | null
+          rows_total: number | null
+          source: Database["public"]["Enums"]["import_source"]
+          status: Database["public"]["Enums"]["import_status"]
+          uploaded_at: string
+          uploaded_by: string
+          warnings: Json | null
+        }
+        Insert: {
+          created_at?: string
+          errors?: Json | null
+          file_name: string
+          file_type: string
+          id?: string
+          mapping_config?: Json | null
+          processed_at?: string | null
+          report_id: string
+          rows_failed?: number | null
+          rows_imported?: number | null
+          rows_total?: number | null
+          source: Database["public"]["Enums"]["import_source"]
+          status?: Database["public"]["Enums"]["import_status"]
+          uploaded_at?: string
+          uploaded_by: string
+          warnings?: Json | null
+        }
+        Update: {
+          created_at?: string
+          errors?: Json | null
+          file_name?: string
+          file_type?: string
+          id?: string
+          mapping_config?: Json | null
+          processed_at?: string | null
+          report_id?: string
+          rows_failed?: number | null
+          rows_imported?: number | null
+          rows_total?: number | null
+          source?: Database["public"]["Enums"]["import_source"]
+          status?: Database["public"]["Enums"]["import_status"]
+          uploaded_at?: string
+          uploaded_by?: string
+          warnings?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "data_imports_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kpi_targets: {
+        Row: {
+          actual_value: number | null
+          created_at: string
+          id: string
+          kpi_name: string
+          planned_value: number
+          report_id: string
+          unit: string | null
+          updated_at: string
+        }
+        Insert: {
+          actual_value?: number | null
+          created_at?: string
+          id?: string
+          kpi_name: string
+          planned_value: number
+          report_id: string
+          unit?: string | null
+          updated_at?: string
+        }
+        Update: {
+          actual_value?: number | null
+          created_at?: string
+          id?: string
+          kpi_name?: string
+          planned_value?: number
+          report_id?: string
+          unit?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kpi_targets_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -40,6 +387,60 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      promo_codes: {
+        Row: {
+          clicks: number | null
+          code: string
+          conversion_rate: number | null
+          created_at: string
+          creator_id: string | null
+          id: string
+          purchases: number | null
+          report_id: string
+          revenue: number | null
+          updated_at: string
+        }
+        Insert: {
+          clicks?: number | null
+          code: string
+          conversion_rate?: number | null
+          created_at?: string
+          creator_id?: string | null
+          id?: string
+          purchases?: number | null
+          report_id: string
+          revenue?: number | null
+          updated_at?: string
+        }
+        Update: {
+          clicks?: number | null
+          code?: string
+          conversion_rate?: number | null
+          created_at?: string
+          creator_id?: string | null
+          id?: string
+          purchases?: number | null
+          report_id?: string
+          revenue?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promo_codes_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promo_codes_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "reports"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       reports: {
         Row: {
@@ -141,6 +542,30 @@ export type Database = {
         }
         Relationships: []
       }
+      tags: {
+        Row: {
+          color: string | null
+          created_at: string
+          id: string
+          name: string
+          type: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          type: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          type?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
@@ -174,8 +599,13 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "analyst" | "client"
+      content_type: "story" | "reel" | "post" | "video" | "short"
+      import_source: "birell" | "carl" | "hypeauditor" | "xlsx" | "csv"
+      import_status: "pending" | "processing" | "completed" | "failed"
+      platform_type: "instagram" | "tiktok" | "youtube" | "facebook" | "twitter"
       report_status: "draft" | "active" | "archived"
       report_type: "influencer" | "social" | "ads"
+      sentiment_type: "positive" | "negative" | "neutral"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -304,8 +734,13 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "analyst", "client"],
+      content_type: ["story", "reel", "post", "video", "short"],
+      import_source: ["birell", "carl", "hypeauditor", "xlsx", "csv"],
+      import_status: ["pending", "processing", "completed", "failed"],
+      platform_type: ["instagram", "tiktok", "youtube", "facebook", "twitter"],
       report_status: ["draft", "active", "archived"],
       report_type: ["influencer", "social", "ads"],
+      sentiment_type: ["positive", "negative", "neutral"],
     },
   },
 } as const
