@@ -9,7 +9,6 @@ import { Card } from "@/components/ui/card";
 import { OverviewTab } from "@/components/reports/OverviewTab";
 import { CreatorsTab } from "@/components/reports/CreatorsTab";
 import { ContentTab } from "@/components/reports/ContentTab";
-import { KPITargetsTab } from "@/components/reports/KPITargetsTab";
 import { AdsTab } from "@/components/reports/AdsTab";
 import { ImportDataDialog } from "@/components/reports/ImportDataDialog";
 import { DataTab } from "@/components/reports/DataTab";
@@ -122,9 +121,6 @@ const ReportDetail = () => {
             <TabsTrigger value="ads" className="rounded-[35px]">
               Ads
             </TabsTrigger>
-            <TabsTrigger value="kpi" className="rounded-[35px]">
-              KPI Targets
-            </TabsTrigger>
             <TabsTrigger value="insights" className="rounded-[35px]">
               AI Insights
             </TabsTrigger>
@@ -148,10 +144,6 @@ const ReportDetail = () => {
 
           <TabsContent value="ads">
             <AdsTab />
-          </TabsContent>
-
-          <TabsContent value="kpi">
-            <KPITargetsTab />
           </TabsContent>
 
           <TabsContent value="insights">

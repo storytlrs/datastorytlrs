@@ -207,6 +207,7 @@ export type Database = {
           audience_breakdown: Json | null
           avatar_url: string | null
           created_at: string
+          currency: string | null
           followers: number | null
           handle: string
           id: string
@@ -221,6 +222,7 @@ export type Database = {
           audience_breakdown?: Json | null
           avatar_url?: string | null
           created_at?: string
+          currency?: string | null
           followers?: number | null
           handle: string
           id?: string
@@ -235,6 +237,7 @@ export type Database = {
           audience_breakdown?: Json | null
           avatar_url?: string | null
           created_at?: string
+          currency?: string | null
           followers?: number | null
           handle?: string
           id?: string
