@@ -1,11 +1,10 @@
 import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useForm } from "react-hook-form";
@@ -34,18 +33,38 @@ const contentSchema = z.object({
 
 type ContentFormData = z.infer<typeof contentSchema>;
 
-interface CreateContentDialogProps {
-  reportId: string;
+interface EditContentDialogProps {
+  content: any;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
 }
 
-export const CreateContentDialog = ({ reportId, onSuccess }: CreateContentDialogProps) => {
-  const [open, setOpen] = useState(false);
+export const EditContentDialog = ({ content, open, onOpenChange, onSuccess }: EditContentDialogProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [creators, setCreators] = useState<any[]>([]);
 
   const { register, handleSubmit, formState: { errors }, setValue, watch, reset } = useForm<ContentFormData>({
     resolver: zodResolver(contentSchema),
+    defaultValues: {
+      creator_id: content.creator_id || "",
+      platform: content.platform || "instagram",
+      content_type: content.content_type || "post",
+      url: content.url || "",
+      published_date: content.published_date ? new Date(content.published_date).toISOString().split('T')[0] : "",
+      reach: content.reach || 0,
+      impressions: content.impressions || 0,
+      views: content.views || 0,
+      likes: content.likes || 0,
+      comments: content.comments || 0,
+      saves: content.saves || 0,
+      shares: content.shares || 0,
+      sticker_clicks: content.sticker_clicks || 0,
+      link_clicks: content.link_clicks || 0,
+      watch_time: content.watch_time || 0,
+      sentiment: content.sentiment || undefined,
+      sentiment_summary: content.sentiment_summary || "",
+    },
   });
 
   const creator_id = watch("creator_id");
@@ -55,13 +74,37 @@ export const CreateContentDialog = ({ reportId, onSuccess }: CreateContentDialog
 
   useEffect(() => {
     fetchCreators();
-  }, [reportId]);
+  }, [content.report_id]);
+
+  useEffect(() => {
+    if (content && open) {
+      reset({
+        creator_id: content.creator_id || "",
+        platform: content.platform || "instagram",
+        content_type: content.content_type || "post",
+        url: content.url || "",
+        published_date: content.published_date ? new Date(content.published_date).toISOString().split('T')[0] : "",
+        reach: content.reach || 0,
+        impressions: content.impressions || 0,
+        views: content.views || 0,
+        likes: content.likes || 0,
+        comments: content.comments || 0,
+        saves: content.saves || 0,
+        shares: content.shares || 0,
+        sticker_clicks: content.sticker_clicks || 0,
+        link_clicks: content.link_clicks || 0,
+        watch_time: content.watch_time || 0,
+        sentiment: content.sentiment || undefined,
+        sentiment_summary: content.sentiment_summary || "",
+      });
+    }
+  }, [content, open, reset]);
 
   const fetchCreators = async () => {
     const { data } = await supabase
       .from("creators")
       .select("id, handle, platform")
-      .eq("report_id", reportId)
+      .eq("report_id", content.report_id)
       .order("handle");
     
     setCreators(data || []);
@@ -70,35 +113,36 @@ export const CreateContentDialog = ({ reportId, onSuccess }: CreateContentDialog
   const onSubmit = async (data: ContentFormData) => {
     setIsSubmitting(true);
     try {
-      const { error } = await supabase.from("content").insert({
-        report_id: reportId,
-        creator_id: data.creator_id,
-        platform: data.platform,
-        content_type: data.content_type,
-        url: data.url || null,
-        published_date: data.published_date || null,
-        reach: data.reach || null,
-        impressions: data.impressions || null,
-        views: data.views || null,
-        likes: data.likes || null,
-        comments: data.comments || null,
-        saves: data.saves || null,
-        shares: data.shares || null,
-        sticker_clicks: data.sticker_clicks || null,
-        link_clicks: data.link_clicks || null,
-        watch_time: data.watch_time || null,
-        sentiment: data.sentiment || null,
-        sentiment_summary: data.sentiment_summary || null,
-      });
+      const { error } = await supabase
+        .from("content")
+        .update({
+          creator_id: data.creator_id,
+          platform: data.platform,
+          content_type: data.content_type,
+          url: data.url || null,
+          published_date: data.published_date || null,
+          reach: data.reach || null,
+          impressions: data.impressions || null,
+          views: data.views || null,
+          likes: data.likes || null,
+          comments: data.comments || null,
+          saves: data.saves || null,
+          shares: data.shares || null,
+          sticker_clicks: data.sticker_clicks || null,
+          link_clicks: data.link_clicks || null,
+          watch_time: data.watch_time || null,
+          sentiment: data.sentiment || null,
+          sentiment_summary: data.sentiment_summary || null,
+        })
+        .eq("id", content.id);
 
       if (error) throw error;
 
-      toast.success("Content added successfully");
-      setOpen(false);
-      reset();
+      toast.success("Content updated successfully");
+      onOpenChange(false);
       onSuccess();
     } catch (error) {
-      toast.error("Failed to create content");
+      toast.error("Failed to update content");
       console.error(error);
     } finally {
       setIsSubmitting(false);
@@ -106,16 +150,10 @@ export const CreateContentDialog = ({ reportId, onSuccess }: CreateContentDialog
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button className="rounded-[35px]">
-          <Plus className="w-4 h-4 mr-2" />
-          Add Content
-        </Button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="rounded-[35px] max-h-[90vh] overflow-y-auto max-w-3xl">
         <DialogHeader>
-          <DialogTitle>Add New Content</DialogTitle>
+          <DialogTitle>Edit Content</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           {/* Content Info Section */}
@@ -339,11 +377,11 @@ export const CreateContentDialog = ({ reportId, onSuccess }: CreateContentDialog
           </div>
 
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)} className="rounded-[35px]">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="rounded-[35px]">
               Cancel
             </Button>
             <Button type="submit" disabled={isSubmitting} className="rounded-[35px]">
-              {isSubmitting ? "Creating..." : "Create Content"}
+              {isSubmitting ? "Saving..." : "Save Changes"}
             </Button>
           </div>
         </form>

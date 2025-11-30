@@ -67,16 +67,20 @@ export type Database = {
           impressions: number | null
           is_branded: boolean | null
           likes: number | null
+          link_clicks: number | null
           main_usp: string | null
           notes: string | null
           organic_views: number | null
           paid_views: number | null
           platform: Database["public"]["Enums"]["platform_type"]
           published_date: string | null
+          reach: number | null
           report_id: string
           saves: number | null
           sentiment: Database["public"]["Enums"]["sentiment_type"] | null
+          sentiment_summary: string | null
           shares: number | null
+          sticker_clicks: number | null
           thumbnail_url: string | null
           updated_at: string
           url: string | null
@@ -100,16 +104,20 @@ export type Database = {
           impressions?: number | null
           is_branded?: boolean | null
           likes?: number | null
+          link_clicks?: number | null
           main_usp?: string | null
           notes?: string | null
           organic_views?: number | null
           paid_views?: number | null
           platform: Database["public"]["Enums"]["platform_type"]
           published_date?: string | null
+          reach?: number | null
           report_id: string
           saves?: number | null
           sentiment?: Database["public"]["Enums"]["sentiment_type"] | null
+          sentiment_summary?: string | null
           shares?: number | null
+          sticker_clicks?: number | null
           thumbnail_url?: string | null
           updated_at?: string
           url?: string | null
@@ -133,16 +141,20 @@ export type Database = {
           impressions?: number | null
           is_branded?: boolean | null
           likes?: number | null
+          link_clicks?: number | null
           main_usp?: string | null
           notes?: string | null
           organic_views?: number | null
           paid_views?: number | null
           platform?: Database["public"]["Enums"]["platform_type"]
           published_date?: string | null
+          reach?: number | null
           report_id?: string
           saves?: number | null
           sentiment?: Database["public"]["Enums"]["sentiment_type"] | null
+          sentiment_summary?: string | null
           shares?: number | null
+          sticker_clicks?: number | null
           thumbnail_url?: string | null
           updated_at?: string
           url?: string | null
