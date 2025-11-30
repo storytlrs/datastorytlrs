@@ -388,6 +388,41 @@ export type Database = {
         }
         Relationships: []
       }
+      projects: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          space_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          space_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          space_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "projects_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "spaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       promo_codes: {
         Row: {
           clicks: number | null
@@ -448,6 +483,7 @@ export type Database = {
           end_date: string | null
           id: string
           name: string
+          project_id: string | null
           space_id: string
           start_date: string | null
           status: Database["public"]["Enums"]["report_status"]
@@ -459,6 +495,7 @@ export type Database = {
           end_date?: string | null
           id?: string
           name: string
+          project_id?: string | null
           space_id: string
           start_date?: string | null
           status?: Database["public"]["Enums"]["report_status"]
@@ -470,6 +507,7 @@ export type Database = {
           end_date?: string | null
           id?: string
           name?: string
+          project_id?: string | null
           space_id?: string
           start_date?: string | null
           status?: Database["public"]["Enums"]["report_status"]
@@ -477,6 +515,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "reports_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "reports_space_id_fkey"
             columns: ["space_id"]

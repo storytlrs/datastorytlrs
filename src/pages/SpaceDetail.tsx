@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Plus, FileText, TrendingUp, BarChart3 } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
+import CreateReportDialog from "@/components/reports/CreateReportDialog";
 
 interface Space {
   id: string;
@@ -41,6 +42,7 @@ const SpaceDetail = () => {
   const [space, setSpace] = useState<Space | null>(null);
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
   useEffect(() => {
     if (spaceId) {
@@ -105,7 +107,10 @@ const SpaceDetail = () => {
                 <p className="text-muted-foreground">{space.description}</p>
               )}
             </div>
-            <Button className="rounded-[35px]">
+            <Button 
+              className="rounded-[35px]"
+              onClick={() => setCreateDialogOpen(true)}
+            >
               <Plus className="w-5 h-5 mr-2" />
               New Report
             </Button>
@@ -118,7 +123,10 @@ const SpaceDetail = () => {
           {reports.length === 0 ? (
             <Card className="p-12 text-center rounded-[35px] border-foreground">
               <p className="text-muted-foreground mb-4">No reports yet</p>
-              <Button className="rounded-[35px]">
+              <Button 
+                className="rounded-[35px]"
+                onClick={() => setCreateDialogOpen(true)}
+              >
                 <Plus className="w-5 h-5 mr-2" />
                 Create your first report
               </Button>
@@ -162,6 +170,13 @@ const SpaceDetail = () => {
             </div>
           )}
         </div>
+
+        <CreateReportDialog
+          open={createDialogOpen}
+          onOpenChange={setCreateDialogOpen}
+          spaceId={spaceId!}
+          onSuccess={fetchSpaceAndReports}
+        />
       </div>
     </div>
   );
