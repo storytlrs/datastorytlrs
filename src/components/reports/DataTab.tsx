@@ -1,12 +1,14 @@
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { EditableDataTable, ColumnDef } from "./EditableDataTable";
 import { toast } from "sonner";
 import { useUserRole } from "@/hooks/useUserRole";
+import { CreateCreatorDialog } from "./CreateCreatorDialog";
+import { CreateContentDialog } from "./CreateContentDialog";
+import { CreateKPITargetDialog } from "./CreateKPITargetDialog";
+import { CreatePromoCodeDialog } from "./CreatePromoCodeDialog";
 
 interface DataTabProps {
   reportId: string;
@@ -226,7 +228,12 @@ export const DataTab = ({ reportId }: DataTabProps) => {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="creators">
+        <TabsContent value="creators" className="space-y-4">
+          {canEdit && (
+            <div className="flex justify-end">
+              <CreateCreatorDialog reportId={reportId} onSuccess={fetchCreators} />
+            </div>
+          )}
           <EditableDataTable
             columns={creatorsColumns}
             data={creators}
@@ -237,7 +244,12 @@ export const DataTab = ({ reportId }: DataTabProps) => {
           />
         </TabsContent>
 
-        <TabsContent value="content">
+        <TabsContent value="content" className="space-y-4">
+          {canEdit && (
+            <div className="flex justify-end">
+              <CreateContentDialog reportId={reportId} onSuccess={fetchContent} />
+            </div>
+          )}
           <EditableDataTable
             columns={contentColumns}
             data={content}
@@ -248,7 +260,12 @@ export const DataTab = ({ reportId }: DataTabProps) => {
           />
         </TabsContent>
 
-        <TabsContent value="kpi">
+        <TabsContent value="kpi" className="space-y-4">
+          {canEdit && (
+            <div className="flex justify-end">
+              <CreateKPITargetDialog reportId={reportId} onSuccess={fetchKpiTargets} />
+            </div>
+          )}
           <EditableDataTable
             columns={kpiColumns}
             data={kpiTargets}
@@ -259,7 +276,12 @@ export const DataTab = ({ reportId }: DataTabProps) => {
           />
         </TabsContent>
 
-        <TabsContent value="promo">
+        <TabsContent value="promo" className="space-y-4">
+          {canEdit && (
+            <div className="flex justify-end">
+              <CreatePromoCodeDialog reportId={reportId} onSuccess={fetchPromoCodes} />
+            </div>
+          )}
           <EditableDataTable
             columns={promoColumns}
             data={promoCodes}
