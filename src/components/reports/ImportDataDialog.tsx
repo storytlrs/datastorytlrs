@@ -57,6 +57,22 @@ export const ImportDataDialog = ({ open, onOpenChange, reportId, onSuccess }: Im
     }
   };
 
+  // Utility: Extract handle from markdown link [handle](url)
+  const extractHandleFromMarkdown = (text: string): string => {
+    if (!text) return "";
+    const match = text.match(/\[([^\]]+)\]/);
+    return match ? match[1] : text;
+  };
+
+  // Utility: Infer platform from URL
+  const inferPlatformFromUrl = (url: string): string => {
+    if (!url) return "instagram";
+    if (url.includes("instagram.com")) return "instagram";
+    if (url.includes("youtube.com")) return "youtube";
+    if (url.includes("tiktok.com")) return "tiktok";
+    return "instagram";
+  };
+
   const parseHypeAuditorFile = async (file: File) => {
     const arrayBuffer = await file.arrayBuffer();
     const workbook = XLSX.read(arrayBuffer, { type: "array" });
@@ -67,79 +83,93 @@ export const ImportDataDialog = ({ open, onOpenChange, reportId, onSuccess }: Im
       ecom: [],
     };
 
-    // Parse Campaign report sheet
-    if (workbook.SheetNames.includes("Campaign report")) {
-      const sheet = workbook.Sheets["Campaign report"];
-      const data: any[] = XLSX.utils.sheet_to_json(sheet);
-      if (data.length > 0) {
-        const campaign = data[0];
+    // Iterate through sheets and detect type by headers
+    for (let i = 0; i < workbook.SheetNames.length; i++) {
+      const sheetName = workbook.SheetNames[i];
+      const sheet = workbook.Sheets[sheetName];
+      const data: any[] = XLSX.utils.sheet_to_json(sheet, { defval: null });
+
+      if (data.length === 0) continue;
+
+      const headers = Object.keys(data[0]);
+
+      // Campaign Summary (Page 1) - vertical KV format
+      if (headers.includes("Campaign") && data.length >= 2) {
+        const campaignRow = data.find((row: any) => row.Campaign === "Campaign") || data[0];
+        const spentRow = data.find((row: any) => row.Campaign?.includes("Spent"));
+        
         parsedData.campaign = {
-          name: campaign["Campaign name"],
-          brand: campaign["Brand"],
-          market: campaign["Market"],
-          startDate: campaign["Start date"],
-          endDate: campaign["End date"],
-          budget: campaign["Budget total"],
-          currency: campaign["Currency"],
+          name: campaignRow["Column1"] || "Untitled Campaign",
+          budget: spentRow ? parseFloat(String(spentRow["Column1"] || 0).replace(/[^0-9.-]/g, "")) : 0,
+          currency: "CZK",
         };
       }
-    }
 
-    // Parse Influencers sheet
-    if (workbook.SheetNames.includes("Influencers")) {
-      const sheet = workbook.Sheets["Influencers"];
-      const data: any[] = XLSX.utils.sheet_to_json(sheet);
-      parsedData.influencers = data.map((row: any) => ({
-        platform: row["Platform"],
-        handle: row["Handle"],
-        name: row["Name"],
-        followers: row["Followers"],
-        aqs: row["AQS"],
-        audienceJSON: row["Audience JSON"],
-      }));
-    }
+      // Influencer Performance (Page 3)
+      if (headers.includes("Account") && headers.includes("Followers")) {
+        parsedData.influencers = data
+          .filter((row: any) => row.Account && row.Followers)
+          .map((row: any) => {
+            const handle = extractHandleFromMarkdown(row.Account);
+            const platform = inferPlatformFromUrl(row.Account);
+            return {
+              platform,
+              handle,
+              followers: parseInt(String(row.Followers || 0).replace(/[^0-9]/g, "")) || 0,
+              aqs: parseFloat(row.AQS) || 0,
+            };
+          });
+      }
 
-    // Parse Media posted sheet
-    if (workbook.SheetNames.includes("Media posted")) {
-      const sheet = workbook.Sheets["Media posted"];
-      const data: any[] = XLSX.utils.sheet_to_json(sheet);
-      parsedData.media = data.map((row: any) => ({
-        platform: row["Platform"],
-        handle: row["Handle"],
-        postURL: row["Post URL"],
-        postID: row["Post ID"],
-        contentType: row["Content type"],
-        publishedAt: row["Published at"],
-        impressions: row["Impressions"],
-        reach: row["Reach"],
-        views: row["Views"],
-        likes: row["Likes"],
-        comments: row["Comments"],
-        shares: row["Shares"],
-        saves: row["Saves"],
-        totalEng: row["Total eng."],
-        er: row["ER"],
-        watchTime: row["Watch time (sec)"],
-        positiveCommentsPercent: row["Positive comments %"],
-        negativeCommentsPercent: row["Negative comments %"],
-        neutralCommentsPercent: row["Neutral comments %"],
-      }));
-    }
+      // Media Posted (Page 4)
+      if (headers.includes("Username") && headers.includes("Type") && headers.includes("Url")) {
+        parsedData.media = data
+          .filter((row: any) => row.Username && row.Url)
+          .map((row: any) => {
+            const handle = extractHandleFromMarkdown(row.Username);
+            const platform = inferPlatformFromUrl(row.Url);
+            const contentType = (row.Type || "post").toLowerCase().replace("s", ""); // "reels" -> "reel"
+            
+            return {
+              platform,
+              handle,
+              postURL: row.Url,
+              contentType,
+              publishedAt: row["Post date"] || null,
+              impressions: parseInt(row.Impressions) || 0,
+              reach: parseInt(row.Reach) || 0,
+              views: parseInt(row.Views) || 0,
+              likes: parseInt(row.Likes) || 0,
+              comments: parseInt(row.Comments) || 0,
+              shares: parseInt(row.Shares) || 0,
+              saves: parseInt(row.Saves) || 0,
+              er: parseFloat(row.ER) || 0,
+              positiveCommentsPercent: parseFloat(row["Positive comments %"]) || null,
+              negativeCommentsPercent: parseFloat(row["Negative comments %"]) || null,
+              neutralCommentsPercent: parseFloat(row["Neutral comments %"]) || null,
+            };
+          });
+      }
 
-    // Parse E-com performance sheet
-    if (workbook.SheetNames.includes("E-com performance")) {
-      const sheet = workbook.Sheets["E-com performance"];
-      const data: any[] = XLSX.utils.sheet_to_json(sheet);
-      parsedData.ecom = data.map((row: any) => ({
-        platform: row["Platform"],
-        handle: row["Handle"],
-        postURL: row["Post URL"],
-        promoCode: row["Promo code"],
-        clicks: row["Clicks"],
-        purchases: row["Purchases"],
-        revenue: row["Revenue"],
-        conversion: row["Conversion"],
-      }));
+      // E-com Performance (Page 5)
+      if (headers.includes("Influencer") && headers.includes("Promocode")) {
+        parsedData.ecom = data
+          .filter((row: any) => row.Influencer && row.Promocode)
+          .map((row: any) => {
+            const handle = extractHandleFromMarkdown(row.Influencer);
+            const platform = inferPlatformFromUrl(row.Influencer);
+            
+            return {
+              platform,
+              handle,
+              promoCode: row.Promocode,
+              clicks: parseInt(row["E-com clicks"]) || 0,
+              purchases: parseInt(row["E-com purchases"]) || 0,
+              revenue: parseFloat(String(row["E-com revenue"] || 0).replace(/[^0-9.-]/g, "")) || 0,
+              conversion: parseFloat(row["E-com conversion"]) || 0,
+            };
+          });
+      }
     }
 
     return parsedData;
@@ -277,9 +307,7 @@ export const ImportDataDialog = ({ open, onOpenChange, reportId, onSuccess }: Im
           <Alert>
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              The file should contain the following sheets: <strong>Campaign report</strong>,{" "}
-              <strong>Influencers</strong>, <strong>Media posted</strong>, and{" "}
-              <strong>E-com performance</strong> (optional)
+              Upload a HypeAuditor Excel export with campaign summary, influencer performance, media posted, and e-commerce data
             </AlertDescription>
           </Alert>
 

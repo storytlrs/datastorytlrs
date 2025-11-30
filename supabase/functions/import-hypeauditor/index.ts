@@ -215,6 +215,7 @@ serve(async (req) => {
           const contentTypeMap: Record<string, string> = {
             "post": "post",
             "reel": "reel",
+            "reels": "reel",
             "story": "story",
             "video": "video",
             "short": "short",
