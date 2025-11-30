@@ -7,7 +7,6 @@ import { toast } from "sonner";
 import { useUserRole } from "@/hooks/useUserRole";
 import { CreateCreatorDialog } from "./CreateCreatorDialog";
 import { CreateContentDialog } from "./CreateContentDialog";
-import { CreateKPITargetDialog } from "./CreateKPITargetDialog";
 import { CreatePromoCodeDialog } from "./CreatePromoCodeDialog";
 
 interface DataTabProps {
@@ -19,7 +18,6 @@ export const DataTab = ({ reportId }: DataTabProps) => {
   const [activeTab, setActiveTab] = useState("creators");
   const [creators, setCreators] = useState<any[]>([]);
   const [content, setContent] = useState<any[]>([]);
-  const [kpiTargets, setKpiTargets] = useState<any[]>([]);
   const [promoCodes, setPromoCodes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -33,7 +31,6 @@ export const DataTab = ({ reportId }: DataTabProps) => {
       await Promise.all([
         fetchCreators(),
         fetchContent(),
-        fetchKpiTargets(),
         fetchPromoCodes(),
       ]);
     } finally {
@@ -69,19 +66,6 @@ export const DataTab = ({ reportId }: DataTabProps) => {
     setContent(data || []);
   };
 
-  const fetchKpiTargets = async () => {
-    const { data, error } = await supabase
-      .from("kpi_targets")
-      .select("*")
-      .eq("report_id", reportId)
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      toast.error("Failed to load KPI targets");
-      return;
-    }
-    setKpiTargets(data || []);
-  };
 
   const fetchPromoCodes = async () => {
     const { data, error } = await supabase
@@ -97,7 +81,7 @@ export const DataTab = ({ reportId }: DataTabProps) => {
     setPromoCodes(data || []);
   };
 
-  const handleUpdate = async (table: "creators" | "content" | "kpi_targets" | "promo_codes", id: string, field: string, value: any) => {
+  const handleUpdate = async (table: "creators" | "content" | "promo_codes", id: string, field: string, value: any) => {
     const { error } = await supabase
       .from(table)
       .update({ [field]: value })
@@ -108,11 +92,10 @@ export const DataTab = ({ reportId }: DataTabProps) => {
     // Refresh the specific dataset
     if (table === "creators") await fetchCreators();
     if (table === "content") await fetchContent();
-    if (table === "kpi_targets") await fetchKpiTargets();
     if (table === "promo_codes") await fetchPromoCodes();
   };
 
-  const handleDelete = async (table: "creators" | "content" | "kpi_targets" | "promo_codes", id: string) => {
+  const handleDelete = async (table: "creators" | "content" | "promo_codes", id: string) => {
     const { error } = await supabase.from(table).delete().eq("id", id);
 
     if (error) throw error;
@@ -120,7 +103,6 @@ export const DataTab = ({ reportId }: DataTabProps) => {
     // Refresh the specific dataset
     if (table === "creators") await fetchCreators();
     if (table === "content") await fetchContent();
-    if (table === "kpi_targets") await fetchKpiTargets();
     if (table === "promo_codes") await fetchPromoCodes();
   };
 
@@ -147,6 +129,19 @@ export const DataTab = ({ reportId }: DataTabProps) => {
       ]
     },
     { key: "followers", label: "Followers", type: "number", width: "120px", format: formatNumber },
+    {
+      key: "currency",
+      label: "Currency",
+      type: "select",
+      width: "120px",
+      options: [
+        { value: "USD", label: "$ USD" },
+        { value: "EUR", label: "€ EUR" },
+        { value: "GBP", label: "£ GBP" },
+        { value: "CZK", label: "Kč CZK" },
+        { value: "PLN", label: "zł PLN" },
+      ],
+    },
     { key: "profile_url", label: "Profile URL", type: "text", width: "250px" },
     { key: "notes", label: "Notes", type: "text" },
   ];
@@ -187,12 +182,6 @@ export const DataTab = ({ reportId }: DataTabProps) => {
     { key: "url", label: "URL", type: "text", width: "200px" },
   ];
 
-  const kpiColumns: ColumnDef[] = [
-    { key: "kpi_name", label: "KPI Name", type: "text", width: "200px" },
-    { key: "planned_value", label: "Planned", type: "number", width: "150px" },
-    { key: "actual_value", label: "Actual", type: "number", width: "150px" },
-    { key: "unit", label: "Unit", type: "text", width: "100px" },
-  ];
 
   const promoColumns: ColumnDef[] = [
     { key: "creators", label: "Creator", type: "text", width: "150px", editable: false, format: (val: any) => val?.handle || "-" },
@@ -219,9 +208,6 @@ export const DataTab = ({ reportId }: DataTabProps) => {
           </TabsTrigger>
           <TabsTrigger value="content" className="rounded-[35px]">
             Content
-          </TabsTrigger>
-          <TabsTrigger value="kpi" className="rounded-[35px]">
-            KPI Targets
           </TabsTrigger>
           <TabsTrigger value="promo" className="rounded-[35px]">
             Promo Codes
@@ -256,22 +242,6 @@ export const DataTab = ({ reportId }: DataTabProps) => {
             canEdit={canEdit}
             onUpdate={(id, field, value) => handleUpdate("content", id, field, value)}
             onDelete={canEdit ? (id) => handleDelete("content", id) : undefined}
-            loading={loading}
-          />
-        </TabsContent>
-
-        <TabsContent value="kpi" className="space-y-4">
-          {canEdit && (
-            <div className="flex justify-end">
-              <CreateKPITargetDialog reportId={reportId} onSuccess={fetchKpiTargets} />
-            </div>
-          )}
-          <EditableDataTable
-            columns={kpiColumns}
-            data={kpiTargets}
-            canEdit={canEdit}
-            onUpdate={(id, field, value) => handleUpdate("kpi_targets", id, field, value)}
-            onDelete={canEdit ? (id) => handleDelete("kpi_targets", id) : undefined}
             loading={loading}
           />
         </TabsContent>

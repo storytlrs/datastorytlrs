@@ -18,6 +18,7 @@ const creatorSchema = z.object({
   followers: z.number().min(0).optional(),
   profile_url: z.string().url().optional().or(z.literal("")),
   notes: z.string().optional(),
+  currency: z.enum(["USD", "EUR", "GBP", "CZK", "PLN"]).default("USD"),
 });
 
 type CreatorFormData = z.infer<typeof creatorSchema>;
@@ -33,9 +34,13 @@ export const CreateCreatorDialog = ({ reportId, onSuccess }: CreateCreatorDialog
 
   const { register, handleSubmit, formState: { errors }, setValue, watch, reset } = useForm<CreatorFormData>({
     resolver: zodResolver(creatorSchema),
+    defaultValues: {
+      currency: "USD",
+    },
   });
 
   const platform = watch("platform");
+  const currency = watch("currency");
 
   const onSubmit = async (data: CreatorFormData) => {
     setIsSubmitting(true);
@@ -47,6 +52,7 @@ export const CreateCreatorDialog = ({ reportId, onSuccess }: CreateCreatorDialog
         followers: data.followers || null,
         profile_url: data.profile_url || null,
         notes: data.notes || null,
+        currency: data.currency,
       });
 
       if (error) throw error;
@@ -85,6 +91,23 @@ export const CreateCreatorDialog = ({ reportId, onSuccess }: CreateCreatorDialog
               className="rounded-[35px]"
             />
             {errors.handle && <p className="text-sm text-destructive mt-1">{errors.handle.message}</p>}
+          </div>
+
+          <div>
+            <Label htmlFor="currency">Currency</Label>
+            <Select value={currency} onValueChange={(value) => setValue("currency", value as any)}>
+              <SelectTrigger className="rounded-[35px]">
+                <SelectValue placeholder="Select currency" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="USD">$ USD</SelectItem>
+                <SelectItem value="EUR">€ EUR</SelectItem>
+                <SelectItem value="GBP">£ GBP</SelectItem>
+                <SelectItem value="CZK">Kč CZK</SelectItem>
+                <SelectItem value="PLN">zł PLN</SelectItem>
+              </SelectContent>
+            </Select>
+            {errors.currency && <p className="text-sm text-destructive mt-1">{errors.currency.message}</p>}
           </div>
 
           <div>
