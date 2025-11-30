@@ -16,7 +16,7 @@ import { DataTab } from "@/components/reports/DataTab";
 interface Report {
   id: string;
   name: string;
-  type: "influencer" | "social" | "ads";
+  type: "influencer" | "social" | "ads" | "always_on";
   status: "draft" | "active" | "archived";
   start_date: string | null;
   end_date: string | null;
