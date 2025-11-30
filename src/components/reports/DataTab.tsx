@@ -113,13 +113,24 @@ export const DataTab = ({ reportId }: DataTabProps) => {
     return num.toString();
   };
 
+  const getCurrencySymbol = (curr: string) => {
+    const symbols: Record<string, string> = {
+      USD: "$",
+      EUR: "€",
+      GBP: "£",
+      CZK: "Kč",
+      PLN: "zł"
+    };
+    return symbols[curr] || "$";
+  };
+
   const creatorsColumns: ColumnDef[] = [
-    { key: "handle", label: "Handle", type: "text", width: "200px" },
+    { key: "handle", label: "Name", type: "text", width: "150px" },
     { 
       key: "platform", 
       label: "Platform", 
       type: "select", 
-      width: "150px",
+      width: "120px",
       options: [
         { value: "instagram", label: "Instagram" },
         { value: "tiktok", label: "TikTok" },
@@ -128,12 +139,12 @@ export const DataTab = ({ reportId }: DataTabProps) => {
         { value: "twitter", label: "Twitter" },
       ]
     },
-    { key: "followers", label: "Followers", type: "number", width: "120px", format: formatNumber },
+    { key: "profile_url", label: "Profile URL", type: "text", width: "200px" },
     {
       key: "currency",
       label: "Currency",
       type: "select",
-      width: "120px",
+      width: "100px",
       options: [
         { value: "USD", label: "$ USD" },
         { value: "EUR", label: "€ EUR" },
@@ -142,8 +153,57 @@ export const DataTab = ({ reportId }: DataTabProps) => {
         { value: "PLN", label: "zł PLN" },
       ],
     },
-    { key: "profile_url", label: "Profile URL", type: "text", width: "250px" },
-    { key: "notes", label: "Notes", type: "text" },
+    { 
+      key: "posts", 
+      label: "Posts", 
+      type: "text", 
+      width: "120px", 
+      editable: false,
+      calculated: true,
+      format: (val: any, row: any) => row.posts_count > 0 ? `${row.posts_count} × ${getCurrencySymbol(row.currency)}${row.posts_cost}` : "-"
+    },
+    { 
+      key: "reels", 
+      label: "Reels", 
+      type: "text", 
+      width: "120px", 
+      editable: false,
+      calculated: true,
+      format: (val: any, row: any) => row.reels_count > 0 ? `${row.reels_count} × ${getCurrencySymbol(row.currency)}${row.reels_cost}` : "-"
+    },
+    { 
+      key: "stories", 
+      label: "Stories", 
+      type: "text", 
+      width: "120px", 
+      editable: false,
+      calculated: true,
+      format: (val: any, row: any) => row.stories_count > 0 ? `${row.stories_count} × ${getCurrencySymbol(row.currency)}${row.stories_cost}` : "-"
+    },
+    { key: "avg_reach", label: "Avg Reach", type: "number", width: "110px", format: formatNumber },
+    { key: "avg_views", label: "Avg Views", type: "number", width: "110px", format: formatNumber },
+    { key: "avg_engagement_rate", label: "Avg ER %", type: "number", width: "100px" },
+    { 
+      key: "total_pieces", 
+      label: "Total Pieces", 
+      type: "text", 
+      width: "100px", 
+      editable: false,
+      calculated: true,
+      format: (val: any, row: any) => (row.posts_count + row.reels_count + row.stories_count).toString()
+    },
+    { 
+      key: "total_cost", 
+      label: "Total Cost", 
+      type: "text", 
+      width: "120px", 
+      editable: false,
+      calculated: true,
+      format: (val: any, row: any) => {
+        const total = (row.posts_count * row.posts_cost) + (row.reels_count * row.reels_cost) + (row.stories_count * row.stories_cost);
+        return `${getCurrencySymbol(row.currency)}${total.toFixed(2)}`;
+      }
+    },
   ];
 
   const contentColumns: ColumnDef[] = [

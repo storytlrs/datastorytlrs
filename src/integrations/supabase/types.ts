@@ -206,6 +206,9 @@ export type Database = {
         Row: {
           audience_breakdown: Json | null
           avatar_url: string | null
+          avg_engagement_rate: number | null
+          avg_reach: number | null
+          avg_views: number | null
           created_at: string
           currency: string | null
           followers: number | null
@@ -213,14 +216,23 @@ export type Database = {
           id: string
           notes: string | null
           platform: Database["public"]["Enums"]["platform_type"]
+          posts_cost: number | null
+          posts_count: number | null
           profile_url: string | null
+          reels_cost: number | null
+          reels_count: number | null
           report_id: string
           sentiment_summary: Json | null
+          stories_cost: number | null
+          stories_count: number | null
           updated_at: string
         }
         Insert: {
           audience_breakdown?: Json | null
           avatar_url?: string | null
+          avg_engagement_rate?: number | null
+          avg_reach?: number | null
+          avg_views?: number | null
           created_at?: string
           currency?: string | null
           followers?: number | null
@@ -228,14 +240,23 @@ export type Database = {
           id?: string
           notes?: string | null
           platform: Database["public"]["Enums"]["platform_type"]
+          posts_cost?: number | null
+          posts_count?: number | null
           profile_url?: string | null
+          reels_cost?: number | null
+          reels_count?: number | null
           report_id: string
           sentiment_summary?: Json | null
+          stories_cost?: number | null
+          stories_count?: number | null
           updated_at?: string
         }
         Update: {
           audience_breakdown?: Json | null
           avatar_url?: string | null
+          avg_engagement_rate?: number | null
+          avg_reach?: number | null
+          avg_views?: number | null
           created_at?: string
           currency?: string | null
           followers?: number | null
@@ -243,9 +264,15 @@ export type Database = {
           id?: string
           notes?: string | null
           platform?: Database["public"]["Enums"]["platform_type"]
+          posts_cost?: number | null
+          posts_count?: number | null
           profile_url?: string | null
+          reels_cost?: number | null
+          reels_count?: number | null
           report_id?: string
           sentiment_summary?: Json | null
+          stories_cost?: number | null
+          stories_count?: number | null
           updated_at?: string
         }
         Relationships: [
