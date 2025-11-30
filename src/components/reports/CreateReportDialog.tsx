@@ -196,7 +196,7 @@ const CreateReportDialog = ({
           },
           body: JSON.stringify({
             reportId,
-            data: parsedData,
+            parsedData: parsedData,
             fileName: file.name,
           }),
         }
@@ -473,6 +473,9 @@ const CreateReportDialog = ({
             {step === 2 && "Upload Data (Optional)"}
             {step === 3 && "Create Report"}
           </DialogTitle>
+          <p className="text-sm text-muted-foreground">
+            Step {step} of 3
+          </p>
         </DialogHeader>
 
         {renderStepIndicator()}
