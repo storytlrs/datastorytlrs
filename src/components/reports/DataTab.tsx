@@ -8,6 +8,7 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { CreateCreatorDialog } from "./CreateCreatorDialog";
 import { EditCreatorDialog } from "./EditCreatorDialog";
 import { CreateContentDialog } from "./CreateContentDialog";
+import { EditContentDialog } from "./EditContentDialog";
 import { CreatePromoCodeDialog } from "./CreatePromoCodeDialog";
 
 interface DataTabProps {
@@ -22,6 +23,7 @@ export const DataTab = ({ reportId }: DataTabProps) => {
   const [promoCodes, setPromoCodes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingCreator, setEditingCreator] = useState<any>(null);
+  const [editingContent, setEditingContent] = useState<any>(null);
 
   useEffect(() => {
     fetchData();
@@ -211,39 +213,26 @@ export const DataTab = ({ reportId }: DataTabProps) => {
   ];
 
   const contentColumns: ColumnDef[] = [
-    { key: "creators", label: "Creator", type: "text", width: "150px", editable: false, format: (val: any) => val?.handle || "-" },
-    { 
-      key: "platform", 
-      label: "Platform", 
-      type: "select", 
-      width: "120px",
-      options: [
-        { value: "instagram", label: "Instagram" },
-        { value: "tiktok", label: "TikTok" },
-        { value: "youtube", label: "YouTube" },
-        { value: "facebook", label: "Facebook" },
-        { value: "twitter", label: "Twitter" },
-      ]
-    },
-    { 
-      key: "content_type", 
-      label: "Type", 
-      type: "select", 
-      width: "120px",
-      options: [
-        { value: "story", label: "Story" },
-        { value: "reel", label: "Reel" },
-        { value: "post", label: "Post" },
-        { value: "video", label: "Video" },
-        { value: "short", label: "Short" },
-      ]
-    },
-    { key: "views", label: "Views", type: "number", width: "100px", format: formatNumber },
-    { key: "likes", label: "Likes", type: "number", width: "100px", format: formatNumber },
-    { key: "comments", label: "Comments", type: "number", width: "100px", format: formatNumber },
-    { key: "shares", label: "Shares", type: "number", width: "100px", format: formatNumber },
-    { key: "engagement_rate", label: "ER %", type: "number", width: "100px" },
-    { key: "url", label: "URL", type: "text", width: "200px" },
+    // Content Info
+    { key: "creators", label: "Creator", type: "text", editable: false, format: (val: any) => val?.handle || "-" },
+    { key: "platform", label: "Platform", type: "text", editable: false },
+    { key: "content_type", label: "Type", type: "text", editable: false },
+    { key: "url", label: "URL", type: "text", editable: false },
+    { key: "published_date", label: "Published", type: "date", editable: false },
+    // Engagement Metrics
+    { key: "reach", label: "Reach", type: "number", editable: false, format: formatNumber },
+    { key: "impressions", label: "Impressions", type: "number", editable: false, format: formatNumber },
+    { key: "views", label: "Views", type: "number", editable: false, format: formatNumber },
+    { key: "likes", label: "Likes", type: "number", editable: false, format: formatNumber },
+    { key: "comments", label: "Comments", type: "number", editable: false, format: formatNumber },
+    { key: "saves", label: "Saves", type: "number", editable: false, format: formatNumber },
+    { key: "shares", label: "Shares", type: "number", editable: false, format: formatNumber },
+    { key: "sticker_clicks", label: "Sticker Clicks", type: "number", editable: false, format: formatNumber },
+    { key: "link_clicks", label: "Link Clicks", type: "number", editable: false, format: formatNumber },
+    // Performance
+    { key: "watch_time", label: "Watch Time (s)", type: "number", editable: false },
+    { key: "sentiment", label: "Sentiment", type: "text", editable: false },
+    { key: "sentiment_summary", label: "Sentiment Summary", type: "text", editable: false },
   ];
 
 
@@ -321,8 +310,17 @@ export const DataTab = ({ reportId }: DataTabProps) => {
             canEdit={canEdit}
             onUpdate={(id, field, value) => handleUpdate("content", id, field, value)}
             onDelete={canEdit ? (id) => handleDelete("content", id) : undefined}
+            onEdit={canEdit ? (contentItem) => setEditingContent(contentItem) : undefined}
             loading={loading}
           />
+          {editingContent && (
+            <EditContentDialog
+              content={editingContent}
+              open={!!editingContent}
+              onOpenChange={(open) => !open && setEditingContent(null)}
+              onSuccess={fetchContent}
+            />
+          )}
         </TabsContent>
 
         <TabsContent value="promo" className="space-y-4">
