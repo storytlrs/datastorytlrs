@@ -6,6 +6,7 @@ import { EditableDataTable, ColumnDef } from "./EditableDataTable";
 import { toast } from "sonner";
 import { useUserRole } from "@/hooks/useUserRole";
 import { CreateCreatorDialog } from "./CreateCreatorDialog";
+import { EditCreatorDialog } from "./EditCreatorDialog";
 import { CreateContentDialog } from "./CreateContentDialog";
 import { CreatePromoCodeDialog } from "./CreatePromoCodeDialog";
 
@@ -20,6 +21,7 @@ export const DataTab = ({ reportId }: DataTabProps) => {
   const [content, setContent] = useState<any[]>([]);
   const [promoCodes, setPromoCodes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editingCreator, setEditingCreator] = useState<any>(null);
 
   useEffect(() => {
     fetchData();
@@ -125,12 +127,13 @@ export const DataTab = ({ reportId }: DataTabProps) => {
   };
 
   const creatorsColumns: ColumnDef[] = [
-    { key: "handle", label: "Name", type: "text", width: "150px" },
+    { key: "handle", label: "Handle", type: "text", width: "150px", editable: false },
     { 
       key: "platform", 
       label: "Platform", 
       type: "select", 
       width: "120px",
+      editable: false,
       options: [
         { value: "instagram", label: "Instagram" },
         { value: "tiktok", label: "TikTok" },
@@ -139,12 +142,13 @@ export const DataTab = ({ reportId }: DataTabProps) => {
         { value: "twitter", label: "Twitter" },
       ]
     },
-    { key: "profile_url", label: "Profile URL", type: "text", width: "200px" },
+    { key: "profile_url", label: "Profile URL", type: "text", width: "200px", editable: false },
     {
       key: "currency",
       label: "Currency",
       type: "select",
       width: "100px",
+      editable: false,
       options: [
         { value: "USD", label: "$ USD" },
         { value: "EUR", label: "€ EUR" },
@@ -153,36 +157,36 @@ export const DataTab = ({ reportId }: DataTabProps) => {
         { value: "PLN", label: "zł PLN" },
       ],
     },
+    { key: "posts_count", label: "Posts", type: "number", width: "80px", editable: false },
     { 
-      key: "posts", 
-      label: "Posts", 
-      type: "text", 
-      width: "120px", 
+      key: "posts_cost", 
+      label: "Posts Cost", 
+      type: "number", 
+      width: "100px", 
       editable: false,
-      calculated: true,
-      format: (val: any, row: any) => row.posts_count > 0 ? `${row.posts_count} × ${getCurrencySymbol(row.currency)}${row.posts_cost}` : "-"
+      format: (val: any, row: any) => `${getCurrencySymbol(row.currency)}${val?.toFixed(2) || "0.00"}`
     },
+    { key: "reels_count", label: "Reels", type: "number", width: "80px", editable: false },
     { 
-      key: "reels", 
-      label: "Reels", 
-      type: "text", 
-      width: "120px", 
+      key: "reels_cost", 
+      label: "Reels Cost", 
+      type: "number", 
+      width: "100px", 
       editable: false,
-      calculated: true,
-      format: (val: any, row: any) => row.reels_count > 0 ? `${row.reels_count} × ${getCurrencySymbol(row.currency)}${row.reels_cost}` : "-"
+      format: (val: any, row: any) => `${getCurrencySymbol(row.currency)}${val?.toFixed(2) || "0.00"}`
     },
+    { key: "stories_count", label: "Stories", type: "number", width: "80px", editable: false },
     { 
-      key: "stories", 
-      label: "Stories", 
-      type: "text", 
-      width: "120px", 
+      key: "stories_cost", 
+      label: "Stories Cost", 
+      type: "number", 
+      width: "100px", 
       editable: false,
-      calculated: true,
-      format: (val: any, row: any) => row.stories_count > 0 ? `${row.stories_count} × ${getCurrencySymbol(row.currency)}${row.stories_cost}` : "-"
+      format: (val: any, row: any) => `${getCurrencySymbol(row.currency)}${val?.toFixed(2) || "0.00"}`
     },
-    { key: "avg_reach", label: "Avg Reach", type: "number", width: "110px", format: formatNumber },
-    { key: "avg_views", label: "Avg Views", type: "number", width: "110px", format: formatNumber },
-    { key: "avg_engagement_rate", label: "Avg ER %", type: "number", width: "100px" },
+    { key: "avg_reach", label: "Avg Reach", type: "number", width: "110px", editable: false, format: formatNumber },
+    { key: "avg_views", label: "Avg Views", type: "number", width: "110px", editable: false, format: formatNumber },
+    { key: "avg_engagement_rate", label: "Avg ER %", type: "number", width: "100px", editable: false },
     { 
       key: "total_pieces", 
       label: "Total Pieces", 
@@ -275,6 +279,12 @@ export const DataTab = ({ reportId }: DataTabProps) => {
         </TabsList>
 
         <TabsContent value="creators" className="space-y-4">
+          <div className="mb-4">
+            <h3 className="text-lg font-semibold">Creators (Campaign Planning)</h3>
+            <p className="text-sm text-muted-foreground">
+              Planned content deliverables and expected performance. Actual results are tracked in Content tab.
+            </p>
+          </div>
           {canEdit && (
             <div className="flex justify-end">
               <CreateCreatorDialog reportId={reportId} onSuccess={fetchCreators} />
@@ -286,8 +296,17 @@ export const DataTab = ({ reportId }: DataTabProps) => {
             canEdit={canEdit}
             onUpdate={(id, field, value) => handleUpdate("creators", id, field, value)}
             onDelete={canEdit ? (id) => handleDelete("creators", id) : undefined}
+            onEdit={canEdit ? (creator) => setEditingCreator(creator) : undefined}
             loading={loading}
           />
+          {editingCreator && (
+            <EditCreatorDialog
+              creator={editingCreator}
+              open={!!editingCreator}
+              onOpenChange={(open) => !open && setEditingCreator(null)}
+              onSuccess={fetchCreators}
+            />
+          )}
         </TabsContent>
 
         <TabsContent value="content" className="space-y-4">

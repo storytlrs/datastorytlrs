@@ -3,7 +3,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Trash2, Loader2 } from "lucide-react";
+import { Trash2, Loader2, Pencil } from "lucide-react";
 import { toast } from "sonner";
 
 export type ColumnType = "text" | "number" | "select" | "date";
@@ -25,6 +25,7 @@ interface EditableDataTableProps {
   canEdit: boolean;
   onUpdate: (id: string, field: string, value: any) => Promise<void>;
   onDelete?: (id: string) => Promise<void>;
+  onEdit?: (row: any) => void;
   loading?: boolean;
 }
 
@@ -34,6 +35,7 @@ export const EditableDataTable = ({
   canEdit,
   onUpdate,
   onDelete,
+  onEdit,
   loading = false,
 }: EditableDataTableProps) => {
   const [editingCell, setEditingCell] = useState<{ id: string; field: string } | null>(null);
@@ -168,13 +170,13 @@ export const EditableDataTable = ({
                 {col.label}
               </TableHead>
             ))}
-            {canEdit && onDelete && <TableHead className="w-[60px]">Actions</TableHead>}
+            {canEdit && (onDelete || onEdit) && <TableHead className="w-[100px]">Actions</TableHead>}
           </TableRow>
         </TableHeader>
         <TableBody>
           {data.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={columns.length + (canEdit && onDelete ? 1 : 0)} className="text-center py-8 text-muted-foreground">
+              <TableCell colSpan={columns.length + (canEdit && (onDelete || onEdit) ? 1 : 0)} className="text-center py-8 text-muted-foreground">
                 No data available
               </TableCell>
             </TableRow>
@@ -184,20 +186,33 @@ export const EditableDataTable = ({
                 {columns.map((col) => (
                   <TableCell key={col.key}>{renderCell(row, col)}</TableCell>
                 ))}
-                {canEdit && onDelete && (
+                {canEdit && (onDelete || onEdit) && (
                   <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDelete(row.id)}
-                      disabled={deletingId === row.id}
-                    >
-                      {deletingId === row.id ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Trash2 className="w-4 h-4" />
+                    <div className="flex gap-1">
+                      {onEdit && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => onEdit(row)}
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </Button>
                       )}
-                    </Button>
+                      {onDelete && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDelete(row.id)}
+                          disabled={deletingId === row.id}
+                        >
+                          {deletingId === row.id ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="w-4 h-4" />
+                          )}
+                        </Button>
+                      )}
+                    </div>
                   </TableCell>
                 )}
               </TableRow>
