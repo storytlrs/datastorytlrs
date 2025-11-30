@@ -6,6 +6,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
+import { OverviewTab } from "@/components/reports/OverviewTab";
+import { CreatorsTab } from "@/components/reports/CreatorsTab";
+import { ContentTab } from "@/components/reports/ContentTab";
+import { KPITargetsTab } from "@/components/reports/KPITargetsTab";
 
 interface Report {
   id: string;
@@ -113,30 +117,15 @@ const ReportDetail = () => {
           </TabsList>
 
           <TabsContent value="overview">
-            <Card className="p-8 rounded-[35px] border-foreground">
-              <h2 className="text-2xl font-bold mb-4">Performance Overview</h2>
-              <p className="text-muted-foreground">
-                KPI cards and overview metrics will be displayed here once data is imported.
-              </p>
-            </Card>
+            <OverviewTab />
           </TabsContent>
 
           <TabsContent value="creators">
-            <Card className="p-8 rounded-[35px] border-foreground">
-              <h2 className="text-2xl font-bold mb-4">Creator Performance</h2>
-              <p className="text-muted-foreground">
-                Creator scatter plots and performance tables will be displayed here.
-              </p>
-            </Card>
+            <CreatorsTab />
           </TabsContent>
 
           <TabsContent value="content">
-            <Card className="p-8 rounded-[35px] border-foreground">
-              <h2 className="text-2xl font-bold mb-4">Content Analysis</h2>
-              <p className="text-muted-foreground">
-                Content grid with post previews and performance metrics will be displayed here.
-              </p>
-            </Card>
+            <ContentTab />
           </TabsContent>
 
           <TabsContent value="ads">
@@ -149,12 +138,7 @@ const ReportDetail = () => {
           </TabsContent>
 
           <TabsContent value="kpi">
-            <Card className="p-8 rounded-[35px] border-foreground">
-              <h2 className="text-2xl font-bold mb-4">KPI Targets</h2>
-              <p className="text-muted-foreground">
-                Planned vs Actual KPI comparison will be displayed here.
-              </p>
-            </Card>
+            <KPITargetsTab />
           </TabsContent>
 
           <TabsContent value="insights">
