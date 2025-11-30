@@ -47,5 +47,11 @@ export const useUserRole = () => {
     return () => subscription.unsubscribe();
   }, []);
 
-  return { role, loading, isAdmin: role === "admin" };
+  return { 
+    role, 
+    loading, 
+    isAdmin: role === "admin",
+    isAnalyst: role === "analyst",
+    canEdit: role === "admin" || role === "analyst"
+  };
 };
