@@ -12,6 +12,12 @@ interface OEmbedResponse {
   author_name?: string;
 }
 
+interface PreviewResult {
+  thumbnail_url: string | null;
+  title: string | null;
+  source: string;
+}
+
 const getOEmbedUrl = (url: string): string | null => {
   const lowerUrl = url.toLowerCase();
   
@@ -38,6 +44,48 @@ const getOEmbedUrl = (url: string): string | null => {
   return null;
 };
 
+// Helper function to fetch Open Graph preview from a URL
+const fetchOpenGraphPreview = async (url: string): Promise<PreviewResult | null> => {
+  try {
+    console.log(`Attempting Open Graph fallback for: ${url}`);
+    
+    const pageResponse = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; Lovable/1.0; +https://lovable.dev)'
+      }
+    });
+    
+    if (!pageResponse.ok) {
+      console.log(`Open Graph fetch failed with status: ${pageResponse.status}`);
+      return null;
+    }
+    
+    const html = await pageResponse.text();
+    
+    // Extract og:image
+    const ogImageMatch = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i) ||
+                        html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:image["']/i);
+    
+    const ogTitleMatch = html.match(/<meta[^>]*property=["']og:title["'][^>]*content=["']([^"']+)["']/i) ||
+                        html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:title["']/i);
+    
+    if (ogImageMatch) {
+      console.log('Open Graph preview found:', ogImageMatch[1]);
+      return {
+        thumbnail_url: ogImageMatch[1],
+        title: ogTitleMatch ? ogTitleMatch[1] : null,
+        source: 'opengraph'
+      };
+    }
+    
+    console.log('No og:image found in page');
+    return null;
+  } catch (error) {
+    console.log('Open Graph fallback error:', error);
+    return null;
+  }
+};
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -48,7 +96,6 @@ serve(async (req) => {
     const { url } = await req.json();
     
     if (!url) {
-      // Always return 200 with error in body
       return new Response(
         JSON.stringify({ success: false, error: 'URL is required' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -59,41 +106,22 @@ serve(async (req) => {
     
     const oembedUrl = getOEmbedUrl(url);
     
+    // If no oEmbed endpoint exists, go straight to Open Graph
     if (!oembedUrl) {
-      console.log('No oEmbed endpoint found for URL, attempting Open Graph fallback');
+      console.log('No oEmbed endpoint found for URL, trying Open Graph');
       
-      // Fallback: Try to fetch the page and extract Open Graph meta tags
-      try {
-        const pageResponse = await fetch(url, {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (compatible; Lovable/1.0; +https://lovable.dev)'
-          }
-        });
-        
-        if (pageResponse.ok) {
-          const html = await pageResponse.text();
-          
-          // Extract og:image
-          const ogImageMatch = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i) ||
-                              html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:image["']/i);
-          
-          const ogTitleMatch = html.match(/<meta[^>]*property=["']og:title["'][^>]*content=["']([^"']+)["']/i) ||
-                              html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:title["']/i);
-          
-          if (ogImageMatch) {
-            return new Response(
-              JSON.stringify({
-                success: true,
-                thumbnail_url: ogImageMatch[1],
-                title: ogTitleMatch ? ogTitleMatch[1] : null,
-                source: 'opengraph'
-              }),
-              { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-            );
-          }
-        }
-      } catch (ogError) {
-        console.log('Open Graph fallback failed:', ogError);
+      const ogData = await fetchOpenGraphPreview(url);
+      
+      if (ogData?.thumbnail_url) {
+        return new Response(
+          JSON.stringify({
+            success: true,
+            thumbnail_url: ogData.thumbnail_url,
+            title: ogData.title,
+            source: 'opengraph'
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       }
       
       return new Response(
@@ -110,17 +138,53 @@ serve(async (req) => {
       }
     });
 
+    // If oEmbed fails, try Open Graph fallback
     if (!response.ok) {
-      console.log(`oEmbed request failed with status: ${response.status}`);
-      // Return 200 OK with error in body (not HTTP 400)
+      console.log(`oEmbed request failed with status: ${response.status}, trying Open Graph fallback`);
+      
+      const ogData = await fetchOpenGraphPreview(url);
+      
+      if (ogData?.thumbnail_url) {
+        return new Response(
+          JSON.stringify({
+            success: true,
+            thumbnail_url: ogData.thumbnail_url,
+            title: ogData.title,
+            source: 'opengraph_fallback'
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      // Both methods failed
       return new Response(
-        JSON.stringify({ success: false, error: `oEmbed failed: ${response.status}` }),
+        JSON.stringify({ success: false, error: `oEmbed failed: ${response.status}, Open Graph fallback also failed` }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     const data: OEmbedResponse = await response.json();
     console.log('oEmbed response received, thumbnail_url:', data.thumbnail_url ? 'present' : 'missing');
+
+    // If oEmbed succeeded but has no thumbnail, try Open Graph
+    if (!data.thumbnail_url) {
+      console.log('oEmbed has no thumbnail, trying Open Graph fallback');
+      
+      const ogData = await fetchOpenGraphPreview(url);
+      
+      if (ogData?.thumbnail_url) {
+        return new Response(
+          JSON.stringify({
+            success: true,
+            thumbnail_url: ogData.thumbnail_url,
+            title: data.title || ogData.title,
+            author_name: data.author_name || null,
+            source: 'opengraph_fallback'
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
 
     return new Response(
       JSON.stringify({
@@ -136,7 +200,6 @@ serve(async (req) => {
   } catch (error: unknown) {
     console.error('Error in fetch-url-preview:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    // Always return 200 with error in body
     return new Response(
       JSON.stringify({ success: false, error: errorMessage }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
