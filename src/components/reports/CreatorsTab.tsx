@@ -114,10 +114,8 @@ export const CreatorsTab = ({ reportId }: CreatorsTabProps) => {
                         (creator.reels_cost || 0) * (creator.reels_count || 0) +
                         (creator.stories_cost || 0) * (creator.stories_count || 0);
       
-      // Content pieces from planned counts
-      const contentPieces = (creator.posts_count || 0) + 
-                           (creator.reels_count || 0) + 
-                           (creator.stories_count || 0);
+      // Content pieces from actual content table
+      const contentPieces = creatorContent.length;
       
       // Calculate metrics
       const cpm = impressionsViews > 0 ? (totalCost / impressionsViews) * 1000 : 0;
