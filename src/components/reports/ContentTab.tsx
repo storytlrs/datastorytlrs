@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Eye, Heart, MessageCircle, Share2, ImageIcon, X } from "lucide-react";
+import { Eye, Heart, MessageCircle, Share2, ImageIcon, X, ArrowUpDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
@@ -47,6 +47,7 @@ export const ContentTab = ({ reportId }: ContentTabProps) => {
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [selectedCreator, setSelectedCreator] = useState<string>("all");
   const [selectedPlatform, setSelectedPlatform] = useState<string>("all");
+  const [sortBy, setSortBy] = useState<string>("date");
 
   useEffect(() => {
     fetchContent();
@@ -92,9 +93,9 @@ export const ContentTab = ({ reportId }: ContentTabProps) => {
     return Array.from(new Set(content.map(item => item.platform)));
   }, [content]);
 
-  // Filter content
+  // Filter and sort content
   const filteredContent = useMemo(() => {
-    return content.filter(item => {
+    let filtered = content.filter(item => {
       // Date filter
       if (dateRange?.from && item.published_date) {
         const pubDate = new Date(item.published_date);
@@ -114,7 +115,26 @@ export const ContentTab = ({ reportId }: ContentTabProps) => {
       
       return true;
     });
-  }, [content, dateRange, selectedCreator, selectedPlatform]);
+
+    // Apply sorting
+    return filtered.sort((a, b) => {
+      switch (sortBy) {
+        case "er":
+          return calculateER(b) - calculateER(a);
+        case "views":
+          return ((b.views || 0) + (b.impressions || 0)) - ((a.views || 0) + (a.impressions || 0));
+        case "likes":
+          return (b.likes || 0) - (a.likes || 0);
+        case "comments":
+          return (b.comments || 0) - (a.comments || 0);
+        case "shares":
+          return (b.shares || 0) - (a.shares || 0);
+        case "date":
+        default:
+          return new Date(b.published_date || 0).getTime() - new Date(a.published_date || 0).getTime();
+      }
+    });
+  }, [content, dateRange, selectedCreator, selectedPlatform, sortBy]);
 
   // Calculate ER percentiles for coloring
   const { p10, p90 } = useMemo(() => {
@@ -228,6 +248,22 @@ export const ContentTab = ({ reportId }: ContentTabProps) => {
           </SelectContent>
         </Select>
 
+        {/* Sort By */}
+        <Select value={sortBy} onValueChange={setSortBy}>
+          <SelectTrigger className="w-[180px]">
+            <ArrowUpDown className="mr-2 h-4 w-4" />
+            <SelectValue placeholder="Sort by" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="date">Date (newest)</SelectItem>
+            <SelectItem value="er">Engagement Rate</SelectItem>
+            <SelectItem value="views">Views/Impressions</SelectItem>
+            <SelectItem value="likes">Likes</SelectItem>
+            <SelectItem value="comments">Comments</SelectItem>
+            <SelectItem value="shares">Shares</SelectItem>
+          </SelectContent>
+        </Select>
+
         {/* Clear Filters */}
         {hasActiveFilters && (
           <Button variant="ghost" size="sm" onClick={clearFilters}>
@@ -252,7 +288,7 @@ export const ContentTab = ({ reportId }: ContentTabProps) => {
                 key={item.id} 
                 className="overflow-hidden rounded-[35px] border-foreground hover:shadow-lg transition-shadow"
               >
-                <div className="relative aspect-[9/16] bg-muted">
+                <div className="relative aspect-[9/12.8] bg-muted">
                   {item.thumbnail_url ? (
                     <img
                       src={item.thumbnail_url}
