@@ -259,7 +259,7 @@ export const OverviewTab = ({ reportId }: OverviewTabProps) => {
             <Button
               variant="outline"
               className={cn(
-                "rounded-[35px] justify-start text-left font-normal",
+                "rounded-[35px] justify-start text-left font-normal hover:border-foreground hover:bg-foreground hover:text-background",
                 dateRange.start
                   ? "border-accent-orange bg-accent-orange text-foreground"
                   : "border-foreground bg-card text-foreground"
@@ -285,7 +285,7 @@ export const OverviewTab = ({ reportId }: OverviewTabProps) => {
             <Button
               variant="outline"
               className={cn(
-                "rounded-[35px] justify-start text-left font-normal",
+                "rounded-[35px] justify-start text-left font-normal hover:border-foreground hover:bg-foreground hover:text-background",
                 dateRange.end
                   ? "border-accent-orange bg-accent-orange text-foreground"
                   : "border-foreground bg-card text-foreground"
