@@ -48,9 +48,10 @@ serve(async (req) => {
     const { url } = await req.json();
     
     if (!url) {
+      // Always return 200 with error in body
       return new Response(
         JSON.stringify({ success: false, error: 'URL is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -97,7 +98,7 @@ serve(async (req) => {
       
       return new Response(
         JSON.stringify({ success: false, error: 'Unsupported platform and no Open Graph data found' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -111,14 +112,15 @@ serve(async (req) => {
 
     if (!response.ok) {
       console.log(`oEmbed request failed with status: ${response.status}`);
+      // Return 200 OK with error in body (not HTTP 400)
       return new Response(
-        JSON.stringify({ success: false, error: `Failed to fetch preview: ${response.status}` }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ success: false, error: `oEmbed failed: ${response.status}` }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     const data: OEmbedResponse = await response.json();
-    console.log('oEmbed response:', JSON.stringify(data));
+    console.log('oEmbed response received, thumbnail_url:', data.thumbnail_url ? 'present' : 'missing');
 
     return new Response(
       JSON.stringify({
@@ -134,9 +136,10 @@ serve(async (req) => {
   } catch (error: unknown) {
     console.error('Error in fetch-url-preview:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    // Always return 200 with error in body
     return new Response(
       JSON.stringify({ success: false, error: errorMessage }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });
