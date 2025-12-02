@@ -15,7 +15,7 @@ const creatorSchema = z.object({
   handle: z.string().min(1, "Handle is required"),
   platform: z.enum(["instagram", "tiktok", "youtube", "facebook", "twitter"]),
   profile_url: z.string().url().optional().or(z.literal("")),
-  currency: z.enum(["USD", "EUR", "GBP", "CZK", "PLN"]).default("USD"),
+  currency: z.enum(["USD", "EUR", "GBP", "CZK", "PLN"]).default("CZK"),
   posts_count: z.number().min(0).default(0),
   posts_cost: z.number().min(0).default(0),
   reels_count: z.number().min(0).default(0),
@@ -41,7 +41,7 @@ export const CreateCreatorDialog = ({ reportId, onSuccess }: CreateCreatorDialog
   const { register, handleSubmit, formState: { errors }, setValue, watch, reset } = useForm<CreatorFormData>({
     resolver: zodResolver(creatorSchema),
     defaultValues: {
-      currency: "USD",
+      currency: "CZK",
       posts_count: 0,
       posts_cost: 0,
       reels_count: 0,
@@ -178,11 +178,11 @@ export const CreateCreatorDialog = ({ reportId, onSuccess }: CreateCreatorDialog
                   <SelectTrigger className="rounded-[35px] h-8 text-xs">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="USD">$ USD</SelectItem>
-                    <SelectItem value="EUR">€ EUR</SelectItem>
-                    <SelectItem value="GBP">£ GBP</SelectItem>
+                <SelectContent>
                     <SelectItem value="CZK">Kč CZK</SelectItem>
+                    <SelectItem value="EUR">€ EUR</SelectItem>
+                    <SelectItem value="USD">$ USD</SelectItem>
+                    <SelectItem value="GBP">£ GBP</SelectItem>
                     <SelectItem value="PLN">zł PLN</SelectItem>
                   </SelectContent>
                 </Select>

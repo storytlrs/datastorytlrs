@@ -11,6 +11,7 @@ import { CreateContentDialog } from "./CreateContentDialog";
 import { EditContentDialog } from "./EditContentDialog";
 import { CreatePromoCodeDialog } from "./CreatePromoCodeDialog";
 import { formatWatchTimeDisplay } from "@/lib/watchTimeUtils";
+import { formatCurrencySimple, getCurrencySymbol } from "@/lib/currencyUtils";
 
 interface DataTabProps {
   reportId: string;
@@ -118,16 +119,6 @@ export const DataTab = ({ reportId }: DataTabProps) => {
     return num.toString();
   };
 
-  const getCurrencySymbol = (curr: string) => {
-    const symbols: Record<string, string> = {
-      USD: "$",
-      EUR: "€",
-      GBP: "£",
-      CZK: "Kč",
-      PLN: "zł"
-    };
-    return symbols[curr] || "$";
-  };
 
   const creatorsColumns: ColumnDef[] = [
     { key: "handle", label: "Handle", type: "text", width: "150px", editable: false },
@@ -153,10 +144,10 @@ export const DataTab = ({ reportId }: DataTabProps) => {
       width: "100px",
       editable: false,
       options: [
-        { value: "USD", label: "$ USD" },
-        { value: "EUR", label: "€ EUR" },
-        { value: "GBP", label: "£ GBP" },
         { value: "CZK", label: "Kč CZK" },
+        { value: "EUR", label: "€ EUR" },
+        { value: "USD", label: "$ USD" },
+        { value: "GBP", label: "£ GBP" },
         { value: "PLN", label: "zł PLN" },
       ],
     },
@@ -242,7 +233,7 @@ export const DataTab = ({ reportId }: DataTabProps) => {
     { key: "code", label: "Promo Code", type: "text", width: "150px" },
     { key: "clicks", label: "Clicks", type: "number", width: "100px" },
     { key: "purchases", label: "Purchases", type: "number", width: "120px" },
-    { key: "revenue", label: "Revenue", type: "number", width: "120px", format: (val: number) => val ? `$${val.toFixed(2)}` : "-" },
+    { key: "revenue", label: "Revenue (Kč)", type: "number", width: "120px", format: (val: number) => val ? formatCurrencySimple(val, "CZK") : "-" },
     { key: "conversion_rate", label: "Conv. Rate %", type: "number", width: "120px" },
   ];
 

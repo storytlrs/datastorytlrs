@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { secondsToWatchTime } from "@/lib/watchTimeUtils";
+import { formatCurrency as formatCurrencyUtil, DEFAULT_CURRENCY } from "@/lib/currencyUtils";
 
 interface OverviewTabProps {
   reportId: string;
@@ -37,6 +38,7 @@ interface OverviewTabProps {
 interface Creator {
   id: string;
   handle: string;
+  currency: string | null;
   posts_count: number | null;
   reels_count: number | null;
   stories_count: number | null;
@@ -67,11 +69,6 @@ const formatNumber = (num: number): string => {
   return num.toLocaleString();
 };
 
-const formatCurrency = (num: number): string => {
-  if (num >= 1000000) return `$${(num / 1000000).toFixed(2)}M`;
-  if (num >= 1000) return `$${(num / 1000).toFixed(1)}K`;
-  return `$${num.toFixed(2)}`;
-};
 
 const formatPercent = (num: number, decimals: number = 2): string => {
   return `${num.toFixed(decimals)}%`;
@@ -111,7 +108,7 @@ export const OverviewTab = ({ reportId }: OverviewTabProps) => {
     const fetchData = async () => {
       setLoading(true);
       const [creatorsRes, contentRes] = await Promise.all([
-        supabase.from("creators").select("id, handle, posts_count, reels_count, stories_count, posts_cost, reels_cost, stories_cost").eq("report_id", reportId),
+        supabase.from("creators").select("id, handle, currency, posts_count, reels_count, stories_count, posts_cost, reels_cost, stories_cost").eq("report_id", reportId),
         supabase.from("content").select("id, creator_id, reach, impressions, views, watch_time, likes, comments, shares, saves, link_clicks, sticker_clicks, published_date").eq("report_id", reportId),
       ]);
       setCreators(creatorsRes.data || []);
@@ -135,6 +132,20 @@ export const OverviewTab = ({ reportId }: OverviewTabProps) => {
   const relevantCreators = useMemo(() => {
     return selectedCreator === "all" ? creators : creators.filter((c) => c.id === selectedCreator);
   }, [creators, selectedCreator]);
+
+  // Determine report currency from creators (most common currency)
+  const reportCurrency = useMemo(() => {
+    if (creators.length === 0) return DEFAULT_CURRENCY;
+    const currencyCounts = creators.reduce((acc, c) => {
+      const curr = c.currency || DEFAULT_CURRENCY;
+      acc[curr] = (acc[curr] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    return Object.entries(currencyCounts).sort((a, b) => b[1] - a[1])[0][0];
+  }, [creators]);
+
+  // Format currency using the report's currency
+  const formatCurrency = (num: number): string => formatCurrencyUtil(num, reportCurrency);
 
   // Awareness KPIs
   const awarenessKPIs = useMemo(() => {

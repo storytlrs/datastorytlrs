@@ -48,9 +48,9 @@ export const CreatorsTab = () => {
             type="number" 
             dataKey="cpv" 
             name="CPV" 
-            unit="$"
+            unit=" Kč"
             stroke="hsl(var(--foreground))"
-            label={{ value: 'Cost Per View ($)', position: 'insideBottom', offset: -10 }}
+            label={{ value: 'Cost Per View (Kč)', position: 'insideBottom', offset: -10 }}
           />
           <YAxis 
             type="number" 
