@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { EditableDataTable, ColumnDef } from "./EditableDataTable";
@@ -10,14 +11,17 @@ import { EditCreatorDialog } from "./EditCreatorDialog";
 import { CreateContentDialog } from "./CreateContentDialog";
 import { EditContentDialog } from "./EditContentDialog";
 import { CreatePromoCodeDialog } from "./CreatePromoCodeDialog";
+import { ImportDataDialog } from "./ImportDataDialog";
 import { formatWatchTimeDisplay } from "@/lib/watchTimeUtils";
 import { formatCurrencySimple, getCurrencySymbol } from "@/lib/currencyUtils";
+import { Upload } from "lucide-react";
 
 interface DataTabProps {
   reportId: string;
+  onImportSuccess?: () => void;
 }
 
-export const DataTab = ({ reportId }: DataTabProps) => {
+export const DataTab = ({ reportId, onImportSuccess }: DataTabProps) => {
   const { canEdit } = useUserRole();
   const [activeTab, setActiveTab] = useState("creators");
   const [creators, setCreators] = useState<any[]>([]);
@@ -26,6 +30,7 @@ export const DataTab = ({ reportId }: DataTabProps) => {
   const [loading, setLoading] = useState(true);
   const [editingCreator, setEditingCreator] = useState<any>(null);
   const [editingContent, setEditingContent] = useState<any>(null);
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -239,13 +244,29 @@ export const DataTab = ({ reportId }: DataTabProps) => {
     { key: "conversion_rate", label: "Conv. Rate %", type: "number", width: "120px" },
   ];
 
+  const handleImportSuccess = () => {
+    fetchData();
+    onImportSuccess?.();
+  };
+
   return (
     <Card className="p-8 rounded-[35px] border-foreground">
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold mb-2">Report Data</h2>
-        <p className="text-muted-foreground">
-          View and edit all data in this report {canEdit ? "(Click cells to edit)" : "(Read-only)"}
-        </p>
+      <div className="flex items-start justify-between mb-6">
+        <div>
+          <h2 className="text-2xl font-bold mb-2">Report Data</h2>
+          <p className="text-muted-foreground">
+            View and edit all data in this report {canEdit ? "(Click cells to edit)" : "(Read-only)"}
+          </p>
+        </div>
+        {canEdit && (
+          <Button
+            onClick={() => setIsImportDialogOpen(true)}
+            className="rounded-[35px]"
+          >
+            <Upload className="w-4 h-4 mr-2" />
+            Import Data
+          </Button>
+        )}
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -333,6 +354,13 @@ export const DataTab = ({ reportId }: DataTabProps) => {
           />
         </TabsContent>
       </Tabs>
+
+      <ImportDataDialog
+        open={isImportDialogOpen}
+        onOpenChange={setIsImportDialogOpen}
+        reportId={reportId}
+        onSuccess={handleImportSuccess}
+      />
     </Card>
   );
 };
