@@ -74,6 +74,22 @@ const ReportDetail = () => {
     }
   };
 
+  const handleUnpublish = async () => {
+    try {
+      const { error } = await supabase
+        .from("reports")
+        .update({ status: "draft" })
+        .eq("id", reportId);
+
+      if (error) throw error;
+      
+      toast.success("Report unpublished successfully");
+      fetchReport();
+    } catch (error) {
+      toast.error("Failed to unpublish report");
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -122,6 +138,15 @@ const ReportDetail = () => {
                 >
                   <Send className="w-4 h-4 mr-2" />
                   Publish
+                </Button>
+              )}
+              {canEdit && report.status === "active" && (
+                <Button
+                  variant="outline"
+                  onClick={handleUnpublish}
+                  className="rounded-[35px] border-foreground"
+                >
+                  Unpublish
                 </Button>
               )}
               {isAdmin && (
