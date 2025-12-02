@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Eye, Heart, MessageCircle, Share2, ImageIcon, X, ArrowUpDown, Loader2 } from "lucide-react";
+import { Eye, Heart, MessageCircle, Share2, ImageIcon, X, ArrowUpDown, Loader2, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
@@ -127,6 +127,17 @@ export const ContentTab = ({ reportId }: ContentTabProps) => {
     }
   };
 
+  const retryPreview = (contentId: string, url: string) => {
+    // Clear the failed state and re-fetch
+    fetchedPreviewsRef.current.delete(contentId);
+    setFetchedPreviews(prev => {
+      const updated = { ...prev };
+      delete updated[contentId];
+      return updated;
+    });
+    fetchUrlPreview(contentId, url);
+  };
+
   const formatNumber = (num: number | null) => {
     if (!num) return "0";
     if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
@@ -223,24 +234,25 @@ export const ContentTab = ({ reportId }: ContentTabProps) => {
   };
 
   // Get the preview image for a content item
-  const getPreviewImage = (item: ContentItem): { src: string | null; isLoading: boolean } => {
+  const getPreviewImage = (item: ContentItem): { src: string | null; isLoading: boolean; canRetry: boolean } => {
     // First priority: uploaded thumbnail
     if (item.thumbnail_url) {
-      return { src: item.thumbnail_url, isLoading: false };
+      return { src: item.thumbnail_url, isLoading: false, canRetry: false };
     }
 
     // Check if we have a fetched preview
     if (fetchedPreviews[item.id] !== undefined) {
-      return { src: fetchedPreviews[item.id], isLoading: false };
+      const failed = fetchedPreviews[item.id] === null;
+      return { src: fetchedPreviews[item.id], isLoading: false, canRetry: failed && !!item.url };
     }
 
     // Check if currently loading
     if (loadingPreviewsRef.current.has(item.id)) {
-      return { src: null, isLoading: true };
+      return { src: null, isLoading: true, canRetry: false };
     }
 
     // No image available
-    return { src: null, isLoading: false };
+    return { src: null, isLoading: false, canRetry: false };
   };
 
   if (loading) {
@@ -383,8 +395,19 @@ export const ContentTab = ({ reportId }: ContentTabProps) => {
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center">
+                    <div className="w-full h-full flex flex-col items-center justify-center gap-2">
                       <ImageIcon className="w-8 h-8 text-muted-foreground/30" />
+                      {preview.canRetry && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-xs h-6 px-2"
+                          onClick={() => retryPreview(item.id, item.url!)}
+                        >
+                          <RefreshCw className="w-3 h-3 mr-1" />
+                          Retry
+                        </Button>
+                      )}
                     </div>
                   )}
                   <div className="absolute top-2 right-2">
