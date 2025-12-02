@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,7 +21,6 @@ import {
 import { cn } from "@/lib/utils";
 import { CalendarIcon } from "lucide-react";
 import { DateRange } from "react-day-picker";
-import { Skeleton } from "@/components/ui/skeleton";
 
 interface ContentTabProps {
   reportId: string;
@@ -51,7 +50,10 @@ export const ContentTab = ({ reportId }: ContentTabProps) => {
   const [selectedPlatform, setSelectedPlatform] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("date");
   const [fetchedPreviews, setFetchedPreviews] = useState<Record<string, string | null>>({});
-  const [loadingPreviews, setLoadingPreviews] = useState<Set<string>>(new Set());
+  
+  // Use refs to track loading state without causing re-renders
+  const loadingPreviewsRef = useRef<Set<string>>(new Set());
+  const fetchedPreviewsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     fetchContent();
@@ -71,40 +73,54 @@ export const ContentTab = ({ reportId }: ContentTabProps) => {
     setLoading(false);
   };
 
-  const fetchUrlPreview = useCallback(async (contentId: string, url: string) => {
-    if (loadingPreviews.has(contentId) || fetchedPreviews[contentId] !== undefined) {
-      return;
-    }
+  // Fetch previews for content items that need them
+  useEffect(() => {
+    const itemsNeedingPreview = content.filter(item => 
+      !item.thumbnail_url && 
+      item.url && 
+      !fetchedPreviewsRef.current.has(item.id) &&
+      !loadingPreviewsRef.current.has(item.id)
+    );
 
-    setLoadingPreviews(prev => new Set(prev).add(contentId));
+    itemsNeedingPreview.forEach(item => {
+      fetchUrlPreview(item.id, item.url!);
+    });
+  }, [content]);
+
+  const fetchUrlPreview = async (contentId: string, url: string) => {
+    // Mark as loading using ref (no re-render)
+    loadingPreviewsRef.current.add(contentId);
+    
+    // Trigger a state update to show loading spinner
+    setFetchedPreviews(prev => ({ ...prev }));
 
     try {
       const { data, error } = await supabase.functions.invoke('fetch-url-preview', {
         body: { url }
       });
 
+      fetchedPreviewsRef.current.add(contentId);
+      loadingPreviewsRef.current.delete(contentId);
+
       if (!error && data?.success && data?.thumbnail_url) {
         setFetchedPreviews(prev => ({ ...prev, [contentId]: data.thumbnail_url }));
         
-        // Optionally cache the thumbnail in the database
-        await supabase
+        // Cache the thumbnail in the database (fire and forget)
+        supabase
           .from("content")
           .update({ thumbnail_url: data.thumbnail_url })
-          .eq("id", contentId);
+          .eq("id", contentId)
+          .then(() => {});
       } else {
         setFetchedPreviews(prev => ({ ...prev, [contentId]: null }));
       }
     } catch (err) {
       console.error('Error fetching preview:', err);
+      fetchedPreviewsRef.current.add(contentId);
+      loadingPreviewsRef.current.delete(contentId);
       setFetchedPreviews(prev => ({ ...prev, [contentId]: null }));
-    } finally {
-      setLoadingPreviews(prev => {
-        const next = new Set(prev);
-        next.delete(contentId);
-        return next;
-      });
     }
-  }, [loadingPreviews, fetchedPreviews]);
+  };
 
   const formatNumber = (num: number | null) => {
     if (!num) return "0";
@@ -208,20 +224,13 @@ export const ContentTab = ({ reportId }: ContentTabProps) => {
       return { src: item.thumbnail_url, isLoading: false };
     }
 
-    // Second priority: fetched preview from URL
+    // Check if we have a fetched preview
     if (fetchedPreviews[item.id] !== undefined) {
       return { src: fetchedPreviews[item.id], isLoading: false };
     }
 
-    // Third: check if we should fetch
-    if (item.url && !loadingPreviews.has(item.id)) {
-      // Trigger fetch
-      fetchUrlPreview(item.id, item.url);
-      return { src: null, isLoading: true };
-    }
-
-    // Loading state
-    if (loadingPreviews.has(item.id)) {
+    // Check if currently loading
+    if (loadingPreviewsRef.current.has(item.id)) {
       return { src: null, isLoading: true };
     }
 
