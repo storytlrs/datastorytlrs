@@ -171,26 +171,15 @@ const SpaceDetail = () => {
                 <p className="text-muted-foreground">{space.description}</p>
               )}
             </div>
-            <div className="flex gap-2">
-              {isAdmin && (
-                <Button
-                  variant="outline"
-                  onClick={() => setEditDialogOpen(true)}
-                  className="rounded-[35px]"
-                >
-                  <Settings className="w-5 h-5" />
-                </Button>
-              )}
-              {canEdit && (
-                <Button 
-                  className="rounded-[35px]"
-                  onClick={() => setCreateDialogOpen(true)}
-                >
-                  <Plus className="w-5 h-5 mr-2" />
-                  New Report
-                </Button>
-              )}
-            </div>
+            {isAdmin && (
+              <Button
+                variant="outline"
+                onClick={() => setEditDialogOpen(true)}
+                className="rounded-[35px]"
+              >
+                <Settings className="w-5 h-5" />
+              </Button>
+            )}
           </div>
         </div>
 
@@ -216,6 +205,20 @@ const SpaceDetail = () => {
           </TabsContent>
 
           <TabsContent value="reports">
+            {/* Header with New Report button */}
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold">Reports</h2>
+              {canEdit && (
+                <Button 
+                  className="rounded-[35px]"
+                  onClick={() => setCreateDialogOpen(true)}
+                >
+                  <Plus className="w-5 h-5 mr-2" />
+                  New Report
+                </Button>
+              )}
+            </div>
+
             {/* Filter Bar */}
             <div className="mb-6 space-y-4">
               {/* Search Bar */}

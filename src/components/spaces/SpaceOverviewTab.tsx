@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { format, parseISO, startOfMonth, endOfMonth } from "date-fns";
+import { format, parseISO, startOfMonth, subMonths } from "date-fns";
 import { Calendar as CalendarIcon, Eye, Users, Heart, MessageCircle, Share2, Bookmark, Link, MousePointer, Clock, DollarSign, BarChart3 } from "lucide-react";
 import { KPICard } from "@/components/reports/KPICard";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
@@ -59,8 +59,11 @@ const SpaceOverviewTab = ({ spaceId }: SpaceOverviewTabProps) => {
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
   
-  // Filters
-  const [dateRange, setDateRange] = useState<{ start: Date | null; end: Date | null }>({ start: null, end: null });
+  // Filters - default to last 12 months
+  const [dateRange, setDateRange] = useState<{ start: Date | null; end: Date | null }>(() => ({
+    start: subMonths(new Date(), 12),
+    end: new Date(),
+  }));
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [selectedMetric, setSelectedMetric] = useState<MetricKey>("views");
 
