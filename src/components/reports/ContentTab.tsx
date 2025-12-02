@@ -280,7 +280,7 @@ export const ContentTab = ({ reportId }: ContentTabProps) => {
             <Button
               variant="outline"
               className={cn(
-                "rounded-[35px] justify-start text-left font-normal",
+                "rounded-[35px] justify-start text-left font-normal hover:border-foreground hover:bg-foreground hover:text-background",
                 dateRange
                   ? "border-accent-orange bg-accent-orange text-foreground"
                   : "border-foreground bg-card text-foreground"

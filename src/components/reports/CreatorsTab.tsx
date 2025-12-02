@@ -210,7 +210,7 @@ export const CreatorsTab = ({ reportId }: CreatorsTabProps) => {
             <ToggleGroupItem 
               key={option.value} 
               value={option.value}
-              className="rounded-[35px] border border-foreground bg-card text-foreground px-4 py-2 data-[state=on]:bg-accent-orange data-[state=on]:text-foreground data-[state=on]:border-accent-orange"
+              className="rounded-[35px] border border-foreground bg-card text-foreground px-4 py-2 hover:border-foreground hover:bg-foreground hover:text-background data-[state=on]:bg-accent-orange data-[state=on]:text-foreground data-[state=on]:border-accent-orange"
             >
               {option.label}
             </ToggleGroupItem>
