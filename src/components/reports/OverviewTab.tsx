@@ -258,7 +258,12 @@ export const OverviewTab = ({ reportId }: OverviewTabProps) => {
           <PopoverTrigger asChild>
             <Button
               variant="outline"
-              className="rounded-[35px] justify-start text-left font-normal"
+              className={cn(
+                "rounded-[35px] justify-start text-left font-normal",
+                dateRange.start
+                  ? "border-accent-orange bg-accent-orange text-foreground"
+                  : "border-foreground bg-card text-foreground"
+              )}
             >
               <CalendarIcon className="mr-2 h-4 w-4" />
               {dateRange.start ? format(dateRange.start, "MMM d, yyyy") : "Start date"}
@@ -279,7 +284,12 @@ export const OverviewTab = ({ reportId }: OverviewTabProps) => {
           <PopoverTrigger asChild>
             <Button
               variant="outline"
-              className="rounded-[35px] justify-start text-left font-normal"
+              className={cn(
+                "rounded-[35px] justify-start text-left font-normal",
+                dateRange.end
+                  ? "border-accent-orange bg-accent-orange text-foreground"
+                  : "border-foreground bg-card text-foreground"
+              )}
             >
               <CalendarIcon className="mr-2 h-4 w-4" />
               {dateRange.end ? format(dateRange.end, "MMM d, yyyy") : "End date"}
@@ -297,7 +307,12 @@ export const OverviewTab = ({ reportId }: OverviewTabProps) => {
 
         {/* Creator Filter */}
         <Select value={selectedCreator} onValueChange={setSelectedCreator}>
-          <SelectTrigger className="w-[180px] rounded-[35px]">
+          <SelectTrigger className={cn(
+            "w-[180px] rounded-[35px]",
+            selectedCreator !== "all"
+              ? "border-accent-orange bg-accent-orange text-foreground"
+              : ""
+          )}>
             <SelectValue placeholder="All creators" />
           </SelectTrigger>
           <SelectContent className="rounded-[20px]">

@@ -281,7 +281,9 @@ export const ContentTab = ({ reportId }: ContentTabProps) => {
               variant="outline"
               className={cn(
                 "rounded-[35px] justify-start text-left font-normal",
-                !dateRange && "text-muted-foreground"
+                dateRange
+                  ? "border-accent-orange bg-accent-orange text-foreground"
+                  : "border-foreground bg-card text-foreground"
               )}
             >
               <CalendarIcon className="mr-2 h-4 w-4" />
@@ -313,7 +315,12 @@ export const ContentTab = ({ reportId }: ContentTabProps) => {
 
         {/* Creator Filter */}
         <Select value={selectedCreator} onValueChange={setSelectedCreator}>
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className={cn(
+            "w-[180px] rounded-[35px]",
+            selectedCreator !== "all"
+              ? "border-accent-orange bg-accent-orange text-foreground"
+              : ""
+          )}>
             <SelectValue placeholder="All creators" />
           </SelectTrigger>
           <SelectContent>
@@ -328,7 +335,12 @@ export const ContentTab = ({ reportId }: ContentTabProps) => {
 
         {/* Platform Filter */}
         <Select value={selectedPlatform} onValueChange={setSelectedPlatform}>
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className={cn(
+            "w-[180px] rounded-[35px]",
+            selectedPlatform !== "all"
+              ? "border-accent-orange bg-accent-orange text-foreground"
+              : ""
+          )}>
             <SelectValue placeholder="All platforms" />
           </SelectTrigger>
           <SelectContent>
@@ -343,7 +355,12 @@ export const ContentTab = ({ reportId }: ContentTabProps) => {
 
         {/* Sort By */}
         <Select value={sortBy} onValueChange={setSortBy}>
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className={cn(
+            "w-[180px] rounded-[35px]",
+            sortBy !== "date"
+              ? "border-accent-orange bg-accent-orange text-foreground"
+              : ""
+          )}>
             <ArrowUpDown className="mr-2 h-4 w-4" />
             <SelectValue placeholder="Sort by" />
           </SelectTrigger>
@@ -359,7 +376,7 @@ export const ContentTab = ({ reportId }: ContentTabProps) => {
 
         {/* Clear Filters */}
         {hasActiveFilters && (
-          <Button variant="ghost" size="sm" onClick={clearFilters}>
+          <Button variant="ghost" size="sm" onClick={clearFilters} className="rounded-[35px]">
             <X className="h-4 w-4 mr-1" />
             Clear
           </Button>

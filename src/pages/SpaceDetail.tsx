@@ -16,6 +16,7 @@ import CreateReportDialog from "@/components/reports/CreateReportDialog";
 import EditSpaceDialog from "@/components/spaces/EditSpaceDialog";
 import SpaceOverviewTab from "@/components/spaces/SpaceOverviewTab";
 import { useUserRole } from "@/hooks/useUserRole";
+import { cn } from "@/lib/utils";
 
 interface Space {
   id: string;
@@ -243,7 +244,15 @@ const SpaceDetail = () => {
                 {/* Date Range Start */}
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" className="rounded-[35px] justify-start text-left font-normal">
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "rounded-[35px] justify-start text-left font-normal",
+                        dateRange.start
+                          ? "border-accent-orange bg-accent-orange text-foreground"
+                          : "border-foreground bg-card text-foreground"
+                      )}
+                    >
                       <CalendarIcon className="mr-2 h-4 w-4" />
                       {dateRange.start ? format(dateRange.start, "PPP") : "Start date"}
                     </Button>
@@ -261,7 +270,15 @@ const SpaceDetail = () => {
                 {/* Date Range End */}
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" className="rounded-[35px] justify-start text-left font-normal">
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "rounded-[35px] justify-start text-left font-normal",
+                        dateRange.end
+                          ? "border-accent-orange bg-accent-orange text-foreground"
+                          : "border-foreground bg-card text-foreground"
+                      )}
+                    >
                       <CalendarIcon className="mr-2 h-4 w-4" />
                       {dateRange.end ? format(dateRange.end, "PPP") : "End date"}
                     </Button>
@@ -278,7 +295,12 @@ const SpaceDetail = () => {
 
                 {/* Type Filter */}
                 <Select value={typeFilter} onValueChange={setTypeFilter}>
-                  <SelectTrigger className="w-[200px] rounded-[35px]">
+                  <SelectTrigger className={cn(
+                    "w-[200px] rounded-[35px]",
+                    typeFilter !== "all"
+                      ? "border-accent-orange bg-accent-orange text-foreground"
+                      : ""
+                  )}>
                     <SelectValue placeholder="Report type" />
                   </SelectTrigger>
                   <SelectContent>
@@ -292,7 +314,12 @@ const SpaceDetail = () => {
                 {/* Project Filter (Admin/Analyst only) */}
                 {showProjectFilter && (
                   <Select value={projectFilter} onValueChange={setProjectFilter}>
-                    <SelectTrigger className="w-[200px] rounded-[35px]">
+                    <SelectTrigger className={cn(
+                      "w-[200px] rounded-[35px]",
+                      projectFilter !== "all"
+                        ? "border-accent-orange bg-accent-orange text-foreground"
+                        : ""
+                    )}>
                       <SelectValue placeholder="Project" />
                     </SelectTrigger>
                     <SelectContent>
