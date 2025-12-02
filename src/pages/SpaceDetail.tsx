@@ -175,9 +175,10 @@ const SpaceDetail = () => {
               <Button
                 variant="outline"
                 onClick={() => setEditDialogOpen(true)}
-                className="rounded-[35px]"
+                size="icon"
+                className="rounded-[35px] border-foreground hover:bg-accent-orange hover:border-accent-orange hover:text-accent-orange-foreground"
               >
-                <Settings className="w-5 h-5" />
+                <Settings className="w-4 h-4" />
               </Button>
             )}
           </div>

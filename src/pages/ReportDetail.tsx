@@ -120,9 +120,8 @@ const ReportDetail = () => {
               {canEdit && report.status === "active" && <Button variant="outline" onClick={handleUnpublish} className="rounded-[35px] border-foreground">
                   Unpublish
                 </Button>}
-              {isAdmin && <Button variant="outline" onClick={() => setIsEditDialogOpen(true)} className="rounded-[35px] border-foreground text-center">
-                  <Settings className="w-4 h-4 mr-2" />
-                  ​
+              {isAdmin && <Button variant="outline" onClick={() => setIsEditDialogOpen(true)} size="icon" className="rounded-[35px] border-foreground hover:bg-accent-orange hover:border-accent-orange hover:text-accent-orange-foreground">
+                  <Settings className="w-4 h-4" />
                 </Button>}
             </div>
           </div>
