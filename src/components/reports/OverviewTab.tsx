@@ -252,78 +252,63 @@ export const OverviewTab = ({ reportId }: OverviewTabProps) => {
   return (
     <div className="space-y-8">
       {/* Filter Bar */}
-      <div className="flex flex-wrap gap-4 items-end">
+      <div className="flex flex-wrap gap-4 items-center">
         {/* Start Date */}
-        <div className="space-y-1">
-          <label className="text-sm font-medium text-muted-foreground">Start Date</label>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className={cn(
-                  "rounded-[35px] justify-start text-left font-normal",
-                  !dateRange.start && "text-muted-foreground"
-                )}
-              >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {dateRange.start ? format(dateRange.start, "MMM d, yyyy") : "Select"}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0 rounded-[20px]" align="start">
-              <Calendar
-                mode="single"
-                selected={dateRange.start || undefined}
-                onSelect={(date) => setDateRange((prev) => ({ ...prev, start: date || null }))}
-                initialFocus
-              />
-            </PopoverContent>
-          </Popover>
-        </div>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              className="rounded-[35px] justify-start text-left font-normal"
+            >
+              <CalendarIcon className="mr-2 h-4 w-4" />
+              {dateRange.start ? format(dateRange.start, "MMM d, yyyy") : "Start date"}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0 rounded-[20px]" align="start">
+            <Calendar
+              mode="single"
+              selected={dateRange.start || undefined}
+              onSelect={(date) => setDateRange((prev) => ({ ...prev, start: date || null }))}
+              initialFocus
+            />
+          </PopoverContent>
+        </Popover>
 
         {/* End Date */}
-        <div className="space-y-1">
-          <label className="text-sm font-medium text-muted-foreground">End Date</label>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className={cn(
-                  "rounded-[35px] justify-start text-left font-normal",
-                  !dateRange.end && "text-muted-foreground"
-                )}
-              >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {dateRange.end ? format(dateRange.end, "MMM d, yyyy") : "Select"}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0 rounded-[20px]" align="start">
-              <Calendar
-                mode="single"
-                selected={dateRange.end || undefined}
-                onSelect={(date) => setDateRange((prev) => ({ ...prev, end: date || null }))}
-                initialFocus
-              />
-            </PopoverContent>
-          </Popover>
-        </div>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              className="rounded-[35px] justify-start text-left font-normal"
+            >
+              <CalendarIcon className="mr-2 h-4 w-4" />
+              {dateRange.end ? format(dateRange.end, "MMM d, yyyy") : "End date"}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0 rounded-[20px]" align="start">
+            <Calendar
+              mode="single"
+              selected={dateRange.end || undefined}
+              onSelect={(date) => setDateRange((prev) => ({ ...prev, end: date || null }))}
+              initialFocus
+            />
+          </PopoverContent>
+        </Popover>
 
         {/* Creator Filter */}
-        <div className="space-y-1">
-          <label className="text-sm font-medium text-muted-foreground">Creator</label>
-          <Select value={selectedCreator} onValueChange={setSelectedCreator}>
-            <SelectTrigger className="w-[180px] rounded-[35px]">
-              <SelectValue placeholder="All creators" />
-            </SelectTrigger>
-            <SelectContent className="rounded-[20px]">
-              <SelectItem value="all">All creators</SelectItem>
-              {creators.map((creator) => (
-                <SelectItem key={creator.id} value={creator.id}>
-                  {creator.handle}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        <Select value={selectedCreator} onValueChange={setSelectedCreator}>
+          <SelectTrigger className="w-[180px] rounded-[35px]">
+            <SelectValue placeholder="All creators" />
+          </SelectTrigger>
+          <SelectContent className="rounded-[20px]">
+            <SelectItem value="all">All creators</SelectItem>
+            {creators.map((creator) => (
+              <SelectItem key={creator.id} value={creator.id}>
+                {creator.handle}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
         {/* Clear Filters */}
         {hasFilters && (
