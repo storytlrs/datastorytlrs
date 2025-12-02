@@ -118,7 +118,7 @@ const ReportDetail = () => {
               {canEdit && report.status === "draft" && (
                 <Button
                   onClick={handlePublish}
-                  className="rounded-[35px] bg-[#57DC64] text-black border border-foreground hover:bg-[#57DC64]/90"
+                  className="rounded-[35px] bg-foreground text-background border border-foreground hover:bg-[#57DC64] hover:text-foreground hover:border-[#57DC64]"
                 >
                   <Send className="w-4 h-4 mr-2" />
                   Publish
