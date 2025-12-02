@@ -11,6 +11,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { secondsToWatchTime, watchTimeToSeconds } from "@/lib/watchTimeUtils";
+import { ImageUpload } from "@/components/ui/image-upload";
 
 const contentSchema = z.object({
   creator_id: z.string().min(1, "Creator is required"),
@@ -44,6 +45,7 @@ interface EditContentDialogProps {
 export const EditContentDialog = ({ content, open, onOpenChange, onSuccess }: EditContentDialogProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [creators, setCreators] = useState<any[]>([]);
+  const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(content.thumbnail_url || null);
 
   const { register, handleSubmit, formState: { errors }, setValue, watch, reset } = useForm<ContentFormData>({
     resolver: zodResolver(contentSchema),
@@ -98,6 +100,7 @@ export const EditContentDialog = ({ content, open, onOpenChange, onSuccess }: Ed
         sentiment: content.sentiment || undefined,
         sentiment_summary: content.sentiment_summary || "",
       });
+      setThumbnailUrl(content.thumbnail_url || null);
     }
   }, [content, open, reset]);
 
@@ -134,6 +137,7 @@ export const EditContentDialog = ({ content, open, onOpenChange, onSuccess }: Ed
           watch_time: data.watch_time ? watchTimeToSeconds(data.watch_time) : null,
           sentiment: data.sentiment || null,
           sentiment_summary: data.sentiment_summary || null,
+          thumbnail_url: thumbnailUrl,
         })
         .eq("id", content.id);
 
@@ -157,6 +161,17 @@ export const EditContentDialog = ({ content, open, onOpenChange, onSuccess }: Ed
           <DialogTitle>Edit Content</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          {/* Preview Image Section */}
+          <div className="space-y-4">
+            <h3 className="font-semibold">Preview Image</h3>
+            <ImageUpload
+              value={thumbnailUrl}
+              onChange={setThumbnailUrl}
+              bucket="content-thumbnails"
+              folder={content.report_id}
+            />
+          </div>
+
           {/* Content Info Section */}
           <div className="space-y-4">
             <h3 className="font-semibold">Content Info</h3>
