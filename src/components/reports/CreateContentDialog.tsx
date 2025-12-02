@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import { watchTimeToSeconds } from "@/lib/watchTimeUtils";
 
 const contentSchema = z.object({
   creator_id: z.string().min(1, "Creator is required"),
@@ -27,7 +28,7 @@ const contentSchema = z.object({
   shares: z.number().min(0).optional(),
   sticker_clicks: z.number().min(0).optional(),
   link_clicks: z.number().min(0).optional(),
-  watch_time: z.number().min(0).optional(),
+  watch_time: z.string().optional(),
   sentiment: z.enum(["positive", "neutral", "negative"]).optional(),
   sentiment_summary: z.string().optional(),
 });
@@ -86,7 +87,7 @@ export const CreateContentDialog = ({ reportId, onSuccess }: CreateContentDialog
         shares: data.shares || null,
         sticker_clicks: data.sticker_clicks || null,
         link_clicks: data.link_clicks || null,
-        watch_time: data.watch_time || null,
+        watch_time: data.watch_time ? watchTimeToSeconds(data.watch_time) : null,
         sentiment: data.sentiment || null,
         sentiment_summary: data.sentiment_summary || null,
       });
@@ -302,14 +303,17 @@ export const CreateContentDialog = ({ reportId, onSuccess }: CreateContentDialog
             
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="watch_time">Watch Time (seconds)</Label>
+                <Label htmlFor="watch_time">Watch Time</Label>
                 <Input
                   id="watch_time"
-                  type="number"
-                  placeholder="0"
-                  {...register("watch_time", { valueAsNumber: true })}
+                  type="text"
+                  placeholder="DD:HH:MM:SS"
+                  {...register("watch_time")}
                   className="rounded-[35px]"
                 />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Format: days:hours:minutes:seconds (e.g., 00:01:30:00)
+                </p>
               </div>
 
               <div>

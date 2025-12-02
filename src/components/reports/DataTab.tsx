@@ -10,6 +10,7 @@ import { EditCreatorDialog } from "./EditCreatorDialog";
 import { CreateContentDialog } from "./CreateContentDialog";
 import { EditContentDialog } from "./EditContentDialog";
 import { CreatePromoCodeDialog } from "./CreatePromoCodeDialog";
+import { formatWatchTimeDisplay } from "@/lib/watchTimeUtils";
 
 interface DataTabProps {
   reportId: string;
@@ -230,7 +231,7 @@ export const DataTab = ({ reportId }: DataTabProps) => {
     { key: "sticker_clicks", label: "Sticker Clicks", type: "number", editable: false, format: formatNumber },
     { key: "link_clicks", label: "Link Clicks", type: "number", editable: false, format: formatNumber },
     // Performance
-    { key: "watch_time", label: "Watch Time (s)", type: "number", editable: false },
+    { key: "watch_time", label: "Watch Time", type: "text", editable: false, format: formatWatchTimeDisplay },
     { key: "sentiment", label: "Sentiment", type: "text", editable: false },
     { key: "sentiment_summary", label: "Sentiment Summary", type: "text", editable: false },
   ];
