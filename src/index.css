@@ -33,6 +33,7 @@ All colors MUST be HSL.
 
     --accent-orange: 30 100% 50%; /* #FF8000 */
     --accent-green: 138 69% 59%; /* #57DC64 */
+    --accent-green-foreground: 0 0% 0%; /* Black text on green */
     --accent-blue: 200 100% 60%; /* #33B6FF */
 
     --destructive: 0 84.2% 60.2%;
@@ -86,6 +87,7 @@ All colors MUST be HSL.
 
     --accent-orange: 30 100% 50%;
     --accent-green: 138 69% 59%;
+    --accent-green-foreground: 0 0% 0%;
     --accent-blue: 200 100% 60%;
 
     --destructive: 0 62.8% 30.6%;
