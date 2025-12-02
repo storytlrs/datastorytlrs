@@ -10,11 +10,9 @@ import { OverviewTab } from "@/components/reports/OverviewTab";
 import { CreatorsTab } from "@/components/reports/CreatorsTab";
 import { ContentTab } from "@/components/reports/ContentTab";
 import { AdsTab } from "@/components/reports/AdsTab";
-
 import { DataTab } from "@/components/reports/DataTab";
 import { EditReportDialog } from "@/components/reports/EditReportDialog";
 import { useUserRole } from "@/hooks/useUserRole";
-
 interface Report {
   id: string;
   name: string;
@@ -25,29 +23,29 @@ interface Report {
   space_id: string;
   project_id?: string | null;
 }
-
 const ReportDetail = () => {
-  const { reportId } = useParams();
+  const {
+    reportId
+  } = useParams();
   const navigate = useNavigate();
-  const { isAdmin, canEdit } = useUserRole();
+  const {
+    isAdmin,
+    canEdit
+  } = useUserRole();
   const [report, setReport] = useState<Report | null>(null);
   const [loading, setLoading] = useState(true);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-
   useEffect(() => {
     if (reportId) {
       fetchReport();
     }
   }, [reportId]);
-
   const fetchReport = async () => {
     try {
-      const { data, error } = await supabase
-        .from("reports")
-        .select("*")
-        .eq("id", reportId)
-        .single();
-
+      const {
+        data,
+        error
+      } = await supabase.from("reports").select("*").eq("id", reportId).single();
       if (error) throw error;
       setReport(data);
     } catch (error) {
@@ -57,61 +55,47 @@ const ReportDetail = () => {
       setLoading(false);
     }
   };
-
   const handlePublish = async () => {
     try {
-      const { error } = await supabase
-        .from("reports")
-        .update({ status: "active" })
-        .eq("id", reportId);
-
+      const {
+        error
+      } = await supabase.from("reports").update({
+        status: "active"
+      }).eq("id", reportId);
       if (error) throw error;
-      
       toast.success("Report published successfully");
       fetchReport();
     } catch (error) {
       toast.error("Failed to publish report");
     }
   };
-
   const handleUnpublish = async () => {
     try {
-      const { error } = await supabase
-        .from("reports")
-        .update({ status: "draft" })
-        .eq("id", reportId);
-
+      const {
+        error
+      } = await supabase.from("reports").update({
+        status: "draft"
+      }).eq("id", reportId);
       if (error) throw error;
-      
       toast.success("Report unpublished successfully");
       fetchReport();
     } catch (error) {
       toast.error("Failed to unpublish report");
     }
   };
-
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
+    return <div className="min-h-screen flex items-center justify-center">
         <p>Loading report...</p>
-      </div>
-    );
+      </div>;
   }
-
   if (!report) {
     return null;
   }
-
-  return (
-    <div className="min-h-screen p-6">
+  return <div className="min-h-screen p-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <Button
-            variant="ghost"
-            onClick={() => navigate(`/spaces/${report.space_id}`)}
-            className="mb-4 rounded-[35px]"
-          >
+          <Button variant="ghost" onClick={() => navigate(`/spaces/${report.space_id}`)} className="mb-4 rounded-[35px]">
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Space
           </Button>
@@ -122,43 +106,24 @@ const ReportDetail = () => {
               <p className="text-muted-foreground capitalize">
                 {report.type === "always_on" ? "Always-on content" : report.type === "social" ? "Always-on content" : `${report.type} campaign`} • {report.status === "active" ? "Published" : report.status}
               </p>
-              {report.start_date && report.end_date && (
-                <p className="text-sm text-muted-foreground mt-1">
+              {report.start_date && report.end_date && <p className="text-sm text-muted-foreground mt-1">
                   {new Date(report.start_date).toLocaleDateString()} -{" "}
                   {new Date(report.end_date).toLocaleDateString()}
-                </p>
-              )}
+                </p>}
             </div>
             
             <div className="flex items-center gap-2">
-              {canEdit && report.status === "draft" && (
-                <Button
-                  onClick={handlePublish}
-                  className="rounded-[35px] bg-foreground text-background border border-foreground hover:bg-[#57DC64] hover:text-foreground hover:border-[#57DC64]"
-                >
+              {canEdit && report.status === "draft" && <Button onClick={handlePublish} className="rounded-[35px] bg-foreground text-background border border-foreground hover:bg-[#57DC64] hover:text-foreground hover:border-[#57DC64]">
                   <Send className="w-4 h-4 mr-2" />
                   Publish
-                </Button>
-              )}
-              {canEdit && report.status === "active" && (
-                <Button
-                  variant="outline"
-                  onClick={handleUnpublish}
-                  className="rounded-[35px] border-foreground"
-                >
+                </Button>}
+              {canEdit && report.status === "active" && <Button variant="outline" onClick={handleUnpublish} className="rounded-[35px] border-foreground">
                   Unpublish
-                </Button>
-              )}
-              {isAdmin && (
-                <Button
-                  variant="outline"
-                  onClick={() => setIsEditDialogOpen(true)}
-                  className="rounded-[35px] border-foreground"
-                >
+                </Button>}
+              {isAdmin && <Button variant="outline" onClick={() => setIsEditDialogOpen(true)} className="rounded-[35px] border-foreground text-center">
                   <Settings className="w-4 h-4 mr-2" />
-                  Edit
-                </Button>
-              )}
+                  ​
+                </Button>}
             </div>
           </div>
         </div>
@@ -222,16 +187,7 @@ const ReportDetail = () => {
         </Tabs>
       </div>
 
-      {report && (
-        <EditReportDialog
-          open={isEditDialogOpen}
-          onOpenChange={setIsEditDialogOpen}
-          report={report}
-          onSuccess={fetchReport}
-        />
-      )}
-    </div>
-  );
+      {report && <EditReportDialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen} report={report} onSuccess={fetchReport} />}
+    </div>;
 };
-
 export default ReportDetail;
