@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Upload } from "lucide-react";
+import { ArrowLeft, Upload, Settings } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { OverviewTab } from "@/components/reports/OverviewTab";
@@ -12,6 +12,8 @@ import { ContentTab } from "@/components/reports/ContentTab";
 import { AdsTab } from "@/components/reports/AdsTab";
 import { ImportDataDialog } from "@/components/reports/ImportDataDialog";
 import { DataTab } from "@/components/reports/DataTab";
+import { EditReportDialog } from "@/components/reports/EditReportDialog";
+import { useUserRole } from "@/hooks/useUserRole";
 
 interface Report {
   id: string;
@@ -21,14 +23,17 @@ interface Report {
   start_date: string | null;
   end_date: string | null;
   space_id: string;
+  project_id?: string | null;
 }
 
 const ReportDetail = () => {
   const { reportId } = useParams();
   const navigate = useNavigate();
+  const { isAdmin } = useUserRole();
   const [report, setReport] = useState<Report | null>(null);
   const [loading, setLoading] = useState(true);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   useEffect(() => {
     if (reportId) {
@@ -82,9 +87,21 @@ const ReportDetail = () => {
 
           <div className="flex items-start justify-between">
             <div>
-              <h1 className="text-4xl font-bold mb-2">{report.name}</h1>
+              <div className="flex items-center gap-2">
+                <h1 className="text-4xl font-bold mb-2">{report.name}</h1>
+                {isAdmin && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setIsEditDialogOpen(true)}
+                    className="rounded-[35px] h-8 w-8"
+                  >
+                    <Settings className="w-4 h-4" />
+                  </Button>
+                )}
+              </div>
               <p className="text-muted-foreground capitalize">
-                {report.type} Report • {report.status}
+                {report.type === "always_on" ? "Always-on content" : report.type === "social" ? "Always-on content" : `${report.type} campaign`} • {report.status}
               </p>
               {report.start_date && report.end_date && (
                 <p className="text-sm text-muted-foreground mt-1">
@@ -163,6 +180,15 @@ const ReportDetail = () => {
         reportId={reportId!}
         onSuccess={fetchReport}
       />
+
+      {report && (
+        <EditReportDialog
+          open={isEditDialogOpen}
+          onOpenChange={setIsEditDialogOpen}
+          report={report}
+          onSuccess={fetchReport}
+        />
+      )}
     </div>
   );
 };
