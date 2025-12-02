@@ -91,31 +91,36 @@ export const ContentTab = ({ reportId }: ContentTabProps) => {
     // Mark as loading using ref (no re-render)
     loadingPreviewsRef.current.add(contentId);
     
-    // Trigger a state update to show loading spinner
+    // Trigger a minimal state update to show loading spinner
     setFetchedPreviews(prev => ({ ...prev }));
 
     try {
-      const { data, error } = await supabase.functions.invoke('fetch-url-preview', {
+      const response = await supabase.functions.invoke('fetch-url-preview', {
         body: { url }
       });
 
       fetchedPreviewsRef.current.add(contentId);
       loadingPreviewsRef.current.delete(contentId);
 
-      if (!error && data?.success && data?.thumbnail_url) {
-        setFetchedPreviews(prev => ({ ...prev, [contentId]: data.thumbnail_url }));
+      // Handle both successful and failed responses gracefully
+      const data = response?.data;
+      const thumbnailUrl = data?.success && data?.thumbnail_url ? data.thumbnail_url : null;
+      
+      if (thumbnailUrl) {
+        setFetchedPreviews(prev => ({ ...prev, [contentId]: thumbnailUrl }));
         
-        // Cache the thumbnail in the database (fire and forget)
+        // Cache the thumbnail in the database (fire and forget, ignore errors)
         supabase
           .from("content")
-          .update({ thumbnail_url: data.thumbnail_url })
+          .update({ thumbnail_url: thumbnailUrl })
           .eq("id", contentId)
           .then(() => {});
       } else {
         setFetchedPreviews(prev => ({ ...prev, [contentId]: null }));
       }
     } catch (err) {
-      console.error('Error fetching preview:', err);
+      // Silently handle errors - just mark as failed
+      console.log('Preview fetch failed for:', url);
       fetchedPreviewsRef.current.add(contentId);
       loadingPreviewsRef.current.delete(contentId);
       setFetchedPreviews(prev => ({ ...prev, [contentId]: null }));
