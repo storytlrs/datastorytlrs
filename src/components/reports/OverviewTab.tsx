@@ -261,7 +261,7 @@ export const OverviewTab = ({ reportId }: OverviewTabProps) => {
               <Button
                 variant="outline"
                 className={cn(
-                  "w-[160px] justify-start text-left font-normal rounded-[35px]",
+                  "rounded-[35px] justify-start text-left font-normal",
                   !dateRange.start && "text-muted-foreground"
                 )}
               >
@@ -288,7 +288,7 @@ export const OverviewTab = ({ reportId }: OverviewTabProps) => {
               <Button
                 variant="outline"
                 className={cn(
-                  "w-[160px] justify-start text-left font-normal rounded-[35px]",
+                  "rounded-[35px] justify-start text-left font-normal",
                   !dateRange.end && "text-muted-foreground"
                 )}
               >
