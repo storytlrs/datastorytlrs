@@ -336,32 +336,32 @@ export const OverviewTab = ({ reportId }: OverviewTabProps) => {
 
       {/* Awareness Section */}
       <KPISection title="Awareness" icon={Eye}>
-        <KPICard title="Reach" value={formatNumber(awarenessKPIs.reach)} icon={Users} accentColor="default" />
+        <KPICard title="Reach" value={formatNumber(awarenessKPIs.reach)} icon={Users} accentColor="blue" />
         <KPICard title="Impressions / Views" value={formatNumber(awarenessKPIs.impressionsViews)} icon={Eye} accentColor="blue" />
-        <KPICard title="Watch Time" value={awarenessKPIs.watchTimeSeconds > 0 ? secondsToWatchTime(awarenessKPIs.watchTimeSeconds) : "-"} icon={Clock} accentColor="default" />
+        <KPICard title="Watch Time" value={awarenessKPIs.watchTimeSeconds > 0 ? secondsToWatchTime(awarenessKPIs.watchTimeSeconds) : "-"} icon={Clock} accentColor="blue" />
       </KPISection>
 
       {/* Engagement Section */}
       <KPISection title="Engagement" icon={MessageCircle}>
         <KPICard title="Interactions" value={formatNumber(engagementKPIs.interactions)} icon={TrendingUp} accentColor="green" />
-        <KPICard title="Likes" value={formatNumber(engagementKPIs.likes)} icon={Heart} accentColor="default" />
-        <KPICard title="Comments" value={formatNumber(engagementKPIs.comments)} icon={MessageCircle} accentColor="default" />
-        <KPICard title="Shares" value={formatNumber(engagementKPIs.shares)} icon={Share2} accentColor="default" />
-        <KPICard title="Saves" value={formatNumber(engagementKPIs.saves)} icon={Bookmark} accentColor="default" />
+        <KPICard title="Likes" value={formatNumber(engagementKPIs.likes)} icon={Heart} accentColor="green" />
+        <KPICard title="Comments" value={formatNumber(engagementKPIs.comments)} icon={MessageCircle} accentColor="green" />
+        <KPICard title="Shares" value={formatNumber(engagementKPIs.shares)} icon={Share2} accentColor="green" />
+        <KPICard title="Saves" value={formatNumber(engagementKPIs.saves)} icon={Bookmark} accentColor="green" />
         <KPICard title="Engagement Rate" value={formatPercent(engagementKPIs.engagementRate)} icon={TrendingUp} accentColor="green" />
-        <KPICard title="Virality Rate" value={formatPercent(engagementKPIs.viralityRate, 3)} icon={Zap} accentColor="orange" />
-        <KPICard title="Utility Score" value={formatPercent(engagementKPIs.utilityScore, 3)} icon={Award} accentColor="blue" />
-        <KPICard title="Link Clicks" value={formatNumber(engagementKPIs.linkClicks)} icon={Link} accentColor="default" />
-        <KPICard title="Sticker Clicks" value={formatNumber(engagementKPIs.stickerClicks)} icon={Target} accentColor="default" />
+        <KPICard title="Virality Rate" value={formatPercent(engagementKPIs.viralityRate, 3)} icon={Zap} accentColor="green" />
+        <KPICard title="Utility Score" value={formatPercent(engagementKPIs.utilityScore, 3)} icon={Award} accentColor="green" />
+        <KPICard title="Link Clicks" value={formatNumber(engagementKPIs.linkClicks)} icon={Link} accentColor="green" />
+        <KPICard title="Sticker Clicks" value={formatNumber(engagementKPIs.stickerClicks)} icon={Target} accentColor="green" />
       </KPISection>
 
       {/* Effectiveness Section */}
       <KPISection title="Effectiveness" icon={BarChart3}>
-        <KPICard title="Content Pieces" value={effectivenessKPIs.contentPieces.toString()} icon={FileText} accentColor="default" />
+        <KPICard title="Content Pieces" value={effectivenessKPIs.contentPieces.toString()} icon={FileText} accentColor="orange" />
         <KPICard title="Budget Spent" value={formatCurrency(effectivenessKPIs.budgetSpent)} icon={DollarSign} accentColor="orange" />
-        <KPICard title="Watch Time Cost per Minute" value={formatCurrency(effectivenessKPIs.watchTimeCostPerMinute)} icon={Clock} accentColor="default" />
+        <KPICard title="Watch Time Cost per Minute" value={formatCurrency(effectivenessKPIs.watchTimeCostPerMinute)} icon={Clock} accentColor="orange" />
         <KPICard title="CPM" value={formatCurrency(effectivenessKPIs.cpm)} icon={DollarSign} accentColor="orange" />
-        <KPICard title="CPC" value={formatCurrency(effectivenessKPIs.cpc)} icon={MousePointer} accentColor="default" />
+        <KPICard title="CPC" value={formatCurrency(effectivenessKPIs.cpc)} icon={MousePointer} accentColor="orange" />
       </KPISection>
     </div>
   );
