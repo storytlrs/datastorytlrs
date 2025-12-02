@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Settings } from "lucide-react";
+import { ArrowLeft, Settings, Send } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { OverviewTab } from "@/components/reports/OverviewTab";
@@ -29,7 +29,7 @@ interface Report {
 const ReportDetail = () => {
   const { reportId } = useParams();
   const navigate = useNavigate();
-  const { isAdmin } = useUserRole();
+  const { isAdmin, canEdit } = useUserRole();
   const [report, setReport] = useState<Report | null>(null);
   const [loading, setLoading] = useState(true);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -55,6 +55,22 @@ const ReportDetail = () => {
       navigate("/spaces");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handlePublish = async () => {
+    try {
+      const { error } = await supabase
+        .from("reports")
+        .update({ status: "active" })
+        .eq("id", reportId);
+
+      if (error) throw error;
+      
+      toast.success("Report published successfully");
+      fetchReport();
+    } catch (error) {
+      toast.error("Failed to publish report");
     }
   };
 
@@ -86,27 +102,37 @@ const ReportDetail = () => {
 
           <div className="flex items-start justify-between">
             <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-4xl font-bold mb-2">{report.name}</h1>
-                {isAdmin && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setIsEditDialogOpen(true)}
-                    className="rounded-[35px] h-8 w-8"
-                  >
-                    <Settings className="w-4 h-4" />
-                  </Button>
-                )}
-              </div>
+              <h1 className="text-4xl font-bold mb-2">{report.name}</h1>
               <p className="text-muted-foreground capitalize">
-                {report.type === "always_on" ? "Always-on content" : report.type === "social" ? "Always-on content" : `${report.type} campaign`} • {report.status}
+                {report.type === "always_on" ? "Always-on content" : report.type === "social" ? "Always-on content" : `${report.type} campaign`} • {report.status === "active" ? "Published" : report.status}
               </p>
               {report.start_date && report.end_date && (
                 <p className="text-sm text-muted-foreground mt-1">
                   {new Date(report.start_date).toLocaleDateString()} -{" "}
                   {new Date(report.end_date).toLocaleDateString()}
                 </p>
+              )}
+            </div>
+            
+            <div className="flex items-center gap-2">
+              {canEdit && report.status === "draft" && (
+                <Button
+                  onClick={handlePublish}
+                  className="rounded-[35px] bg-[#57DC64] text-black border border-foreground hover:bg-[#57DC64]/90"
+                >
+                  <Send className="w-4 h-4 mr-2" />
+                  Publish
+                </Button>
+              )}
+              {isAdmin && (
+                <Button
+                  variant="outline"
+                  onClick={() => setIsEditDialogOpen(true)}
+                  className="rounded-[35px] border-foreground"
+                >
+                  <Settings className="w-4 h-4 mr-2" />
+                  Edit
+                </Button>
               )}
             </div>
           </div>
