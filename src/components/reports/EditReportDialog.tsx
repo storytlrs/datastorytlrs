@@ -123,7 +123,7 @@ export const EditReportDialog = ({ open, onOpenChange, report, onSuccess }: Edit
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          {isAdmin && projects.length > 0 && (
+          {isAdmin && (
             <div className="space-y-2">
               <Label>Project</Label>
               <Select value={projectId} onValueChange={setProjectId}>
@@ -131,12 +131,18 @@ export const EditReportDialog = ({ open, onOpenChange, report, onSuccess }: Edit
                   <SelectValue placeholder="Select a project (optional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No project</SelectItem>
-                  {projects.map((project) => (
-                    <SelectItem key={project.id} value={project.id}>
-                      {project.name}
-                    </SelectItem>
-                  ))}
+                  {projects.length === 0 ? (
+                    <SelectItem value="" disabled>No projects in this space</SelectItem>
+                  ) : (
+                    <>
+                      <SelectItem value="">No project</SelectItem>
+                      {projects.map((project) => (
+                        <SelectItem key={project.id} value={project.id}>
+                          {project.name}
+                        </SelectItem>
+                      ))}
+                    </>
+                  )}
                 </SelectContent>
               </Select>
             </div>
