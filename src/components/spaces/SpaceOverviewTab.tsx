@@ -196,7 +196,16 @@ const SpaceOverviewTab = ({ spaceId }: SpaceOverviewTabProps) => {
 
   // Monthly chart data
   const chartData = useMemo(() => {
-    const monthlyData: Record<string, { month: string; views: number; reach: number; interactions: number; budget: number; content: number }> = {};
+    const monthlyData: Record<string, { 
+      monthKey: string; 
+      month: string; 
+      views: number; 
+      reach: number; 
+      interactions: number; 
+      budget: number; 
+      content: number;
+      linkClicks: number;
+    }> = {};
     
     filteredContent.forEach(c => {
       if (!c.published_date) return;
@@ -205,25 +214,45 @@ const SpaceOverviewTab = ({ spaceId }: SpaceOverviewTabProps) => {
       const monthLabel = format(date, "MMM yyyy");
       
       if (!monthlyData[monthKey]) {
-        monthlyData[monthKey] = { month: monthLabel, views: 0, reach: 0, interactions: 0, budget: 0, content: 0 };
+        monthlyData[monthKey] = { 
+          monthKey, 
+          month: monthLabel, 
+          views: 0, 
+          reach: 0, 
+          interactions: 0, 
+          budget: 0, 
+          content: 0,
+          linkClicks: 0,
+        };
       }
       
       monthlyData[monthKey].views += (c.impressions || 0) + (c.views || 0);
       monthlyData[monthKey].reach += c.reach || 0;
       monthlyData[monthKey].interactions += (c.likes || 0) + (c.comments || 0) + (c.shares || 0) + (c.saves || 0);
       monthlyData[monthKey].content += 1;
+      monthlyData[monthKey].linkClicks += c.link_clicks || 0;
     });
 
-    // Add calculated metrics
+    // Calculate average budget per content piece for distribution
+    const avgBudgetPerContent = kpis.contentPieces > 0 ? kpis.budget / kpis.contentPieces : 0;
+
+    // Sort by monthKey (yyyy-MM) for chronological order, then add calculated metrics
     return Object.values(monthlyData)
-      .sort((a, b) => a.month.localeCompare(b.month))
-      .map(d => ({
-        ...d,
-        engagement: d.views > 0 ? (d.interactions / d.views) * 100 : 0,
-        cpm: d.views > 0 ? (kpis.budget / d.views) * 1000 : 0,
-        cpc: kpis.linkClicks > 0 ? kpis.budget / kpis.linkClicks : 0,
-        budget: d.content * (kpis.budget / (kpis.contentPieces || 1)),
-      }));
+      .sort((a, b) => a.monthKey.localeCompare(b.monthKey))
+      .map(d => {
+        const monthBudget = d.content * avgBudgetPerContent;
+        return {
+          month: d.month,
+          views: d.views,
+          reach: d.reach,
+          interactions: d.interactions,
+          content: d.content,
+          budget: monthBudget,
+          engagement: d.views > 0 ? (d.interactions / d.views) * 100 : 0,
+          cpm: d.views > 0 ? (monthBudget / d.views) * 1000 : 0,
+          cpc: d.linkClicks > 0 ? monthBudget / d.linkClicks : 0,
+        };
+      });
   }, [filteredContent, kpis]);
 
   const metricLabels: Record<MetricKey, string> = {
@@ -234,6 +263,25 @@ const SpaceOverviewTab = ({ spaceId }: SpaceOverviewTabProps) => {
     cpc: "CPC",
     content: "Content Pieces",
     budget: "Budget Spent",
+  };
+
+  // Format chart values based on metric type
+  const formatChartValue = (value: number, metric: MetricKey): string => {
+    const locale = kpis.currency === "CZK" ? "cs-CZ" : "en-US";
+    switch (metric) {
+      case "budget":
+      case "cpm":
+      case "cpc":
+        return formatCurrency(value, kpis.currency);
+      case "engagement":
+        return `${value.toFixed(2)}%`;
+      case "views":
+      case "reach":
+      case "content":
+        return value.toLocaleString(locale, { maximumFractionDigits: 0 });
+      default:
+        return value.toLocaleString(locale, { maximumFractionDigits: 2 });
+    }
   };
 
   if (loading) {
@@ -374,8 +422,15 @@ const SpaceOverviewTab = ({ spaceId }: SpaceOverviewTabProps) => {
             <BarChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
               <XAxis dataKey="month" stroke="hsl(var(--foreground))" />
-              <YAxis stroke="hsl(var(--foreground))" />
+              <YAxis 
+                stroke="hsl(var(--foreground))" 
+                tickFormatter={(value) => formatChartValue(value, selectedMetric)}
+              />
               <Tooltip
+                formatter={(value: number) => [
+                  formatChartValue(value, selectedMetric),
+                  metricLabels[selectedMetric]
+                ]}
                 contentStyle={{
                   backgroundColor: "hsl(var(--background))",
                   border: "1px solid hsl(var(--border))",
