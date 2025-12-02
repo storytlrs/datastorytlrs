@@ -142,7 +142,7 @@ export const CreatePromoCodeDialog = ({ reportId, onSuccess }: CreatePromoCodeDi
               />
             </div>
             <div>
-              <Label htmlFor="revenue">Revenue ($)</Label>
+              <Label htmlFor="revenue">Revenue (Kč)</Label>
               <Input
                 id="revenue"
                 type="number"

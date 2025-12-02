@@ -14,7 +14,7 @@ const creatorSchema = z.object({
   handle: z.string().min(1, "Handle is required"),
   platform: z.enum(["instagram", "tiktok", "youtube", "facebook", "twitter"]),
   profile_url: z.string().url().optional().or(z.literal("")),
-  currency: z.enum(["USD", "EUR", "GBP", "CZK", "PLN"]).default("USD"),
+  currency: z.enum(["USD", "EUR", "GBP", "CZK", "PLN"]).default("CZK"),
   posts_count: z.number().min(0).default(0),
   posts_cost: z.number().min(0).default(0),
   reels_count: z.number().min(0).default(0),
@@ -48,7 +48,7 @@ export const EditCreatorDialog = ({ creator, open, onOpenChange, onSuccess }: Ed
         handle: creator.handle || "",
         platform: creator.platform || "instagram",
         profile_url: creator.profile_url || "",
-        currency: creator.currency || "USD",
+        currency: creator.currency || "CZK",
         posts_count: creator.posts_count || 0,
         posts_cost: creator.posts_cost || 0,
         reels_count: creator.reels_count || 0,
@@ -182,10 +182,10 @@ export const EditCreatorDialog = ({ creator, open, onOpenChange, onSuccess }: Ed
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="USD">$ USD</SelectItem>
-                    <SelectItem value="EUR">€ EUR</SelectItem>
-                    <SelectItem value="GBP">£ GBP</SelectItem>
                     <SelectItem value="CZK">Kč CZK</SelectItem>
+                    <SelectItem value="EUR">€ EUR</SelectItem>
+                    <SelectItem value="USD">$ USD</SelectItem>
+                    <SelectItem value="GBP">£ GBP</SelectItem>
                     <SelectItem value="PLN">zł PLN</SelectItem>
                   </SelectContent>
                 </Select>

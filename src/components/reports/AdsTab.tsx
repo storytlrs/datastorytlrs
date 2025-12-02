@@ -25,7 +25,7 @@ const mockAds = [
   { id: 4, adsetName: "Lookalike Audience", name: "Creative D - UGC Video", spend: 6200, impressions: 1200000, clicks: 18600, conversions: 320, frequency: 3.6, ctr: 1.55, roas: 3.1 },
 ];
 
-const formatCurrency = (value: number) => `$${value.toLocaleString()}`;
+const formatCurrency = (value: number) => `${value.toLocaleString("cs-CZ")} Kč`;
 const formatNumber = (value: number) => value.toLocaleString();
 const formatPercent = (value: number) => `${value.toFixed(2)}%`;
 const formatRatio = (value: number) => value.toFixed(1);
