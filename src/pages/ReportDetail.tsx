@@ -109,8 +109,8 @@ const ReportDetail = () => {
             <TabsTrigger value="overview" className="rounded-[35px]">
               Overview
             </TabsTrigger>
-            <TabsTrigger value="data" className="rounded-[35px]">
-              Data
+            <TabsTrigger value="insights" className="rounded-[35px]">
+              AI Insights
             </TabsTrigger>
             <TabsTrigger value="creators" className="rounded-[35px]">
               Creators
@@ -121,8 +121,8 @@ const ReportDetail = () => {
             <TabsTrigger value="ads" className="rounded-[35px]">
               Ads
             </TabsTrigger>
-            <TabsTrigger value="insights" className="rounded-[35px]">
-              AI Insights
+            <TabsTrigger value="data" className="rounded-[35px]">
+              Data
             </TabsTrigger>
           </TabsList>
 
