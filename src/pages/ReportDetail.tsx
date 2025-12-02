@@ -139,7 +139,7 @@ const ReportDetail = () => {
           </TabsContent>
 
           <TabsContent value="content">
-            <ContentTab />
+            <ContentTab reportId={reportId!} />
           </TabsContent>
 
           <TabsContent value="ads">

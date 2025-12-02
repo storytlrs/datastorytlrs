@@ -1,53 +1,76 @@
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Eye, Heart, MessageCircle, Share2 } from "lucide-react";
+import { Eye, Heart, MessageCircle, Share2, ImageIcon } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
-export const ContentTab = () => {
-  // Mock data - will be replaced with real data
-  const contentData = [
-    {
-      id: 1,
-      platform: "Instagram",
-      type: "Reel",
-      thumbnail: "https://images.unsplash.com/photo-1611162617474-5b21e879e113",
-      views: "125K",
-      likes: "8.2K",
-      comments: "342",
-      shares: "89",
-      er: 7.2,
-      creator: "Creator A",
-    },
-    {
-      id: 2,
-      platform: "TikTok",
-      type: "Video",
-      thumbnail: "https://images.unsplash.com/photo-1611162616305-c69b3fa7fbe0",
-      views: "89K",
-      likes: "5.1K",
-      comments: "218",
-      shares: "56",
-      er: 6.1,
-      creator: "Creator B",
-    },
-    {
-      id: 3,
-      platform: "YouTube",
-      type: "Short",
-      thumbnail: "https://images.unsplash.com/photo-1611162618071-b39a2ec055fb",
-      views: "210K",
-      likes: "12.5K",
-      comments: "542",
-      shares: "156",
-      er: 6.8,
-      creator: "Creator C",
-    },
-  ];
+interface ContentTabProps {
+  reportId: string;
+}
+
+interface ContentItem {
+  id: string;
+  platform: string;
+  content_type: string;
+  thumbnail_url: string | null;
+  views: number | null;
+  impressions: number | null;
+  likes: number | null;
+  comments: number | null;
+  shares: number | null;
+  saves: number | null;
+  creators: { handle: string } | null;
+}
+
+export const ContentTab = ({ reportId }: ContentTabProps) => {
+  const [content, setContent] = useState<ContentItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchContent();
+  }, [reportId]);
+
+  const fetchContent = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("content")
+      .select("id, platform, content_type, thumbnail_url, views, impressions, likes, comments, shares, saves, creators(handle)")
+      .eq("report_id", reportId)
+      .order("published_date", { ascending: false });
+
+    if (!error) {
+      setContent(data || []);
+    }
+    setLoading(false);
+  };
+
+  const formatNumber = (num: number | null) => {
+    if (!num) return "0";
+    if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
+    if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
+    return num.toString();
+  };
+
+  const calculateER = (item: ContentItem) => {
+    const interactions = (item.likes || 0) + (item.comments || 0) + (item.shares || 0) + (item.saves || 0);
+    const reach = (item.impressions || 0) + (item.views || 0);
+    if (reach === 0) return 0;
+    return ((interactions / reach) * 100);
+  };
 
   const getERColor = (er: number) => {
-    if (er > 6) return "bg-accent-green";
-    if (er > 4) return "bg-accent";
-    return "bg-accent-orange";
+    if (er > 6) return "bg-accent-green text-accent-green-foreground";
+    if (er > 4) return "bg-accent text-accent-foreground";
+    return "bg-accent-orange text-accent-orange-foreground";
   };
+
+  if (loading) {
+    return (
+      <Card className="p-8 rounded-[35px] border-foreground">
+        <p className="text-muted-foreground">Loading content...</p>
+      </Card>
+    );
+  }
 
   return (
     <Card className="p-8 rounded-[35px] border-foreground">
@@ -58,55 +81,70 @@ export const ContentTab = () => {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {contentData.map((content) => (
-          <Card 
-            key={content.id} 
-            className="overflow-hidden rounded-[35px] border-foreground hover:shadow-lg transition-shadow"
-          >
-            <div className="relative aspect-[9/16] bg-muted">
-              <img
-                src={content.thumbnail}
-                alt={`${content.platform} ${content.type}`}
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute top-3 right-3">
-                <Badge className="bg-card text-card-foreground border border-foreground">
-                  {content.platform}
-                </Badge>
-              </div>
-            </div>
-            
-            <div className="p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="font-medium text-sm">{content.creator}</span>
-                <Badge className={getERColor(content.er)}>
-                  {content.er}% ER
-                </Badge>
-              </div>
+      {content.length === 0 ? (
+        <p className="text-muted-foreground text-center py-8">
+          No content yet. Add content in the Data tab.
+        </p>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {content.map((item) => {
+            const er = calculateER(item);
+            return (
+              <Card 
+                key={item.id} 
+                className="overflow-hidden rounded-[35px] border-foreground hover:shadow-lg transition-shadow"
+              >
+                <div className="relative aspect-[9/16] bg-muted">
+                  {item.thumbnail_url ? (
+                    <img
+                      src={item.thumbnail_url}
+                      alt={`${item.platform} ${item.content_type}`}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <ImageIcon className="w-16 h-16 text-muted-foreground/30" />
+                    </div>
+                  )}
+                  <div className="absolute top-3 right-3">
+                    <Badge className="bg-card text-card-foreground border border-foreground capitalize">
+                      {item.platform}
+                    </Badge>
+                  </div>
+                </div>
+                
+                <div className="p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium text-sm">{item.creators?.handle || "Unknown"}</span>
+                    <Badge className={getERColor(er)}>
+                      {er.toFixed(1)}% ER
+                    </Badge>
+                  </div>
 
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <div className="flex items-center gap-1 text-muted-foreground">
-                  <Eye className="w-4 h-4" />
-                  <span>{content.views}</span>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div className="flex items-center gap-1 text-muted-foreground">
+                      <Eye className="w-4 h-4" />
+                      <span>{formatNumber(item.views || item.impressions)}</span>
+                    </div>
+                    <div className="flex items-center gap-1 text-muted-foreground">
+                      <Heart className="w-4 h-4" />
+                      <span>{formatNumber(item.likes)}</span>
+                    </div>
+                    <div className="flex items-center gap-1 text-muted-foreground">
+                      <MessageCircle className="w-4 h-4" />
+                      <span>{formatNumber(item.comments)}</span>
+                    </div>
+                    <div className="flex items-center gap-1 text-muted-foreground">
+                      <Share2 className="w-4 h-4" />
+                      <span>{formatNumber(item.shares)}</span>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1 text-muted-foreground">
-                  <Heart className="w-4 h-4" />
-                  <span>{content.likes}</span>
-                </div>
-                <div className="flex items-center gap-1 text-muted-foreground">
-                  <MessageCircle className="w-4 h-4" />
-                  <span>{content.comments}</span>
-                </div>
-                <div className="flex items-center gap-1 text-muted-foreground">
-                  <Share2 className="w-4 h-4" />
-                  <span>{content.shares}</span>
-                </div>
-              </div>
-            </div>
-          </Card>
-        ))}
-      </div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
     </Card>
   );
 };

@@ -12,6 +12,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { watchTimeToSeconds } from "@/lib/watchTimeUtils";
+import { ImageUpload } from "@/components/ui/image-upload";
 
 const contentSchema = z.object({
   creator_id: z.string().min(1, "Creator is required"),
@@ -44,6 +45,7 @@ export const CreateContentDialog = ({ reportId, onSuccess }: CreateContentDialog
   const [open, setOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [creators, setCreators] = useState<any[]>([]);
+  const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
 
   const { register, handleSubmit, formState: { errors }, setValue, watch, reset } = useForm<ContentFormData>({
     resolver: zodResolver(contentSchema),
@@ -90,6 +92,7 @@ export const CreateContentDialog = ({ reportId, onSuccess }: CreateContentDialog
         watch_time: data.watch_time ? watchTimeToSeconds(data.watch_time) : null,
         sentiment: data.sentiment || null,
         sentiment_summary: data.sentiment_summary || null,
+        thumbnail_url: thumbnailUrl,
       });
 
       if (error) throw error;
@@ -97,6 +100,7 @@ export const CreateContentDialog = ({ reportId, onSuccess }: CreateContentDialog
       toast.success("Content added successfully");
       setOpen(false);
       reset();
+      setThumbnailUrl(null);
       onSuccess();
     } catch (error) {
       toast.error("Failed to create content");
@@ -119,6 +123,17 @@ export const CreateContentDialog = ({ reportId, onSuccess }: CreateContentDialog
           <DialogTitle>Add New Content</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          {/* Preview Image Section */}
+          <div className="space-y-4">
+            <h3 className="font-semibold">Preview Image</h3>
+            <ImageUpload
+              value={thumbnailUrl}
+              onChange={setThumbnailUrl}
+              bucket="content-thumbnails"
+              folder={reportId}
+            />
+          </div>
+
           {/* Content Info Section */}
           <div className="space-y-4">
             <h3 className="font-semibold">Content Info</h3>

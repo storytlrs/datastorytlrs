@@ -205,6 +205,8 @@ export const DataTab = ({ reportId }: DataTabProps) => {
   ];
 
   const contentColumns: ColumnDef[] = [
+    // Preview
+    { key: "thumbnail_url", label: "Preview", type: "text", width: "80px", editable: false, format: (val: string | null) => val ? "✓" : "-" },
     // Content Info
     { key: "creators", label: "Creator", type: "text", editable: false, format: (val: any) => val?.handle || "-" },
     { key: "platform", label: "Platform", type: "text", editable: false },
