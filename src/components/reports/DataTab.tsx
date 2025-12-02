@@ -13,7 +13,7 @@ import { EditContentDialog } from "./EditContentDialog";
 import { CreatePromoCodeDialog } from "./CreatePromoCodeDialog";
 import { ImportDataDialog } from "./ImportDataDialog";
 import { formatWatchTimeDisplay } from "@/lib/watchTimeUtils";
-import { formatCurrencySimple, getCurrencySymbol } from "@/lib/currencyUtils";
+import { formatCurrencySimple } from "@/lib/currencyUtils";
 import { Upload } from "lucide-react";
 
 interface DataTabProps {
@@ -163,7 +163,7 @@ export const DataTab = ({ reportId, onImportSuccess }: DataTabProps) => {
       type: "number", 
       width: "100px", 
       editable: false,
-      format: (val: any, row: any) => `${getCurrencySymbol(row.currency)}${val?.toFixed(2) || "0.00"}`
+      format: (val: any, row: any) => formatCurrencySimple(val, row.currency)
     },
     { key: "reels_count", label: "Reels", type: "number", width: "80px", editable: false },
     { 
@@ -172,7 +172,7 @@ export const DataTab = ({ reportId, onImportSuccess }: DataTabProps) => {
       type: "number", 
       width: "100px", 
       editable: false,
-      format: (val: any, row: any) => `${getCurrencySymbol(row.currency)}${val?.toFixed(2) || "0.00"}`
+      format: (val: any, row: any) => formatCurrencySimple(val, row.currency)
     },
     { key: "stories_count", label: "Stories", type: "number", width: "80px", editable: false },
     { 
@@ -181,7 +181,7 @@ export const DataTab = ({ reportId, onImportSuccess }: DataTabProps) => {
       type: "number", 
       width: "100px", 
       editable: false,
-      format: (val: any, row: any) => `${getCurrencySymbol(row.currency)}${val?.toFixed(2) || "0.00"}`
+      format: (val: any, row: any) => formatCurrencySimple(val, row.currency)
     },
     { key: "avg_reach", label: "Avg Reach", type: "number", width: "110px", editable: false, format: formatNumber },
     { key: "avg_views", label: "Avg Views", type: "number", width: "110px", editable: false, format: formatNumber },
@@ -204,7 +204,7 @@ export const DataTab = ({ reportId, onImportSuccess }: DataTabProps) => {
       calculated: true,
       format: (val: any, row: any) => {
         const total = (row.posts_count * row.posts_cost) + (row.reels_count * row.reels_cost) + (row.stories_count * row.stories_cost);
-        return `${getCurrencySymbol(row.currency)}${total.toFixed(2)}`;
+        return formatCurrencySimple(total, row.currency);
       }
     },
   ];
