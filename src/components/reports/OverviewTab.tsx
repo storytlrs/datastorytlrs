@@ -28,6 +28,7 @@ import {
   X
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { secondsToWatchTime } from "@/lib/watchTimeUtils";
 
 interface OverviewTabProps {
   reportId: string;
@@ -50,7 +51,7 @@ interface Content {
   reach: number | null;
   impressions: number | null;
   views: number | null;
-  brand_minutes: number | null;
+  watch_time: number | null;
   likes: number | null;
   comments: number | null;
   shares: number | null;
@@ -111,7 +112,7 @@ export const OverviewTab = ({ reportId }: OverviewTabProps) => {
       setLoading(true);
       const [creatorsRes, contentRes] = await Promise.all([
         supabase.from("creators").select("id, handle, posts_count, reels_count, stories_count, posts_cost, reels_cost, stories_cost").eq("report_id", reportId),
-        supabase.from("content").select("id, creator_id, reach, impressions, views, brand_minutes, likes, comments, shares, saves, link_clicks, sticker_clicks, published_date").eq("report_id", reportId),
+        supabase.from("content").select("id, creator_id, reach, impressions, views, watch_time, likes, comments, shares, saves, link_clicks, sticker_clicks, published_date").eq("report_id", reportId),
       ]);
       setCreators(creatorsRes.data || []);
       setContent(contentRes.data || []);
@@ -140,12 +141,12 @@ export const OverviewTab = ({ reportId }: OverviewTabProps) => {
     const totalReach = filteredContent.reduce((sum, c) => sum + (c.reach || 0), 0);
     const totalImpressions = filteredContent.reduce((sum, c) => sum + (c.impressions || 0), 0);
     const totalViews = filteredContent.reduce((sum, c) => sum + (c.views || 0), 0);
-    const totalBrandMinutes = filteredContent.reduce((sum, c) => sum + (c.brand_minutes || 0), 0);
+    const totalWatchTimeSeconds = filteredContent.reduce((sum, c) => sum + (c.watch_time || 0), 0);
 
     return {
       reach: totalReach,
       impressionsViews: totalImpressions + totalViews,
-      brandMinutes: totalBrandMinutes,
+      watchTimeSeconds: totalWatchTimeSeconds,
     };
   }, [filteredContent]);
 
@@ -194,17 +195,18 @@ export const OverviewTab = ({ reportId }: OverviewTabProps) => {
       );
     }, 0);
 
-    const brandMinuteCost = awarenessKPIs.brandMinutes > 0 ? budgetSpent / awarenessKPIs.brandMinutes : 0;
+    const watchTimeMinutes = awarenessKPIs.watchTimeSeconds / 60;
+    const watchTimeCostPerMinute = watchTimeMinutes > 0 ? budgetSpent / watchTimeMinutes : 0;
 
-    const totalImpressions = filteredContent.reduce((sum, c) => sum + (c.impressions || 0), 0);
-    const cpm = totalImpressions > 0 ? (budgetSpent / totalImpressions) * 1000 : 0;
+    // CPM: (budget / (impressions + views)) × 1000
+    const cpm = awarenessKPIs.impressionsViews > 0 ? (budgetSpent / awarenessKPIs.impressionsViews) * 1000 : 0;
 
     const cpc = engagementKPIs.linkClicks > 0 ? budgetSpent / engagementKPIs.linkClicks : 0;
 
     return {
       contentPieces,
       budgetSpent,
-      brandMinuteCost,
+      watchTimeCostPerMinute,
       cpm,
       cpc,
     };
@@ -326,7 +328,7 @@ export const OverviewTab = ({ reportId }: OverviewTabProps) => {
       <KPISection title="Awareness" icon={Eye}>
         <KPICard title="Reach" value={formatNumber(awarenessKPIs.reach)} icon={Users} accentColor="default" />
         <KPICard title="Impressions / Views" value={formatNumber(awarenessKPIs.impressionsViews)} icon={Eye} accentColor="blue" />
-        <KPICard title="Brand Minutes" value={formatNumber(awarenessKPIs.brandMinutes)} icon={Clock} accentColor="default" />
+        <KPICard title="Watch Time" value={awarenessKPIs.watchTimeSeconds > 0 ? secondsToWatchTime(awarenessKPIs.watchTimeSeconds) : "-"} icon={Clock} accentColor="default" />
       </KPISection>
 
       {/* Engagement Section */}
@@ -347,7 +349,7 @@ export const OverviewTab = ({ reportId }: OverviewTabProps) => {
       <KPISection title="Effectiveness" icon={BarChart3}>
         <KPICard title="Content Pieces" value={effectivenessKPIs.contentPieces.toString()} icon={FileText} accentColor="default" />
         <KPICard title="Budget Spent" value={formatCurrency(effectivenessKPIs.budgetSpent)} icon={DollarSign} accentColor="orange" />
-        <KPICard title="Brand Minute Cost" value={formatCurrency(effectivenessKPIs.brandMinuteCost)} icon={Clock} accentColor="default" />
+        <KPICard title="Watch Time Cost per Minute" value={formatCurrency(effectivenessKPIs.watchTimeCostPerMinute)} icon={Clock} accentColor="default" />
         <KPICard title="CPM" value={formatCurrency(effectivenessKPIs.cpm)} icon={DollarSign} accentColor="orange" />
         <KPICard title="CPC" value={formatCurrency(effectivenessKPIs.cpc)} icon={MousePointer} accentColor="default" />
       </KPISection>
