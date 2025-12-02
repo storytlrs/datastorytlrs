@@ -313,10 +313,10 @@ export const ContentTab = ({ reportId }: ContentTabProps) => {
 
         {/* Creator Filter */}
         <Select value={selectedCreator} onValueChange={setSelectedCreator}>
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="rounded-[35px]">
             <SelectValue placeholder="All creators" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="rounded-[20px]">
             <SelectItem value="all">All creators</SelectItem>
             {uniqueCreators.map((creator) => (
               <SelectItem key={creator.id} value={creator.id}>
@@ -328,10 +328,10 @@ export const ContentTab = ({ reportId }: ContentTabProps) => {
 
         {/* Platform Filter */}
         <Select value={selectedPlatform} onValueChange={setSelectedPlatform}>
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="rounded-[35px]">
             <SelectValue placeholder="All platforms" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="rounded-[20px]">
             <SelectItem value="all">All platforms</SelectItem>
             {uniquePlatforms.map((platform) => (
               <SelectItem key={platform} value={platform} className="capitalize">
@@ -343,11 +343,11 @@ export const ContentTab = ({ reportId }: ContentTabProps) => {
 
         {/* Sort By */}
         <Select value={sortBy} onValueChange={setSortBy}>
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="rounded-[35px]">
             <ArrowUpDown className="mr-2 h-4 w-4" />
             <SelectValue placeholder="Sort by" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="rounded-[20px]">
             <SelectItem value="date">Date (newest)</SelectItem>
             <SelectItem value="er">Engagement Rate</SelectItem>
             <SelectItem value="views">Views/Impressions</SelectItem>
@@ -359,9 +359,9 @@ export const ContentTab = ({ reportId }: ContentTabProps) => {
 
         {/* Clear Filters */}
         {hasActiveFilters && (
-          <Button variant="ghost" size="sm" onClick={clearFilters}>
-            <X className="h-4 w-4 mr-1" />
-            Clear
+          <Button variant="ghost" onClick={clearFilters} className="rounded-[35px]">
+            <X className="h-4 w-4 mr-2" />
+            Clear filters
           </Button>
         )}
       </div>
