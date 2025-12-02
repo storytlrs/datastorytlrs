@@ -11,6 +11,7 @@ import { KPICard } from "@/components/reports/KPICard";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { secondsToWatchTime } from "@/lib/watchTimeUtils";
 import { formatCurrency } from "@/lib/currencyUtils";
+import { cn } from "@/lib/utils";
 
 interface SpaceOverviewTabProps {
   spaceId: string;
@@ -301,7 +302,15 @@ const SpaceOverviewTab = ({ spaceId }: SpaceOverviewTabProps) => {
       <div className="flex flex-wrap gap-3">
         <Popover>
           <PopoverTrigger asChild>
-            <Button variant="outline" className="rounded-[35px] justify-start text-left font-normal">
+            <Button 
+              variant="outline" 
+              className={cn(
+                "rounded-[35px] justify-start text-left font-normal hover:border-foreground hover:bg-foreground hover:text-background",
+                dateRange.start
+                  ? "border-accent-orange bg-accent-orange text-foreground"
+                  : "border-foreground bg-card text-foreground"
+              )}
+            >
               <CalendarIcon className="mr-2 h-4 w-4" />
               {dateRange.start ? format(dateRange.start, "PPP") : "Start date"}
             </Button>
@@ -318,7 +327,15 @@ const SpaceOverviewTab = ({ spaceId }: SpaceOverviewTabProps) => {
 
         <Popover>
           <PopoverTrigger asChild>
-            <Button variant="outline" className="rounded-[35px] justify-start text-left font-normal">
+            <Button 
+              variant="outline" 
+              className={cn(
+                "rounded-[35px] justify-start text-left font-normal hover:border-foreground hover:bg-foreground hover:text-background",
+                dateRange.end
+                  ? "border-accent-orange bg-accent-orange text-foreground"
+                  : "border-foreground bg-card text-foreground"
+              )}
+            >
               <CalendarIcon className="mr-2 h-4 w-4" />
               {dateRange.end ? format(dateRange.end, "PPP") : "End date"}
             </Button>
@@ -334,7 +351,12 @@ const SpaceOverviewTab = ({ spaceId }: SpaceOverviewTabProps) => {
         </Popover>
 
         <Select value={typeFilter} onValueChange={setTypeFilter}>
-          <SelectTrigger className="w-[200px] rounded-[35px]">
+          <SelectTrigger className={cn(
+            "w-[200px] rounded-[35px]",
+            typeFilter !== "all"
+              ? "border-accent-orange bg-accent-orange text-foreground"
+              : ""
+          )}>
             <SelectValue placeholder="Report type" />
           </SelectTrigger>
           <SelectContent>
@@ -409,10 +431,15 @@ const SpaceOverviewTab = ({ spaceId }: SpaceOverviewTabProps) => {
             {(Object.keys(metricLabels) as MetricKey[]).map((key) => (
               <Button
                 key={key}
-                variant={selectedMetric === key ? "default" : "outline"}
+                variant="outline"
                 size="sm"
                 onClick={() => setSelectedMetric(key)}
-                className="rounded-[35px]"
+                className={cn(
+                  "rounded-[35px] hover:border-foreground hover:bg-foreground hover:text-background",
+                  selectedMetric === key
+                    ? "border-accent-orange bg-accent-orange text-foreground"
+                    : "border-foreground bg-card text-foreground"
+                )}
               >
                 {metricLabels[key]}
               </Button>
