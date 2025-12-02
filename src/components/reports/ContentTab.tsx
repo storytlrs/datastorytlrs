@@ -1,8 +1,26 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Eye, Heart, MessageCircle, Share2, ImageIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Eye, Heart, MessageCircle, Share2, ImageIcon, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { format } from "date-fns";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { cn } from "@/lib/utils";
+import { CalendarIcon } from "lucide-react";
+import { DateRange } from "react-day-picker";
 
 interface ContentTabProps {
   reportId: string;
@@ -19,12 +37,16 @@ interface ContentItem {
   comments: number | null;
   shares: number | null;
   saves: number | null;
-  creators: { handle: string } | null;
+  published_date: string | null;
+  creators: { id: string; handle: string } | null;
 }
 
 export const ContentTab = ({ reportId }: ContentTabProps) => {
   const [content, setContent] = useState<ContentItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>();
+  const [selectedCreator, setSelectedCreator] = useState<string>("all");
+  const [selectedPlatform, setSelectedPlatform] = useState<string>("all");
 
   useEffect(() => {
     fetchContent();
@@ -34,7 +56,7 @@ export const ContentTab = ({ reportId }: ContentTabProps) => {
     setLoading(true);
     const { data, error } = await supabase
       .from("content")
-      .select("id, platform, content_type, thumbnail_url, views, impressions, likes, comments, shares, saves, creators(handle)")
+      .select("id, platform, content_type, thumbnail_url, views, impressions, likes, comments, shares, saves, published_date, creators(id, handle)")
       .eq("report_id", reportId)
       .order("published_date", { ascending: false });
 
@@ -58,10 +80,66 @@ export const ContentTab = ({ reportId }: ContentTabProps) => {
     return ((interactions / reach) * 100);
   };
 
+  // Get unique creators and platforms for filters
+  const uniqueCreators = useMemo(() => {
+    const creators = content
+      .filter(item => item.creators)
+      .map(item => ({ id: item.creators!.id, handle: item.creators!.handle }));
+    return Array.from(new Map(creators.map(c => [c.id, c])).values());
+  }, [content]);
+
+  const uniquePlatforms = useMemo(() => {
+    return Array.from(new Set(content.map(item => item.platform)));
+  }, [content]);
+
+  // Filter content
+  const filteredContent = useMemo(() => {
+    return content.filter(item => {
+      // Date filter
+      if (dateRange?.from && item.published_date) {
+        const pubDate = new Date(item.published_date);
+        if (pubDate < dateRange.from) return false;
+        if (dateRange.to && pubDate > dateRange.to) return false;
+      }
+      
+      // Creator filter
+      if (selectedCreator !== "all" && item.creators?.id !== selectedCreator) {
+        return false;
+      }
+      
+      // Platform filter
+      if (selectedPlatform !== "all" && item.platform !== selectedPlatform) {
+        return false;
+      }
+      
+      return true;
+    });
+  }, [content, dateRange, selectedCreator, selectedPlatform]);
+
+  // Calculate ER percentiles for coloring
+  const { p10, p90 } = useMemo(() => {
+    const erValues = filteredContent.map(item => calculateER(item)).sort((a, b) => a - b);
+    if (erValues.length === 0) return { p10: 0, p90: 0 };
+    const p10Index = Math.floor(erValues.length * 0.1);
+    const p90Index = Math.floor(erValues.length * 0.9);
+    return {
+      p10: erValues[p10Index] || 0,
+      p90: erValues[p90Index] || erValues[erValues.length - 1]
+    };
+  }, [filteredContent]);
+
   const getERColor = (er: number) => {
-    if (er > 6) return "bg-accent-green text-accent-green-foreground";
-    if (er > 4) return "bg-accent text-accent-foreground";
-    return "bg-accent-orange text-accent-orange-foreground";
+    if (er >= p90) return "bg-accent-green text-accent-green-foreground";
+    if (er <= p10) return "bg-accent-orange text-accent-orange-foreground";
+    return "bg-accent-blue text-white";
+  };
+
+  const hasActiveFilters = dateRange || selectedCreator !== "all" || selectedPlatform !== "all";
+
+  const clearFilters = () => {
+    setDateRange(undefined);
+    setSelectedCreator("all");
+    setSelectedPlatform("all");
   };
 
   if (loading) {
@@ -81,13 +159,93 @@ export const ContentTab = ({ reportId }: ContentTabProps) => {
         </p>
       </div>
 
-      {content.length === 0 ? (
+      {/* Filters */}
+      <div className="flex flex-wrap gap-3 mb-6">
+        {/* Date Range Filter */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              className={cn(
+                "justify-start text-left font-normal",
+                !dateRange && "text-muted-foreground"
+              )}
+            >
+              <CalendarIcon className="mr-2 h-4 w-4" />
+              {dateRange?.from ? (
+                dateRange.to ? (
+                  <>
+                    {format(dateRange.from, "LLL dd")} - {format(dateRange.to, "LLL dd")}
+                  </>
+                ) : (
+                  format(dateRange.from, "LLL dd, y")
+                )
+              ) : (
+                <span>Date range</span>
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar
+              initialFocus
+              mode="range"
+              defaultMonth={dateRange?.from}
+              selected={dateRange}
+              onSelect={setDateRange}
+              numberOfMonths={2}
+              className="pointer-events-auto"
+            />
+          </PopoverContent>
+        </Popover>
+
+        {/* Creator Filter */}
+        <Select value={selectedCreator} onValueChange={setSelectedCreator}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="All creators" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All creators</SelectItem>
+            {uniqueCreators.map((creator) => (
+              <SelectItem key={creator.id} value={creator.id}>
+                {creator.handle}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {/* Platform Filter */}
+        <Select value={selectedPlatform} onValueChange={setSelectedPlatform}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="All platforms" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All platforms</SelectItem>
+            {uniquePlatforms.map((platform) => (
+              <SelectItem key={platform} value={platform} className="capitalize">
+                {platform}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {/* Clear Filters */}
+        {hasActiveFilters && (
+          <Button variant="ghost" size="sm" onClick={clearFilters}>
+            <X className="h-4 w-4 mr-1" />
+            Clear
+          </Button>
+        )}
+      </div>
+
+      {filteredContent.length === 0 ? (
         <p className="text-muted-foreground text-center py-8">
-          No content yet. Add content in the Data tab.
+          {content.length === 0 
+            ? "No content yet. Add content in the Data tab."
+            : "No content matches your filters."}
         </p>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {content.map((item) => {
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+          {filteredContent.map((item) => {
             const er = calculateER(item);
             return (
               <Card 
@@ -103,39 +261,39 @@ export const ContentTab = ({ reportId }: ContentTabProps) => {
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
-                      <ImageIcon className="w-16 h-16 text-muted-foreground/30" />
+                      <ImageIcon className="w-8 h-8 text-muted-foreground/30" />
                     </div>
                   )}
-                  <div className="absolute top-3 right-3">
-                    <Badge className="bg-card text-card-foreground border border-foreground capitalize">
+                  <div className="absolute top-2 right-2">
+                    <Badge className="bg-card text-card-foreground border border-foreground capitalize text-[10px] px-1.5 py-0.5">
                       {item.platform}
                     </Badge>
                   </div>
                 </div>
                 
-                <div className="p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium text-sm">{item.creators?.handle || "Unknown"}</span>
-                    <Badge className={getERColor(er)}>
-                      {er.toFixed(1)}% ER
+                <div className="p-3 space-y-2">
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="font-medium text-xs truncate">{item.creators?.handle || "Unknown"}</span>
+                    <Badge className={cn("text-[10px] px-1.5 py-0.5", getERColor(er))}>
+                      {er.toFixed(1)}%
                     </Badge>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div className="grid grid-cols-2 gap-1 text-xs">
                     <div className="flex items-center gap-1 text-muted-foreground">
-                      <Eye className="w-4 h-4" />
+                      <Eye className="w-3 h-3" />
                       <span>{formatNumber(item.views || item.impressions)}</span>
                     </div>
                     <div className="flex items-center gap-1 text-muted-foreground">
-                      <Heart className="w-4 h-4" />
+                      <Heart className="w-3 h-3" />
                       <span>{formatNumber(item.likes)}</span>
                     </div>
                     <div className="flex items-center gap-1 text-muted-foreground">
-                      <MessageCircle className="w-4 h-4" />
+                      <MessageCircle className="w-3 h-3" />
                       <span>{formatNumber(item.comments)}</span>
                     </div>
                     <div className="flex items-center gap-1 text-muted-foreground">
-                      <Share2 className="w-4 h-4" />
+                      <Share2 className="w-3 h-3" />
                       <span>{formatNumber(item.shares)}</span>
                     </div>
                   </div>
