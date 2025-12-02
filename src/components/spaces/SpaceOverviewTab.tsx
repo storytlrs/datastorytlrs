@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { format, parseISO, startOfMonth, subMonths } from "date-fns";
-import { Calendar as CalendarIcon, Eye, Users, Heart, MessageCircle, Share2, Bookmark, Link, MousePointer, Clock, DollarSign, BarChart3 } from "lucide-react";
+import { Calendar as CalendarIcon, Eye, Users, Heart, MessageCircle, Share2, Bookmark, Link, MousePointer, Clock, DollarSign, FileText, TrendingUp, Zap, Award, Target } from "lucide-react";
 import { KPICard } from "@/components/reports/KPICard";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { secondsToWatchTime } from "@/lib/watchTimeUtils";
@@ -397,16 +397,16 @@ const SpaceOverviewTab = ({ spaceId }: SpaceOverviewTabProps) => {
         <div>
           <h3 className="text-lg font-semibold mb-4">Engagement</h3>
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-            <KPICard title="Interactions" value={kpis.interactions.toLocaleString()} icon={Heart} accentColor="green" />
+            <KPICard title="Interactions" value={kpis.interactions.toLocaleString()} icon={TrendingUp} accentColor="green" />
             <KPICard title="Likes" value={kpis.likes.toLocaleString()} icon={Heart} />
             <KPICard title="Comments" value={kpis.comments.toLocaleString()} icon={MessageCircle} />
             <KPICard title="Shares" value={kpis.shares.toLocaleString()} icon={Share2} />
             <KPICard title="Saves" value={kpis.saves.toLocaleString()} icon={Bookmark} />
-            <KPICard title="Engagement Rate" value={`${kpis.engagementRate.toFixed(2)}%`} accentColor="green" />
-            <KPICard title="Virality Rate" value={`${kpis.viralityRate.toFixed(4)}%`} />
-            <KPICard title="Utility Score" value={`${kpis.utilityScore.toFixed(4)}%`} />
+            <KPICard title="Engagement Rate" value={`${kpis.engagementRate.toFixed(2)}%`} icon={TrendingUp} accentColor="green" />
+            <KPICard title="Virality Rate" value={`${kpis.viralityRate.toFixed(4)}%`} icon={Zap} />
+            <KPICard title="Utility Score" value={`${kpis.utilityScore.toFixed(4)}%`} icon={Award} />
             <KPICard title="Link Clicks" value={kpis.linkClicks.toLocaleString()} icon={Link} />
-            <KPICard title="Sticker Clicks" value={kpis.stickerClicks.toLocaleString()} icon={MousePointer} />
+            <KPICard title="Sticker Clicks" value={kpis.stickerClicks.toLocaleString()} icon={Target} />
           </div>
         </div>
 
@@ -414,11 +414,11 @@ const SpaceOverviewTab = ({ spaceId }: SpaceOverviewTabProps) => {
         <div>
           <h3 className="text-lg font-semibold mb-4">Effectiveness</h3>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            <KPICard title="Content Pieces" value={kpis.contentPieces.toLocaleString()} icon={BarChart3} accentColor="orange" />
+            <KPICard title="Content Pieces" value={kpis.contentPieces.toLocaleString()} icon={FileText} accentColor="orange" />
             <KPICard title="Budget Spent" value={formatCurrency(kpis.budget, kpis.currency)} icon={DollarSign} accentColor="orange" />
-            <KPICard title="Watch Time Cost/Min" value={formatCurrency(kpis.watchTimeCostPerMinute, kpis.currency)} accentColor="orange" />
-            <KPICard title="CPM" value={formatCurrency(kpis.cpm, kpis.currency)} accentColor="orange" />
-            <KPICard title="CPC" value={formatCurrency(kpis.cpc, kpis.currency)} accentColor="orange" />
+            <KPICard title="Watch Time Cost/Min" value={formatCurrency(kpis.watchTimeCostPerMinute, kpis.currency)} icon={Clock} accentColor="orange" />
+            <KPICard title="CPM" value={formatCurrency(kpis.cpm, kpis.currency)} icon={DollarSign} accentColor="orange" />
+            <KPICard title="CPC" value={formatCurrency(kpis.cpc, kpis.currency)} icon={MousePointer} accentColor="orange" />
           </div>
         </div>
       </div>
