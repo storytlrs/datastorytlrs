@@ -126,16 +126,19 @@ export const EditReportDialog = ({ open, onOpenChange, report, onSuccess }: Edit
           {isAdmin && (
             <div className="space-y-2">
               <Label>Project</Label>
-              <Select value={projectId} onValueChange={setProjectId}>
+              <Select 
+                value={projectId || "__none__"} 
+                onValueChange={(value) => setProjectId(value === "__none__" ? "" : value)}
+              >
                 <SelectTrigger className="rounded-[35px]">
                   <SelectValue placeholder="Select a project (optional)" />
                 </SelectTrigger>
                 <SelectContent>
                   {projects.length === 0 ? (
-                    <SelectItem value="" disabled>No projects in this space</SelectItem>
+                    <SelectItem value="__none__" disabled>No projects in this space</SelectItem>
                   ) : (
                     <>
-                      <SelectItem value="">No project</SelectItem>
+                      <SelectItem value="__none__">No project</SelectItem>
                       {projects.map((project) => (
                         <SelectItem key={project.id} value={project.id}>
                           {project.name}
