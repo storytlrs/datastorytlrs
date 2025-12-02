@@ -1,8 +1,8 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Eye, Heart, MessageCircle, Share2, ImageIcon, X, ArrowUpDown } from "lucide-react";
+import { Eye, Heart, MessageCircle, Share2, ImageIcon, X, ArrowUpDown, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
@@ -21,6 +21,7 @@ import {
 import { cn } from "@/lib/utils";
 import { CalendarIcon } from "lucide-react";
 import { DateRange } from "react-day-picker";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface ContentTabProps {
   reportId: string;
@@ -31,6 +32,7 @@ interface ContentItem {
   platform: string;
   content_type: string;
   thumbnail_url: string | null;
+  url: string | null;
   views: number | null;
   impressions: number | null;
   likes: number | null;
@@ -48,6 +50,8 @@ export const ContentTab = ({ reportId }: ContentTabProps) => {
   const [selectedCreator, setSelectedCreator] = useState<string>("all");
   const [selectedPlatform, setSelectedPlatform] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("date");
+  const [fetchedPreviews, setFetchedPreviews] = useState<Record<string, string | null>>({});
+  const [loadingPreviews, setLoadingPreviews] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetchContent();
@@ -57,7 +61,7 @@ export const ContentTab = ({ reportId }: ContentTabProps) => {
     setLoading(true);
     const { data, error } = await supabase
       .from("content")
-      .select("id, platform, content_type, thumbnail_url, views, impressions, likes, comments, shares, saves, published_date, creators(id, handle)")
+      .select("id, platform, content_type, thumbnail_url, url, views, impressions, likes, comments, shares, saves, published_date, creators(id, handle)")
       .eq("report_id", reportId)
       .order("published_date", { ascending: false });
 
@@ -66,6 +70,41 @@ export const ContentTab = ({ reportId }: ContentTabProps) => {
     }
     setLoading(false);
   };
+
+  const fetchUrlPreview = useCallback(async (contentId: string, url: string) => {
+    if (loadingPreviews.has(contentId) || fetchedPreviews[contentId] !== undefined) {
+      return;
+    }
+
+    setLoadingPreviews(prev => new Set(prev).add(contentId));
+
+    try {
+      const { data, error } = await supabase.functions.invoke('fetch-url-preview', {
+        body: { url }
+      });
+
+      if (!error && data?.success && data?.thumbnail_url) {
+        setFetchedPreviews(prev => ({ ...prev, [contentId]: data.thumbnail_url }));
+        
+        // Optionally cache the thumbnail in the database
+        await supabase
+          .from("content")
+          .update({ thumbnail_url: data.thumbnail_url })
+          .eq("id", contentId);
+      } else {
+        setFetchedPreviews(prev => ({ ...prev, [contentId]: null }));
+      }
+    } catch (err) {
+      console.error('Error fetching preview:', err);
+      setFetchedPreviews(prev => ({ ...prev, [contentId]: null }));
+    } finally {
+      setLoadingPreviews(prev => {
+        const next = new Set(prev);
+        next.delete(contentId);
+        return next;
+      });
+    }
+  }, [loadingPreviews, fetchedPreviews]);
 
   const formatNumber = (num: number | null) => {
     if (!num) return "0";
@@ -160,6 +199,34 @@ export const ContentTab = ({ reportId }: ContentTabProps) => {
     setDateRange(undefined);
     setSelectedCreator("all");
     setSelectedPlatform("all");
+  };
+
+  // Get the preview image for a content item
+  const getPreviewImage = (item: ContentItem): { src: string | null; isLoading: boolean } => {
+    // First priority: uploaded thumbnail
+    if (item.thumbnail_url) {
+      return { src: item.thumbnail_url, isLoading: false };
+    }
+
+    // Second priority: fetched preview from URL
+    if (fetchedPreviews[item.id] !== undefined) {
+      return { src: fetchedPreviews[item.id], isLoading: false };
+    }
+
+    // Third: check if we should fetch
+    if (item.url && !loadingPreviews.has(item.id)) {
+      // Trigger fetch
+      fetchUrlPreview(item.id, item.url);
+      return { src: null, isLoading: true };
+    }
+
+    // Loading state
+    if (loadingPreviews.has(item.id)) {
+      return { src: null, isLoading: true };
+    }
+
+    // No image available
+    return { src: null, isLoading: false };
   };
 
   if (loading) {
@@ -283,15 +350,21 @@ export const ContentTab = ({ reportId }: ContentTabProps) => {
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
           {filteredContent.map((item) => {
             const er = calculateER(item);
+            const preview = getPreviewImage(item);
+            
             return (
               <Card 
                 key={item.id} 
                 className="overflow-hidden rounded-[35px] border-foreground hover:shadow-lg transition-shadow"
               >
                 <div className="relative aspect-[9/12.8] bg-muted">
-                  {item.thumbnail_url ? (
+                  {preview.isLoading ? (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" />
+                    </div>
+                  ) : preview.src ? (
                     <img
-                      src={item.thumbnail_url}
+                      src={preview.src}
                       alt={`${item.platform} ${item.content_type}`}
                       className="w-full h-full object-cover"
                     />
