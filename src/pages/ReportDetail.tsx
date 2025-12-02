@@ -208,7 +208,12 @@ const ReportDetail = () => {
 
           <TabsContent value="insights">
             <Card className="p-8 rounded-[35px] border-foreground">
-              <h2 className="text-2xl font-bold mb-4">AI Insights</h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-2xl font-bold">AI Insights</h2>
+                <Button className="rounded-[35px]">
+                  Generate AI Insights
+                </Button>
+              </div>
               <p className="text-muted-foreground">
                 AI-generated performance summaries and strategic recommendations will be displayed here.
               </p>
