@@ -193,9 +193,8 @@ export const OverviewTab = ({ reportId }: OverviewTabProps) => {
 
   // Effectiveness KPIs
   const effectivenessKPIs = useMemo(() => {
-    const contentPieces = relevantCreators.reduce((sum, c) => {
-      return sum + (c.posts_count || 0) + (c.reels_count || 0) + (c.stories_count || 0);
-    }, 0);
+    // Content pieces from actual content table
+    const contentPieces = filteredContent.length;
 
     const budgetSpent = relevantCreators.reduce((sum, c) => {
       return (
