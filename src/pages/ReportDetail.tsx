@@ -127,7 +127,7 @@ const ReportDetail = () => {
             <div>
               <Button
                 variant="ghost"
-                onClick={() => navigate("/reports")}
+                onClick={() => navigate(`/spaces/${report.space_id}`)}
                 className="p-0 h-auto font-normal text-muted-foreground hover:text-foreground hover:bg-accent-green rounded-[35px] px-2 mb-2"
               >
                 <ArrowLeft className="w-4 h-4 mr-1" />
