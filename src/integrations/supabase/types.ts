@@ -14,6 +14,80 @@ export type Database = {
   }
   public: {
     Tables: {
+      ad_creatives: {
+        Row: {
+          ad_type: string | null
+          adset_name: string | null
+          campaign_name: string | null
+          clicks: number | null
+          conversions: number | null
+          created_at: string
+          ctr: number | null
+          frequency: number | null
+          id: string
+          impressions: number | null
+          name: string
+          platform: Database["public"]["Enums"]["platform_type"]
+          published_date: string | null
+          report_id: string
+          roas: number | null
+          spend: number | null
+          thumbnail_url: string | null
+          updated_at: string
+          url: string | null
+        }
+        Insert: {
+          ad_type?: string | null
+          adset_name?: string | null
+          campaign_name?: string | null
+          clicks?: number | null
+          conversions?: number | null
+          created_at?: string
+          ctr?: number | null
+          frequency?: number | null
+          id?: string
+          impressions?: number | null
+          name: string
+          platform: Database["public"]["Enums"]["platform_type"]
+          published_date?: string | null
+          report_id: string
+          roas?: number | null
+          spend?: number | null
+          thumbnail_url?: string | null
+          updated_at?: string
+          url?: string | null
+        }
+        Update: {
+          ad_type?: string | null
+          adset_name?: string | null
+          campaign_name?: string | null
+          clicks?: number | null
+          conversions?: number | null
+          created_at?: string
+          ctr?: number | null
+          frequency?: number | null
+          id?: string
+          impressions?: number | null
+          name?: string
+          platform?: Database["public"]["Enums"]["platform_type"]
+          published_date?: string | null
+          report_id?: string
+          roas?: number | null
+          spend?: number | null
+          thumbnail_url?: string | null
+          updated_at?: string
+          url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ad_creatives_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_log: {
         Row: {
           action_type: string
@@ -42,6 +116,56 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "audit_log_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campaign_planning: {
+        Row: {
+          actual_value: number | null
+          created_at: string
+          currency: string | null
+          id: string
+          item_name: string
+          item_type: string
+          notes: string | null
+          planned_value: number | null
+          report_id: string
+          unit: string | null
+          updated_at: string
+        }
+        Insert: {
+          actual_value?: number | null
+          created_at?: string
+          currency?: string | null
+          id?: string
+          item_name: string
+          item_type: string
+          notes?: string | null
+          planned_value?: number | null
+          report_id: string
+          unit?: string | null
+          updated_at?: string
+        }
+        Update: {
+          actual_value?: number | null
+          created_at?: string
+          currency?: string | null
+          id?: string
+          item_name?: string
+          item_type?: string
+          notes?: string | null
+          planned_value?: number | null
+          report_id?: string
+          unit?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_planning_report_id_fkey"
             columns: ["report_id"]
             isOneToOne: false
             referencedRelation: "reports"
