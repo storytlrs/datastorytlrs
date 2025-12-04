@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Settings, Send } from "lucide-react";
+import { Settings, Send, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { OverviewTab } from "@/components/reports/OverviewTab";
@@ -125,6 +125,14 @@ const ReportDetail = () => {
         <div className="mb-8">
           <div className="flex items-start justify-between">
             <div>
+              <Button
+                variant="ghost"
+                onClick={() => navigate("/reports")}
+                className="p-0 h-auto font-normal text-muted-foreground hover:text-foreground hover:bg-accent-green rounded-[35px] px-2 mb-2"
+              >
+                <ArrowLeft className="w-4 h-4 mr-1" />
+                All reports
+              </Button>
               <h1 className="text-4xl font-bold mb-2">{report.name}</h1>
               <p className="text-muted-foreground">
                 {getReportTypeLabel(report.type)} •{" "}
