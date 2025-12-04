@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Plus, FileText, TrendingUp, BarChart3, Search, Calendar as CalendarIcon, Settings, Image } from "lucide-react";
+import { Plus, User, TrendingUp, BarChart3, Search, Calendar as CalendarIcon, Settings, Image } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -43,14 +43,14 @@ interface Report {
 }
 
 const reportTypeIcons = {
-  influencer: FileText,
+  influencer: User,
   social: Image,
   ads: BarChart3,
   always_on: Image,
 };
 
 const reportTypeColors = {
-  influencer: "bg-accent",
+  influencer: "bg-accent-orange",
   social: "bg-accent",
   ads: "bg-accent-blue",
   always_on: "bg-accent",
