@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Plus, User, TrendingUp, BarChart3, Search, Calendar as CalendarIcon, Settings, Image } from "lucide-react";
@@ -66,7 +66,9 @@ const reportTypeLabels = {
 const SpaceDetail = () => {
   const { spaceId } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { role, isAdmin, canEdit } = useUserRole();
+  const defaultTab = searchParams.get("tab") || "overview";
   const [space, setSpace] = useState<Space | null>(null);
   const [reports, setReports] = useState<Report[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -177,7 +179,7 @@ const SpaceDetail = () => {
         </div>
 
         {/* Tabs */}
-        <Tabs defaultValue="overview" className="w-full">
+        <Tabs defaultValue={defaultTab} className="w-full">
           <TabsList className="rounded-[35px] border border-foreground mb-8">
             <TabsTrigger value="overview" className="rounded-[35px]">Overview</TabsTrigger>
             <TabsTrigger value="insights" className="rounded-[35px]">AI Insights</TabsTrigger>
