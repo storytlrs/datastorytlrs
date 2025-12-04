@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, LogOut, Search, Settings } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import { toast } from "sonner";
 import { SpaceCard } from "@/components/spaces/SpaceCard";
 import { CreateSpaceDialog } from "@/components/spaces/CreateSpaceDialog";
 import { useUserRole } from "@/hooks/useUserRole";
+
 interface Space {
   id: string;
   name: string;
@@ -15,35 +15,24 @@ interface Space {
   profile_image_url: string | null;
   created_at: string;
 }
+
 const Spaces = () => {
   const [spaces, setSpaces] = useState<Space[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const navigate = useNavigate();
-  const { isAdmin, loading: roleLoading } = useUserRole();
+  const { isAdmin } = useUserRole();
+
   useEffect(() => {
-    checkAuth();
     fetchSpaces();
   }, []);
-  const checkAuth = async () => {
-    const {
-      data: {
-        session
-      }
-    } = await supabase.auth.getSession();
-    if (!session) {
-      navigate("/auth");
-    }
-  };
+
   const fetchSpaces = async () => {
     try {
-      const {
-        data,
-        error
-      } = await supabase.from("spaces").select("*").order("created_at", {
-        ascending: false
-      });
+      const { data, error } = await supabase
+        .from("spaces")
+        .select("*")
+        .order("created_at", { ascending: false });
       if (error) throw error;
       setSpaces(data || []);
     } catch (error) {
@@ -52,49 +41,36 @@ const Spaces = () => {
       setLoading(false);
     }
   };
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    navigate("/auth");
-  };
-  const filteredSpaces = spaces.filter(space => space.name.toLowerCase().includes(searchQuery.toLowerCase()));
-  return <div className="min-h-screen p-6">
+
+  const filteredSpaces = spaces.filter((space) =>
+    space.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  return (
+    <div className="p-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-4xl font-bold mb-2">Story TLRS</h1>
-            <p className="text-muted-foreground">Your client spaces</p>
-          </div>
-          <div className="flex gap-2">
-            {isAdmin && (
-              <Button
-                onClick={() => navigate("/admin")}
-                variant="outline"
-                size="icon"
-                className="rounded-[35px] border-foreground hover:bg-accent-orange hover:border-accent-orange hover:text-accent-orange-foreground"
-              >
-                <Settings className="h-4 w-4" />
-              </Button>
-            )}
-            <Button
-              onClick={handleSignOut}
-              variant="outline"
-              size="icon"
-              className="rounded-[35px]"
-            >
-              <LogOut className="h-4 w-4" />
-            </Button>
-          </div>
+        <div className="mb-8">
+          <h1 className="text-4xl font-bold mb-2">Spaces</h1>
+          <p className="text-muted-foreground">Your client spaces</p>
         </div>
 
         {/* Search and Create */}
         <div className="flex gap-4 mb-8">
           <div className="flex-1 relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-            <Input placeholder="Search spaces..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-12 rounded-[35px] border-foreground h-12" />
+            <Input
+              placeholder="Search spaces..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-12 rounded-[35px] border-foreground h-12"
+            />
           </div>
           {isAdmin && (
-            <Button onClick={() => setIsCreateDialogOpen(true)} className="rounded-[35px] h-12 px-6">
+            <Button
+              onClick={() => setIsCreateDialogOpen(true)}
+              className="rounded-[35px] h-12 px-6"
+            >
               <Plus className="w-5 h-5 mr-2" />
               New Space
             </Button>
@@ -102,19 +78,38 @@ const Spaces = () => {
         </div>
 
         {/* Spaces Grid */}
-        {loading ? <div className="text-center py-12">Loading spaces...</div> : filteredSpaces.length === 0 ? <div className="text-center py-12">
+        {loading ? (
+          <div className="text-center py-12">Loading spaces...</div>
+        ) : filteredSpaces.length === 0 ? (
+          <div className="text-center py-12">
             <p className="text-muted-foreground mb-4">
               {searchQuery ? "No spaces found" : "No spaces yet"}
             </p>
-            {!searchQuery && isAdmin && <Button onClick={() => setIsCreateDialogOpen(true)} className="rounded-[35px]">
+            {!searchQuery && isAdmin && (
+              <Button
+                onClick={() => setIsCreateDialogOpen(true)}
+                className="rounded-[35px]"
+              >
                 Create your first space
-              </Button>}
-          </div> : <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredSpaces.map(space => <SpaceCard key={space.id} space={space} onUpdate={fetchSpaces} />)}
-          </div>}
+              </Button>
+            )}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredSpaces.map((space) => (
+              <SpaceCard key={space.id} space={space} onUpdate={fetchSpaces} />
+            ))}
+          </div>
+        )}
       </div>
 
-      <CreateSpaceDialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen} onSuccess={fetchSpaces} />
-    </div>;
+      <CreateSpaceDialog
+        open={isCreateDialogOpen}
+        onOpenChange={setIsCreateDialogOpen}
+        onSuccess={fetchSpaces}
+      />
+    </div>
+  );
 };
+
 export default Spaces;

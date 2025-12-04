@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Settings, Send } from "lucide-react";
+import { Settings, Send } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { OverviewTab } from "@/components/reports/OverviewTab";
@@ -119,19 +119,10 @@ const ReportDetail = () => {
   const isAlwaysOn = report.type === "always_on" || report.type === "social";
 
   return (
-    <div className="min-h-screen p-6">
+    <div className="p-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <Button
-            variant="ghost"
-            onClick={() => navigate(`/spaces/${report.space_id}`)}
-            className="mb-4 rounded-[35px]"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Space
-          </Button>
-
           <div className="flex items-start justify-between">
             <div>
               <h1 className="text-4xl font-bold mb-2">{report.name}</h1>
