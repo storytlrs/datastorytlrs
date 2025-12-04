@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Plus, FileText, TrendingUp, BarChart3, Search, Calendar as CalendarIcon, Settings } from "lucide-react";
+import { Plus, FileText, TrendingUp, BarChart3, Search, Calendar as CalendarIcon, Settings } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -152,19 +152,10 @@ const SpaceDetail = () => {
   }
 
   return (
-    <div className="min-h-screen p-6">
+    <div className="p-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <Button
-            variant="ghost"
-            onClick={() => navigate("/spaces")}
-            className="mb-4 rounded-[35px]"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Spaces
-          </Button>
-
           <div className="flex items-start justify-between">
             <div>
               <h1 className="text-4xl font-bold mb-2">{space.name}</h1>
