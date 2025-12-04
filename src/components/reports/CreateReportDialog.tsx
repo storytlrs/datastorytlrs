@@ -42,6 +42,12 @@ interface Project {
   name: string;
 }
 
+const reportTypeOptions = [
+  { value: "influencer", label: "Influencer campaign" },
+  { value: "ads", label: "Ads campaign" },
+  { value: "always_on", label: "Always-on content" },
+];
+
 const CreateReportDialog = ({
   open,
   onOpenChange,
@@ -56,6 +62,7 @@ const CreateReportDialog = ({
   // Step 1 state
   const [projectId, setProjectId] = useState<string>("");
   const [campaignName, setCampaignName] = useState("");
+  const [reportType, setReportType] = useState<"influencer" | "ads" | "always_on">("influencer");
   const [startDate, setStartDate] = useState<Date>();
   const [endDate, setEndDate] = useState<Date>();
   const [projects, setProjects] = useState<Project[]>([]);
@@ -94,6 +101,7 @@ const CreateReportDialog = ({
       setStep(1);
       setProjectId("");
       setCampaignName("");
+      setReportType("influencer");
       setStartDate(undefined);
       setEndDate(undefined);
       setFile(null);
@@ -221,7 +229,7 @@ const CreateReportDialog = ({
       const reportData: any = {
         name: campaignName,
         space_id: spaceId,
-        type: "influencer",
+        type: reportType,
         status: "draft",
         start_date: startDate ? format(startDate, "yyyy-MM-dd") : null,
         end_date: endDate ? format(endDate, "yyyy-MM-dd") : null,
@@ -301,6 +309,22 @@ const CreateReportDialog = ({
           placeholder="Enter campaign name"
           className="rounded-[35px]"
         />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="reportType">Report Type *</Label>
+        <Select value={reportType} onValueChange={(value) => setReportType(value as "influencer" | "ads" | "always_on")}>
+          <SelectTrigger id="reportType" className="rounded-[35px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent className="bg-background border-foreground">
+            {reportTypeOptions.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
@@ -423,6 +447,13 @@ const CreateReportDialog = ({
         <div>
           <p className="text-sm text-muted-foreground">Campaign Name</p>
           <p className="font-medium">{campaignName}</p>
+        </div>
+
+        <div>
+          <p className="text-sm text-muted-foreground">Report Type</p>
+          <p className="font-medium">
+            {reportTypeOptions.find((o) => o.value === reportType)?.label}
+          </p>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
