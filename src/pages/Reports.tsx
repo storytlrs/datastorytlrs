@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Search, FileText, TrendingUp, BarChart3, Calendar as CalendarIcon } from "lucide-react";
+import { Search, FileText, TrendingUp, BarChart3, Calendar as CalendarIcon, Image } from "lucide-react";
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -27,16 +27,16 @@ interface Report {
 
 const reportTypeIcons = {
   influencer: FileText,
-  social: TrendingUp,
+  social: Image,
   ads: BarChart3,
-  always_on: TrendingUp,
+  always_on: Image,
 };
 
 const reportTypeColors = {
   influencer: "bg-accent",
-  social: "bg-accent-green",
+  social: "bg-accent",
   ads: "bg-accent-blue",
-  always_on: "bg-accent-green",
+  always_on: "bg-accent",
 };
 
 const reportTypeLabels = {
