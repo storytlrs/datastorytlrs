@@ -288,37 +288,39 @@ export const ContentTab = ({ reportId }: ContentTabProps) => {
     
     try {
       // Force fetch new preview from edge function
+      console.log('Fetching preview for:', item.url);
       const response = await supabase.functions.invoke('fetch-url-preview', {
         body: { url: item.url }
       });
 
+      console.log('Edge function response:', response);
       const data = response?.data;
       const thumbnailUrl = data?.success && data?.thumbnail_url ? data.thumbnail_url : null;
+      console.log('Thumbnail URL:', thumbnailUrl);
       
       if (thumbnailUrl) {
         // Update the database with new URL
-        await supabase
+        const updateResult = await supabase
           .from("content")
           .update({ thumbnail_url: thumbnailUrl })
           .eq("id", item.id);
         
-        // Update local state by refetching content
+        console.log('Database update result:', updateResult);
+        
+        // Update local state directly with new URL
         setContent(prev => prev.map(c => 
           c.id === item.id ? { ...c, thumbnail_url: thumbnailUrl } : c
         ));
         
-        // Clear from fetchedPreviews since we're using the database value now
-        setFetchedPreviews(prev => {
-          const updated = { ...prev };
-          delete updated[item.id];
-          return updated;
-        });
+        // Also store in fetchedPreviews as backup
+        setFetchedPreviews(prev => ({ ...prev, [item.id]: thumbnailUrl }));
       } else {
+        console.log('No thumbnail URL received');
         // Mark as failed
         setFailedImages(prev => new Set(prev).add(item.id));
       }
     } catch (err) {
-      console.log('Refresh failed for:', item.url);
+      console.error('Refresh failed for:', item.url, err);
       setFailedImages(prev => new Set(prev).add(item.id));
     } finally {
       setRefreshingItems(prev => {
