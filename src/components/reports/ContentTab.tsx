@@ -237,12 +237,17 @@ export const ContentTab = ({ reportId }: ContentTabProps) => {
 
   // Get the preview image for a content item
   const getPreviewImage = (item: ContentItem): { src: string | null; isLoading: boolean; canRetry: boolean; isFailed: boolean } => {
+    // Check if currently refreshing
+    if (refreshingItems.has(item.id)) {
+      return { src: null, isLoading: true, canRetry: false, isFailed: false };
+    }
+
     // Check if the stored thumbnail failed to load
     if (item.thumbnail_url && failedImages.has(item.id)) {
       return { src: null, isLoading: false, canRetry: !!item.url, isFailed: true };
     }
 
-    // First priority: uploaded thumbnail
+    // First priority: uploaded thumbnail from database
     if (item.thumbnail_url) {
       return { src: item.thumbnail_url, isLoading: false, canRetry: false, isFailed: false };
     }
@@ -258,16 +263,21 @@ export const ContentTab = ({ reportId }: ContentTabProps) => {
       return { src: null, isLoading: true, canRetry: false, isFailed: false };
     }
 
-    // No image available
-    return { src: null, isLoading: false, canRetry: false, isFailed: false };
+    // No image available - but has URL, so can retry
+    return { src: null, isLoading: false, canRetry: !!item.url, isFailed: false };
   };
 
   const handleImageError = (contentId: string) => {
     setFailedImages(prev => new Set(prev).add(contentId));
   };
 
+  const [refreshingItems, setRefreshingItems] = useState<Set<string>>(new Set());
+
   const refreshThumbnail = async (item: ContentItem) => {
     if (!item.url) return;
+    
+    // Mark as refreshing
+    setRefreshingItems(prev => new Set(prev).add(item.id));
     
     // Remove from failed set
     setFailedImages(prev => {
@@ -276,15 +286,47 @@ export const ContentTab = ({ reportId }: ContentTabProps) => {
       return newSet;
     });
     
-    // Clear cached URL and re-fetch
-    fetchedPreviewsRef.current.delete(item.id);
-    setFetchedPreviews(prev => {
-      const updated = { ...prev };
-      delete updated[item.id];
-      return updated;
-    });
-    
-    await fetchUrlPreview(item.id, item.url);
+    try {
+      // Force fetch new preview from edge function
+      const response = await supabase.functions.invoke('fetch-url-preview', {
+        body: { url: item.url }
+      });
+
+      const data = response?.data;
+      const thumbnailUrl = data?.success && data?.thumbnail_url ? data.thumbnail_url : null;
+      
+      if (thumbnailUrl) {
+        // Update the database with new URL
+        await supabase
+          .from("content")
+          .update({ thumbnail_url: thumbnailUrl })
+          .eq("id", item.id);
+        
+        // Update local state by refetching content
+        setContent(prev => prev.map(c => 
+          c.id === item.id ? { ...c, thumbnail_url: thumbnailUrl } : c
+        ));
+        
+        // Clear from fetchedPreviews since we're using the database value now
+        setFetchedPreviews(prev => {
+          const updated = { ...prev };
+          delete updated[item.id];
+          return updated;
+        });
+      } else {
+        // Mark as failed
+        setFailedImages(prev => new Set(prev).add(item.id));
+      }
+    } catch (err) {
+      console.log('Refresh failed for:', item.url);
+      setFailedImages(prev => new Set(prev).add(item.id));
+    } finally {
+      setRefreshingItems(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(item.id);
+        return newSet;
+      });
+    }
   };
 
   if (loading) {
@@ -447,14 +489,19 @@ export const ContentTab = ({ reportId }: ContentTabProps) => {
                   ) : (
                     <div className="w-full h-full flex flex-col items-center justify-center gap-2">
                       <ImageIcon className="w-8 h-8 text-muted-foreground/30" />
-                      {(preview.canRetry || preview.isFailed) && item.url && (
+                      {item.url && (
                         <Button
                           variant="ghost"
                           size="sm"
                           className="text-xs h-6 px-2"
                           onClick={() => refreshThumbnail(item)}
+                          disabled={refreshingItems.has(item.id)}
                         >
-                          <RefreshCw className="w-3 h-3 mr-1" />
+                          {refreshingItems.has(item.id) ? (
+                            <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                          ) : (
+                            <RefreshCw className="w-3 h-3 mr-1" />
+                          )}
                           Obnovit
                         </Button>
                       )}
