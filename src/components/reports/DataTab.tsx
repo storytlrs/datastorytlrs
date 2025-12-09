@@ -231,7 +231,7 @@ export const DataTab = ({ reportId, onImportSuccess }: DataTabProps) => {
     // Performance
     { key: "watch_time", label: "Watch Time", type: "text", editable: false, format: formatWatchTimeDisplay },
     { key: "sentiment", label: "Sentiment", type: "text", editable: false },
-    { key: "sentiment_summary", label: "Sentiment Summary", type: "text", editable: false },
+    { key: "sentiment_summary", label: "Sentiment Summary", type: "text", editable: false, maxWidth: "300px", wrap: true },
   ];
 
 

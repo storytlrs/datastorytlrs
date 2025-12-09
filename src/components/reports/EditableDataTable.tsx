@@ -16,6 +16,8 @@ export interface ColumnDef {
   calculated?: boolean;
   options?: { value: string; label: string }[];
   width?: string;
+  maxWidth?: string;
+  wrap?: boolean;
   format?: (value: any, row?: any) => string;
 }
 
@@ -142,11 +144,12 @@ export const EditableDataTable = ({
       <div
         className={`flex items-center gap-2 ${canEdit && column.editable !== false ? "cursor-pointer hover:bg-accent/50 px-2 py-1 rounded" : ""}`}
         onClick={() => column.editable !== false && startEdit(row.id, column.key, value)}
+        style={{ maxWidth: column.maxWidth }}
       >
         {isSaving ? (
           <Loader2 className="w-4 h-4 animate-spin" />
         ) : (
-          <span>{displayValue ?? "-"}</span>
+          <span className={column.wrap ? "whitespace-normal break-words" : ""}>{displayValue ?? "-"}</span>
         )}
       </div>
     );
@@ -181,10 +184,10 @@ export const EditableDataTable = ({
               </TableCell>
             </TableRow>
           ) : (
-            data.map((row) => (
+              data.map((row) => (
               <TableRow key={row.id}>
                 {columns.map((col) => (
-                  <TableCell key={col.key}>{renderCell(row, col)}</TableCell>
+                  <TableCell key={col.key} style={{ maxWidth: col.maxWidth }}>{renderCell(row, col)}</TableCell>
                 ))}
                 {canEdit && (onDelete || onEdit) && (
                   <TableCell>
