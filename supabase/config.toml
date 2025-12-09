@@ -8,3 +8,6 @@ verify_jwt = true
 
 [functions.fetch-url-preview]
 verify_jwt = false
+
+[functions.n8n-content-webhook]
+verify_jwt = false
