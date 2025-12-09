@@ -3,7 +3,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Trash2, Loader2, Pencil } from "lucide-react";
+import { Trash2, Loader2, Pencil, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 
 export type ColumnType = "text" | "number" | "select" | "date";
@@ -18,6 +18,8 @@ export interface ColumnDef {
   width?: string;
   maxWidth?: string;
   wrap?: boolean;
+  truncate?: boolean;
+  truncateLines?: number;
   format?: (value: any, row?: any) => string;
 }
 
@@ -44,6 +46,19 @@ export const EditableDataTable = ({
   const [editValue, setEditValue] = useState<any>("");
   const [savingCell, setSavingCell] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [expandedCells, setExpandedCells] = useState<Set<string>>(new Set());
+
+  const toggleExpanded = (cellId: string) => {
+    setExpandedCells(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(cellId)) {
+        newSet.delete(cellId);
+      } else {
+        newSet.add(cellId);
+      }
+      return newSet;
+    });
+  };
 
   const startEdit = (id: string, field: string, currentValue: any) => {
     if (!canEdit) return;
@@ -137,6 +152,50 @@ export const EditableDataTable = ({
           className="h-8"
           autoFocus
         />
+      );
+    }
+
+    // Handle truncated text with expand/collapse
+    if (column.truncate && displayValue && typeof displayValue === 'string' && displayValue.length > 100) {
+      const cellId = `${row.id}-${column.key}`;
+      const isExpanded = expandedCells.has(cellId);
+      const lines = column.truncateLines || 3;
+      
+      return (
+        <div style={{ maxWidth: column.maxWidth || '300px' }}>
+          <div 
+            className={`whitespace-normal break-words text-sm ${!isExpanded ? 'line-clamp-' + lines : ''}`}
+            style={!isExpanded ? { 
+              display: '-webkit-box',
+              WebkitLineClamp: lines,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden'
+            } : {}}
+          >
+            {displayValue}
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 px-2 mt-1 text-xs text-muted-foreground hover:text-foreground"
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleExpanded(cellId);
+            }}
+          >
+            {isExpanded ? (
+              <>
+                <ChevronUp className="w-3 h-3 mr-1" />
+                Skrýt
+              </>
+            ) : (
+              <>
+                <ChevronDown className="w-3 h-3 mr-1" />
+                Zobrazit více
+              </>
+            )}
+          </Button>
+        </div>
       );
     }
 
