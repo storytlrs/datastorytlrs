@@ -142,10 +142,49 @@ serve(async (req) => {
       );
     }
 
+    // Handle DELETE requests - delete content
+    if (req.method === 'DELETE') {
+      const url = new URL(req.url);
+      const id = url.searchParams.get('id');
+
+      if (!id) {
+        return new Response(
+          JSON.stringify({ error: 'Missing required query parameter: id' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      console.log('Deleting content:', id);
+
+      const { error } = await supabase
+        .from('content')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        console.error('Database delete error:', error);
+        return new Response(
+          JSON.stringify({ error: 'Failed to delete content', details: error.message }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      console.log('Content deleted successfully:', id);
+
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          message: 'Content deleted successfully',
+          deleted_id: id
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Only allow POST requests for creating content
     if (req.method !== 'POST') {
       return new Response(
-        JSON.stringify({ error: 'Method not allowed' }),
+        JSON.stringify({ error: 'Method not allowed. Supported: GET, POST, PUT, DELETE' }),
         { status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
