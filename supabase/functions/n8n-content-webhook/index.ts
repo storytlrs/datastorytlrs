@@ -75,6 +75,73 @@ serve(async (req) => {
       );
     }
 
+    // Handle PUT requests - update existing content
+    if (req.method === 'PUT') {
+      const body = await req.json();
+      console.log('Received PUT data:', JSON.stringify(body, null, 2));
+
+      const { id, ...updateFields } = body;
+
+      if (!id) {
+        return new Response(
+          JSON.stringify({ error: 'Missing required field: id (content_id to update)' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Remove undefined/null values and keep only valid update fields
+      const validFields = [
+        'report_id', 'creator_id', 'content_type', 'platform', 'url', 'thumbnail_url',
+        'published_date', 'views', 'impressions', 'reach', 'likes', 'comments', 'shares',
+        'saves', 'link_clicks', 'sticker_clicks', 'watch_time', 'engagement_rate',
+        'sentiment', 'sentiment_summary', 'notes', 'main_usp', 'cost', 'cpm', 'cpv', 'cpe',
+        'is_branded', 'branded_views', 'paid_views', 'organic_views', 'aqs', 'brand_minutes'
+      ];
+
+      const updateData: Record<string, unknown> = {};
+      for (const field of validFields) {
+        if (updateFields[field] !== undefined) {
+          updateData[field] = updateFields[field];
+        }
+      }
+
+      if (Object.keys(updateData).length === 0) {
+        return new Response(
+          JSON.stringify({ error: 'No valid fields to update' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      console.log('Updating content:', id, 'with data:', JSON.stringify(updateData, null, 2));
+
+      const { data, error } = await supabase
+        .from('content')
+        .update(updateData)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Database update error:', error);
+        return new Response(
+          JSON.stringify({ error: 'Failed to update content', details: error.message }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      console.log('Content updated successfully:', data.id);
+
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          message: 'Content updated successfully',
+          content_id: data.id,
+          data
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Only allow POST requests for creating content
     if (req.method !== 'POST') {
       return new Response(
