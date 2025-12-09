@@ -480,12 +480,13 @@ export const ContentTab = ({ reportId }: ContentTabProps) => {
                     <div className="w-full h-full flex items-center justify-center">
                       <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" />
                     </div>
-                  ) : preview.src && !preview.isFailed ? (
+                  ) : preview.src ? (
                     <img
                       src={preview.src}
                       alt={`${item.platform} ${item.content_type}`}
                       className="w-full h-full object-cover"
-                      onError={() => handleImageError(item.id)}
+                      referrerPolicy="no-referrer"
+                      crossOrigin="anonymous"
                     />
                   ) : (
                     <div className="w-full h-full flex flex-col items-center justify-center gap-2">
