@@ -25,7 +25,57 @@ serve(async (req) => {
       );
     }
 
-    // Only allow POST requests
+    // Create Supabase client with service role key for bypassing RLS
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Handle GET requests - read content data
+    if (req.method === 'GET') {
+      const url = new URL(req.url);
+      const reportId = url.searchParams.get('report_id');
+      const creatorId = url.searchParams.get('creator_id');
+      const limit = parseInt(url.searchParams.get('limit') || '100');
+      const offset = parseInt(url.searchParams.get('offset') || '0');
+
+      console.log('GET request params:', { reportId, creatorId, limit, offset });
+
+      let query = supabase
+        .from('content')
+        .select('*, creators(handle, platform)')
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1);
+
+      if (reportId) {
+        query = query.eq('report_id', reportId);
+      }
+      if (creatorId) {
+        query = query.eq('creator_id', creatorId);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('Database query error:', error);
+        return new Response(
+          JSON.stringify({ error: 'Failed to fetch content', details: error.message }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      console.log(`Fetched ${data?.length || 0} content items`);
+
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          count: data?.length || 0,
+          data 
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Only allow POST requests for creating content
     if (req.method !== 'POST') {
       return new Response(
         JSON.stringify({ error: 'Method not allowed' }),
@@ -102,11 +152,6 @@ serve(async (req) => {
         );
       }
     }
-
-    // Create Supabase client with service role key for bypassing RLS
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Prepare content data
     const contentData = {
