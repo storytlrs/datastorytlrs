@@ -242,20 +242,19 @@ export const ContentTab = ({ reportId }: ContentTabProps) => {
       return { src: null, isLoading: true, canRetry: false, isFailed: false };
     }
 
+    // Check if we have a freshly fetched preview (takes priority - means user clicked refresh)
+    if (fetchedPreviews[item.id]) {
+      return { src: fetchedPreviews[item.id], isLoading: false, canRetry: false, isFailed: false };
+    }
+
     // Check if the stored thumbnail failed to load
     if (item.thumbnail_url && failedImages.has(item.id)) {
       return { src: null, isLoading: false, canRetry: !!item.url, isFailed: true };
     }
 
-    // First priority: uploaded thumbnail from database
+    // Use thumbnail from database
     if (item.thumbnail_url) {
       return { src: item.thumbnail_url, isLoading: false, canRetry: false, isFailed: false };
-    }
-
-    // Check if we have a fetched preview
-    if (fetchedPreviews[item.id] !== undefined) {
-      const failed = fetchedPreviews[item.id] === null;
-      return { src: fetchedPreviews[item.id], isLoading: false, canRetry: failed && !!item.url, isFailed: failed };
     }
 
     // Check if currently loading
