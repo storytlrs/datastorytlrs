@@ -15,7 +15,7 @@ serve(async (req) => {
   try {
     // Validate API key
     const apiKey = req.headers.get('x-api-key');
-    const expectedApiKey = Deno.env.get('N8N_WEBHOOK_API_KEY');
+    const expectedApiKey = Deno.env.get('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJlM2I5Mzk2ZC01MmNmLTQzZGMtODdmOC0wZjMyYWJjMTVjMGEiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzY1MjcwMzYyLCJleHAiOjE3Njc4MjY4MDB9.L2qW9qxaox5-PtGfTdfrArb2vYe2kn8BnWYliB0-3PY');
 
     if (!apiKey || apiKey !== expectedApiKey) {
       console.error('Invalid or missing API key');
