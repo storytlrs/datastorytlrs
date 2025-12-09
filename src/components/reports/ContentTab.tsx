@@ -39,6 +39,7 @@ interface ContentItem {
   shares: number | null;
   saves: number | null;
   published_date: string | null;
+  creator_id: string;
   creators: { id: string; handle: string } | null;
 }
 
@@ -50,6 +51,7 @@ export const ContentTab = ({ reportId }: ContentTabProps) => {
   const [selectedPlatform, setSelectedPlatform] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("date");
   const [fetchedPreviews, setFetchedPreviews] = useState<Record<string, string | null>>({});
+  const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
   
   // Use refs to track loading state without causing re-renders
   const loadingPreviewsRef = useRef<Set<string>>(new Set());
@@ -63,7 +65,7 @@ export const ContentTab = ({ reportId }: ContentTabProps) => {
     setLoading(true);
     const { data, error } = await supabase
       .from("content")
-      .select("id, platform, content_type, thumbnail_url, url, views, impressions, likes, comments, shares, saves, published_date, creators(id, handle)")
+      .select("id, platform, content_type, thumbnail_url, url, views, impressions, likes, comments, shares, saves, published_date, creator_id, creators(id, handle)")
       .eq("report_id", reportId)
       .order("published_date", { ascending: false });
 
@@ -234,25 +236,55 @@ export const ContentTab = ({ reportId }: ContentTabProps) => {
   };
 
   // Get the preview image for a content item
-  const getPreviewImage = (item: ContentItem): { src: string | null; isLoading: boolean; canRetry: boolean } => {
+  const getPreviewImage = (item: ContentItem): { src: string | null; isLoading: boolean; canRetry: boolean; isFailed: boolean } => {
+    // Check if the stored thumbnail failed to load
+    if (item.thumbnail_url && failedImages.has(item.id)) {
+      return { src: null, isLoading: false, canRetry: !!item.url, isFailed: true };
+    }
+
     // First priority: uploaded thumbnail
     if (item.thumbnail_url) {
-      return { src: item.thumbnail_url, isLoading: false, canRetry: false };
+      return { src: item.thumbnail_url, isLoading: false, canRetry: false, isFailed: false };
     }
 
     // Check if we have a fetched preview
     if (fetchedPreviews[item.id] !== undefined) {
       const failed = fetchedPreviews[item.id] === null;
-      return { src: fetchedPreviews[item.id], isLoading: false, canRetry: failed && !!item.url };
+      return { src: fetchedPreviews[item.id], isLoading: false, canRetry: failed && !!item.url, isFailed: failed };
     }
 
     // Check if currently loading
     if (loadingPreviewsRef.current.has(item.id)) {
-      return { src: null, isLoading: true, canRetry: false };
+      return { src: null, isLoading: true, canRetry: false, isFailed: false };
     }
 
     // No image available
-    return { src: null, isLoading: false, canRetry: false };
+    return { src: null, isLoading: false, canRetry: false, isFailed: false };
+  };
+
+  const handleImageError = (contentId: string) => {
+    setFailedImages(prev => new Set(prev).add(contentId));
+  };
+
+  const refreshThumbnail = async (item: ContentItem) => {
+    if (!item.url) return;
+    
+    // Remove from failed set
+    setFailedImages(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(item.id);
+      return newSet;
+    });
+    
+    // Clear cached URL and re-fetch
+    fetchedPreviewsRef.current.delete(item.id);
+    setFetchedPreviews(prev => {
+      const updated = { ...prev };
+      delete updated[item.id];
+      return updated;
+    });
+    
+    await fetchUrlPreview(item.id, item.url);
   };
 
   if (loading) {
@@ -405,24 +437,25 @@ export const ContentTab = ({ reportId }: ContentTabProps) => {
                     <div className="w-full h-full flex items-center justify-center">
                       <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" />
                     </div>
-                  ) : preview.src ? (
+                  ) : preview.src && !preview.isFailed ? (
                     <img
                       src={preview.src}
                       alt={`${item.platform} ${item.content_type}`}
                       className="w-full h-full object-cover"
+                      onError={() => handleImageError(item.id)}
                     />
                   ) : (
                     <div className="w-full h-full flex flex-col items-center justify-center gap-2">
                       <ImageIcon className="w-8 h-8 text-muted-foreground/30" />
-                      {preview.canRetry && (
+                      {(preview.canRetry || preview.isFailed) && item.url && (
                         <Button
                           variant="ghost"
                           size="sm"
                           className="text-xs h-6 px-2"
-                          onClick={() => retryPreview(item.id, item.url!)}
+                          onClick={() => refreshThumbnail(item)}
                         >
                           <RefreshCw className="w-3 h-3 mr-1" />
-                          Retry
+                          Obnovit
                         </Button>
                       )}
                     </div>
