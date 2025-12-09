@@ -3,7 +3,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Trash2, Loader2, Pencil, ChevronDown, ChevronUp } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Trash2, Loader2, Pencil, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 
 export type ColumnType = "text" | "number" | "select" | "date";
@@ -46,19 +47,7 @@ export const EditableDataTable = ({
   const [editValue, setEditValue] = useState<any>("");
   const [savingCell, setSavingCell] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [expandedCells, setExpandedCells] = useState<Set<string>>(new Set());
 
-  const toggleExpanded = (cellId: string) => {
-    setExpandedCells(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(cellId)) {
-        newSet.delete(cellId);
-      } else {
-        newSet.add(cellId);
-      }
-      return newSet;
-    });
-  };
 
   const startEdit = (id: string, field: string, currentValue: any) => {
     if (!canEdit) return;
@@ -155,46 +144,45 @@ export const EditableDataTable = ({
       );
     }
 
-    // Handle truncated text with expand/collapse
+    // Handle truncated text with popover for full content
     if (column.truncate && displayValue && typeof displayValue === 'string' && displayValue.length > 100) {
-      const cellId = `${row.id}-${column.key}`;
-      const isExpanded = expandedCells.has(cellId);
       const lines = column.truncateLines || 3;
       
       return (
         <div style={{ maxWidth: column.maxWidth || '300px' }}>
           <div 
-            className={`whitespace-normal break-words text-sm ${!isExpanded ? 'line-clamp-' + lines : ''}`}
-            style={!isExpanded ? { 
+            className="whitespace-normal break-words text-sm"
+            style={{ 
               display: '-webkit-box',
               WebkitLineClamp: lines,
               WebkitBoxOrient: 'vertical',
               overflow: 'hidden'
-            } : {}}
+            }}
           >
             {displayValue}
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 px-2 mt-1 text-xs text-muted-foreground hover:text-foreground"
-            onClick={(e) => {
-              e.stopPropagation();
-              toggleExpanded(cellId);
-            }}
-          >
-            {isExpanded ? (
-              <>
-                <ChevronUp className="w-3 h-3 mr-1" />
-                Skrýt
-              </>
-            ) : (
-              <>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 px-2 mt-1 text-xs text-muted-foreground hover:text-foreground"
+                onClick={(e) => e.stopPropagation()}
+              >
                 <ChevronDown className="w-3 h-3 mr-1" />
                 Zobrazit více
-              </>
-            )}
-          </Button>
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent 
+              className="w-80 max-h-64 overflow-y-auto p-4" 
+              align="start"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <p className="text-sm whitespace-pre-wrap break-words">
+                {displayValue}
+              </p>
+            </PopoverContent>
+          </Popover>
         </div>
       );
     }
