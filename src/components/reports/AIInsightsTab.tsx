@@ -22,6 +22,7 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
   const { isAdmin, canEdit } = useUserRole();
   const [aiInsights, setAiInsights] = useState<string>("");
   const [webhookUrl, setWebhookUrl] = useState<string>("");
+  const [spaceId, setSpaceId] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isTriggering, setIsTriggering] = useState(false);
@@ -36,7 +37,7 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
     try {
       const { data, error } = await supabase
         .from("reports")
-        .select("ai_insights, ai_webhook_url")
+        .select("ai_insights, ai_webhook_url, space_id")
         .eq("id", reportId)
         .single();
 
@@ -44,6 +45,7 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
 
       setAiInsights(data.ai_insights || "");
       setWebhookUrl(data.ai_webhook_url || "");
+      setSpaceId(data.space_id || "");
     } catch (error) {
       console.error("Error fetching report data:", error);
       toast.error("Nepodařilo se načíst data");
@@ -78,6 +80,7 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
       // Build URL with query parameters for GET request
       const url = new URL(webhookUrl);
       url.searchParams.set("report_id", reportId);
+      url.searchParams.set("space_id", spaceId);
       url.searchParams.set("timestamp", new Date().toISOString());
       url.searchParams.set("triggered_from", window.location.origin);
 
