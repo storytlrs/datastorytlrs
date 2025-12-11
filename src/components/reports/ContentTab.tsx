@@ -235,6 +235,15 @@ export const ContentTab = ({ reportId }: ContentTabProps) => {
     setSelectedPlatform("all");
   };
 
+  // Proxy Instagram CDN URLs through edge function to avoid CORS/referrer issues
+  const getProxiedUrl = (url: string): string => {
+    if (url.includes('cdninstagram.com') || url.includes('fbcdn.net')) {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      return `${supabaseUrl}/functions/v1/proxy-image?url=${encodeURIComponent(url)}`;
+    }
+    return url;
+  };
+
   // Get the preview image for a content item
   const getPreviewImage = (item: ContentItem): { src: string | null; isLoading: boolean; canRetry: boolean; isFailed: boolean } => {
     // Check if currently refreshing
@@ -244,7 +253,7 @@ export const ContentTab = ({ reportId }: ContentTabProps) => {
 
     // Check if we have a freshly fetched preview (takes priority - means user clicked refresh)
     if (fetchedPreviews[item.id]) {
-      return { src: fetchedPreviews[item.id], isLoading: false, canRetry: false, isFailed: false };
+      return { src: getProxiedUrl(fetchedPreviews[item.id]!), isLoading: false, canRetry: false, isFailed: false };
     }
 
     // Check if the stored thumbnail failed to load
@@ -254,7 +263,7 @@ export const ContentTab = ({ reportId }: ContentTabProps) => {
 
     // Use thumbnail from database
     if (item.thumbnail_url) {
-      return { src: item.thumbnail_url, isLoading: false, canRetry: false, isFailed: false };
+      return { src: getProxiedUrl(item.thumbnail_url), isLoading: false, canRetry: false, isFailed: false };
     }
 
     // Check if currently loading
