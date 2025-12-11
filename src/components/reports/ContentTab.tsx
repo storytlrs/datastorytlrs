@@ -486,7 +486,7 @@ export const ContentTab = ({ reportId }: ContentTabProps) => {
                       alt={`${item.platform} ${item.content_type}`}
                       className="w-full h-full object-cover"
                       referrerPolicy="no-referrer"
-                      crossOrigin="anonymous"
+                      onError={() => handleImageError(item.id)}
                     />
                   ) : (
                     <div className="w-full h-full flex flex-col items-center justify-center gap-2">
