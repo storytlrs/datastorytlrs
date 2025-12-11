@@ -44,6 +44,18 @@ const getOEmbedUrl = (url: string): string | null => {
   return null;
 };
 
+// Helper function to decode HTML entities in URLs
+const decodeHtmlEntities = (str: string): string => {
+  return str
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&#x27;/g, "'")
+    .replace(/&#x2F;/g, '/');
+};
+
 // Helper function to fetch Open Graph preview from a URL
 const fetchOpenGraphPreview = async (url: string): Promise<PreviewResult | null> => {
   try {
@@ -70,10 +82,12 @@ const fetchOpenGraphPreview = async (url: string): Promise<PreviewResult | null>
                         html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:title["']/i);
     
     if (ogImageMatch) {
-      console.log('Open Graph preview found:', ogImageMatch[1]);
+      // Decode HTML entities in the extracted URL
+      const decodedUrl = decodeHtmlEntities(ogImageMatch[1]);
+      console.log('Open Graph preview found:', decodedUrl);
       return {
-        thumbnail_url: ogImageMatch[1],
-        title: ogTitleMatch ? ogTitleMatch[1] : null,
+        thumbnail_url: decodedUrl,
+        title: ogTitleMatch ? decodeHtmlEntities(ogTitleMatch[1]) : null,
         source: 'opengraph'
       };
     }
