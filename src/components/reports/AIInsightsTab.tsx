@@ -19,7 +19,7 @@ interface AIInsightsTabProps {
 }
 
 export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
-  const { canEdit } = useUserRole();
+  const { isAdmin, canEdit } = useUserRole();
   const [aiInsights, setAiInsights] = useState<string>("");
   const [webhookUrl, setWebhookUrl] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
@@ -128,7 +128,7 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold">AI Insights</h2>
         <div className="flex items-center gap-2">
-          {canEdit && (
+      {isAdmin && (
             <Button
               onClick={handleTriggerWebhook}
               disabled={isTriggering || !webhookUrl}
