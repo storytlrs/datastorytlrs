@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Settings, Send, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
-import { Card } from "@/components/ui/card";
 import { OverviewTab } from "@/components/reports/OverviewTab";
 import { CreatorsTab } from "@/components/reports/CreatorsTab";
 import { ContentTab } from "@/components/reports/ContentTab";
@@ -14,6 +13,7 @@ import { DataTab } from "@/components/reports/DataTab";
 import { AdCreativesTab } from "@/components/reports/AdCreativesTab";
 import { AdsDataTab } from "@/components/reports/AdsDataTab";
 import { AlwaysOnDataTab } from "@/components/reports/AlwaysOnDataTab";
+import { AIInsightsTab } from "@/components/reports/AIInsightsTab";
 import { EditReportDialog } from "@/components/reports/EditReportDialog";
 import { useUserRole } from "@/hooks/useUserRole";
 
@@ -239,16 +239,7 @@ const ReportDetail = () => {
           </TabsContent>
 
           <TabsContent value="insights">
-            <Card className="p-8 rounded-[35px] border-foreground">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-2xl font-bold">AI Insights</h2>
-                <Button className="rounded-[35px]">Generate AI Insights</Button>
-              </div>
-              <p className="text-muted-foreground">
-                AI-generated performance summaries and strategic recommendations
-                will be displayed here.
-              </p>
-            </Card>
+            <AIInsightsTab reportId={reportId!} />
           </TabsContent>
 
           {/* Influencer-specific content */}

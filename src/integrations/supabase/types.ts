@@ -655,6 +655,8 @@ export type Database = {
       }
       reports: {
         Row: {
+          ai_insights: string | null
+          ai_webhook_url: string | null
           created_at: string
           end_date: string | null
           id: string
@@ -667,6 +669,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          ai_insights?: string | null
+          ai_webhook_url?: string | null
           created_at?: string
           end_date?: string | null
           id?: string
@@ -679,6 +683,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          ai_insights?: string | null
+          ai_webhook_url?: string | null
           created_at?: string
           end_date?: string | null
           id?: string

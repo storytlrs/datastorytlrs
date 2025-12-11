@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.n8n-content-webhook]
 verify_jwt = false
+
+[functions.n8n-ai-insights-webhook]
+verify_jwt = false
