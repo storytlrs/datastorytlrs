@@ -75,17 +75,15 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
 
     setIsTriggering(true);
     try {
-      const response = await fetch(webhookUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+      // Build URL with query parameters for GET request
+      const url = new URL(webhookUrl);
+      url.searchParams.set("report_id", reportId);
+      url.searchParams.set("timestamp", new Date().toISOString());
+      url.searchParams.set("triggered_from", window.location.origin);
+
+      const response = await fetch(url.toString(), {
+        method: "GET",
         mode: "no-cors",
-        body: JSON.stringify({
-          report_id: reportId,
-          timestamp: new Date().toISOString(),
-          triggered_from: window.location.origin,
-        }),
       });
 
       toast.success("Webhook byl úspěšně spuštěn. Zkontrolujte n8n pro potvrzení.");
@@ -145,7 +143,7 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
         </div>
       </div>
 
-      {canEdit && (
+      {isAdmin && (
         <Collapsible open={isSettingsOpen} onOpenChange={setIsSettingsOpen} className="mb-6">
           <CollapsibleTrigger asChild>
             <Button
