@@ -204,6 +204,7 @@ export type Database = {
           sentiment: Database["public"]["Enums"]["sentiment_type"] | null
           sentiment_summary: string | null
           shares: number | null
+          space_id: string | null
           sticker_clicks: number | null
           thumbnail_url: string | null
           updated_at: string
@@ -241,6 +242,7 @@ export type Database = {
           sentiment?: Database["public"]["Enums"]["sentiment_type"] | null
           sentiment_summary?: string | null
           shares?: number | null
+          space_id?: string | null
           sticker_clicks?: number | null
           thumbnail_url?: string | null
           updated_at?: string
@@ -278,6 +280,7 @@ export type Database = {
           sentiment?: Database["public"]["Enums"]["sentiment_type"] | null
           sentiment_summary?: string | null
           shares?: number | null
+          space_id?: string | null
           sticker_clicks?: number | null
           thumbnail_url?: string | null
           updated_at?: string
@@ -298,6 +301,13 @@ export type Database = {
             columns: ["report_id"]
             isOneToOne: false
             referencedRelation: "reports"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "spaces"
             referencedColumns: ["id"]
           },
         ]
