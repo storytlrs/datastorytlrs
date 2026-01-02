@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Eye, Heart, MessageCircle, Share2, ImageIcon, X, ArrowUpDown, Loader2, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
+import { toast } from "sonner";
 import { Calendar } from "@/components/ui/calendar";
 import {
   Popover,
@@ -28,6 +29,7 @@ interface ContentTabProps {
 
 interface ContentItem {
   id: string;
+  report_id: string;
   platform: string;
   content_type: string;
   thumbnail_url: string | null;
@@ -65,7 +67,7 @@ export const ContentTab = ({ reportId }: ContentTabProps) => {
     setLoading(true);
     const { data, error } = await supabase
       .from("content")
-      .select("id, platform, content_type, thumbnail_url, url, views, impressions, likes, comments, shares, saves, published_date, creator_id, creators(id, handle)")
+      .select("id, report_id, platform, content_type, thumbnail_url, url, views, impressions, likes, comments, shares, saves, published_date, creator_id, creators(id, handle)")
       .eq("report_id", reportId)
       .order("published_date", { ascending: false });
 
@@ -300,7 +302,7 @@ export const ContentTab = ({ reportId }: ContentTabProps) => {
     });
     
     try {
-      // Force fetch new preview from edge function
+      // Step 1: Get the external thumbnail URL from our edge function
       console.log('Fetching preview for:', item.url);
       const response = await supabase.functions.invoke('fetch-url-preview', {
         body: { url: item.url }
@@ -308,33 +310,72 @@ export const ContentTab = ({ reportId }: ContentTabProps) => {
 
       console.log('Edge function response:', response);
       const data = response?.data;
-      const thumbnailUrl = data?.success && data?.thumbnail_url ? data.thumbnail_url : null;
-      console.log('Thumbnail URL:', thumbnailUrl);
+      const externalThumbnailUrl = data?.success && data?.thumbnail_url ? data.thumbnail_url : null;
       
-      if (thumbnailUrl) {
-        // Update the database with new URL
-        const updateResult = await supabase
-          .from("content")
-          .update({ thumbnail_url: thumbnailUrl })
-          .eq("id", item.id);
-        
-        console.log('Database update result:', updateResult);
-        
-        // Update local state directly with new URL
-        setContent(prev => prev.map(c => 
-          c.id === item.id ? { ...c, thumbnail_url: thumbnailUrl } : c
-        ));
-        
-        // Also store in fetchedPreviews as backup
-        setFetchedPreviews(prev => ({ ...prev, [item.id]: thumbnailUrl }));
-      } else {
+      if (!externalThumbnailUrl) {
         console.log('No thumbnail URL received');
-        // Mark as failed
         setFailedImages(prev => new Set(prev).add(item.id));
+        return;
       }
+
+      console.log('External thumbnail URL:', externalThumbnailUrl);
+
+      // Step 2: Download the image through our proxy to bypass CORS/hotlink protection
+      const proxyUrl = getDisplayImageUrl(externalThumbnailUrl);
+      console.log('Fetching image via proxy:', proxyUrl);
+      
+      const imageResponse = await fetch(proxyUrl);
+      if (!imageResponse.ok) {
+        throw new Error(`Failed to fetch image: ${imageResponse.status}`);
+      }
+      
+      const imageBlob = await imageResponse.blob();
+      console.log('Downloaded image, size:', imageBlob.size, 'type:', imageBlob.type);
+
+      // Step 3: Upload to our storage bucket
+      const fileExt = imageBlob.type.split('/')[1] || 'jpg';
+      const fileName = `${item.report_id}/${item.id}_${Date.now()}.${fileExt}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('content-thumbnails')
+        .upload(fileName, imageBlob, {
+          contentType: imageBlob.type,
+          upsert: true
+        });
+
+      if (uploadError) {
+        throw new Error(`Upload failed: ${uploadError.message}`);
+      }
+
+      // Step 4: Get the public URL
+      const { data: publicUrlData } = supabase.storage
+        .from('content-thumbnails')
+        .getPublicUrl(fileName);
+
+      const storedThumbnailUrl = publicUrlData.publicUrl;
+      console.log('Stored thumbnail URL:', storedThumbnailUrl);
+
+      // Step 5: Update the database with our permanent URL
+      const updateResult = await supabase
+        .from("content")
+        .update({ thumbnail_url: storedThumbnailUrl })
+        .eq("id", item.id);
+      
+      console.log('Database update result:', updateResult);
+      
+      // Update local state with the new permanent URL
+      setContent(prev => prev.map(c => 
+        c.id === item.id ? { ...c, thumbnail_url: storedThumbnailUrl } : c
+      ));
+      
+      // Also store in fetchedPreviews
+      setFetchedPreviews(prev => ({ ...prev, [item.id]: storedThumbnailUrl }));
+      
+      toast.success('Thumbnail uložen');
     } catch (err) {
       console.error('Refresh failed for:', item.url, err);
       setFailedImages(prev => new Set(prev).add(item.id));
+      toast.error('Nepodařilo se obnovit thumbnail');
     } finally {
       setRefreshingItems(prev => {
         const newSet = new Set(prev);
