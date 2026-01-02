@@ -254,6 +254,7 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
             <div className="min-h-[300px] p-4 rounded-[20px] border border-foreground bg-background">
               {aiInsights ? (
                 <ReactMarkdown
+                  key={aiInsights}
                   components={{
                     h1: ({ children }) => (
                       <h1 className="text-2xl font-bold mb-4 text-foreground border-b border-border pb-2">{children}</h1>
