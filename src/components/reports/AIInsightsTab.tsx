@@ -70,15 +70,22 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
   };
 
   const handleTriggerWebhook = async () => {
+    if (!webhookUrl) {
+      toast.error("Nejprve nastavte webhook URL v nastavení");
+      return;
+    }
+
     setIsTriggering(true);
     try {
-      const webhookEndpoint = "https://storytlrs.app.n8n.cloud/webhook-test/3723b1d0-2d4e-4998-9ea9-efeb91615b22";
-      const url = new URL(webhookEndpoint);
+      const url = new URL(webhookUrl);
       url.searchParams.set("report_id", reportId);
       url.searchParams.set("space_id", spaceId);
       url.searchParams.set("timestamp", new Date().toISOString());
       url.searchParams.set("triggered_from", window.location.origin);
 
+      console.log("Triggering webhook:", url.toString());
+
+      // Use fetch with no-cors for external webhooks
       await fetch(url.toString(), {
         method: "GET",
         mode: "no-cors",
@@ -127,8 +134,9 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
           {canEdit && (
             <Button
               onClick={handleTriggerWebhook}
-              disabled={isTriggering}
-              className="rounded-[35px] bg-foreground text-background border border-foreground hover:bg-accent-green hover:text-foreground hover:border-accent-green"
+              disabled={isTriggering || !webhookUrl}
+              className="rounded-[35px] bg-foreground text-background border border-foreground hover:bg-accent-green hover:text-foreground hover:border-accent-green disabled:opacity-50"
+              title={!webhookUrl ? "Nejprve nastavte webhook URL v nastavení" : "Spustit AI analýzu"}
             >
               {isTriggering ? (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -140,6 +148,14 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
           )}
         </div>
       </div>
+
+      {!webhookUrl && canEdit && (
+        <div className="mb-6 p-4 bg-muted/50 rounded-[20px] border border-muted-foreground/20">
+          <p className="text-sm text-muted-foreground">
+            Pro generování AI Insights je potřeba nejprve nastavit webhook URL v nastavení níže.
+          </p>
+        </div>
+      )}
 
       {isAdmin && (
         <Collapsible open={isSettingsOpen} onOpenChange={setIsSettingsOpen} className="mb-6">
