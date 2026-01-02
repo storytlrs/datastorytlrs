@@ -129,7 +129,7 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold">AI Insights</h2>
         <div className="flex items-center gap-2">
-      {isAdmin && (
+          {canEdit && (
             <Button
               onClick={handleTriggerWebhook}
               disabled={isTriggering || !webhookUrl}
