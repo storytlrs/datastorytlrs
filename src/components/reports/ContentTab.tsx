@@ -235,6 +235,19 @@ export const ContentTab = ({ reportId }: ContentTabProps) => {
     setSelectedPlatform("all");
   };
 
+  // Some providers (notably Instagram CDN) return thumbnails that are not reliably hotlinkable.
+  // For those, route the request through our public proxy-image function.
+  const getDisplayImageUrl = (url: string): string => {
+    const needsProxy = /(?:cdninstagram\.com|fbcdn\.net)/i.test(url);
+    if (!needsProxy) return url;
+
+    // Derive backend base URL without relying on env vars
+    const { data } = supabase.storage.from("content-thumbnails").getPublicUrl("");
+    const backendBase = (data.publicUrl || "").replace(/\/storage\/v1\/object\/public\/.+$/, "").replace(/\/$/, "");
+
+    return `${backendBase}/functions/v1/proxy-image?url=${encodeURIComponent(url)}`;
+  };
+
   // Get the preview image for a content item
   const getPreviewImage = (item: ContentItem): { src: string | null; isLoading: boolean; canRetry: boolean; isFailed: boolean } => {
     // Check if currently refreshing
@@ -244,7 +257,7 @@ export const ContentTab = ({ reportId }: ContentTabProps) => {
 
     // Check if we have a freshly fetched preview (takes priority - means user clicked refresh)
     if (fetchedPreviews[item.id]) {
-      return { src: fetchedPreviews[item.id]!, isLoading: false, canRetry: false, isFailed: false };
+      return { src: getDisplayImageUrl(fetchedPreviews[item.id]!), isLoading: false, canRetry: false, isFailed: false };
     }
 
     // Check if the stored thumbnail failed to load
@@ -252,9 +265,9 @@ export const ContentTab = ({ reportId }: ContentTabProps) => {
       return { src: null, isLoading: false, canRetry: !!item.url, isFailed: true };
     }
 
-    // Use thumbnail from database directly as img src
+    // Use thumbnail from database
     if (item.thumbnail_url) {
-      return { src: item.thumbnail_url, isLoading: false, canRetry: false, isFailed: false };
+      return { src: getDisplayImageUrl(item.thumbnail_url), isLoading: false, canRetry: false, isFailed: false };
     }
 
     // Check if currently loading
@@ -266,7 +279,8 @@ export const ContentTab = ({ reportId }: ContentTabProps) => {
     return { src: null, isLoading: false, canRetry: !!item.url, isFailed: false };
   };
 
-  const handleImageError = (contentId: string) => {
+  const handleImageError = (contentId: string, src?: string | null) => {
+    console.warn('Thumbnail failed to load', { contentId, src });
     setFailedImages(prev => new Set(prev).add(contentId));
   };
 
@@ -486,7 +500,7 @@ export const ContentTab = ({ reportId }: ContentTabProps) => {
                       alt={`${item.platform} ${item.content_type}`}
                       className="w-full h-full object-cover"
                       referrerPolicy="no-referrer"
-                      onError={() => handleImageError(item.id)}
+                      onError={() => handleImageError(item.id, preview.src)}
                     />
                   ) : (
                     <div className="w-full h-full flex flex-col items-center justify-center gap-2">
