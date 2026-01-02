@@ -70,21 +70,16 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
   };
 
   const handleTriggerWebhook = async () => {
-    if (!webhookUrl) {
-      toast.error("Zadejte webhook URL");
-      return;
-    }
-
     setIsTriggering(true);
     try {
-      // Build URL with query parameters for GET request
-      const url = new URL(webhookUrl);
+      const webhookEndpoint = "https://storytlrs.app.n8n.cloud/webhook-test/3723b1d0-2d4e-4998-9ea9-efeb91615b22";
+      const url = new URL(webhookEndpoint);
       url.searchParams.set("report_id", reportId);
       url.searchParams.set("space_id", spaceId);
       url.searchParams.set("timestamp", new Date().toISOString());
       url.searchParams.set("triggered_from", window.location.origin);
 
-      const response = await fetch(url.toString(), {
+      await fetch(url.toString(), {
         method: "GET",
         mode: "no-cors",
       });
@@ -132,7 +127,7 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
           {canEdit && (
             <Button
               onClick={handleTriggerWebhook}
-              disabled={isTriggering || !webhookUrl}
+              disabled={isTriggering}
               className="rounded-[35px] bg-foreground text-background border border-foreground hover:bg-accent-green hover:text-foreground hover:border-accent-green"
             >
               {isTriggering ? (
