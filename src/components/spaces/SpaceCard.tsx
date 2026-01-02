@@ -1,6 +1,21 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
-import { Building2 } from "lucide-react";
+import { Building2, Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { supabase } from "@/integrations/supabase/client";
+import { useUserRole } from "@/hooks/useUserRole";
+import { toast } from "sonner";
 
 interface Space {
   id: string;
@@ -15,35 +30,92 @@ interface SpaceCardProps {
   onUpdate: () => void;
 }
 
-export const SpaceCard = ({ space }: SpaceCardProps) => {
+export const SpaceCard = ({ space, onUpdate }: SpaceCardProps) => {
   const navigate = useNavigate();
+  const { isAdmin } = useUserRole();
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase.from("spaces").delete().eq("id", space.id);
+      if (error) throw error;
+      toast.success("Space byl úspěšně smazán");
+      onUpdate();
+    } catch (error) {
+      console.error("Error deleting space:", error);
+      toast.error("Nepodařilo se smazat space");
+    } finally {
+      setIsDeleting(false);
+      setIsDeleteDialogOpen(false);
+    }
+  };
 
   return (
-    <Card
-      className="p-6 cursor-pointer transition-all hover:shadow-lg border-foreground rounded-[35px]"
-      onClick={() => navigate(`/spaces/${space.id}`)}
-    >
-      <div className="flex items-start gap-4">
-        <div className="w-16 h-16 rounded-[35px] bg-accent flex items-center justify-center flex-shrink-0">
-          {space.profile_image_url ? (
-            <img
-              src={space.profile_image_url}
-              alt={space.name}
-              className="w-full h-full object-cover rounded-[35px]"
-            />
-          ) : (
-            <Building2 className="w-8 h-8" />
-          )}
+    <>
+      <Card
+        className="p-6 cursor-pointer transition-all hover:shadow-lg border-foreground rounded-[35px] relative group"
+        onClick={() => navigate(`/spaces/${space.id}`)}
+      >
+        {isAdmin && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive hover:bg-destructive/10"
+            onClick={handleDelete}
+          >
+            <Trash2 className="w-4 h-4" />
+          </Button>
+        )}
+        <div className="flex items-start gap-4">
+          <div className="w-16 h-16 rounded-[35px] bg-accent flex items-center justify-center flex-shrink-0">
+            {space.profile_image_url ? (
+              <img
+                src={space.profile_image_url}
+                alt={space.name}
+                className="w-full h-full object-cover rounded-[35px]"
+              />
+            ) : (
+              <Building2 className="w-8 h-8" />
+            )}
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="font-bold text-xl mb-2 truncate">{space.name}</h3>
+            {space.description && (
+              <p className="text-sm text-muted-foreground line-clamp-2">
+                {space.description}
+              </p>
+            )}
+          </div>
         </div>
-        <div className="flex-1 min-w-0">
-          <h3 className="font-bold text-xl mb-2 truncate">{space.name}</h3>
-          {space.description && (
-            <p className="text-sm text-muted-foreground line-clamp-2">
-              {space.description}
-            </p>
-          )}
-        </div>
-      </div>
-    </Card>
+      </Card>
+
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Smazat space "{space.name}"?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tato akce je nevratná. Smaže se space včetně všech projektů a reportů.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Zrušit</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? "Mažu..." : "Smazat"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 };
