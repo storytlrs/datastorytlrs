@@ -251,9 +251,53 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
               className="min-h-[300px] rounded-[20px] border-foreground font-mono text-sm"
             />
           ) : (
-            <div className="min-h-[300px] p-4 rounded-[20px] border border-foreground bg-background prose prose-sm max-w-none dark:prose-invert">
+            <div className="min-h-[300px] p-4 rounded-[20px] border border-foreground bg-background">
               {aiInsights ? (
-                <ReactMarkdown>{aiInsights}</ReactMarkdown>
+                <ReactMarkdown
+                  components={{
+                    h1: ({ children }) => (
+                      <h1 className="text-2xl font-bold mb-4 text-foreground border-b border-border pb-2">{children}</h1>
+                    ),
+                    h2: ({ children }) => (
+                      <h2 className="text-xl font-bold mb-3 mt-6 text-foreground">{children}</h2>
+                    ),
+                    h3: ({ children }) => (
+                      <h3 className="text-lg font-semibold mb-2 mt-4 text-foreground">{children}</h3>
+                    ),
+                    p: ({ children }) => (
+                      <p className="mb-3 text-foreground leading-relaxed">{children}</p>
+                    ),
+                    a: ({ href, children }) => (
+                      <a href={href} className="text-accent-cyan hover:text-accent-purple underline transition-colors" target="_blank" rel="noopener noreferrer">{children}</a>
+                    ),
+                    blockquote: ({ children }) => (
+                      <blockquote className="border-l-4 border-accent-purple pl-4 my-4 italic text-muted-foreground bg-muted/30 py-2 rounded-r-lg">{children}</blockquote>
+                    ),
+                    ul: ({ children }) => (
+                      <ul className="list-disc list-inside mb-3 space-y-1 text-foreground">{children}</ul>
+                    ),
+                    ol: ({ children }) => (
+                      <ol className="list-decimal list-inside mb-3 space-y-1 text-foreground">{children}</ol>
+                    ),
+                    li: ({ children }) => (
+                      <li className="text-foreground">{children}</li>
+                    ),
+                    strong: ({ children }) => (
+                      <strong className="font-bold text-foreground">{children}</strong>
+                    ),
+                    em: ({ children }) => (
+                      <em className="italic text-accent-orange">{children}</em>
+                    ),
+                    code: ({ children }) => (
+                      <code className="bg-muted px-1.5 py-0.5 rounded text-sm font-mono text-accent-green">{children}</code>
+                    ),
+                    hr: () => (
+                      <hr className="my-6 border-border" />
+                    ),
+                  }}
+                >
+                  {aiInsights}
+                </ReactMarkdown>
               ) : (
                 <p className="text-muted-foreground italic">
                   AI-generated performance summaries and strategic recommendations will be displayed here...
