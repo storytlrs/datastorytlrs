@@ -6,8 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Loader2, Sparkles, Save, Settings2 } from "lucide-react";
+import { Loader2, Sparkles, Save, Settings2, Pencil, Eye } from "lucide-react";
 import { useUserRole } from "@/hooks/useUserRole";
+import ReactMarkdown from "react-markdown";
 import {
   Collapsible,
   CollapsibleContent,
@@ -27,6 +28,7 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
   const [isSaving, setIsSaving] = useState(false);
   const [isTriggering, setIsTriggering] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
     fetchReportData();
@@ -201,31 +203,64 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <Label htmlFor="aiInsights">Obsah AI Insights</Label>
-            {canEdit && (
-              <Button
-                onClick={handleSaveInsights}
-                disabled={isSaving}
-                variant="outline"
-                size="sm"
-                className="rounded-[35px] border-foreground"
-              >
-                {isSaving ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                ) : (
-                  <Save className="w-4 h-4 mr-2" />
-                )}
-                Uložit změny
-              </Button>
-            )}
+            <div className="flex items-center gap-2">
+              {canEdit && (
+                <Button
+                  onClick={() => setIsEditing(!isEditing)}
+                  variant="ghost"
+                  size="sm"
+                  className="rounded-[35px]"
+                >
+                  {isEditing ? (
+                    <>
+                      <Eye className="w-4 h-4 mr-2" />
+                      Náhled
+                    </>
+                  ) : (
+                    <>
+                      <Pencil className="w-4 h-4 mr-2" />
+                      Upravit
+                    </>
+                  )}
+                </Button>
+              )}
+              {canEdit && isEditing && (
+                <Button
+                  onClick={handleSaveInsights}
+                  disabled={isSaving}
+                  variant="outline"
+                  size="sm"
+                  className="rounded-[35px] border-foreground"
+                >
+                  {isSaving ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Save className="w-4 h-4 mr-2" />
+                  )}
+                  Uložit změny
+                </Button>
+              )}
+            </div>
           </div>
-          <Textarea
-            id="aiInsights"
-            value={aiInsights}
-            onChange={(e) => setAiInsights(e.target.value)}
-            placeholder="AI-generated performance summaries and strategic recommendations will be displayed here..."
-            className="min-h-[300px] rounded-[20px] border-foreground"
-            readOnly={!canEdit}
-          />
+          {isEditing && canEdit ? (
+            <Textarea
+              id="aiInsights"
+              value={aiInsights}
+              onChange={(e) => setAiInsights(e.target.value)}
+              placeholder="AI-generated performance summaries and strategic recommendations will be displayed here..."
+              className="min-h-[300px] rounded-[20px] border-foreground font-mono text-sm"
+            />
+          ) : (
+            <div className="min-h-[300px] p-4 rounded-[20px] border border-foreground bg-background prose prose-sm max-w-none dark:prose-invert">
+              {aiInsights ? (
+                <ReactMarkdown>{aiInsights}</ReactMarkdown>
+              ) : (
+                <p className="text-muted-foreground italic">
+                  AI-generated performance summaries and strategic recommendations will be displayed here...
+                </p>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </Card>
