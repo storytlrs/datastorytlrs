@@ -98,15 +98,15 @@ export const CreateContentDialog = ({ reportId, onSuccess }: CreateContentDialog
 
       if (error) throw error;
 
-      // 2. Fetch sentiment webhook URL from report
+      // 2. Fetch sentiment webhook URL and type from report
       const { data: report } = await supabase
         .from("reports")
-        .select("sentiment_webhook_url")
+        .select("sentiment_webhook_url, type")
         .eq("id", reportId)
         .single();
 
-      // 3. Trigger sentiment webhook if configured
-      if (report?.sentiment_webhook_url && newContent?.id) {
+      // 3. Trigger sentiment webhook only for influencer reports
+      if (report?.type === "influencer" && report?.sentiment_webhook_url && newContent?.id) {
         try {
           await fetch(report.sentiment_webhook_url, {
             method: "POST",
