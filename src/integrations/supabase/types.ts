@@ -176,6 +176,7 @@ export type Database = {
       content: {
         Row: {
           aqs: number | null
+          avg_watch_time: number | null
           brand_minutes: number | null
           branded_views: number | null
           comments: number | null
@@ -200,6 +201,7 @@ export type Database = {
           published_date: string | null
           reach: number | null
           report_id: string
+          reposts: number | null
           saves: number | null
           sentiment: Database["public"]["Enums"]["sentiment_type"] | null
           sentiment_summary: string | null
@@ -210,10 +212,12 @@ export type Database = {
           updated_at: string
           url: string | null
           views: number | null
+          views_3s: number | null
           watch_time: number | null
         }
         Insert: {
           aqs?: number | null
+          avg_watch_time?: number | null
           brand_minutes?: number | null
           branded_views?: number | null
           comments?: number | null
@@ -238,6 +242,7 @@ export type Database = {
           published_date?: string | null
           reach?: number | null
           report_id: string
+          reposts?: number | null
           saves?: number | null
           sentiment?: Database["public"]["Enums"]["sentiment_type"] | null
           sentiment_summary?: string | null
@@ -248,10 +253,12 @@ export type Database = {
           updated_at?: string
           url?: string | null
           views?: number | null
+          views_3s?: number | null
           watch_time?: number | null
         }
         Update: {
           aqs?: number | null
+          avg_watch_time?: number | null
           brand_minutes?: number | null
           branded_views?: number | null
           comments?: number | null
@@ -276,6 +283,7 @@ export type Database = {
           published_date?: string | null
           reach?: number | null
           report_id?: string
+          reposts?: number | null
           saves?: number | null
           sentiment?: Database["public"]["Enums"]["sentiment_type"] | null
           sentiment_summary?: string | null
@@ -286,6 +294,7 @@ export type Database = {
           updated_at?: string
           url?: string | null
           views?: number | null
+          views_3s?: number | null
           watch_time?: number | null
         }
         Relationships: [

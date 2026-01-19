@@ -220,16 +220,59 @@ export const DataTab = ({ reportId, onImportSuccess }: DataTabProps) => {
     { key: "published_date", label: "Published", type: "date", editable: false },
     // Engagement Metrics
     { key: "reach", label: "Reach", type: "number", editable: false, format: formatNumber },
-    { key: "impressions", label: "Impressions", type: "number", editable: false, format: formatNumber },
-    { key: "views", label: "Views", type: "number", editable: false, format: formatNumber },
+    // Views = impressions + views (merged)
+    { 
+      key: "views_combined", 
+      label: "Views", 
+      type: "number", 
+      editable: false, 
+      calculated: true,
+      format: (val: any, row: any) => formatNumber((row.impressions || 0) + (row.views || 0))
+    },
+    // 3s View Rate as percentage
+    { 
+      key: "views_3s", 
+      label: "3s View Rate", 
+      type: "number", 
+      editable: false, 
+      format: (val: number | null) => val !== null && val !== undefined ? `${val.toFixed(1)}%` : "-"
+    },
     { key: "likes", label: "Likes", type: "number", editable: false, format: formatNumber },
     { key: "comments", label: "Comments", type: "number", editable: false, format: formatNumber },
     { key: "saves", label: "Saves", type: "number", editable: false, format: formatNumber },
     { key: "shares", label: "Shares", type: "number", editable: false, format: formatNumber },
+    { key: "reposts", label: "Reposts", type: "number", editable: false, format: formatNumber },
     { key: "sticker_clicks", label: "Sticker Clicks", type: "number", editable: false, format: formatNumber },
     { key: "link_clicks", label: "Link Clicks", type: "number", editable: false, format: formatNumber },
     // Performance
     { key: "watch_time", label: "Watch Time", type: "text", editable: false, format: formatWatchTimeDisplay },
+    // Avg Watch Time in seconds
+    { 
+      key: "avg_watch_time", 
+      label: "Avg. Watch Time (s)", 
+      type: "number", 
+      editable: false, 
+      format: (val: number | null) => val !== null && val !== undefined ? val.toString() : "-"
+    },
+    // TSWB calculated field
+    { 
+      key: "tswb", 
+      label: "TSWB", 
+      type: "text", 
+      editable: false, 
+      calculated: true,
+      format: (val: any, row: any) => {
+        const watchTime = row.watch_time || 0;
+        const likes = row.likes || 0;
+        const comments = row.comments || 0;
+        const saves = row.saves || 0;
+        const shares = row.shares || 0;
+        const reposts = row.reposts || 0;
+        // TSWB = watch_time + (likes×3 + comments×5 + (saves+shares+reposts)×10)
+        const tswbSeconds = watchTime + (likes * 3) + (comments * 5) + ((saves + shares + reposts) * 10);
+        return formatWatchTimeDisplay(tswbSeconds);
+      }
+    },
     { key: "sentiment", label: "Sentiment", type: "text", editable: false },
     { key: "sentiment_summary", label: "Sentiment Summary", type: "text", editable: false, maxWidth: "300px", truncate: true, truncateLines: 3 },
   ];
