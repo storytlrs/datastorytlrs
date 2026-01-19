@@ -180,6 +180,7 @@ export type Database = {
           brand_minutes: number | null
           branded_views: number | null
           comments: number | null
+          content_summary: string | null
           content_type: Database["public"]["Enums"]["content_type"]
           cost: number | null
           cpe: number | null
@@ -221,6 +222,7 @@ export type Database = {
           brand_minutes?: number | null
           branded_views?: number | null
           comments?: number | null
+          content_summary?: string | null
           content_type: Database["public"]["Enums"]["content_type"]
           cost?: number | null
           cpe?: number | null
@@ -262,6 +264,7 @@ export type Database = {
           brand_minutes?: number | null
           branded_views?: number | null
           comments?: number | null
+          content_summary?: string | null
           content_type?: Database["public"]["Enums"]["content_type"]
           cost?: number | null
           cpe?: number | null
