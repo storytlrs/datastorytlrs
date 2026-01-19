@@ -23,13 +23,16 @@ const contentSchema = z.object({
   reach: z.number().min(0).optional(),
   impressions: z.number().min(0).optional(),
   views: z.number().min(0).optional(),
+  views_3s: z.number().min(0).max(100).optional(),
   likes: z.number().min(0).optional(),
   comments: z.number().min(0).optional(),
   saves: z.number().min(0).optional(),
   shares: z.number().min(0).optional(),
+  reposts: z.number().min(0).optional(),
   sticker_clicks: z.number().min(0).optional(),
   link_clicks: z.number().min(0).optional(),
   watch_time: z.string().optional(),
+  avg_watch_time: z.number().min(0).optional(),
   sentiment: z.enum(["positive", "neutral", "negative"]).optional(),
   sentiment_summary: z.string().optional(),
 });
@@ -61,13 +64,16 @@ export const EditContentDialog = ({ content, open, onOpenChange, onSuccess }: Ed
       reach: content.reach || 0,
       impressions: content.impressions || 0,
       views: content.views || 0,
+      views_3s: content.views_3s || 0,
       likes: content.likes || 0,
       comments: content.comments || 0,
       saves: content.saves || 0,
       shares: content.shares || 0,
+      reposts: content.reposts || 0,
       sticker_clicks: content.sticker_clicks || 0,
       link_clicks: content.link_clicks || 0,
       watch_time: content.watch_time ? secondsToWatchTime(content.watch_time) : "",
+      avg_watch_time: content.avg_watch_time || 0,
       sentiment: content.sentiment || undefined,
       sentiment_summary: content.sentiment_summary || "",
     },
@@ -103,13 +109,16 @@ export const EditContentDialog = ({ content, open, onOpenChange, onSuccess }: Ed
         reach: content.reach || 0,
         impressions: content.impressions || 0,
         views: content.views || 0,
+        views_3s: content.views_3s || 0,
         likes: content.likes || 0,
         comments: content.comments || 0,
         saves: content.saves || 0,
         shares: content.shares || 0,
+        reposts: content.reposts || 0,
         sticker_clicks: content.sticker_clicks || 0,
         link_clicks: content.link_clicks || 0,
         watch_time: content.watch_time ? secondsToWatchTime(content.watch_time) : "",
+        avg_watch_time: content.avg_watch_time || 0,
         sentiment: content.sentiment || undefined,
         sentiment_summary: content.sentiment_summary || "",
       });
@@ -175,13 +184,16 @@ export const EditContentDialog = ({ content, open, onOpenChange, onSuccess }: Ed
           reach: data.reach || null,
           impressions: data.impressions || null,
           views: data.views || null,
+          views_3s: data.views_3s || null,
           likes: data.likes || null,
           comments: data.comments || null,
           saves: data.saves || null,
           shares: data.shares || null,
+          reposts: data.reposts || null,
           sticker_clicks: data.sticker_clicks || null,
           link_clicks: data.link_clicks || null,
           watch_time: data.watch_time ? watchTimeToSeconds(data.watch_time) : null,
+          avg_watch_time: data.avg_watch_time || null,
           sentiment: data.sentiment || null,
           sentiment_summary: data.sentiment_summary || null,
           thumbnail_url: thumbnailUrl,
@@ -375,6 +387,16 @@ export const EditContentDialog = ({ content, open, onOpenChange, onSuccess }: Ed
                 />
               </div>
               <div>
+                <Label htmlFor="reposts">Reposts</Label>
+                <Input
+                  id="reposts"
+                  type="number"
+                  placeholder="0"
+                  {...register("reposts", { valueAsNumber: true })}
+                  className="rounded-[35px]"
+                />
+              </div>
+              <div>
                 <Label htmlFor="sticker_clicks">Sticker Clicks</Label>
                 <Input
                   id="sticker_clicks"
@@ -394,6 +416,17 @@ export const EditContentDialog = ({ content, open, onOpenChange, onSuccess }: Ed
                   className="rounded-[35px]"
                 />
               </div>
+              <div>
+                <Label htmlFor="views_3s">3s View Rate (%)</Label>
+                <Input
+                  id="views_3s"
+                  type="number"
+                  step="0.1"
+                  placeholder="0"
+                  {...register("views_3s", { valueAsNumber: true })}
+                  className="rounded-[35px]"
+                />
+              </div>
             </div>
           </div>
 
@@ -401,7 +434,7 @@ export const EditContentDialog = ({ content, open, onOpenChange, onSuccess }: Ed
           <div className="space-y-4">
             <h3 className="font-semibold">Performance</h3>
             
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <div>
                 <Label htmlFor="watch_time">Watch Time</Label>
                 <Input
@@ -412,8 +445,18 @@ export const EditContentDialog = ({ content, open, onOpenChange, onSuccess }: Ed
                   className="rounded-[35px]"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  Format: days:hours:minutes:seconds (e.g., 00:01:30:00)
+                  Format: DD:HH:MM:SS
                 </p>
+              </div>
+              <div>
+                <Label htmlFor="avg_watch_time">Avg. Watch Time (s)</Label>
+                <Input
+                  id="avg_watch_time"
+                  type="number"
+                  placeholder="0"
+                  {...register("avg_watch_time", { valueAsNumber: true })}
+                  className="rounded-[35px]"
+                />
               </div>
 
               <div>
