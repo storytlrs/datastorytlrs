@@ -44,7 +44,7 @@ export const KPICard = ({
       accentClass
     )}>
       <div className="flex items-start justify-between mb-4">
-        <div className="flex items-start gap-1.5">
+        <div className="flex items-start gap-1">
           <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
             {title}
           </p>
@@ -52,7 +52,7 @@ export const KPICard = ({
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <button className="text-muted-foreground hover:text-foreground transition-colors">
+                  <button className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0">
                     <HelpCircle className="w-3.5 h-3.5" />
                   </button>
                 </TooltipTrigger>
