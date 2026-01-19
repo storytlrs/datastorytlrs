@@ -293,12 +293,6 @@ export const CreatorsTab = ({ reportId }: CreatorsTabProps) => {
             stroke="hsl(var(--foreground))"
             tick={{ fill: 'hsl(var(--foreground))', fontSize: 12 }}
             tickFormatter={(value) => formatValue(value, selectedMetric)}
-            label={{ 
-              value: getMetricLabel(selectedMetric), 
-              angle: -90, 
-              position: 'insideLeft',
-              style: { fill: 'hsl(var(--foreground))' }
-            }}
           />
           <Tooltip 
             contentStyle={{
