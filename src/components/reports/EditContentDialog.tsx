@@ -12,6 +12,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { secondsToWatchTime, watchTimeToSeconds } from "@/lib/watchTimeUtils";
 import { ImageUpload } from "@/components/ui/image-upload";
+import { RefreshCw } from "lucide-react";
 
 const contentSchema = z.object({
   creator_id: z.string().min(1, "Creator is required"),
@@ -44,6 +45,7 @@ interface EditContentDialogProps {
 
 export const EditContentDialog = ({ content, open, onOpenChange, onSuccess }: EditContentDialogProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isRegeneratingSentiment, setIsRegeneratingSentiment] = useState(false);
   const [creators, setCreators] = useState<any[]>([]);
   const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(content.thumbnail_url || null);
 
@@ -112,6 +114,40 @@ export const EditContentDialog = ({ content, open, onOpenChange, onSuccess }: Ed
       .order("handle");
     
     setCreators(data || []);
+  };
+
+  const handleRegenerateSentiment = async () => {
+    setIsRegeneratingSentiment(true);
+    try {
+      // Fetch sentiment webhook URL from report
+      const { data: report } = await supabase
+        .from("reports")
+        .select("sentiment_webhook_url")
+        .eq("id", content.report_id)
+        .single();
+
+      if (!report?.sentiment_webhook_url) {
+        toast.warning("Sentiment webhook URL is not configured for this report");
+        return;
+      }
+
+      await fetch(report.sentiment_webhook_url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          content_id: content.id,
+          report_id: content.report_id,
+          action: "regenerate_sentiment"
+        })
+      });
+
+      toast.success("Sentiment regeneration triggered");
+    } catch (error) {
+      toast.error("Failed to trigger sentiment regeneration");
+      console.error(error);
+    } finally {
+      setIsRegeneratingSentiment(false);
+    }
   };
 
   const onSubmit = async (data: ContentFormData) => {
@@ -385,7 +421,20 @@ export const EditContentDialog = ({ content, open, onOpenChange, onSuccess }: Ed
             </div>
 
             <div>
-              <Label htmlFor="sentiment_summary">Sentiment Summary</Label>
+              <div className="flex items-center justify-between mb-2">
+                <Label htmlFor="sentiment_summary">Sentiment Summary</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRegenerateSentiment}
+                  disabled={isRegeneratingSentiment}
+                  className="rounded-[35px]"
+                >
+                  <RefreshCw className={`w-4 h-4 mr-2 ${isRegeneratingSentiment ? 'animate-spin' : ''}`} />
+                  {isRegeneratingSentiment ? "Regenerating..." : "Regenerate"}
+                </Button>
+              </div>
               <Textarea
                 id="sentiment_summary"
                 placeholder="Brief summary of sentiment analysis..."
