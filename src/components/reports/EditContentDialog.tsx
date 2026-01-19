@@ -48,6 +48,7 @@ export const EditContentDialog = ({ content, open, onOpenChange, onSuccess }: Ed
   const [isRegeneratingSentiment, setIsRegeneratingSentiment] = useState(false);
   const [creators, setCreators] = useState<any[]>([]);
   const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(content.thumbnail_url || null);
+  const [reportType, setReportType] = useState<string | null>(null);
 
   const { register, handleSubmit, formState: { errors }, setValue, watch, reset } = useForm<ContentFormData>({
     resolver: zodResolver(contentSchema),
@@ -79,7 +80,17 @@ export const EditContentDialog = ({ content, open, onOpenChange, onSuccess }: Ed
 
   useEffect(() => {
     fetchCreators();
+    fetchReportType();
   }, [content.report_id]);
+
+  const fetchReportType = async () => {
+    const { data } = await supabase
+      .from("reports")
+      .select("type")
+      .eq("id", content.report_id)
+      .single();
+    setReportType(data?.type || null);
+  };
 
   useEffect(() => {
     if (content && open) {
@@ -423,17 +434,19 @@ export const EditContentDialog = ({ content, open, onOpenChange, onSuccess }: Ed
             <div>
               <div className="flex items-center justify-between mb-2">
                 <Label htmlFor="sentiment_summary">Sentiment Summary</Label>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleRegenerateSentiment}
-                  disabled={isRegeneratingSentiment}
-                  className="rounded-[35px]"
-                >
-                  <RefreshCw className={`w-4 h-4 mr-2 ${isRegeneratingSentiment ? 'animate-spin' : ''}`} />
-                  {isRegeneratingSentiment ? "Regenerating..." : "Regenerate"}
-                </Button>
+                {reportType === "influencer" && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleRegenerateSentiment}
+                    disabled={isRegeneratingSentiment}
+                    className="rounded-[35px]"
+                  >
+                    <RefreshCw className={`w-4 h-4 mr-2 ${isRegeneratingSentiment ? 'animate-spin' : ''}`} />
+                    {isRegeneratingSentiment ? "Regenerating..." : "Regenerate"}
+                  </Button>
+                )}
               </div>
               <Textarea
                 id="sentiment_summary"
