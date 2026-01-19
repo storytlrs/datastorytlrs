@@ -1,6 +1,12 @@
 import { Card } from "@/components/ui/card";
-import { LucideIcon } from "lucide-react";
+import { LucideIcon, HelpCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface KPICardProps {
   title: string;
@@ -8,6 +14,7 @@ interface KPICardProps {
   change?: number;
   icon?: LucideIcon;
   accentColor?: "default" | "orange" | "green" | "blue";
+  tooltip?: string;
 }
 
 export const KPICard = ({ 
@@ -15,7 +22,8 @@ export const KPICard = ({
   value, 
   change, 
   icon: Icon,
-  accentColor = "default" 
+  accentColor = "default",
+  tooltip
 }: KPICardProps) => {
   const accentClass = {
     default: "border-accent",
@@ -36,9 +44,25 @@ export const KPICard = ({
       accentClass
     )}>
       <div className="flex items-start justify-between mb-4">
-        <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-          {title}
-        </p>
+        <div className="flex items-center gap-1.5">
+          <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+            {title}
+          </p>
+          {tooltip && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button className="text-muted-foreground hover:text-foreground transition-colors">
+                    <HelpCircle className="w-3.5 h-3.5" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs text-sm">
+                  {tooltip}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+        </div>
         {Icon && (
           <Icon className="w-5 h-5 text-foreground" />
         )}
