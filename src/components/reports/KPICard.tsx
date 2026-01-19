@@ -44,15 +44,15 @@ export const KPICard = ({
       accentClass
     )}>
       <div className="flex items-start justify-between mb-4">
-        <div className="flex items-start gap-1">
-          <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+        <div className="flex-1 pr-2">
+          <span className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
             {title}
-          </p>
+          </span>
           {tooltip && (
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <button className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0">
+                  <button className="text-muted-foreground hover:text-foreground transition-colors ml-1 align-top inline-flex">
                     <HelpCircle className="w-3.5 h-3.5" />
                   </button>
                 </TooltipTrigger>
@@ -64,7 +64,7 @@ export const KPICard = ({
           )}
         </div>
         {Icon && (
-          <Icon className="w-5 h-5 text-foreground" />
+          <Icon className="w-5 h-5 text-foreground flex-shrink-0" />
         )}
       </div>
       <div className="space-y-1">
