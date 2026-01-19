@@ -73,7 +73,8 @@ export const CreateContentDialog = ({ reportId, onSuccess }: CreateContentDialog
   const onSubmit = async (data: ContentFormData) => {
     setIsSubmitting(true);
     try {
-      const { error } = await supabase.from("content").insert({
+      // 1. Insert the new content record
+      const { data: newContent, error } = await supabase.from("content").insert({
         report_id: reportId,
         creator_id: data.creator_id,
         platform: data.platform,
@@ -93,9 +94,35 @@ export const CreateContentDialog = ({ reportId, onSuccess }: CreateContentDialog
         sentiment: data.sentiment || null,
         sentiment_summary: data.sentiment_summary || null,
         thumbnail_url: thumbnailUrl,
-      });
+      }).select("id").single();
 
       if (error) throw error;
+
+      // 2. Fetch sentiment webhook URL from report
+      const { data: report } = await supabase
+        .from("reports")
+        .select("sentiment_webhook_url")
+        .eq("id", reportId)
+        .single();
+
+      // 3. Trigger sentiment webhook if configured
+      if (report?.sentiment_webhook_url && newContent?.id) {
+        try {
+          await fetch(report.sentiment_webhook_url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              content_id: newContent.id,
+              report_id: reportId,
+              action: "analyze_sentiment"
+            })
+          });
+          toast.info("Sentiment analysis triggered");
+        } catch (webhookError) {
+          console.error("Sentiment webhook error:", webhookError);
+          // Don't block content creation - just log the error
+        }
+      }
 
       toast.success("Content added successfully");
       setOpen(false);

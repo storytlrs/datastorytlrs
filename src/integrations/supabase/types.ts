@@ -662,6 +662,7 @@ export type Database = {
           id: string
           name: string
           project_id: string | null
+          sentiment_webhook_url: string | null
           space_id: string
           start_date: string | null
           status: Database["public"]["Enums"]["report_status"]
@@ -676,6 +677,7 @@ export type Database = {
           id?: string
           name: string
           project_id?: string | null
+          sentiment_webhook_url?: string | null
           space_id: string
           start_date?: string | null
           status?: Database["public"]["Enums"]["report_status"]
@@ -690,6 +692,7 @@ export type Database = {
           id?: string
           name?: string
           project_id?: string | null
+          sentiment_webhook_url?: string | null
           space_id?: string
           start_date?: string | null
           status?: Database["public"]["Enums"]["report_status"]
