@@ -40,10 +40,10 @@ export const KPICard = ({
 
   return (
     <Card className={cn(
-      "p-6 rounded-[35px] border-2 transition-all hover:shadow-lg",
+      "p-6 rounded-[35px] border-2 transition-all hover:shadow-lg h-full flex flex-col min-h-[160px]",
       accentClass
     )}>
-      <div className="flex items-start justify-between mb-4">
+      <div className="flex items-start justify-between">
         <div className="flex-1 pr-2">
           <span className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
             {title}
@@ -67,6 +67,9 @@ export const KPICard = ({
           <Icon className="w-5 h-5 text-foreground flex-shrink-0" />
         )}
       </div>
+      
+      <div className="flex-1" />
+      
       <div className="space-y-1">
         <p className="text-3xl font-bold text-foreground">
           {value}
