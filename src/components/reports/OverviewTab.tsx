@@ -375,10 +375,10 @@ export const OverviewTab = ({ reportId }: OverviewTabProps) => {
         <KPICard title="Shares" value={formatNumber(engagementKPIs.shares)} icon={Share2} accentColor="green" />
         <KPICard title="Saves" value={formatNumber(engagementKPIs.saves)} icon={Bookmark} accentColor="green" />
         <KPICard title="Reposts" value={formatNumber(engagementKPIs.reposts)} icon={Share2} accentColor="green" />
-        <KPICard title="TSWB" value={secondsToReadableTime(engagementKPIs.tswb)} icon={Clock} accentColor="green" />
-        <KPICard title="Engagement Rate" value={formatPercent(engagementKPIs.engagementRate)} icon={TrendingUp} accentColor="green" />
-        <KPICard title="Virality Rate" value={formatPercent(engagementKPIs.viralityRate, 3)} icon={Zap} accentColor="green" />
-        <KPICard title="Utility Score" value={formatPercent(engagementKPIs.utilityScore, 3)} icon={Award} accentColor="green" />
+        <KPICard title="TSWB" value={secondsToReadableTime(engagementKPIs.tswb)} icon={Clock} accentColor="green" tooltip="TSWB (Time Spent With Brand) = Watch Time + (Likes × 3) + (Comments × 5) + ((Saves + Shares + Reposts) × 10). Výsledek je v sekundách." />
+        <KPICard title="Engagement Rate" value={formatPercent(engagementKPIs.engagementRate)} icon={TrendingUp} accentColor="green" tooltip="Engagement Rate = (Interactions / Views) × 100. Interactions = Likes + Comments + Shares + Saves." />
+        <KPICard title="Virality Rate" value={formatPercent(engagementKPIs.viralityRate, 3)} icon={Zap} accentColor="green" tooltip="Virality Rate = (Shares / Views) × 100. Měří podíl obsahu, který byl sdílen." />
+        <KPICard title="Utility Score" value={formatPercent(engagementKPIs.utilityScore, 3)} icon={Award} accentColor="green" tooltip="Utility Score = (Saves / Views) × 100. Měří podíl obsahu, který byl uložen." />
         <KPICard title="Link Clicks" value={formatNumber(engagementKPIs.linkClicks)} icon={Link} accentColor="green" />
         <KPICard title="Sticker Clicks" value={formatNumber(engagementKPIs.stickerClicks)} icon={Target} accentColor="green" />
       </KPISection>
@@ -388,9 +388,9 @@ export const OverviewTab = ({ reportId }: OverviewTabProps) => {
         <KPICard title="Creators" value={effectivenessKPIs.creatorsCount.toString()} icon={Users} accentColor="orange" />
         <KPICard title="Content Pieces" value={effectivenessKPIs.contentPieces.toString()} icon={FileText} accentColor="orange" />
         <KPICard title="Budget Spent" value={formatCurrency(effectivenessKPIs.budgetSpent)} icon={DollarSign} accentColor="orange" />
-        <KPICard title="TSWB Cost per Minute" value={formatCurrency(effectivenessKPIs.tswbCostPerMinute)} icon={Clock} accentColor="orange" />
-        <KPICard title="CPM" value={formatCurrency(effectivenessKPIs.cpm)} icon={DollarSign} accentColor="orange" />
-        <KPICard title="CPC" value={formatCurrency(effectivenessKPIs.cpc)} icon={MousePointer} accentColor="orange" />
+        <KPICard title="TSWB Cost per Minute" value={formatCurrency(effectivenessKPIs.tswbCostPerMinute)} icon={Clock} accentColor="orange" tooltip="TSWB Cost per Minute = Budget Spent / (TSWB v minutách). Kolik stojí jedna minuta pozornosti značce." />
+        <KPICard title="CPM" value={formatCurrency(effectivenessKPIs.cpm)} icon={DollarSign} accentColor="orange" tooltip="CPM (Cost per Mille) = (Budget Spent / Views) × 1000. Náklad na 1000 zobrazení." />
+        <KPICard title="CPC" value={formatCurrency(effectivenessKPIs.cpc)} icon={MousePointer} accentColor="orange" tooltip="CPC (Cost per Click) = Budget Spent / Link Clicks. Náklad na jeden proklik." />
       </KPISection>
     </div>
   );
