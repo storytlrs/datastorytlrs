@@ -129,6 +129,19 @@ export const EditContentDialog = ({ content, open, onOpenChange, onSuccess }: Ed
     }
   }, [content, open, reset]);
 
+  // Auto-resize textareas on dialog open
+  useEffect(() => {
+    if (open) {
+      setTimeout(() => {
+        const textareas = document.querySelectorAll('#content_summary, #sentiment_summary') as NodeListOf<HTMLTextAreaElement>;
+        textareas.forEach((textarea) => {
+          textarea.style.height = 'auto';
+          textarea.style.height = textarea.scrollHeight + 'px';
+        });
+      }, 50);
+    }
+  }, [open, content]);
+
   const fetchCreators = async () => {
     const { data } = await supabase
       .from("creators")
@@ -320,7 +333,12 @@ export const EditContentDialog = ({ content, open, onOpenChange, onSuccess }: Ed
                 id="content_summary"
                 placeholder="Stručný popis obsahu..."
                 {...register("content_summary")}
-                className="rounded-[35px] min-h-[80px]"
+                className="rounded-[35px] min-h-[80px] resize-none overflow-hidden"
+                onInput={(e) => {
+                  const target = e.target as HTMLTextAreaElement;
+                  target.style.height = 'auto';
+                  target.style.height = target.scrollHeight + 'px';
+                }}
               />
             </div>
           </div>
@@ -509,7 +527,12 @@ export const EditContentDialog = ({ content, open, onOpenChange, onSuccess }: Ed
                 id="sentiment_summary"
                 placeholder="Brief summary of sentiment analysis..."
                 {...register("sentiment_summary")}
-                className="rounded-[35px] min-h-[100px]"
+                className="rounded-[35px] min-h-[100px] resize-none overflow-hidden"
+                onInput={(e) => {
+                  const target = e.target as HTMLTextAreaElement;
+                  target.style.height = 'auto';
+                  target.style.height = target.scrollHeight + 'px';
+                }}
               />
             </div>
           </div>
