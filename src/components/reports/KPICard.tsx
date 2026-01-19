@@ -44,7 +44,7 @@ export const KPICard = ({
       accentClass
     )}>
       <div className="flex items-start justify-between mb-4">
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-start gap-1.5">
           <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
             {title}
           </p>
