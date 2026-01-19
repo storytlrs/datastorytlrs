@@ -28,7 +28,7 @@ import {
   X
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { secondsToWatchTime } from "@/lib/watchTimeUtils";
+import { secondsToReadableTime } from "@/lib/watchTimeUtils";
 import { formatCurrency as formatCurrencyUtil, DEFAULT_CURRENCY } from "@/lib/currencyUtils";
 
 interface OverviewTabProps {
@@ -61,6 +61,7 @@ interface Content {
   link_clicks: number | null;
   sticker_clicks: number | null;
   published_date: string | null;
+  reposts: number | null;
 }
 
 const formatNumber = (num: number): string => {
@@ -109,7 +110,7 @@ export const OverviewTab = ({ reportId }: OverviewTabProps) => {
       setLoading(true);
       const [creatorsRes, contentRes] = await Promise.all([
         supabase.from("creators").select("id, handle, currency, posts_count, reels_count, stories_count, posts_cost, reels_cost, stories_cost").eq("report_id", reportId),
-        supabase.from("content").select("id, creator_id, reach, impressions, views, watch_time, likes, comments, shares, saves, link_clicks, sticker_clicks, published_date").eq("report_id", reportId),
+        supabase.from("content").select("id, creator_id, reach, impressions, views, watch_time, likes, comments, shares, saves, link_clicks, sticker_clicks, published_date, reposts").eq("report_id", reportId),
       ]);
       setCreators(creatorsRes.data || []);
       setContent(contentRes.data || []);
@@ -167,6 +168,7 @@ export const OverviewTab = ({ reportId }: OverviewTabProps) => {
     const totalComments = filteredContent.reduce((sum, c) => sum + (c.comments || 0), 0);
     const totalShares = filteredContent.reduce((sum, c) => sum + (c.shares || 0), 0);
     const totalSaves = filteredContent.reduce((sum, c) => sum + (c.saves || 0), 0);
+    const totalReposts = filteredContent.reduce((sum, c) => sum + (c.reposts || 0), 0);
     const totalLinkClicks = filteredContent.reduce((sum, c) => sum + (c.link_clicks || 0), 0);
     const totalStickerClicks = filteredContent.reduce((sum, c) => sum + (c.sticker_clicks || 0), 0);
 
@@ -177,17 +179,30 @@ export const OverviewTab = ({ reportId }: OverviewTabProps) => {
     const viralityRate = totalExposure > 0 ? (totalShares / totalExposure) * 100 : 0;
     const utilityScore = totalExposure > 0 ? (totalSaves / totalExposure) * 100 : 0;
 
+    // TSWB = watch_time + (likes×3) + (comments×5) + ((saves+shares+reposts)×10)
+    const totalTSWB = filteredContent.reduce((sum, c) => {
+      const watchTime = c.watch_time || 0;
+      const likes = c.likes || 0;
+      const comments = c.comments || 0;
+      const saves = c.saves || 0;
+      const shares = c.shares || 0;
+      const reposts = c.reposts || 0;
+      return sum + watchTime + (likes * 3) + (comments * 5) + ((saves + shares + reposts) * 10);
+    }, 0);
+
     return {
       interactions: totalInteractions,
       likes: totalLikes,
       comments: totalComments,
       shares: totalShares,
       saves: totalSaves,
+      reposts: totalReposts,
       engagementRate,
       viralityRate,
       utilityScore,
       linkClicks: totalLinkClicks,
       stickerClicks: totalStickerClicks,
+      tswb: totalTSWB,
     };
   }, [filteredContent, awarenessKPIs]);
 
@@ -195,6 +210,9 @@ export const OverviewTab = ({ reportId }: OverviewTabProps) => {
   const effectivenessKPIs = useMemo(() => {
     // Content pieces from actual content table
     const contentPieces = filteredContent.length;
+
+    // Creators count
+    const creatorsCount = relevantCreators.length;
 
     const budgetSpent = relevantCreators.reduce((sum, c) => {
       return (
@@ -205,8 +223,9 @@ export const OverviewTab = ({ reportId }: OverviewTabProps) => {
       );
     }, 0);
 
-    const watchTimeMinutes = awarenessKPIs.watchTimeSeconds / 60;
-    const watchTimeCostPerMinute = watchTimeMinutes > 0 ? budgetSpent / watchTimeMinutes : 0;
+    // TSWB Cost per Minute (TSWB je v sekundách, převedeme na minuty)
+    const tswbMinutes = engagementKPIs.tswb / 60;
+    const tswbCostPerMinute = tswbMinutes > 0 ? budgetSpent / tswbMinutes : 0;
 
     // CPM: (budget / (impressions + views)) × 1000
     const cpm = awarenessKPIs.impressionsViews > 0 ? (budgetSpent / awarenessKPIs.impressionsViews) * 1000 : 0;
@@ -215,8 +234,9 @@ export const OverviewTab = ({ reportId }: OverviewTabProps) => {
 
     return {
       contentPieces,
+      creatorsCount,
       budgetSpent,
-      watchTimeCostPerMinute,
+      tswbCostPerMinute,
       cpm,
       cpc,
     };
@@ -342,8 +362,8 @@ export const OverviewTab = ({ reportId }: OverviewTabProps) => {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <KPICard title="Reach" value={formatNumber(awarenessKPIs.reach)} icon={Users} accentColor="blue" />
-          <KPICard title="Impressions / Views" value={formatNumber(awarenessKPIs.impressionsViews)} icon={Eye} accentColor="blue" />
-          <KPICard title="Watch Time" value={awarenessKPIs.watchTimeSeconds > 0 ? secondsToWatchTime(awarenessKPIs.watchTimeSeconds) : "-"} icon={Clock} accentColor="blue" />
+          <KPICard title="Views" value={formatNumber(awarenessKPIs.impressionsViews)} icon={Eye} accentColor="blue" />
+          <KPICard title="Watch Time" value={secondsToReadableTime(awarenessKPIs.watchTimeSeconds)} icon={Clock} accentColor="blue" />
         </div>
       </div>
 
@@ -354,6 +374,8 @@ export const OverviewTab = ({ reportId }: OverviewTabProps) => {
         <KPICard title="Comments" value={formatNumber(engagementKPIs.comments)} icon={MessageCircle} accentColor="green" />
         <KPICard title="Shares" value={formatNumber(engagementKPIs.shares)} icon={Share2} accentColor="green" />
         <KPICard title="Saves" value={formatNumber(engagementKPIs.saves)} icon={Bookmark} accentColor="green" />
+        <KPICard title="Reposts" value={formatNumber(engagementKPIs.reposts)} icon={Share2} accentColor="green" />
+        <KPICard title="TSWB" value={secondsToReadableTime(engagementKPIs.tswb)} icon={Clock} accentColor="green" />
         <KPICard title="Engagement Rate" value={formatPercent(engagementKPIs.engagementRate)} icon={TrendingUp} accentColor="green" />
         <KPICard title="Virality Rate" value={formatPercent(engagementKPIs.viralityRate, 3)} icon={Zap} accentColor="green" />
         <KPICard title="Utility Score" value={formatPercent(engagementKPIs.utilityScore, 3)} icon={Award} accentColor="green" />
@@ -363,9 +385,10 @@ export const OverviewTab = ({ reportId }: OverviewTabProps) => {
 
       {/* Effectiveness Section */}
       <KPISection title="Effectiveness" icon={BarChart3}>
+        <KPICard title="Creators" value={effectivenessKPIs.creatorsCount.toString()} icon={Users} accentColor="orange" />
         <KPICard title="Content Pieces" value={effectivenessKPIs.contentPieces.toString()} icon={FileText} accentColor="orange" />
         <KPICard title="Budget Spent" value={formatCurrency(effectivenessKPIs.budgetSpent)} icon={DollarSign} accentColor="orange" />
-        <KPICard title="Watch Time Cost per Minute" value={formatCurrency(effectivenessKPIs.watchTimeCostPerMinute)} icon={Clock} accentColor="orange" />
+        <KPICard title="TSWB Cost per Minute" value={formatCurrency(effectivenessKPIs.tswbCostPerMinute)} icon={Clock} accentColor="orange" />
         <KPICard title="CPM" value={formatCurrency(effectivenessKPIs.cpm)} icon={DollarSign} accentColor="orange" />
         <KPICard title="CPC" value={formatCurrency(effectivenessKPIs.cpc)} icon={MousePointer} accentColor="orange" />
       </KPISection>
