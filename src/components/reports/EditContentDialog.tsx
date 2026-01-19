@@ -35,6 +35,7 @@ const contentSchema = z.object({
   avg_watch_time: z.number().min(0).optional(),
   sentiment: z.enum(["positive", "neutral", "negative"]).optional(),
   sentiment_summary: z.string().optional(),
+  content_summary: z.string().optional(),
 });
 
 type ContentFormData = z.infer<typeof contentSchema>;
@@ -76,6 +77,7 @@ export const EditContentDialog = ({ content, open, onOpenChange, onSuccess }: Ed
       avg_watch_time: content.avg_watch_time || 0,
       sentiment: content.sentiment || undefined,
       sentiment_summary: content.sentiment_summary || "",
+      content_summary: content.content_summary || "",
     },
   });
 
@@ -121,6 +123,7 @@ export const EditContentDialog = ({ content, open, onOpenChange, onSuccess }: Ed
         avg_watch_time: content.avg_watch_time || 0,
         sentiment: content.sentiment || undefined,
         sentiment_summary: content.sentiment_summary || "",
+        content_summary: content.content_summary || "",
       });
       setThumbnailUrl(content.thumbnail_url || null);
     }
@@ -196,6 +199,7 @@ export const EditContentDialog = ({ content, open, onOpenChange, onSuccess }: Ed
           avg_watch_time: data.avg_watch_time || null,
           sentiment: data.sentiment || null,
           sentiment_summary: data.sentiment_summary || null,
+          content_summary: data.content_summary || null,
           thumbnail_url: thumbnailUrl,
         })
         .eq("id", content.id);
@@ -307,6 +311,16 @@ export const EditContentDialog = ({ content, open, onOpenChange, onSuccess }: Ed
                 type="date"
                 {...register("published_date")}
                 className="rounded-[35px]"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="content_summary">Content Summary</Label>
+              <Textarea
+                id="content_summary"
+                placeholder="Stručný popis obsahu..."
+                {...register("content_summary")}
+                className="rounded-[35px] min-h-[80px]"
               />
             </div>
           </div>

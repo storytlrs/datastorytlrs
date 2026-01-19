@@ -216,6 +216,7 @@ export const DataTab = ({ reportId, onImportSuccess }: DataTabProps) => {
     { key: "creators", label: "Creator", type: "text", editable: false, format: (val: any) => val?.handle || "-" },
     { key: "platform", label: "Platform", type: "text", editable: false },
     { key: "content_type", label: "Type", type: "text", editable: false },
+    { key: "content_summary", label: "Content Summary", type: "text", editable: false, maxWidth: "250px", truncate: true, truncateLines: 2 },
     { key: "url", label: "URL", type: "text", editable: false },
     { key: "published_date", label: "Published", type: "date", editable: false },
     // Engagement Metrics
