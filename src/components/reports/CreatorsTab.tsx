@@ -40,26 +40,41 @@ interface ContentItem {
   comments: number | null;
   shares: number | null;
   saves: number | null;
+  reposts: number | null;
   link_clicks: number | null;
   watch_time: number | null;
 }
 
-type MetricType = "impressions_views" | "cpm" | "cpc" | "er" | "content_pieces" | "watch_time_cpm";
+type MetricType = 
+  | "views" 
+  | "cpm" 
+  | "cpc" 
+  | "er" 
+  | "content_pieces" 
+  | "tswb_cost" 
+  | "virality_rate" 
+  | "utility_score" 
+  | "tswb" 
+  | "budget_spent";
 
 const METRIC_OPTIONS: { value: MetricType; label: string }[] = [
-  { value: "impressions_views", label: "Impr/Views" },
+  { value: "views", label: "Views" },
+  { value: "tswb", label: "TSWB" },
+  { value: "tswb_cost", label: "TSWB Cost" },
+  { value: "budget_spent", label: "Budget" },
   { value: "cpm", label: "CPM" },
   { value: "cpc", label: "CPC" },
   { value: "er", label: "ER" },
+  { value: "virality_rate", label: "Virality" },
+  { value: "utility_score", label: "Utility" },
   { value: "content_pieces", label: "Content" },
-  { value: "watch_time_cpm", label: "WT CPM" },
 ];
 
 export const CreatorsTab = ({ reportId }: CreatorsTabProps) => {
   const [creators, setCreators] = useState<Creator[]>([]);
   const [content, setContent] = useState<ContentItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedMetric, setSelectedMetric] = useState<MetricType>("impressions_views");
+  const [selectedMetric, setSelectedMetric] = useState<MetricType>("views");
 
   useEffect(() => {
     const fetchData = async () => {
@@ -101,52 +116,84 @@ export const CreatorsTab = ({ reportId }: CreatorsTabProps) => {
     return creators.map(creator => {
       const creatorContent = content.filter(c => c.creator_id === creator.id);
       
-      // Aggregate content metrics
-      const impressionsViews = creatorContent.reduce((sum, c) => 
+      // Views (impressions + views) - unified with Overview
+      const views = creatorContent.reduce((sum, c) => 
         sum + (c.impressions || 0) + (c.views || 0), 0);
+      
+      // Interactions for ER
       const interactions = creatorContent.reduce((sum, c) => 
         sum + (c.likes || 0) + (c.comments || 0) + (c.shares || 0) + (c.saves || 0), 0);
-      const linkClicks = creatorContent.reduce((sum, c) => sum + (c.link_clicks || 0), 0);
-      const watchTimeSeconds = creatorContent.reduce((sum, c) => sum + (c.watch_time || 0), 0);
       
-      // Creator costs
-      const totalCost = (creator.posts_cost || 0) * (creator.posts_count || 0) +
-                        (creator.reels_cost || 0) * (creator.reels_count || 0) +
-                        (creator.stories_cost || 0) * (creator.stories_count || 0);
+      // Individual metrics for Virality and Utility
+      const shares = creatorContent.reduce((sum, c) => sum + (c.shares || 0), 0);
+      const saves = creatorContent.reduce((sum, c) => sum + (c.saves || 0), 0);
+      const linkClicks = creatorContent.reduce((sum, c) => sum + (c.link_clicks || 0), 0);
+      
+      // TSWB calculation unified with Overview
+      const tswb = creatorContent.reduce((sum, c) => {
+        const watchTime = c.watch_time || 0;
+        const likes = c.likes || 0;
+        const comments = c.comments || 0;
+        const savesItem = c.saves || 0;
+        const sharesItem = c.shares || 0;
+        const reposts = c.reposts || 0;
+        return sum + watchTime + (likes * 3) + (comments * 5) + ((savesItem + sharesItem + reposts) * 10);
+      }, 0);
+      
+      // Budget (total cost)
+      const budgetSpent = (creator.posts_cost || 0) * (creator.posts_count || 0) +
+                          (creator.reels_cost || 0) * (creator.reels_count || 0) +
+                          (creator.stories_cost || 0) * (creator.stories_count || 0);
       
       // Content pieces from actual content table
       const contentPieces = creatorContent.length;
       
-      // Calculate metrics
-      const cpm = impressionsViews > 0 ? (totalCost / impressionsViews) * 1000 : 0;
-      const cpc = linkClicks > 0 ? totalCost / linkClicks : 0;
-      const er = impressionsViews > 0 ? (interactions / impressionsViews) * 100 : 0;
-      const watchTimeMinutes = watchTimeSeconds / 60;
-      const watchTimeCpm = watchTimeMinutes > 0 ? totalCost / watchTimeMinutes : 0;
+      // Derived metrics
+      const cpm = views > 0 ? (budgetSpent / views) * 1000 : 0;
+      const cpc = linkClicks > 0 ? budgetSpent / linkClicks : 0;
+      const er = views > 0 ? (interactions / views) * 100 : 0;
+      
+      // TSWB Cost per Minute (unified with Overview)
+      const tswbMinutes = tswb / 60;
+      const tswbCost = tswbMinutes > 0 ? budgetSpent / tswbMinutes : 0;
+      
+      // Virality Rate = (Shares / Views) × 100
+      const viralityRate = views > 0 ? (shares / views) * 100 : 0;
+      
+      // Utility Score = (Saves / Views) × 100
+      const utilityScore = views > 0 ? (saves / views) * 100 : 0;
 
       return {
         name: creator.handle,
-        impressions_views: impressionsViews,
+        views,
         cpm,
         cpc,
         er,
         content_pieces: contentPieces,
-        watch_time_cpm: watchTimeCpm,
+        tswb_cost: tswbCost,
+        virality_rate: viralityRate,
+        utility_score: utilityScore,
+        tswb,
+        budget_spent: budgetSpent,
       };
     });
   }, [creators, content]);
 
   const formatValue = (value: number, metric: MetricType): string => {
     switch (metric) {
-      case "impressions_views":
+      case "views":
+      case "tswb":
         if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
         if (value >= 1000) return `${(value / 1000).toFixed(1)}K`;
         return value.toFixed(0);
       case "cpm":
       case "cpc":
-      case "watch_time_cpm":
+      case "tswb_cost":
+      case "budget_spent":
         return formatCurrency(value, primaryCurrency);
       case "er":
+      case "virality_rate":
+      case "utility_score":
         return `${value.toFixed(2)}%`;
       case "content_pieces":
         return value.toFixed(0);
@@ -156,13 +203,18 @@ export const CreatorsTab = ({ reportId }: CreatorsTabProps) => {
   };
 
   const getMetricLabel = (metric: MetricType): string => {
+    const symbol = getCurrencySymbol(primaryCurrency);
     switch (metric) {
-      case "impressions_views": return "Impressions / Views";
-      case "cpm": return `CPM (${getCurrencySymbol(primaryCurrency)})`;
-      case "cpc": return `CPC (${getCurrencySymbol(primaryCurrency)})`;
+      case "views": return "Views";
+      case "cpm": return `CPM (${symbol})`;
+      case "cpc": return `CPC (${symbol})`;
       case "er": return "Engagement Rate (%)";
       case "content_pieces": return "Content Pieces";
-      case "watch_time_cpm": return `Watch Time Cost/Min (${getCurrencySymbol(primaryCurrency)})`;
+      case "tswb_cost": return `TSWB Cost/Min (${symbol})`;
+      case "virality_rate": return "Virality Rate (%)";
+      case "utility_score": return "Utility Score (%)";
+      case "tswb": return "TSWB (seconds)";
+      case "budget_spent": return `Budget Spent (${symbol})`;
       default: return "";
     }
   };
