@@ -49,5 +49,14 @@ export const secondsToReadableTime = (totalSeconds: number | null): string => {
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = Math.floor(totalSeconds % 60);
   
-  return `${days}d ${hours}h ${minutes}m ${seconds}s`;
+  // Build array of non-zero parts
+  const parts: string[] = [];
+  if (days > 0) parts.push(`${days}d`);
+  if (hours > 0) parts.push(`${hours}h`);
+  if (minutes > 0) parts.push(`${minutes}m`);
+  if (seconds > 0) parts.push(`${seconds}s`);
+  
+  // Return first 3 non-zero parts, or "-" if empty
+  if (parts.length === 0) return "-";
+  return parts.slice(0, 3).join(" ");
 };
