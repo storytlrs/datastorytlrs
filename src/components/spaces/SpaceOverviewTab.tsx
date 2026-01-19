@@ -387,9 +387,27 @@ const SpaceOverviewTab = ({ spaceId }: SpaceOverviewTabProps) => {
         <div>
           <h3 className="text-lg font-semibold mb-4">Awareness</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <KPICard title="Reach" value={kpis.reach.toLocaleString()} icon={Users} accentColor="blue" />
-            <KPICard title="Impressions/Views" value={kpis.impressionsViews.toLocaleString()} icon={Eye} accentColor="blue" />
-            <KPICard title="Watch Time" value={secondsToWatchTime(kpis.watchTime)} icon={Clock} accentColor="blue" />
+            <KPICard 
+              title="Reach" 
+              value={kpis.reach.toLocaleString()} 
+              icon={Users} 
+              accentColor="blue" 
+              tooltip="Počet unikátních uživatelů, kteří viděli obsah alespoň jednou."
+            />
+            <KPICard 
+              title="Impressions/Views" 
+              value={kpis.impressionsViews.toLocaleString()} 
+              icon={Eye} 
+              accentColor="blue" 
+              tooltip="Celkový počet zobrazení obsahu (impressions + views). Jeden uživatel může generovat více zobrazení."
+            />
+            <KPICard 
+              title="Watch Time" 
+              value={secondsToWatchTime(kpis.watchTime)} 
+              icon={Clock} 
+              accentColor="blue" 
+              tooltip="Celkový čas, který uživatelé strávili sledováním video obsahu."
+            />
           </div>
         </div>
 
@@ -397,14 +415,36 @@ const SpaceOverviewTab = ({ spaceId }: SpaceOverviewTabProps) => {
         <div>
           <h3 className="text-lg font-semibold mb-4">Engagement</h3>
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-            <KPICard title="Interactions" value={kpis.interactions.toLocaleString()} icon={TrendingUp} accentColor="green" />
+            <KPICard 
+              title="Interactions" 
+              value={kpis.interactions.toLocaleString()} 
+              icon={TrendingUp} 
+              accentColor="green" 
+              tooltip="Součet všech interakcí: lajky + komentáře + sdílení + uložení."
+            />
             <KPICard title="Likes" value={kpis.likes.toLocaleString()} icon={Heart} />
             <KPICard title="Comments" value={kpis.comments.toLocaleString()} icon={MessageCircle} />
             <KPICard title="Shares" value={kpis.shares.toLocaleString()} icon={Share2} />
             <KPICard title="Saves" value={kpis.saves.toLocaleString()} icon={Bookmark} />
-            <KPICard title="Engagement Rate" value={`${kpis.engagementRate.toFixed(2)}%`} icon={TrendingUp} accentColor="green" />
-            <KPICard title="Virality Rate" value={`${kpis.viralityRate.toFixed(4)}%`} icon={Zap} />
-            <KPICard title="Utility Score" value={`${kpis.utilityScore.toFixed(4)}%`} icon={Award} />
+            <KPICard 
+              title="Engagement Rate" 
+              value={`${kpis.engagementRate.toFixed(2)}%`} 
+              icon={TrendingUp} 
+              accentColor="green" 
+              tooltip="Míra zapojení publika. Výpočet: (interakce / zobrazení) × 100"
+            />
+            <KPICard 
+              title="Virality Rate" 
+              value={`${kpis.viralityRate.toFixed(4)}%`} 
+              icon={Zap} 
+              tooltip="Míra virality obsahu. Výpočet: (sdílení / zobrazení) × 100"
+            />
+            <KPICard 
+              title="Utility Score" 
+              value={`${kpis.utilityScore.toFixed(4)}%`} 
+              icon={Award} 
+              tooltip="Míra užitečnosti obsahu. Výpočet: (uložení / zobrazení) × 100"
+            />
             <KPICard title="Link Clicks" value={kpis.linkClicks.toLocaleString()} icon={Link} />
             <KPICard title="Sticker Clicks" value={kpis.stickerClicks.toLocaleString()} icon={Target} />
           </div>
@@ -414,11 +454,41 @@ const SpaceOverviewTab = ({ spaceId }: SpaceOverviewTabProps) => {
         <div>
           <h3 className="text-lg font-semibold mb-4">Effectiveness</h3>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            <KPICard title="Content Pieces" value={kpis.contentPieces.toLocaleString()} icon={FileText} accentColor="orange" />
-            <KPICard title="Budget Spent" value={formatCurrency(kpis.budget, kpis.currency)} icon={DollarSign} accentColor="orange" />
-            <KPICard title="Watch Time Cost/Min" value={formatCurrency(kpis.watchTimeCostPerMinute, kpis.currency)} icon={Clock} accentColor="orange" />
-            <KPICard title="CPM" value={formatCurrency(kpis.cpm, kpis.currency)} icon={DollarSign} accentColor="orange" />
-            <KPICard title="CPC" value={formatCurrency(kpis.cpc, kpis.currency)} icon={MousePointer} accentColor="orange" />
+            <KPICard 
+              title="Content Pieces" 
+              value={kpis.contentPieces.toLocaleString()} 
+              icon={FileText} 
+              accentColor="orange" 
+              tooltip="Celkový počet publikovaného obsahu (příspěvky, reels, stories, videa)."
+            />
+            <KPICard 
+              title="Budget Spent" 
+              value={formatCurrency(kpis.budget, kpis.currency)} 
+              icon={DollarSign} 
+              accentColor="orange" 
+              tooltip="Celkové náklady na kampaň včetně fees pro tvůrce."
+            />
+            <KPICard 
+              title="Watch Time Cost/Min" 
+              value={formatCurrency(kpis.watchTimeCostPerMinute, kpis.currency)} 
+              icon={Clock} 
+              accentColor="orange" 
+              tooltip="Náklad na minutu pozornosti. Výpočet: budget / (watch time v minutách)"
+            />
+            <KPICard 
+              title="CPM" 
+              value={formatCurrency(kpis.cpm, kpis.currency)} 
+              icon={DollarSign} 
+              accentColor="orange" 
+              tooltip="Cost per Mille - náklad na 1000 zobrazení. Výpočet: (budget / zobrazení) × 1000"
+            />
+            <KPICard 
+              title="CPC" 
+              value={formatCurrency(kpis.cpc, kpis.currency)} 
+              icon={MousePointer} 
+              accentColor="orange" 
+              tooltip="Cost per Click - náklad na jeden proklik odkazu. Výpočet: budget / link clicks"
+            />
           </div>
         </div>
       </div>
