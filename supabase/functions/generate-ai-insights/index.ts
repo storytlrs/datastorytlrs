@@ -1,0 +1,406 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+interface CampaignContext {
+  mainGoal: string;
+  actions: string;
+  highlights: string;
+}
+
+serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const { report_id, campaign_context } = await req.json() as {
+      report_id: string;
+      campaign_context: CampaignContext;
+    };
+
+    console.log("Generating AI insights for report:", report_id);
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
+
+    if (!lovableApiKey) {
+      throw new Error("LOVABLE_API_KEY is not configured");
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Fetch report data
+    const { data: report, error: reportError } = await supabase
+      .from("reports")
+      .select("*, spaces(name)")
+      .eq("id", report_id)
+      .single();
+
+    if (reportError || !report) {
+      throw new Error("Report not found");
+    }
+
+    // Fetch creators
+    const { data: creators } = await supabase
+      .from("creators")
+      .select("*")
+      .eq("report_id", report_id);
+
+    // Fetch content
+    const { data: content } = await supabase
+      .from("content")
+      .select("*, creators(handle, avatar_url, platform)")
+      .eq("report_id", report_id);
+
+    // Fetch benchmarks from other reports in the same space
+    const { data: spaceReports } = await supabase
+      .from("reports")
+      .select("id")
+      .eq("space_id", report.space_id)
+      .eq("type", "influencer")
+      .neq("id", report_id);
+
+    let benchmarkER = 0;
+    let benchmarkVirality = 0;
+    let benchmarkTswbCost = 0;
+    let benchmarkCount = 0;
+
+    if (spaceReports && spaceReports.length > 0) {
+      const reportIds = spaceReports.map((r) => r.id);
+      const { data: benchmarkContent } = await supabase
+        .from("content")
+        .select("engagement_rate, shares, reposts, views, cost, watch_time, likes, comments, saves")
+        .in("report_id", reportIds);
+
+      if (benchmarkContent && benchmarkContent.length > 0) {
+        benchmarkContent.forEach((c) => {
+          if (c.engagement_rate) benchmarkER += c.engagement_rate;
+          const views = (c.views || 0);
+          const shares = (c.shares || 0) + (c.reposts || 0);
+          if (views > 0) {
+            benchmarkVirality += (shares / views) * 100;
+          }
+          const tswb = (c.watch_time || 0) + ((c.likes || 0) * 3) + ((c.comments || 0) * 5) + 
+                       (((c.saves || 0) + (c.shares || 0) + (c.reposts || 0)) * 10);
+          const tswbMinutes = tswb / 60;
+          if (tswbMinutes > 0 && c.cost) {
+            benchmarkTswbCost += c.cost / tswbMinutes;
+          }
+          benchmarkCount++;
+        });
+        if (benchmarkCount > 0) {
+          benchmarkER /= benchmarkCount;
+          benchmarkVirality /= benchmarkCount;
+          benchmarkTswbCost /= benchmarkCount;
+        }
+      }
+    }
+
+    // Calculate metrics
+    const creatorsCount = creators?.length || 0;
+    const contentCount = content?.length || 0;
+    let totalViews = 0;
+    let totalCost = 0;
+    let totalInteractions = 0;
+    let totalTswb = 0;
+    let totalER = 0;
+    let totalVirality = 0;
+    let erCount = 0;
+    let viralityCount = 0;
+    let sentimentCounts = { positive: 0, neutral: 0, negative: 0 };
+
+    const currency = creators?.[0]?.currency || "CZK";
+
+    content?.forEach((c) => {
+      const views = (c.impressions || 0) + (c.views || 0);
+      totalViews += views;
+      totalCost += c.cost || 0;
+      totalInteractions += (c.likes || 0) + (c.comments || 0) + (c.saves || 0) + (c.shares || 0) + (c.reposts || 0);
+      
+      // TSWB calculation
+      const tswb = (c.watch_time || 0) + ((c.likes || 0) * 3) + ((c.comments || 0) * 5) + 
+                   (((c.saves || 0) + (c.shares || 0) + (c.reposts || 0)) * 10);
+      totalTswb += tswb;
+
+      if (c.engagement_rate) {
+        totalER += c.engagement_rate;
+        erCount++;
+      }
+
+      const shares = (c.shares || 0) + (c.reposts || 0);
+      if (views > 0) {
+        totalVirality += (shares / views) * 100;
+        viralityCount++;
+      }
+
+      if (c.sentiment) {
+        sentimentCounts[c.sentiment as keyof typeof sentimentCounts]++;
+      }
+    });
+
+    const avgCpm = totalViews > 0 ? (totalCost / totalViews) * 1000 : 0;
+    const avgER = erCount > 0 ? totalER / erCount : 0;
+    const avgVirality = viralityCount > 0 ? totalVirality / viralityCount : 0;
+    const tswbMinutes = totalTswb / 60;
+    const tswbCost = tswbMinutes > 0 ? totalCost / tswbMinutes : 0;
+
+    // Determine average sentiment
+    const maxSentiment = Object.entries(sentimentCounts).reduce((a, b) => 
+      a[1] > b[1] ? a : b
+    );
+    const avgSentiment = maxSentiment[0] as "positive" | "neutral" | "negative";
+
+    // Sort content by views for top content
+    const sortedContent = [...(content || [])].sort((a, b) => {
+      const viewsA = (a.impressions || 0) + (a.views || 0);
+      const viewsB = (b.impressions || 0) + (b.views || 0);
+      return viewsB - viewsA;
+    });
+
+    const topContent = sortedContent.slice(0, 5).map((c) => ({
+      id: c.id,
+      thumbnail_url: c.thumbnail_url,
+      content_type: c.content_type,
+      platform: c.platform,
+      views: (c.impressions || 0) + (c.views || 0),
+      engagement_rate: c.engagement_rate || 0,
+      url: c.url,
+      content_summary: c.content_summary,
+      creator_handle: (c.creators as any)?.handle || "unknown",
+    }));
+
+    // Build leaderboard
+    const leaderboard = (creators || []).map((creator) => {
+      const creatorContent = content?.filter((c) => c.creator_id === creator.id) || [];
+      let views = 0;
+      let interactions = 0;
+      let er = 0;
+      let erC = 0;
+      let virality = 0;
+      let viralityC = 0;
+      let creatorTswb = 0;
+      let creatorCost = 0;
+
+      creatorContent.forEach((c) => {
+        const v = (c.impressions || 0) + (c.views || 0);
+        views += v;
+        interactions += (c.likes || 0) + (c.comments || 0) + (c.saves || 0) + (c.shares || 0) + (c.reposts || 0);
+        if (c.engagement_rate) {
+          er += c.engagement_rate;
+          erC++;
+        }
+        const shares = (c.shares || 0) + (c.reposts || 0);
+        if (v > 0) {
+          virality += (shares / v) * 100;
+          viralityC++;
+        }
+        creatorTswb += (c.watch_time || 0) + ((c.likes || 0) * 3) + ((c.comments || 0) * 5) + 
+                       (((c.saves || 0) + (c.shares || 0) + (c.reposts || 0)) * 10);
+        creatorCost += c.cost || 0;
+      });
+
+      const creatorTswbMinutes = creatorTswb / 60;
+      const creatorTswbCost = creatorTswbMinutes > 0 ? creatorCost / creatorTswbMinutes : 0;
+
+      return {
+        handle: creator.handle,
+        avatarUrl: creator.avatar_url,
+        platform: creator.platform,
+        views,
+        interactions,
+        engagementRate: erC > 0 ? er / erC : 0,
+        viralityRate: viralityC > 0 ? virality / viralityC : 0,
+        tswbCost: creatorTswbCost,
+        currency: creator.currency || "CZK",
+      };
+    });
+
+    // Build creator performance
+    const creatorPerformance = (creators || []).map((creator) => {
+      const creatorContent = content?.filter((c) => c.creator_id === creator.id) || [];
+      const topCreatorContent = [...creatorContent].sort((a, b) => {
+        const viewsA = (a.impressions || 0) + (a.views || 0);
+        const viewsB = (b.impressions || 0) + (b.views || 0);
+        return viewsB - viewsA;
+      })[0];
+
+      // Aggregate sentiment from creator's content
+      const sentiments = creatorContent.map((c) => c.sentiment).filter(Boolean);
+      const sentimentSummaries = creatorContent.map((c) => c.sentiment_summary).filter(Boolean);
+
+      return {
+        handle: creator.handle,
+        avatar_url: creator.avatar_url,
+        platform: creator.platform,
+        top_content: topCreatorContent ? {
+          id: topCreatorContent.id,
+          thumbnail_url: topCreatorContent.thumbnail_url,
+          content_type: topCreatorContent.content_type,
+          platform: topCreatorContent.platform,
+          views: (topCreatorContent.impressions || 0) + (topCreatorContent.views || 0),
+          engagement_rate: topCreatorContent.engagement_rate || 0,
+          url: topCreatorContent.url,
+          content_summary: topCreatorContent.content_summary,
+          creator_handle: creator.handle,
+        } : null,
+        sentiment: sentiments[0] || null,
+        sentiment_summary: sentimentSummaries.slice(0, 3).join(", ") || null,
+      };
+    });
+
+    // Generate AI content
+    const systemPrompt = `Jsi analytik influencer marketingu. Na základě dat z kampaně a kontextu od uživatele vytvoř strukturovaný report v češtině.
+
+Tvým úkolem je vytvořit stručné, ale výstižné analytické texty pro jednotlivé sekce reportu. Piš profesionálně, ale přístupně.
+
+Data kampaně:
+- Počet creatorů: ${creatorsCount}
+- Počet content pieces: ${contentCount}
+- Celkem views: ${totalViews}
+- Celkový budget: ${totalCost} ${currency}
+- Průměrný CPM: ${avgCpm.toFixed(2)} ${currency}
+- Celkové interakce: ${totalInteractions}
+- Průměrný ER: ${avgER.toFixed(2)}%
+- Průměrná viralita: ${avgVirality.toFixed(2)}%
+- TSWB Cost per minute: ${tswbCost.toFixed(2)} ${currency}
+- Průměrný sentiment: ${avgSentiment}
+
+Kontext od uživatele:
+- Hlavní cíl: ${campaign_context.mainGoal}
+- Co udělali: ${campaign_context.actions}
+- Co se povedlo: ${campaign_context.highlights}`;
+
+    const userPrompt = `Vytvoř analytický obsah pro influencer report. Odpověz ve formátu JSON s následující strukturou:
+
+{
+  "executive_summary": "Jeden odstavec shrnující zásadní informace o kampani (max 150 slov)",
+  "overview_paragraph": "Jeden odstavec hodnotící výsledky z pohledu efektivity a dosahu (max 100 slov)",
+  "innovation_paragraph": "Jeden odstavec hodnotící TSWB, virality rate a kvalitu interakcí (max 100 slov)",
+  "sentiment_paragraph": "Jeden odstavec o klíčových tématech a sentimentu v komentářích (max 100 slov)",
+  "recommendations": {
+    "works": ["3-5 bodů co funguje dobře"],
+    "doesnt_work": ["2-4 body co nefunguje nebo má prostor ke zlepšení"],
+    "suggestions": ["3-5 konkrétních doporučení pro budoucí kampaně"]
+  }
+}`;
+
+    console.log("Calling Lovable AI...");
+
+    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${lovableApiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        response_format: { type: "json_object" },
+      }),
+    });
+
+    if (!aiResponse.ok) {
+      if (aiResponse.status === 429) {
+        return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again later." }), {
+          status: 429,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (aiResponse.status === 402) {
+        return new Response(JSON.stringify({ error: "Payment required. Please add credits to your workspace." }), {
+          status: 402,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const errorText = await aiResponse.text();
+      console.error("AI gateway error:", aiResponse.status, errorText);
+      throw new Error("AI gateway error");
+    }
+
+    const aiData = await aiResponse.json();
+    const aiContent = JSON.parse(aiData.choices[0].message.content);
+
+    console.log("AI content generated successfully");
+
+    // Build structured insights
+    const structuredInsights = {
+      executive_summary: aiContent.executive_summary,
+      campaign_context,
+      top_content: topContent,
+      overview_metrics: {
+        creators: creatorsCount,
+        content: contentCount,
+        views: totalViews,
+        avgCpm,
+        currency,
+      },
+      innovation_metrics: {
+        tswbCost,
+        interactions: totalInteractions,
+        engagementRate: avgER,
+        viralityRate: avgVirality,
+        tswb: totalTswb,
+        currency,
+      },
+      sentiment_analysis: {
+        average: avgSentiment,
+        summary: aiContent.sentiment_paragraph,
+      },
+      leaderboard,
+      benchmarks: {
+        engagementRate: benchmarkER || avgER,
+        viralityRate: benchmarkVirality || avgVirality,
+        tswbCost: benchmarkTswbCost || tswbCost,
+      },
+      creator_performance: creatorPerformance,
+      recommendations: aiContent.recommendations,
+    };
+
+    // Save to database
+    const { error: updateError } = await supabase
+      .from("reports")
+      .update({
+        ai_insights: aiContent.executive_summary,
+        ai_insights_structured: structuredInsights,
+        ai_insights_context: campaign_context,
+      })
+      .eq("id", report_id);
+
+    if (updateError) {
+      console.error("Error saving insights:", updateError);
+      throw new Error("Failed to save insights");
+    }
+
+    console.log("Insights saved successfully");
+
+    return new Response(
+      JSON.stringify({
+        structured_data: structuredInsights,
+        overview_paragraph: aiContent.overview_paragraph,
+        innovation_paragraph: aiContent.innovation_paragraph,
+        sentiment_paragraph: aiContent.sentiment_paragraph,
+      }),
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
+  } catch (error) {
+    console.error("Error generating AI insights:", error);
+    return new Response(
+      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
+  }
+});
