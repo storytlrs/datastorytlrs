@@ -668,6 +668,8 @@ export type Database = {
       reports: {
         Row: {
           ai_insights: string | null
+          ai_insights_context: Json | null
+          ai_insights_structured: Json | null
           ai_webhook_url: string | null
           created_at: string
           end_date: string | null
@@ -683,6 +685,8 @@ export type Database = {
         }
         Insert: {
           ai_insights?: string | null
+          ai_insights_context?: Json | null
+          ai_insights_structured?: Json | null
           ai_webhook_url?: string | null
           created_at?: string
           end_date?: string | null
@@ -698,6 +702,8 @@ export type Database = {
         }
         Update: {
           ai_insights?: string | null
+          ai_insights_context?: Json | null
+          ai_insights_structured?: Json | null
           ai_webhook_url?: string | null
           created_at?: string
           end_date?: string | null

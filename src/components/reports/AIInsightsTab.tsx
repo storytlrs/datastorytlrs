@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Loader2, Sparkles, Save, Settings2, Pencil, Eye } from "lucide-react";
+import { Loader2, Sparkles, Save, Settings2, Pencil, Eye, RefreshCw } from "lucide-react";
 import { useUserRole } from "@/hooks/useUserRole";
 import ReactMarkdown from "react-markdown";
 import {
@@ -14,9 +14,48 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { AIInsightsInputDialog, CampaignContext } from "./AIInsightsInputDialog";
+import { AIInsightsContent } from "./AIInsightsContent";
 
 interface AIInsightsTabProps {
   reportId: string;
+}
+
+interface StructuredInsights {
+  executive_summary: string;
+  campaign_context: CampaignContext;
+  top_content: any[];
+  overview_metrics: {
+    creators: number;
+    content: number;
+    views: number;
+    avgCpm: number;
+    currency: string;
+  };
+  innovation_metrics: {
+    tswbCost: number;
+    interactions: number;
+    engagementRate: number;
+    viralityRate: number;
+    tswb: number;
+    currency: string;
+  };
+  sentiment_analysis: {
+    average: "positive" | "neutral" | "negative";
+    summary: string;
+  };
+  leaderboard: any[];
+  benchmarks: {
+    engagementRate: number;
+    viralityRate: number;
+    tswbCost: number;
+  };
+  creator_performance: any[];
+  recommendations: {
+    works: string[];
+    doesnt_work: string[];
+    suggestions: string[];
+  };
 }
 
 export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
@@ -26,9 +65,14 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
   const [spaceId, setSpaceId] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [isTriggering, setIsTriggering] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [isInputDialogOpen, setIsInputDialogOpen] = useState(false);
+  const [structuredData, setStructuredData] = useState<StructuredInsights | null>(null);
+  const [overviewParagraph, setOverviewParagraph] = useState<string>("");
+  const [innovationParagraph, setInnovationParagraph] = useState<string>("");
+  const [sentimentParagraph, setSentimentParagraph] = useState<string>("");
 
   useEffect(() => {
     fetchReportData();
@@ -39,7 +83,7 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
     try {
       const { data, error } = await supabase
         .from("reports")
-        .select("ai_insights, ai_webhook_url, space_id")
+        .select("ai_insights, ai_webhook_url, space_id, ai_insights_structured, ai_insights_context")
         .eq("id", reportId)
         .single();
 
@@ -48,6 +92,14 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
       setAiInsights(data.ai_insights || "");
       setWebhookUrl(data.ai_webhook_url || "");
       setSpaceId(data.space_id || "");
+      
+      if (data.ai_insights_structured) {
+        const structured = data.ai_insights_structured as unknown as StructuredInsights;
+        setStructuredData(structured);
+        if (structured.sentiment_analysis?.summary) {
+          setSentimentParagraph(structured.sentiment_analysis.summary);
+        }
+      }
     } catch (error) {
       console.error("Error fetching report data:", error);
       toast.error("Nepodařilo se načíst data");
@@ -71,34 +123,39 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
     }
   };
 
-  const handleTriggerWebhook = async () => {
-    if (!webhookUrl) {
-      toast.error("Nejprve nastavte webhook URL v nastavení");
-      return;
-    }
-
-    setIsTriggering(true);
+  const handleGenerateInsights = async (context: CampaignContext) => {
+    setIsGenerating(true);
     try {
-      const url = new URL(webhookUrl);
-      url.searchParams.set("report_id", reportId);
-      url.searchParams.set("space_id", spaceId);
-      url.searchParams.set("timestamp", new Date().toISOString());
-      url.searchParams.set("triggered_from", window.location.origin);
-
-      console.log("Triggering webhook:", url.toString());
-
-      // Use fetch with no-cors for external webhooks
-      await fetch(url.toString(), {
-        method: "GET",
-        mode: "no-cors",
+      const { data, error } = await supabase.functions.invoke("generate-ai-insights", {
+        body: { report_id: reportId, campaign_context: context },
       });
 
-      toast.success("Webhook byl úspěšně spuštěn. Zkontrolujte n8n pro potvrzení.");
+      if (error) throw error;
+
+      if (data.error) {
+        if (data.error.includes("Rate limit")) {
+          toast.error("Příliš mnoho požadavků. Zkuste to prosím později.");
+        } else if (data.error.includes("Payment required")) {
+          toast.error("Nedostatek kreditů. Doplňte prosím kredity ve workspace.");
+        } else {
+          throw new Error(data.error);
+        }
+        return;
+      }
+
+      setStructuredData(data.structured_data);
+      setOverviewParagraph(data.overview_paragraph || "");
+      setInnovationParagraph(data.innovation_paragraph || "");
+      setSentimentParagraph(data.sentiment_paragraph || "");
+      setAiInsights(data.structured_data?.executive_summary || "");
+      
+      toast.success("AI Insights vygenerovány úspěšně!");
+      setIsInputDialogOpen(false);
     } catch (error) {
-      console.error("Error triggering webhook:", error);
-      toast.error("Nepodařilo se spustit webhook");
+      console.error("Error generating AI insights:", error);
+      toast.error("Nepodařilo se vygenerovat AI Insights");
     } finally {
-      setIsTriggering(false);
+      setIsGenerating(false);
     }
   };
 
@@ -128,186 +185,180 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
     );
   }
 
-  return (
-    <Card className="p-8 rounded-[35px] border-foreground">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold">AI Insights</h2>
-        <div className="flex items-center gap-2">
-          {canEdit && (
-            <Button
-              onClick={handleTriggerWebhook}
-              disabled={isTriggering || !webhookUrl}
-              className="rounded-[35px] bg-foreground text-background border border-foreground hover:bg-accent-green hover:text-foreground hover:border-accent-green disabled:opacity-50"
-              title={!webhookUrl ? "Nejprve nastavte webhook URL v nastavení" : "Spustit AI analýzu"}
-            >
-              {isTriggering ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <Sparkles className="w-4 h-4 mr-2" />
-              )}
-              Generate AI Insights
-            </Button>
-          )}
-        </div>
-      </div>
-
-      {!webhookUrl && canEdit && (
-        <div className="mb-6 p-4 bg-muted/50 rounded-[20px] border border-muted-foreground/20">
-          <p className="text-sm text-muted-foreground">
-            Pro generování AI Insights je potřeba nejprve nastavit webhook URL v nastavení níže.
-          </p>
-        </div>
-      )}
-
-      {isAdmin && (
-        <Collapsible open={isSettingsOpen} onOpenChange={setIsSettingsOpen} className="mb-6">
-          <CollapsibleTrigger asChild>
-            <Button
-              variant="ghost"
-              className="p-0 h-auto font-normal text-muted-foreground hover:text-foreground hover:bg-transparent"
-            >
-              <Settings2 className="w-4 h-4 mr-2" />
-              Webhook nastavení
-            </Button>
-          </CollapsibleTrigger>
-          <CollapsibleContent className="mt-4">
-            <div className="space-y-4 p-4 bg-muted/50 rounded-[20px]">
-              <div className="space-y-2">
-                <Label htmlFor="webhookUrl">n8n Webhook URL</Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="webhookUrl"
-                    value={webhookUrl}
-                    onChange={(e) => setWebhookUrl(e.target.value)}
-                    placeholder="https://your-n8n-instance.com/webhook/..."
-                    className="rounded-[35px] border-foreground"
-                  />
-                  <Button
-                    onClick={handleSaveWebhookUrl}
-                    variant="outline"
-                    className="rounded-[35px] border-foreground"
-                  >
-                    Uložit
-                  </Button>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  Zadejte URL vašeho n8n webhook triggeru. Po kliknutí na "Generate AI Insights" se spustí váš n8n workflow.
-                </p>
-              </div>
-            </div>
-          </CollapsibleContent>
-        </Collapsible>
-      )}
-
-      <div className="space-y-4">
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <Label htmlFor="aiInsights">Obsah AI Insights</Label>
+  // Show structured view if we have structured data
+  if (structuredData && !isEditing) {
+    return (
+      <>
+        <Card className="p-8 rounded-[35px] border-foreground">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-bold">AI Insights</h2>
             <div className="flex items-center gap-2">
               {canEdit && (
-                <Button
-                  onClick={() => setIsEditing(!isEditing)}
-                  variant="ghost"
-                  size="sm"
-                  className="rounded-[35px]"
-                >
-                  {isEditing ? (
-                    <>
-                      <Eye className="w-4 h-4 mr-2" />
-                      Náhled
-                    </>
-                  ) : (
-                    <>
-                      <Pencil className="w-4 h-4 mr-2" />
-                      Upravit
-                    </>
-                  )}
-                </Button>
-              )}
-              {canEdit && isEditing && (
-                <Button
-                  onClick={handleSaveInsights}
-                  disabled={isSaving}
-                  variant="outline"
-                  size="sm"
-                  className="rounded-[35px] border-foreground"
-                >
-                  {isSaving ? (
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  ) : (
-                    <Save className="w-4 h-4 mr-2" />
-                  )}
-                  Uložit změny
-                </Button>
+                <>
+                  <Button
+                    onClick={() => setIsInputDialogOpen(true)}
+                    variant="outline"
+                    className="rounded-[35px] border-foreground"
+                    title="Vygenerovat nové AI Insights"
+                  >
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Regenerovat
+                  </Button>
+                  <Button
+                    onClick={() => setIsEditing(true)}
+                    variant="ghost"
+                    size="sm"
+                    className="rounded-[35px]"
+                  >
+                    <Pencil className="w-4 h-4 mr-2" />
+                    Upravit raw
+                  </Button>
+                </>
               )}
             </div>
           </div>
-          {isEditing && canEdit ? (
+
+          <AIInsightsContent
+            insights={structuredData}
+            overviewParagraph={overviewParagraph}
+            innovationParagraph={innovationParagraph}
+            sentimentParagraph={sentimentParagraph}
+          />
+        </Card>
+
+        <AIInsightsInputDialog
+          open={isInputDialogOpen}
+          onOpenChange={setIsInputDialogOpen}
+          onSubmit={handleGenerateInsights}
+          isGenerating={isGenerating}
+        />
+      </>
+    );
+  }
+
+  return (
+    <>
+      <Card className="p-8 rounded-[35px] border-foreground">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold">AI Insights</h2>
+          <div className="flex items-center gap-2">
+            {canEdit && (
+              <Button
+                onClick={() => setIsInputDialogOpen(true)}
+                disabled={isGenerating}
+                className="rounded-[35px] bg-foreground text-background border border-foreground hover:bg-accent-green hover:text-foreground hover:border-accent-green disabled:opacity-50"
+              >
+                {isGenerating ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Sparkles className="w-4 h-4 mr-2" />
+                )}
+                Generate AI Insights
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {!structuredData && (
+          <div className="mb-6 p-4 bg-muted/50 rounded-[20px] border border-muted-foreground/20">
+            <p className="text-sm text-muted-foreground">
+              Klikněte na "Generate AI Insights" pro vygenerování AI analýzy kampaně.
+            </p>
+          </div>
+        )}
+
+        {isAdmin && (
+          <Collapsible open={isSettingsOpen} onOpenChange={setIsSettingsOpen} className="mb-6">
+            <CollapsibleTrigger asChild>
+              <Button
+                variant="ghost"
+                className="p-0 h-auto font-normal text-muted-foreground hover:text-foreground hover:bg-transparent"
+              >
+                <Settings2 className="w-4 h-4 mr-2" />
+                Legacy webhook nastavení
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-4">
+              <div className="space-y-4 p-4 bg-muted/50 rounded-[20px]">
+                <div className="space-y-2">
+                  <Label htmlFor="webhookUrl">n8n Webhook URL (legacy)</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="webhookUrl"
+                      value={webhookUrl}
+                      onChange={(e) => setWebhookUrl(e.target.value)}
+                      placeholder="https://your-n8n-instance.com/webhook/..."
+                      className="rounded-[35px] border-foreground"
+                    />
+                    <Button
+                      onClick={handleSaveWebhookUrl}
+                      variant="outline"
+                      className="rounded-[35px] border-foreground"
+                    >
+                      Uložit
+                    </Button>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Toto nastavení je pro legacy webhook integrace. Nové AI Insights se generují automaticky.
+                  </p>
+                </div>
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+        )}
+
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="aiInsights">Obsah AI Insights (raw)</Label>
+              <div className="flex items-center gap-2">
+                {canEdit && structuredData && (
+                  <Button
+                    onClick={() => setIsEditing(false)}
+                    variant="ghost"
+                    size="sm"
+                    className="rounded-[35px]"
+                  >
+                    <Eye className="w-4 h-4 mr-2" />
+                    Strukturovaný náhled
+                  </Button>
+                )}
+                {canEdit && (
+                  <Button
+                    onClick={handleSaveInsights}
+                    disabled={isSaving}
+                    variant="outline"
+                    size="sm"
+                    className="rounded-[35px] border-foreground"
+                  >
+                    {isSaving ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Save className="w-4 h-4 mr-2" />
+                    )}
+                    Uložit změny
+                  </Button>
+                )}
+              </div>
+            </div>
             <Textarea
               id="aiInsights"
               value={aiInsights}
               onChange={(e) => setAiInsights(e.target.value)}
               placeholder="AI-generated performance summaries and strategic recommendations will be displayed here..."
               className="min-h-[300px] rounded-[20px] border-foreground font-mono text-sm"
+              readOnly={!canEdit}
             />
-          ) : (
-            <div className="min-h-[300px] p-4 rounded-[20px] border border-foreground bg-background">
-              {aiInsights ? (
-                <ReactMarkdown
-                  key={aiInsights}
-                  components={{
-                    h1: ({ children }) => (
-                      <h1 className="text-2xl font-bold mb-4 text-foreground border-b border-border pb-2">{children}</h1>
-                    ),
-                    h2: ({ children }) => (
-                      <h2 className="text-xl font-bold mb-3 mt-6 text-foreground">{children}</h2>
-                    ),
-                    h3: ({ children }) => (
-                      <h3 className="text-lg font-semibold mb-2 mt-4 text-foreground">{children}</h3>
-                    ),
-                    p: ({ children }) => (
-                      <p className="mb-3 text-foreground leading-relaxed">{children}</p>
-                    ),
-                    a: ({ href, children }) => (
-                      <a href={href} className="text-accent-cyan hover:text-accent-purple underline transition-colors" target="_blank" rel="noopener noreferrer">{children}</a>
-                    ),
-                    blockquote: ({ children }) => (
-                      <blockquote className="border-l-4 border-accent-purple pl-4 my-4 italic text-muted-foreground bg-muted/30 py-2 rounded-r-lg">{children}</blockquote>
-                    ),
-                    ul: ({ children }) => (
-                      <ul className="list-disc list-inside mb-3 space-y-1 text-foreground">{children}</ul>
-                    ),
-                    ol: ({ children }) => (
-                      <ol className="list-decimal list-inside mb-3 space-y-1 text-foreground">{children}</ol>
-                    ),
-                    li: ({ children }) => (
-                      <li className="text-foreground">{children}</li>
-                    ),
-                    strong: ({ children }) => (
-                      <strong className="font-bold text-foreground">{children}</strong>
-                    ),
-                    em: ({ children }) => (
-                      <em className="italic text-accent-orange">{children}</em>
-                    ),
-                    code: ({ children }) => (
-                      <code className="bg-muted px-1.5 py-0.5 rounded text-sm font-mono text-accent-green">{children}</code>
-                    ),
-                    hr: () => (
-                      <hr className="my-6 border-border" />
-                    ),
-                  }}
-                >
-                  {aiInsights}
-                </ReactMarkdown>
-              ) : (
-                <p className="text-muted-foreground italic">
-                  AI-generated performance summaries and strategic recommendations will be displayed here...
-                </p>
-              )}
-            </div>
-          )}
+          </div>
         </div>
-      </div>
-    </Card>
+      </Card>
+
+      <AIInsightsInputDialog
+        open={isInputDialogOpen}
+        onOpenChange={setIsInputDialogOpen}
+        onSubmit={handleGenerateInsights}
+        isGenerating={isGenerating}
+      />
+    </>
   );
 };
