@@ -16,7 +16,7 @@ const Admin = () => {
   useEffect(() => {
     if (!loading && !isAdmin) {
       toast.error("Access denied. Admin privileges required.");
-      navigate("/spaces");
+      navigate("/brands");
     }
   }, [navigate, isAdmin, loading]);
 

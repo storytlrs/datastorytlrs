@@ -13,12 +13,12 @@ import { Calendar } from "@/components/ui/calendar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from "date-fns";
 import CreateReportDialog from "@/components/reports/CreateReportDialog";
-import EditSpaceDialog from "@/components/spaces/EditSpaceDialog";
-import SpaceOverviewTab from "@/components/spaces/SpaceOverviewTab";
+import EditBrandDialog from "@/components/brands/EditBrandDialog";
+import BrandOverviewTab from "@/components/brands/BrandOverviewTab";
 import { useUserRole } from "@/hooks/useUserRole";
 import { cn } from "@/lib/utils";
 
-interface Space {
+interface Brand {
   id: string;
   name: string;
   description: string | null;
@@ -63,13 +63,13 @@ const reportTypeLabels = {
   social: "Always-on content",
 };
 
-const SpaceDetail = () => {
-  const { spaceId } = useParams();
+const BrandDetail = () => {
+  const { brandId } = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { role, isAdmin, canEdit } = useUserRole();
   const defaultTab = searchParams.get("tab") || "overview";
-  const [space, setSpace] = useState<Space | null>(null);
+  const [brand, setBrand] = useState<Brand | null>(null);
   const [reports, setReports] = useState<Report[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
@@ -85,36 +85,36 @@ const SpaceDetail = () => {
   const showProjectFilter = role === "admin" || role === "analyst";
 
   useEffect(() => {
-    if (spaceId) {
-      fetchSpaceAndReports();
+    if (brandId) {
+      fetchBrandAndReports();
     }
-  }, [spaceId]);
+  }, [brandId]);
 
-  const fetchSpaceAndReports = async () => {
+  const fetchBrandAndReports = async () => {
     try {
-      const [spaceResponse, reportsResponse, projectsResponse] = await Promise.all([
-        supabase.from("spaces").select("*").eq("id", spaceId).single(),
+      const [brandResponse, reportsResponse, projectsResponse] = await Promise.all([
+        supabase.from("spaces").select("*").eq("id", brandId).single(),
         supabase
           .from("reports")
           .select("*, project:projects(id, name)")
-          .eq("space_id", spaceId)
+          .eq("space_id", brandId)
           .order("created_at", { ascending: false }),
         supabase
           .from("projects")
           .select("id, name")
-          .eq("space_id", spaceId)
+          .eq("space_id", brandId)
           .order("name"),
       ]);
 
-      if (spaceResponse.error) throw spaceResponse.error;
+      if (brandResponse.error) throw brandResponse.error;
       if (reportsResponse.error) throw reportsResponse.error;
 
-      setSpace(spaceResponse.data);
+      setBrand(brandResponse.data);
       setReports(reportsResponse.data || []);
       setProjects(projectsResponse.data || []);
     } catch (error) {
-      toast.error("Failed to load space details");
-      navigate("/spaces");
+      toast.error("Failed to load brand details");
+      navigate("/brands");
     } finally {
       setLoading(false);
     }
@@ -149,7 +149,7 @@ const SpaceDetail = () => {
     );
   }
 
-  if (!space) {
+  if (!brand) {
     return null;
   }
 
@@ -160,9 +160,9 @@ const SpaceDetail = () => {
         <div className="mb-8">
           <div className="flex items-start justify-between">
             <div>
-              <h1 className="text-4xl font-bold mb-2">{space.name}</h1>
-              {space.description && (
-                <p className="text-muted-foreground">{space.description}</p>
+              <h1 className="text-4xl font-bold mb-2">{brand.name}</h1>
+              {brand.description && (
+                <p className="text-muted-foreground">{brand.description}</p>
               )}
             </div>
             {isAdmin && (
@@ -187,7 +187,7 @@ const SpaceDetail = () => {
           </TabsList>
 
           <TabsContent value="overview">
-            <SpaceOverviewTab spaceId={spaceId!} />
+            <BrandOverviewTab spaceId={brandId!} />
           </TabsContent>
 
           <TabsContent value="insights">
@@ -199,7 +199,7 @@ const SpaceDetail = () => {
                 </Button>
               </div>
               <p className="text-muted-foreground">
-                AI-generated performance summaries and strategic recommendations for this space will be displayed here.
+                AI-generated performance summaries and strategic recommendations for this brand will be displayed here.
               </p>
             </Card>
           </TabsContent>
@@ -406,16 +406,16 @@ const SpaceDetail = () => {
         <CreateReportDialog
           open={createDialogOpen}
           onOpenChange={setCreateDialogOpen}
-          spaceId={spaceId!}
-          onSuccess={fetchSpaceAndReports}
+          spaceId={brandId!}
+          onSuccess={fetchBrandAndReports}
         />
 
-        {space && (
-          <EditSpaceDialog
+        {brand && (
+          <EditBrandDialog
             open={editDialogOpen}
             onOpenChange={setEditDialogOpen}
-            space={space}
-            onSuccess={fetchSpaceAndReports}
+            brand={brand}
+            onSuccess={fetchBrandAndReports}
           />
         )}
       </div>
@@ -423,4 +423,4 @@ const SpaceDetail = () => {
   );
 };
 
-export default SpaceDetail;
+export default BrandDetail;

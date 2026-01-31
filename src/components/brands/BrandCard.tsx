@@ -17,7 +17,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useUserRole } from "@/hooks/useUserRole";
 import { toast } from "sonner";
 
-interface Space {
+interface Brand {
   id: string;
   name: string;
   description: string | null;
@@ -25,12 +25,12 @@ interface Space {
   created_at: string;
 }
 
-interface SpaceCardProps {
-  space: Space;
+interface BrandCardProps {
+  brand: Brand;
   onUpdate: () => void;
 }
 
-export const SpaceCard = ({ space, onUpdate }: SpaceCardProps) => {
+export const BrandCard = ({ brand, onUpdate }: BrandCardProps) => {
   const navigate = useNavigate();
   const { isAdmin } = useUserRole();
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -44,13 +44,13 @@ export const SpaceCard = ({ space, onUpdate }: SpaceCardProps) => {
   const confirmDelete = async () => {
     setIsDeleting(true);
     try {
-      const { error } = await supabase.from("spaces").delete().eq("id", space.id);
+      const { error } = await supabase.from("spaces").delete().eq("id", brand.id);
       if (error) throw error;
-      toast.success("Space byl úspěšně smazán");
+      toast.success("Brand deleted successfully");
       onUpdate();
     } catch (error) {
-      console.error("Error deleting space:", error);
-      toast.error("Nepodařilo se smazat space");
+      console.error("Error deleting brand:", error);
+      toast.error("Failed to delete brand");
     } finally {
       setIsDeleting(false);
       setIsDeleteDialogOpen(false);
@@ -61,7 +61,7 @@ export const SpaceCard = ({ space, onUpdate }: SpaceCardProps) => {
     <>
       <Card
         className="p-6 cursor-pointer transition-all hover:shadow-lg border-foreground rounded-[35px] relative group"
-        onClick={() => navigate(`/spaces/${space.id}`)}
+        onClick={() => navigate(`/brands/${brand.id}`)}
       >
         {isAdmin && (
           <Button
@@ -75,10 +75,10 @@ export const SpaceCard = ({ space, onUpdate }: SpaceCardProps) => {
         )}
         <div className="flex items-start gap-4">
           <div className="w-16 h-16 rounded-[35px] bg-accent flex items-center justify-center flex-shrink-0">
-            {space.profile_image_url ? (
+            {brand.profile_image_url ? (
               <img
-                src={space.profile_image_url}
-                alt={space.name}
+                src={brand.profile_image_url}
+                alt={brand.name}
                 className="w-full h-full object-cover rounded-[35px]"
               />
             ) : (
@@ -86,10 +86,10 @@ export const SpaceCard = ({ space, onUpdate }: SpaceCardProps) => {
             )}
           </div>
           <div className="flex-1 min-w-0">
-            <h3 className="font-bold text-xl mb-2 truncate">{space.name}</h3>
-            {space.description && (
+            <h3 className="font-bold text-xl mb-2 truncate">{brand.name}</h3>
+            {brand.description && (
               <p className="text-sm text-muted-foreground line-clamp-2">
-                {space.description}
+                {brand.description}
               </p>
             )}
           </div>
@@ -99,19 +99,19 @@ export const SpaceCard = ({ space, onUpdate }: SpaceCardProps) => {
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Smazat space "{space.name}"?</AlertDialogTitle>
+            <AlertDialogTitle>Delete brand "{brand.name}"?</AlertDialogTitle>
             <AlertDialogDescription>
-              Tato akce je nevratná. Smaže se space včetně všech projektů a reportů.
+              This action cannot be undone. This will delete the brand including all projects and reports.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Zrušit</AlertDialogCancel>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={confirmDelete}
               disabled={isDeleting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {isDeleting ? "Mažu..." : "Smazat"}
+              {isDeleting ? "Deleting..." : "Delete"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

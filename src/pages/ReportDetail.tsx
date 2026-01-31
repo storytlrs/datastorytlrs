@@ -53,7 +53,7 @@ const ReportDetail = () => {
       setReport(data);
     } catch (error) {
       toast.error("Failed to load report");
-      navigate("/spaces");
+      navigate("/brands");
     } finally {
       setLoading(false);
     }
@@ -127,7 +127,7 @@ const ReportDetail = () => {
             <div>
               <Button
                 variant="ghost"
-                onClick={() => navigate(`/spaces/${report.space_id}?tab=reports`)}
+                onClick={() => navigate(`/brands/${report.space_id}?tab=reports`)}
                 className="p-0 h-auto font-normal text-muted-foreground hover:text-foreground hover:bg-accent-green rounded-[35px] px-2 mb-2"
               >
                 <ArrowLeft className="w-4 h-4 mr-1" />
