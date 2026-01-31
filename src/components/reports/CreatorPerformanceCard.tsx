@@ -102,7 +102,7 @@ export const CreatorPerformanceCard = ({
           </div>
         </div>
         <div className="flex gap-1">
-          {creator.platforms.map((platform) => (
+          {(creator.platforms || []).map((platform) => (
             <span
               key={platform}
               className="text-xs text-muted-foreground capitalize bg-muted px-2 py-1 rounded-full"
