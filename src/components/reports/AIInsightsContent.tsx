@@ -217,7 +217,7 @@ export const AIInsightsContent = ({
 }: AIInsightsContentProps) => {
   const [editingSections, setEditingSections] = useState<Set<string>>(new Set());
   const [selectedTopContentIds, setSelectedTopContentIds] = useState<string[]>(
-    insights.selected_top_content_ids || insights.top_content.map((c) => c.id)
+    insights.selected_top_content_ids || (insights.top_content || []).map((c) => c.id)
   );
   const [isContentSelectorOpen, setIsContentSelectorOpen] = useState(false);
 
@@ -289,9 +289,10 @@ export const AIInsightsContent = ({
   };
 
   // Filter top content based on selection
+  const topContentArray = insights.top_content || [];
   const displayedTopContent = selectedTopContentIds.length > 0
-    ? insights.top_content.filter((c) => selectedTopContentIds.includes(c.id))
-    : insights.top_content.slice(0, 5);
+    ? topContentArray.filter((c) => selectedTopContentIds.includes(c.id))
+    : topContentArray.slice(0, 5);
 
   // KPI Targets
   const kpiTargets = insights.kpi_targets;
@@ -530,10 +531,14 @@ export const AIInsightsContent = ({
         <h2 className="text-xl font-bold mb-4 border-b border-border pb-2">
           Creators Leaderboard
         </h2>
-        <LeaderboardTable
-          entries={insights.leaderboard}
-          benchmarks={insights.benchmarks}
-        />
+        {insights.leaderboard && insights.leaderboard.length > 0 ? (
+          <LeaderboardTable
+            entries={insights.leaderboard}
+            benchmarks={insights.benchmarks || { engagementRate: 0, viralityRate: 0, tswbCost: 0 }}
+          />
+        ) : (
+          <p className="text-muted-foreground text-center py-8">No leaderboard data available</p>
+        )}
       </Card>
 
       {/* Content Performance Block */}
@@ -541,23 +546,27 @@ export const AIInsightsContent = ({
         <h2 className="text-xl font-bold mb-4 border-b border-border pb-2">
           Content Performance
         </h2>
-        <div className="space-y-6">
-          {insights.creator_performance.map((creator) => (
-            <CreatorPerformanceCard
-              key={creator.handle}
-              creator={creator}
-              canEdit={canEdit}
-              onSaveKeyInsight={(handle, insight) => {
-                if (onSaveInsights) {
-                  const updatedPerformance = insights.creator_performance.map((c) =>
-                    c.handle === handle ? { ...c, key_insight: insight } : c
-                  );
-                  onSaveInsights({ creator_performance: updatedPerformance });
-                }
-              }}
-            />
-          ))}
-        </div>
+        {insights.creator_performance && insights.creator_performance.length > 0 ? (
+          <div className="space-y-6">
+            {insights.creator_performance.map((creator) => (
+              <CreatorPerformanceCard
+                key={creator.handle}
+                creator={creator}
+                canEdit={canEdit}
+                onSaveKeyInsight={(handle, insight) => {
+                  if (onSaveInsights) {
+                    const updatedPerformance = (insights.creator_performance || []).map((c) =>
+                      c.handle === handle ? { ...c, key_insight: insight } : c
+                    );
+                    onSaveInsights({ creator_performance: updatedPerformance });
+                  }
+                }}
+              />
+            ))}
+          </div>
+        ) : (
+          <p className="text-muted-foreground text-center py-8">No creator performance data available</p>
+        )}
       </Card>
 
       {/* Summary & Takeaways Block */}
@@ -569,7 +578,7 @@ export const AIInsightsContent = ({
           <Card className="p-6 rounded-[20px] border-accent-green">
             <h3 className="font-bold text-accent-green mb-3">✓ What Works</h3>
             <ul className="space-y-2">
-              {insights.recommendations.works.map((item, i) => (
+              {(insights.recommendations?.works || []).map((item, i) => (
                 <li key={i} className="text-sm text-foreground flex items-start gap-2">
                   <span className="text-accent-green">•</span>
                   {item}
@@ -581,7 +590,7 @@ export const AIInsightsContent = ({
           <Card className="p-6 rounded-[20px] border-accent-orange">
             <h3 className="font-bold text-accent-orange mb-3">✗ What Doesn't Work</h3>
             <ul className="space-y-2">
-              {insights.recommendations.doesnt_work.map((item, i) => (
+              {(insights.recommendations?.doesnt_work || []).map((item, i) => (
                 <li key={i} className="text-sm text-foreground flex items-start gap-2">
                   <span className="text-accent-orange">•</span>
                   {item}
@@ -593,7 +602,7 @@ export const AIInsightsContent = ({
           <Card className="p-6 rounded-[20px] border-accent-blue">
             <h3 className="font-bold text-accent-blue mb-3">→ Recommendations</h3>
             <ul className="space-y-2">
-              {insights.recommendations.suggestions.map((item, i) => (
+              {(insights.recommendations?.suggestions || []).map((item, i) => (
                 <li key={i} className="text-sm text-foreground flex items-start gap-2">
                   <span className="text-accent-blue">•</span>
                   {item}
