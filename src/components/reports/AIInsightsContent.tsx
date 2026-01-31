@@ -1,10 +1,14 @@
+import { useState } from "react";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { MetricTile } from "./MetricTile";
 import { ContentPreviewCard } from "./ContentPreviewCard";
 import { LeaderboardTable, LeaderboardEntry, Benchmarks } from "./LeaderboardTable";
-import { Users, FileText, Eye, DollarSign, Clock, Heart, TrendingUp, MessageSquare } from "lucide-react";
-import ReactMarkdown from "react-markdown";
-import { secondsToReadableTime } from "@/lib/watchTimeUtils";
+import { CreatorPerformanceCard } from "./CreatorPerformanceCard";
+import { TopicBadge } from "./TopicBadge";
+import { ContentSelectorDialog } from "./ContentSelectorDialog";
+import { Users, FileText, Eye, DollarSign, Clock, Heart, TrendingUp, MessageSquare, Target, Rocket, Star, Pencil, Save, X, Settings2 } from "lucide-react";
 import { formatCurrency } from "@/lib/currencyUtils";
 
 interface TopContent {
@@ -19,13 +23,35 @@ interface TopContent {
   creator_handle: string;
 }
 
-interface CreatorPerformance {
+interface CreatorPerformanceData {
   handle: string;
   avatar_url: string | null;
-  platform: string;
+  platforms: string[];
   top_content: TopContent | null;
-  sentiment: string | null;
-  sentiment_summary: string | null;
+  sentiment_breakdown: {
+    positive: number;
+    neutral: number;
+    negative: number;
+  };
+  relevance: "high" | "medium" | "low";
+  key_insight: string;
+  positive_topics: string[];
+  negative_topics: string[];
+}
+
+interface KPITargets {
+  overview: {
+    creators: number;
+    content: number;
+    views: number;
+    avgCpm: number;
+  };
+  innovation: {
+    tswbCost: number;
+    interactions: number;
+    engagementRate: number;
+    viralityRate: number;
+  };
 }
 
 interface StructuredInsights {
@@ -36,6 +62,7 @@ interface StructuredInsights {
     highlights: string;
   };
   top_content: TopContent[];
+  selected_top_content_ids?: string[];
   overview_metrics: {
     creators: number;
     content: number;
@@ -51,13 +78,15 @@ interface StructuredInsights {
     tswb: number;
     currency: string;
   };
+  kpi_targets?: KPITargets;
   sentiment_analysis: {
     average: "positive" | "neutral" | "negative";
     summary: string;
   };
+  top_sentiment_topics?: string[];
   leaderboard: LeaderboardEntry[];
   benchmarks: Benchmarks;
-  creator_performance: CreatorPerformance[];
+  creator_performance: CreatorPerformanceData[];
   recommendations: {
     works: string[];
     doesnt_work: string[];
@@ -70,6 +99,9 @@ interface AIInsightsContentProps {
   overviewParagraph?: string;
   innovationParagraph?: string;
   sentimentParagraph?: string;
+  canEdit?: boolean;
+  reportId?: string;
+  onSaveInsights?: (updates: Partial<StructuredInsights>) => Promise<void>;
 }
 
 const formatNumber = (num: number): string => {
@@ -82,116 +114,304 @@ const formatPercent = (num: number): string => {
   return num.toFixed(2) + "%";
 };
 
-const getSentimentColor = (sentiment: string): string => {
+const getSentimentBadgeColor = (sentiment: string): "positive" | "negative" | "neutral" => {
   switch (sentiment) {
     case "positive":
-      return "text-accent-green";
+      return "positive";
     case "negative":
-      return "text-accent-orange";
+      return "negative";
     default:
-      return "text-muted-foreground";
+      return "neutral";
   }
 };
 
 const getSentimentLabel = (sentiment: string): string => {
   switch (sentiment) {
     case "positive":
-      return "Pozitivní";
+      return "POSITIVE";
     case "negative":
-      return "Negativní";
+      return "NEGATIVE";
     default:
-      return "Neutrální";
+      return "NEUTRAL";
   }
 };
 
-const MarkdownContent = ({ content }: { content: string }) => (
-  <ReactMarkdown
-    components={{
-      p: ({ children }) => (
-        <p className="mb-3 text-foreground leading-relaxed">{children}</p>
-      ),
-      strong: ({ children }) => (
-        <strong className="font-bold text-foreground">{children}</strong>
-      ),
-      em: ({ children }) => (
-        <em className="italic text-accent-orange">{children}</em>
-      ),
-      ul: ({ children }) => (
-        <ul className="list-disc list-inside mb-3 space-y-1 text-foreground">{children}</ul>
-      ),
-      li: ({ children }) => (
-        <li className="text-foreground">{children}</li>
-      ),
-    }}
-  >
-    {content}
-  </ReactMarkdown>
-);
+interface EditableSectionProps {
+  value: string;
+  isEditing: boolean;
+  onStartEdit: () => void;
+  onSave: (value: string) => void;
+  onCancel: () => void;
+  canEdit?: boolean;
+  placeholder?: string;
+}
+
+const EditableSection = ({
+  value,
+  isEditing,
+  onStartEdit,
+  onSave,
+  onCancel,
+  canEdit = false,
+  placeholder = "Enter text...",
+}: EditableSectionProps) => {
+  const [editValue, setEditValue] = useState(value);
+
+  const handleSave = () => {
+    onSave(editValue);
+  };
+
+  const handleCancel = () => {
+    setEditValue(value);
+    onCancel();
+  };
+
+  if (isEditing) {
+    return (
+      <div className="space-y-2">
+        <Textarea
+          value={editValue}
+          onChange={(e) => setEditValue(e.target.value)}
+          placeholder={placeholder}
+          className="min-h-[100px] rounded-[15px] border-foreground"
+        />
+        <div className="flex gap-2">
+          <Button size="sm" onClick={handleSave} className="rounded-[35px]">
+            <Save className="w-3 h-3 mr-1" />
+            Save
+          </Button>
+          <Button size="sm" variant="outline" onClick={handleCancel} className="rounded-[35px] border-foreground">
+            <X className="w-3 h-3 mr-1" />
+            Cancel
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="group relative">
+      <p className="text-foreground leading-relaxed">{value || placeholder}</p>
+      {canEdit && (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onStartEdit}
+          className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 p-0"
+        >
+          <Pencil className="w-3 h-3" />
+        </Button>
+      )}
+    </div>
+  );
+};
 
 export const AIInsightsContent = ({
   insights,
   overviewParagraph,
   innovationParagraph,
   sentimentParagraph,
+  canEdit = false,
+  reportId,
+  onSaveInsights,
 }: AIInsightsContentProps) => {
+  const [editingSections, setEditingSections] = useState<Set<string>>(new Set());
+  const [selectedTopContentIds, setSelectedTopContentIds] = useState<string[]>(
+    insights.selected_top_content_ids || insights.top_content.map((c) => c.id)
+  );
+  const [isContentSelectorOpen, setIsContentSelectorOpen] = useState(false);
+
+  // Local state for editable fields
+  const [executiveSummary, setExecutiveSummary] = useState(insights.executive_summary);
+  const [mainGoal, setMainGoal] = useState(insights.campaign_context.mainGoal);
+  const [actions, setActions] = useState(insights.campaign_context.actions);
+  const [highlights, setHighlights] = useState(insights.campaign_context.highlights);
+  const [sentimentSummary, setSentimentSummary] = useState(sentimentParagraph || insights.sentiment_analysis.summary);
+
+  const startEditing = (section: string) => {
+    setEditingSections((prev) => new Set([...prev, section]));
+  };
+
+  const stopEditing = (section: string) => {
+    setEditingSections((prev) => {
+      const next = new Set(prev);
+      next.delete(section);
+      return next;
+    });
+  };
+
+  const handleSaveSection = async (section: string, value: string) => {
+    switch (section) {
+      case "executive_summary":
+        setExecutiveSummary(value);
+        break;
+      case "mainGoal":
+        setMainGoal(value);
+        break;
+      case "actions":
+        setActions(value);
+        break;
+      case "highlights":
+        setHighlights(value);
+        break;
+      case "sentiment_summary":
+        setSentimentSummary(value);
+        break;
+    }
+    stopEditing(section);
+    
+    // Save to parent if available
+    if (onSaveInsights) {
+      const updates: Partial<StructuredInsights> = {};
+      if (section === "executive_summary") {
+        updates.executive_summary = value;
+      } else if (["mainGoal", "actions", "highlights"].includes(section)) {
+        updates.campaign_context = {
+          mainGoal: section === "mainGoal" ? value : mainGoal,
+          actions: section === "actions" ? value : actions,
+          highlights: section === "highlights" ? value : highlights,
+        };
+      } else if (section === "sentiment_summary") {
+        updates.sentiment_analysis = {
+          ...insights.sentiment_analysis,
+          summary: value,
+        };
+      }
+      await onSaveInsights(updates);
+    }
+  };
+
+  const handleContentSelection = (ids: string[]) => {
+    setSelectedTopContentIds(ids);
+    if (onSaveInsights) {
+      onSaveInsights({ selected_top_content_ids: ids });
+    }
+  };
+
+  // Filter top content based on selection
+  const displayedTopContent = selectedTopContentIds.length > 0
+    ? insights.top_content.filter((c) => selectedTopContentIds.includes(c.id))
+    : insights.top_content.slice(0, 5);
+
+  // KPI Targets
+  const kpiTargets = insights.kpi_targets;
+
   return (
     <div className="space-y-8">
-      {/* Executive Summary */}
-      <section>
+      {/* Executive Summary Block */}
+      <Card className="p-6 rounded-[20px] border-foreground">
         <h2 className="text-xl font-bold mb-4 border-b border-border pb-2">
           Executive Summary
         </h2>
-        <Card className="p-6 rounded-[20px] border-foreground">
-          <MarkdownContent content={insights.executive_summary} />
-          
-          {/* Campaign Context */}
-          <div className="mt-4 space-y-3 p-4 bg-muted/30 rounded-[15px]">
-            <div>
-              <span className="text-sm font-medium text-muted-foreground">Hlavní cíl:</span>
-              <p className="text-foreground">{insights.campaign_context.mainGoal}</p>
-            </div>
-            <div>
-              <span className="text-sm font-medium text-muted-foreground">Co jsme udělali:</span>
-              <p className="text-foreground">{insights.campaign_context.actions}</p>
-            </div>
-            <div>
-              <span className="text-sm font-medium text-muted-foreground">Co se povedlo:</span>
-              <p className="text-foreground">{insights.campaign_context.highlights}</p>
-            </div>
-          </div>
+        
+        <div className="mb-6">
+          <EditableSection
+            value={executiveSummary}
+            isEditing={editingSections.has("executive_summary")}
+            onStartEdit={() => startEditing("executive_summary")}
+            onSave={(v) => handleSaveSection("executive_summary", v)}
+            onCancel={() => stopEditing("executive_summary")}
+            canEdit={canEdit}
+            placeholder="Enter executive summary..."
+          />
+        </div>
 
-          {/* Top 5 Content */}
-          {insights.top_content.length > 0 && (
-            <div className="mt-6">
-              <h3 className="text-lg font-semibold mb-4">TOP 5 Content</h3>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                {insights.top_content.slice(0, 5).map((content) => (
-                  <ContentPreviewCard
-                    key={content.id}
-                    thumbnailUrl={content.thumbnail_url}
-                    contentType={content.content_type}
-                    platform={content.platform}
-                    views={content.views}
-                    engagementRate={content.engagement_rate}
-                    url={content.url}
-                    creatorHandle={content.creator_handle}
-                  />
-                ))}
-              </div>
+        {/* Campaign Context Tiles */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card className="p-4 rounded-[15px] border-border bg-muted/30">
+            <div className="flex items-center gap-2 mb-2">
+              <Target className="w-5 h-5 text-accent-orange" />
+              <span className="font-bold text-sm uppercase">Main Goal</span>
             </div>
+            <EditableSection
+              value={mainGoal}
+              isEditing={editingSections.has("mainGoal")}
+              onStartEdit={() => startEditing("mainGoal")}
+              onSave={(v) => handleSaveSection("mainGoal", v)}
+              onCancel={() => stopEditing("mainGoal")}
+              canEdit={canEdit}
+              placeholder="Enter main goal..."
+            />
+          </Card>
+
+          <Card className="p-4 rounded-[15px] border-border bg-muted/30">
+            <div className="flex items-center gap-2 mb-2">
+              <Rocket className="w-5 h-5 text-accent-blue" />
+              <span className="font-bold text-sm uppercase">What We Did</span>
+            </div>
+            <EditableSection
+              value={actions}
+              isEditing={editingSections.has("actions")}
+              onStartEdit={() => startEditing("actions")}
+              onSave={(v) => handleSaveSection("actions", v)}
+              onCancel={() => stopEditing("actions")}
+              canEdit={canEdit}
+              placeholder="Enter actions..."
+            />
+          </Card>
+
+          <Card className="p-4 rounded-[15px] border-border bg-muted/30">
+            <div className="flex items-center gap-2 mb-2">
+              <Star className="w-5 h-5 text-accent-green" />
+              <span className="font-bold text-sm uppercase">Highlights</span>
+            </div>
+            <EditableSection
+              value={highlights}
+              isEditing={editingSections.has("highlights")}
+              onStartEdit={() => startEditing("highlights")}
+              onSave={(v) => handleSaveSection("highlights", v)}
+              onCancel={() => stopEditing("highlights")}
+              canEdit={canEdit}
+              placeholder="Enter highlights..."
+            />
+          </Card>
+        </div>
+      </Card>
+
+      {/* Top 5 Content Block */}
+      <Card className="p-6 rounded-[20px] border-foreground">
+        <div className="flex items-center justify-between mb-4 border-b border-border pb-2">
+          <h2 className="text-xl font-bold">Top 5 Content</h2>
+          {canEdit && reportId && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsContentSelectorOpen(true)}
+              className="rounded-[35px] border-foreground"
+            >
+              <Settings2 className="w-4 h-4 mr-2" />
+              Select Content
+            </Button>
           )}
-        </Card>
-      </section>
+        </div>
+        
+        {displayedTopContent.length > 0 ? (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            {displayedTopContent.map((content) => (
+              <ContentPreviewCard
+                key={content.id}
+                thumbnailUrl={content.thumbnail_url}
+                contentType={content.content_type}
+                platform={content.platform}
+                views={content.views}
+                engagementRate={content.engagement_rate}
+                url={content.url}
+                creatorHandle={content.creator_handle}
+              />
+            ))}
+          </div>
+        ) : (
+          <p className="text-muted-foreground text-center py-8">No content available</p>
+        )}
+      </Card>
 
-      {/* Campaign Overview */}
-      <section>
+      {/* Campaign Overview Block */}
+      <Card className="p-6 rounded-[20px] border-foreground">
         <h2 className="text-xl font-bold mb-4 border-b border-border pb-2">
           Základní přehled kampaně
         </h2>
         {overviewParagraph && (
-          <div className="mb-4">
-            <MarkdownContent content={overviewParagraph} />
-          </div>
+          <p className="mb-4 text-foreground leading-relaxed">{overviewParagraph}</p>
         )}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <MetricTile
@@ -199,37 +419,39 @@ export const AIInsightsContent = ({
             value={insights.overview_metrics.creators}
             icon={Users}
             accentColor="blue"
+            target={kpiTargets?.overview.creators}
           />
           <MetricTile
             title="Content"
             value={insights.overview_metrics.content}
             icon={FileText}
             accentColor="blue"
+            target={kpiTargets?.overview.content}
           />
           <MetricTile
             title="Views"
             value={formatNumber(insights.overview_metrics.views)}
             icon={Eye}
             accentColor="blue"
+            target={kpiTargets?.overview.views ? formatNumber(kpiTargets.overview.views) : undefined}
           />
           <MetricTile
             title="Avg CPM"
             value={formatCurrency(insights.overview_metrics.avgCpm, insights.overview_metrics.currency)}
             icon={DollarSign}
             accentColor="blue"
+            target={kpiTargets?.overview.avgCpm ? formatCurrency(kpiTargets.overview.avgCpm, insights.overview_metrics.currency) : undefined}
           />
         </div>
-      </section>
+      </Card>
 
-      {/* Innovation Metrics */}
-      <section>
+      {/* Innovation Metrics Block */}
+      <Card className="p-6 rounded-[20px] border-foreground">
         <h2 className="text-xl font-bold mb-4 border-b border-border pb-2">
           Inovativní a kvalitativní metriky
         </h2>
         {innovationParagraph && (
-          <div className="mb-4">
-            <MarkdownContent content={innovationParagraph} />
-          </div>
+          <p className="mb-4 text-foreground leading-relaxed">{innovationParagraph}</p>
         )}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <MetricTile
@@ -237,138 +459,115 @@ export const AIInsightsContent = ({
             value={formatCurrency(insights.innovation_metrics.tswbCost, insights.innovation_metrics.currency)}
             icon={Clock}
             accentColor="green"
+            target={kpiTargets?.innovation.tswbCost ? formatCurrency(kpiTargets.innovation.tswbCost, insights.innovation_metrics.currency) : undefined}
           />
           <MetricTile
             title="Interactions"
             value={formatNumber(insights.innovation_metrics.interactions)}
             icon={Heart}
             accentColor="green"
+            target={kpiTargets?.innovation.interactions ? formatNumber(kpiTargets.innovation.interactions) : undefined}
           />
           <MetricTile
             title="Engagement Rate"
             value={formatPercent(insights.innovation_metrics.engagementRate)}
             icon={TrendingUp}
             accentColor="green"
+            target={kpiTargets?.innovation.engagementRate ? formatPercent(kpiTargets.innovation.engagementRate) : undefined}
           />
           <MetricTile
             title="Virality Rate"
             value={formatPercent(insights.innovation_metrics.viralityRate)}
             icon={MessageSquare}
             accentColor="green"
+            target={kpiTargets?.innovation.viralityRate ? formatPercent(kpiTargets.innovation.viralityRate) : undefined}
           />
         </div>
-      </section>
+      </Card>
 
-      {/* Campaign Sentiment */}
-      <section>
+      {/* Campaign Sentiment Block */}
+      <Card className="p-6 rounded-[20px] border-foreground">
         <h2 className="text-xl font-bold mb-4 border-b border-border pb-2">
           Sentiment kampaně
         </h2>
-        {sentimentParagraph && (
-          <div className="mb-4">
-            <MarkdownContent content={sentimentParagraph} />
+        
+        <div className="mb-4">
+          <EditableSection
+            value={sentimentSummary}
+            isEditing={editingSections.has("sentiment_summary")}
+            onStartEdit={() => startEditing("sentiment_summary")}
+            onSave={(v) => handleSaveSection("sentiment_summary", v)}
+            onCancel={() => stopEditing("sentiment_summary")}
+            canEdit={canEdit}
+            placeholder="Enter sentiment analysis summary..."
+          />
+        </div>
+
+        <div className="flex items-center gap-4 mb-4">
+          <span className="text-muted-foreground">Average Sentiment:</span>
+          <TopicBadge
+            topic={getSentimentLabel(insights.sentiment_analysis.average)}
+            variant={getSentimentBadgeColor(insights.sentiment_analysis.average)}
+          />
+        </div>
+
+        {insights.top_sentiment_topics && insights.top_sentiment_topics.length > 0 && (
+          <div>
+            <span className="text-sm font-medium text-muted-foreground block mb-2">
+              Top Topics:
+            </span>
+            <div className="flex flex-wrap gap-2">
+              {insights.top_sentiment_topics.map((topic, i) => (
+                <TopicBadge key={i} topic={topic} variant="default" />
+              ))}
+            </div>
           </div>
         )}
-        <Card className="p-6 rounded-[20px] border-foreground">
-          <div className="flex items-center gap-4">
-            <span className="text-muted-foreground">Průměrný sentiment:</span>
-            <span className={`text-2xl font-bold ${getSentimentColor(insights.sentiment_analysis.average)}`}>
-              {getSentimentLabel(insights.sentiment_analysis.average)}
-            </span>
-          </div>
-          {insights.sentiment_analysis.summary && (
-            <p className="mt-4 text-muted-foreground">
-              {insights.sentiment_analysis.summary}
-            </p>
-          )}
-        </Card>
-      </section>
+      </Card>
 
-      {/* Influencer Leaderboard */}
-      <section>
+      {/* Creators Leaderboard Block */}
+      <Card className="p-6 rounded-[20px] border-foreground">
         <h2 className="text-xl font-bold mb-4 border-b border-border pb-2">
-          Influencer Leaderboard
+          Creators Leaderboard
         </h2>
         <LeaderboardTable
           entries={insights.leaderboard}
           benchmarks={insights.benchmarks}
         />
-      </section>
+      </Card>
 
-      {/* Content Performance */}
-      <section>
+      {/* Content Performance Block */}
+      <Card className="p-6 rounded-[20px] border-foreground">
         <h2 className="text-xl font-bold mb-4 border-b border-border pb-2">
           Content Performance
         </h2>
         <div className="space-y-6">
           {insights.creator_performance.map((creator) => (
-            <Card key={creator.handle} className="p-6 rounded-[20px] border-foreground">
-              <div className="flex items-center gap-3 mb-4">
-                {creator.avatar_url ? (
-                  <img
-                    src={creator.avatar_url}
-                    alt={creator.handle}
-                    className="w-10 h-10 rounded-full object-cover"
-                    referrerPolicy="no-referrer"
-                  />
-                ) : (
-                  <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center font-bold">
-                    {creator.handle.charAt(0).toUpperCase()}
-                  </div>
-                )}
-                <div>
-                  <h3 className="font-bold">@{creator.handle}</h3>
-                  <span className="text-xs text-muted-foreground capitalize">{creator.platform}</span>
-                </div>
-              </div>
-
-              <div className="grid md:grid-cols-2 gap-6">
-                {/* Top Content */}
-                {creator.top_content && (
-                  <div className="max-w-[200px]">
-                    <ContentPreviewCard
-                      thumbnailUrl={creator.top_content.thumbnail_url}
-                      contentType={creator.top_content.content_type}
-                      platform={creator.top_content.platform}
-                      views={creator.top_content.views}
-                      engagementRate={creator.top_content.engagement_rate}
-                      url={creator.top_content.url}
-                      contentSummary={creator.top_content.content_summary}
-                    />
-                  </div>
-                )}
-
-                {/* Sentiment */}
-                <div className="space-y-3">
-                  {creator.sentiment && (
-                    <div>
-                      <span className="text-sm text-muted-foreground">Sentiment:</span>
-                      <span className={`ml-2 font-medium ${getSentimentColor(creator.sentiment)}`}>
-                        {getSentimentLabel(creator.sentiment)}
-                      </span>
-                    </div>
-                  )}
-                  {creator.sentiment_summary && (
-                    <div>
-                      <span className="text-sm text-muted-foreground block mb-1">Klíčová témata:</span>
-                      <p className="text-sm">{creator.sentiment_summary}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </Card>
+            <CreatorPerformanceCard
+              key={creator.handle}
+              creator={creator}
+              canEdit={canEdit}
+              onSaveKeyInsight={(handle, insight) => {
+                if (onSaveInsights) {
+                  const updatedPerformance = insights.creator_performance.map((c) =>
+                    c.handle === handle ? { ...c, key_insight: insight } : c
+                  );
+                  onSaveInsights({ creator_performance: updatedPerformance });
+                }
+              }}
+            />
           ))}
         </div>
-      </section>
+      </Card>
 
-      {/* Recommendations */}
-      <section>
+      {/* Summary & Takeaways Block */}
+      <Card className="p-6 rounded-[20px] border-foreground">
         <h2 className="text-xl font-bold mb-4 border-b border-border pb-2">
-          Shrnutí a doporučení
+          Summary & Takeaways
         </h2>
         <div className="grid md:grid-cols-3 gap-4">
           <Card className="p-6 rounded-[20px] border-accent-green">
-            <h3 className="font-bold text-accent-green mb-3">✓ Co funguje</h3>
+            <h3 className="font-bold text-accent-green mb-3">✓ What Works</h3>
             <ul className="space-y-2">
               {insights.recommendations.works.map((item, i) => (
                 <li key={i} className="text-sm text-foreground flex items-start gap-2">
@@ -380,7 +579,7 @@ export const AIInsightsContent = ({
           </Card>
 
           <Card className="p-6 rounded-[20px] border-accent-orange">
-            <h3 className="font-bold text-accent-orange mb-3">✗ Co nefunguje</h3>
+            <h3 className="font-bold text-accent-orange mb-3">✗ What Doesn't Work</h3>
             <ul className="space-y-2">
               {insights.recommendations.doesnt_work.map((item, i) => (
                 <li key={i} className="text-sm text-foreground flex items-start gap-2">
@@ -392,7 +591,7 @@ export const AIInsightsContent = ({
           </Card>
 
           <Card className="p-6 rounded-[20px] border-accent-blue">
-            <h3 className="font-bold text-accent-blue mb-3">→ Doporučení</h3>
+            <h3 className="font-bold text-accent-blue mb-3">→ Recommendations</h3>
             <ul className="space-y-2">
               {insights.recommendations.suggestions.map((item, i) => (
                 <li key={i} className="text-sm text-foreground flex items-start gap-2">
@@ -403,7 +602,19 @@ export const AIInsightsContent = ({
             </ul>
           </Card>
         </div>
-      </section>
+      </Card>
+
+      {/* Content Selector Dialog */}
+      {reportId && (
+        <ContentSelectorDialog
+          open={isContentSelectorOpen}
+          onOpenChange={setIsContentSelectorOpen}
+          reportId={reportId}
+          selectedIds={selectedTopContentIds}
+          onSelect={handleContentSelection}
+          maxSelections={5}
+        />
+      )}
     </div>
   );
 };

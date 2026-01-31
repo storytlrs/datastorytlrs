@@ -8,7 +8,6 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Loader2, Sparkles, Save, Settings2, Pencil, Eye, RefreshCw } from "lucide-react";
 import { useUserRole } from "@/hooks/useUserRole";
-import ReactMarkdown from "react-markdown";
 import {
   Collapsible,
   CollapsibleContent,
@@ -21,10 +20,42 @@ interface AIInsightsTabProps {
   reportId: string;
 }
 
+interface CreatorPerformanceData {
+  handle: string;
+  avatar_url: string | null;
+  platforms: string[];
+  top_content: any | null;
+  sentiment_breakdown: {
+    positive: number;
+    neutral: number;
+    negative: number;
+  };
+  relevance: "high" | "medium" | "low";
+  key_insight: string;
+  positive_topics: string[];
+  negative_topics: string[];
+}
+
+interface KPITargets {
+  overview: {
+    creators: number;
+    content: number;
+    views: number;
+    avgCpm: number;
+  };
+  innovation: {
+    tswbCost: number;
+    interactions: number;
+    engagementRate: number;
+    viralityRate: number;
+  };
+}
+
 interface StructuredInsights {
   executive_summary: string;
   campaign_context: CampaignContext;
   top_content: any[];
+  selected_top_content_ids?: string[];
   overview_metrics: {
     creators: number;
     content: number;
@@ -40,17 +71,19 @@ interface StructuredInsights {
     tswb: number;
     currency: string;
   };
+  kpi_targets?: KPITargets;
   sentiment_analysis: {
     average: "positive" | "neutral" | "negative";
     summary: string;
   };
+  top_sentiment_topics?: string[];
   leaderboard: any[];
   benchmarks: {
     engagementRate: number;
     viralityRate: number;
     tswbCost: number;
   };
-  creator_performance: any[];
+  creator_performance: CreatorPerformanceData[];
   recommendations: {
     works: string[];
     doesnt_work: string[];
@@ -177,6 +210,24 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
     }
   };
 
+  const handleSaveStructuredInsights = async (updates: Partial<StructuredInsights>) => {
+    try {
+      const updatedData = { ...structuredData, ...updates };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await supabase
+        .from("reports")
+        .update({ ai_insights_structured: updatedData as any })
+        .eq("id", reportId);
+
+      if (error) throw error;
+      setStructuredData(updatedData as StructuredInsights);
+      toast.success("Changes saved");
+    } catch (error) {
+      console.error("Error saving structured insights:", error);
+      toast.error("Failed to save changes");
+    }
+  };
+
   if (isLoading) {
     return (
       <Card className="p-8 rounded-[35px] border-foreground flex items-center justify-center">
@@ -189,33 +240,31 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
   if (structuredData && !isEditing) {
     return (
       <>
-        <Card className="p-8 rounded-[35px] border-foreground">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold">AI Insights</h2>
-            <div className="flex items-center gap-2">
-              {canEdit && (
-                <>
-                  <Button
-                    onClick={() => setIsInputDialogOpen(true)}
-                    variant="outline"
-                    className="rounded-[35px] border-foreground"
-                    title="Vygenerovat nové AI Insights"
-                  >
-                    <RefreshCw className="w-4 h-4 mr-2" />
-                    Regenerovat
-                  </Button>
-                  <Button
-                    onClick={() => setIsEditing(true)}
-                    variant="ghost"
-                    size="sm"
-                    className="rounded-[35px]"
-                  >
-                    <Pencil className="w-4 h-4 mr-2" />
-                    Upravit raw
-                  </Button>
-                </>
-              )}
-            </div>
+        <div className="space-y-6">
+          {/* Action buttons */}
+          <div className="flex items-center justify-end gap-2">
+            {canEdit && (
+              <>
+                <Button
+                  onClick={() => setIsInputDialogOpen(true)}
+                  variant="outline"
+                  className="rounded-[35px] border-foreground"
+                  title="Vygenerovat nové AI Insights"
+                >
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Regenerate
+                </Button>
+                <Button
+                  onClick={() => setIsEditing(true)}
+                  variant="ghost"
+                  size="sm"
+                  className="rounded-[35px]"
+                >
+                  <Pencil className="w-4 h-4 mr-2" />
+                  Edit raw
+                </Button>
+              </>
+            )}
           </div>
 
           <AIInsightsContent
@@ -223,8 +272,11 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
             overviewParagraph={overviewParagraph}
             innovationParagraph={innovationParagraph}
             sentimentParagraph={sentimentParagraph}
+            canEdit={canEdit}
+            reportId={reportId}
+            onSaveInsights={handleSaveStructuredInsights}
           />
-        </Card>
+        </div>
 
         <AIInsightsInputDialog
           open={isInputDialogOpen}
@@ -239,24 +291,21 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
   return (
     <>
       <Card className="p-8 rounded-[35px] border-foreground">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold">AI Insights</h2>
-          <div className="flex items-center gap-2">
-            {canEdit && (
-              <Button
-                onClick={() => setIsInputDialogOpen(true)}
-                disabled={isGenerating}
-                className="rounded-[35px] bg-foreground text-background border border-foreground hover:bg-accent-green hover:text-foreground hover:border-accent-green disabled:opacity-50"
-              >
-                {isGenerating ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                ) : (
-                  <Sparkles className="w-4 h-4 mr-2" />
-                )}
-                Generate AI Insights
-              </Button>
-            )}
-          </div>
+        <div className="flex items-center justify-end mb-6">
+          {canEdit && (
+            <Button
+              onClick={() => setIsInputDialogOpen(true)}
+              disabled={isGenerating}
+              className="rounded-[35px] bg-foreground text-background border border-foreground hover:bg-accent-green hover:text-foreground hover:border-accent-green disabled:opacity-50"
+            >
+              {isGenerating ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Sparkles className="w-4 h-4 mr-2" />
+              )}
+              Generate AI Insights
+            </Button>
+          )}
         </div>
 
         {!structuredData && (

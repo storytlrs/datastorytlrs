@@ -32,9 +32,12 @@ All colors MUST be HSL.
     --accent-foreground: 0 0% 0%;
 
     --accent-orange: 30 100% 50%; /* #FF8000 */
+    --accent-orange-foreground: 0 0% 0%; /* Black text on orange */
     --accent-green: 138 69% 59%; /* #57DC64 */
     --accent-green-foreground: 0 0% 0%; /* Black text on green */
     --accent-blue: 200 100% 60%; /* #33B6FF */
+    --accent-purple: 241 94% 78%; /* #9795F9 */
+    --accent-purple-foreground: 0 0% 100%; /* White text on purple */
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 100%;
@@ -86,9 +89,12 @@ All colors MUST be HSL.
     --accent-foreground: 0 0% 0%;
 
     --accent-orange: 30 100% 50%;
+    --accent-orange-foreground: 0 0% 0%;
     --accent-green: 138 69% 59%;
     --accent-green-foreground: 0 0% 0%;
     --accent-blue: 200 100% 60%;
+    --accent-purple: 241 94% 78%;
+    --accent-purple-foreground: 0 0% 100%;
 
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 91.4%;
