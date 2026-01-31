@@ -1,5 +1,5 @@
 import { Card } from "@/components/ui/card";
-import { LucideIcon } from "lucide-react";
+import { LucideIcon, Target } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface MetricTileProps {
@@ -8,6 +8,8 @@ interface MetricTileProps {
   icon?: LucideIcon;
   accentColor?: "default" | "orange" | "green" | "blue";
   size?: "small" | "medium";
+  target?: string | number;
+  targetLabel?: string;
 }
 
 export const MetricTile = ({
@@ -16,6 +18,8 @@ export const MetricTile = ({
   icon: Icon,
   accentColor = "default",
   size = "medium",
+  target,
+  targetLabel,
 }: MetricTileProps) => {
   const accentClass = {
     default: "border-accent",
@@ -46,8 +50,16 @@ export const MetricTile = ({
         </span>
         {Icon && <Icon className={cn("text-foreground flex-shrink-0", iconSize)} />}
       </div>
-      <div className="flex-1 flex items-end">
+      <div className="flex-1 flex flex-col justify-end">
         <p className={cn("font-bold text-foreground", valueSize)}>{value}</p>
+        {target !== undefined && (
+          <div className="flex items-center gap-1 text-muted-foreground mt-1">
+            <Target className="w-3 h-3" />
+            <span className={cn("font-medium", titleSize)}>
+              {targetLabel || ""} {target}
+            </span>
+          </div>
+        )}
       </div>
     </Card>
   );

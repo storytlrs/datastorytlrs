@@ -6,7 +6,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { StatusBadge, StatusType, getStatusFromPerformance } from "./StatusBadge";
+import { StatusBadge, StatusType } from "./StatusBadge";
 import { formatCurrency } from "@/lib/currencyUtils";
 
 export interface LeaderboardEntry {
@@ -42,11 +42,20 @@ const formatPercent = (num: number): string => {
   return num.toFixed(2) + "%";
 };
 
+const getPercentile = (value: number, allValues: number[]): number => {
+  if (allValues.length === 0) return 0.5;
+  const sorted = [...allValues].sort((a, b) => a - b);
+  const index = sorted.findIndex((v) => v >= value);
+  if (index === -1) return 1;
+  return index / sorted.length;
+};
+
 const getOverallStatus = (
   entry: LeaderboardEntry,
+  allEntries: LeaderboardEntry[],
   benchmarks: Benchmarks
 ): StatusType => {
-  // Calculate average performance across metrics
+  // 1. Benchmark comparison
   const erRatio = benchmarks.engagementRate > 0 
     ? entry.engagementRate / benchmarks.engagementRate 
     : 1;
@@ -58,11 +67,24 @@ const getOverallStatus = (
     ? benchmarks.tswbCost / entry.tswbCost
     : 1;
 
-  const avgRatio = (erRatio + vrRatio + costRatio) / 3;
+  // 2. Relative comparison (percentile among creators)
+  const erPercentile = getPercentile(
+    entry.engagementRate,
+    allEntries.map((e) => e.engagementRate)
+  );
+  const viewsPercentile = getPercentile(
+    entry.views,
+    allEntries.map((e) => e.views)
+  );
 
-  if (avgRatio >= 1.5) return "WOW!";
-  if (avgRatio >= 1.2) return "VIRAL";
-  if (avgRatio >= 0.8) return "OK";
+  // 3. Combined score (60% benchmark, 40% relative)
+  const benchmarkScore = (erRatio + vrRatio + costRatio) / 3;
+  const relativeScore = (erPercentile + viewsPercentile) / 2;
+  const combinedScore = (benchmarkScore * 0.6) + (relativeScore * 0.4);
+
+  if (combinedScore >= 1.5) return "WOW!";
+  if (combinedScore >= 1.2) return "VIRAL";
+  if (combinedScore >= 0.8) return "OK";
   return "FAIL";
 };
 
@@ -78,7 +100,7 @@ export const LeaderboardTable = ({
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/50">
-            <TableHead className="font-bold">Influencer</TableHead>
+            <TableHead className="font-bold">Creator</TableHead>
             <TableHead className="text-right font-bold">Views</TableHead>
             <TableHead className="text-right font-bold">Interactions</TableHead>
             <TableHead className="text-right font-bold">
@@ -143,7 +165,7 @@ export const LeaderboardTable = ({
                 {formatCurrency(entry.tswbCost, entry.currency)}
               </TableCell>
               <TableCell className="text-center">
-                <StatusBadge status={getOverallStatus(entry, benchmarks)} />
+                <StatusBadge status={getOverallStatus(entry, sortedEntries, benchmarks)} />
               </TableCell>
             </TableRow>
           ))}

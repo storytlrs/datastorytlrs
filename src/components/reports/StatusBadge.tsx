@@ -10,7 +10,7 @@ interface StatusBadgeProps {
 const statusConfig: Record<StatusType, { bg: string; text: string }> = {
   "WOW!": { bg: "bg-accent-green", text: "text-accent-green-foreground" },
   "VIRAL": { bg: "bg-accent-blue", text: "text-white" },
-  "OK": { bg: "bg-muted", text: "text-muted-foreground" },
+  "OK": { bg: "bg-accent-purple", text: "text-accent-purple-foreground" },
   "FAIL": { bg: "bg-accent-orange", text: "text-accent-orange-foreground" },
 };
 
