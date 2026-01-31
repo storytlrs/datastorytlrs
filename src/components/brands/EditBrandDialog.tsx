@@ -7,36 +7,36 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-interface Space {
+interface Brand {
   id: string;
   name: string;
   description: string | null;
 }
 
-interface EditSpaceDialogProps {
+interface EditBrandDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  space: Space;
+  brand: Brand;
   onSuccess: () => void;
 }
 
-const EditSpaceDialog = ({ open, onOpenChange, space, onSuccess }: EditSpaceDialogProps) => {
-  const [name, setName] = useState(space.name);
-  const [description, setDescription] = useState(space.description || "");
+const EditBrandDialog = ({ open, onOpenChange, brand, onSuccess }: EditBrandDialogProps) => {
+  const [name, setName] = useState(brand.name);
+  const [description, setDescription] = useState(brand.description || "");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (open) {
-      setName(space.name);
-      setDescription(space.description || "");
+      setName(brand.name);
+      setDescription(brand.description || "");
     }
-  }, [open, space]);
+  }, [open, brand]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!name.trim()) {
-      toast.error("Space name is required");
+      toast.error("Brand name is required");
       return;
     }
 
@@ -45,15 +45,15 @@ const EditSpaceDialog = ({ open, onOpenChange, space, onSuccess }: EditSpaceDial
       const { error } = await supabase
         .from("spaces")
         .update({ name: name.trim(), description: description.trim() || null })
-        .eq("id", space.id);
+        .eq("id", brand.id);
 
       if (error) throw error;
 
-      toast.success("Space updated successfully");
+      toast.success("Brand updated successfully");
       onSuccess();
       onOpenChange(false);
     } catch (error) {
-      toast.error("Failed to update space");
+      toast.error("Failed to update brand");
     } finally {
       setSaving(false);
     }
@@ -63,7 +63,7 @@ const EditSpaceDialog = ({ open, onOpenChange, space, onSuccess }: EditSpaceDial
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="rounded-[35px]">
         <DialogHeader>
-          <DialogTitle>Edit Space</DialogTitle>
+          <DialogTitle>Edit Brand</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
@@ -72,7 +72,7 @@ const EditSpaceDialog = ({ open, onOpenChange, space, onSuccess }: EditSpaceDial
               id="name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Space name"
+              placeholder="Brand name"
               className="rounded-[35px]"
             />
           </div>
@@ -82,7 +82,7 @@ const EditSpaceDialog = ({ open, onOpenChange, space, onSuccess }: EditSpaceDial
               id="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Space description (optional)"
+              placeholder="Brand description (optional)"
               className="rounded-[20px]"
             />
           </div>
@@ -105,4 +105,4 @@ const EditSpaceDialog = ({ open, onOpenChange, space, onSuccess }: EditSpaceDial
   );
 };
 
-export default EditSpaceDialog;
+export default EditBrandDialog;

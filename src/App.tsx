@@ -4,8 +4,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Auth from "./pages/Auth";
-import Spaces from "./pages/Spaces";
-import SpaceDetail from "./pages/SpaceDetail";
+import Brands from "./pages/Brands";
+import BrandDetail from "./pages/BrandDetail";
 import ReportDetail from "./pages/ReportDetail";
 import Reports from "./pages/Reports";
 import Admin from "./pages/Admin";
@@ -23,8 +23,8 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Navigate to="/auth" replace />} />
           <Route path="/auth" element={<Auth />} />
-          <Route path="/spaces" element={<MainLayout><Spaces /></MainLayout>} />
-          <Route path="/spaces/:spaceId" element={<MainLayout><SpaceDetail /></MainLayout>} />
+          <Route path="/brands" element={<MainLayout><Brands /></MainLayout>} />
+          <Route path="/brands/:brandId" element={<MainLayout><BrandDetail /></MainLayout>} />
           <Route path="/reports" element={<MainLayout><Reports /></MainLayout>} />
           <Route path="/reports/:reportId" element={<MainLayout><ReportDetail /></MainLayout>} />
           <Route path="/admin" element={<MainLayout><Admin /></MainLayout>} />

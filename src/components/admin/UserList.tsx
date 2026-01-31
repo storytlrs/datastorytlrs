@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { UserPlus, X } from "lucide-react";
-import { AssignUserToSpace } from "./AssignUserToSpace";
+import { AssignUserToBrand } from "./AssignUserToBrand";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -23,7 +23,7 @@ interface UserWithRole {
   email: string;
   full_name: string;
   role: "admin" | "analyst" | "client";
-  spaces: { id: string; name: string }[];
+  brands: { id: string; name: string }[];
 }
 
 export const UserList = () => {
@@ -31,10 +31,10 @@ export const UserList = () => {
   const [loading, setLoading] = useState(true);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<string | null>(null);
-  const [removeSpaceDialog, setRemoveSpaceDialog] = useState<{
+  const [removeBrandDialog, setRemoveBrandDialog] = useState<{
     userId: string;
-    spaceId: string;
-    spaceName: string;
+    brandId: string;
+    brandName: string;
   } | null>(null);
 
   useEffect(() => {
@@ -61,15 +61,15 @@ export const UserList = () => {
 
       if (rolesError) throw rolesError;
 
-      const { data: spaceUsers, error: spaceUsersError } = await supabase
+      const { data: brandUsers, error: brandUsersError } = await supabase
         .from("space_users")
         .select("user_id, space_id, spaces(id, name)");
 
-      if (spaceUsersError) throw spaceUsersError;
+      if (brandUsersError) throw brandUsersError;
 
       const usersWithRoles = profiles.map((profile) => {
         const userRole = roles.find((r) => r.user_id === profile.id);
-        const userSpaces = spaceUsers
+        const userBrands = brandUsers
           .filter((su) => su.user_id === profile.id && su.spaces)
           .map((su) => ({
             id: (su.spaces as any).id,
@@ -79,7 +79,7 @@ export const UserList = () => {
         return {
           ...profile,
           role: userRole?.role || "client",
-          spaces: userSpaces,
+          brands: userBrands,
         };
       });
 
@@ -114,24 +114,24 @@ export const UserList = () => {
     }
   };
 
-  const handleRemoveFromSpace = async () => {
-    if (!removeSpaceDialog) return;
+  const handleRemoveFromBrand = async () => {
+    if (!removeBrandDialog) return;
 
     try {
       const { error } = await supabase
         .from("space_users")
         .delete()
-        .eq("user_id", removeSpaceDialog.userId)
-        .eq("space_id", removeSpaceDialog.spaceId);
+        .eq("user_id", removeBrandDialog.userId)
+        .eq("space_id", removeBrandDialog.brandId);
 
       if (error) throw error;
 
-      toast.success(`User removed from ${removeSpaceDialog.spaceName}`);
-      setRemoveSpaceDialog(null);
+      toast.success(`User removed from ${removeBrandDialog.brandName}`);
+      setRemoveBrandDialog(null);
       fetchUsers();
     } catch (error: any) {
-      console.error("Error removing user from space:", error);
-      toast.error("Failed to remove user from space");
+      console.error("Error removing user from brand:", error);
+      toast.error("Failed to remove user from brand");
     }
   };
 
@@ -160,7 +160,7 @@ export const UserList = () => {
                     onClick={() => setSelectedUserId(user.id)}
                   >
                     <UserPlus className="h-4 w-4" />
-                    Assign to Space
+                    Assign to Brand
                   </Button>
                 </div>
 
@@ -182,24 +182,24 @@ export const UserList = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <span className="text-sm text-muted-foreground">Spaces:</span>
-                  {user.spaces.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">No spaces assigned</p>
+                  <span className="text-sm text-muted-foreground">Brands:</span>
+                  {user.brands.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No brands assigned</p>
                   ) : (
                     <div className="flex flex-wrap gap-2">
-                      {user.spaces.map((space) => (
+                      {user.brands.map((brand) => (
                         <Badge
-                          key={space.id}
+                          key={brand.id}
                           variant="outline"
                           className="gap-1 pr-1 rounded-[35px]"
                         >
-                          {space.name}
+                          {brand.name}
                           <button
                             onClick={() =>
-                              setRemoveSpaceDialog({
+                              setRemoveBrandDialog({
                                 userId: user.id,
-                                spaceId: space.id,
-                                spaceName: space.name,
+                                brandId: brand.id,
+                                brandName: brand.name,
                               })
                             }
                             className="ml-1 rounded-full hover:bg-muted p-0.5"
@@ -217,11 +217,11 @@ export const UserList = () => {
         </div>
       </div>
 
-      <AssignUserToSpace
+      <AssignUserToBrand
         userId={selectedUserId}
-        existingSpaceIds={
+        existingBrandIds={
           selectedUserId
-            ? users.find((u) => u.id === selectedUserId)?.spaces.map((s) => s.id) || []
+            ? users.find((u) => u.id === selectedUserId)?.brands.map((s) => s.id) || []
             : []
         }
         open={!!selectedUserId}
@@ -230,22 +230,22 @@ export const UserList = () => {
       />
 
       <AlertDialog
-        open={!!removeSpaceDialog}
-        onOpenChange={(open) => !open && setRemoveSpaceDialog(null)}
+        open={!!removeBrandDialog}
+        onOpenChange={(open) => !open && setRemoveBrandDialog(null)}
       >
         <AlertDialogContent className="rounded-[35px]">
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove user from space?</AlertDialogTitle>
+            <AlertDialogTitle>Remove user from brand?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will remove the user's access to "{removeSpaceDialog?.spaceName}". They will no
-              longer be able to view reports in this space.
+              This will remove the user's access to "{removeBrandDialog?.brandName}". They will no
+              longer be able to view reports in this brand.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="rounded-[35px]">Cancel</AlertDialogCancel>
             <AlertDialogAction
               className="rounded-[35px]"
-              onClick={handleRemoveFromSpace}
+              onClick={handleRemoveFromBrand}
             >
               Remove
             </AlertDialogAction>

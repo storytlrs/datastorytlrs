@@ -16,7 +16,7 @@ const MainNavigation = () => {
     navigate("/auth");
   };
 
-  const isSpacesActive = location.pathname.startsWith("/spaces");
+  const isBrandsActive = location.pathname.startsWith("/brands");
   const isReportsActive = location.pathname.startsWith("/reports");
 
   return (
@@ -28,15 +28,15 @@ const MainNavigation = () => {
         {/* Centered Navigation Tabs */}
         <div className="flex items-center gap-1 rounded-[35px] border border-foreground p-1">
           <NavLink
-            to="/spaces"
+            to="/brands"
             className={cn(
               "px-6 py-2 rounded-[35px] text-sm font-medium transition-colors",
-              isSpacesActive
+              isBrandsActive
                 ? "bg-foreground text-background"
                 : "hover:bg-muted"
             )}
           >
-            Spaces
+            Brands
           </NavLink>
           <NavLink
             to="/reports"

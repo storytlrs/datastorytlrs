@@ -4,11 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus, Search } from "lucide-react";
 import { toast } from "sonner";
-import { SpaceCard } from "@/components/spaces/SpaceCard";
-import { CreateSpaceDialog } from "@/components/spaces/CreateSpaceDialog";
+import { BrandCard } from "@/components/brands/BrandCard";
+import { CreateBrandDialog } from "@/components/brands/CreateBrandDialog";
 import { useUserRole } from "@/hooks/useUserRole";
 
-interface Space {
+interface Brand {
   id: string;
   name: string;
   description: string | null;
@@ -16,34 +16,34 @@ interface Space {
   created_at: string;
 }
 
-const Spaces = () => {
-  const [spaces, setSpaces] = useState<Space[]>([]);
+const Brands = () => {
+  const [brands, setBrands] = useState<Brand[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const { isAdmin } = useUserRole();
 
   useEffect(() => {
-    fetchSpaces();
+    fetchBrands();
   }, []);
 
-  const fetchSpaces = async () => {
+  const fetchBrands = async () => {
     try {
       const { data, error } = await supabase
         .from("spaces")
         .select("*")
         .order("created_at", { ascending: false });
       if (error) throw error;
-      setSpaces(data || []);
+      setBrands(data || []);
     } catch (error) {
-      toast.error("Failed to load spaces");
+      toast.error("Failed to load brands");
     } finally {
       setLoading(false);
     }
   };
 
-  const filteredSpaces = spaces.filter((space) =>
-    space.name.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredBrands = brands.filter((brand) =>
+    brand.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
@@ -51,8 +51,8 @@ const Spaces = () => {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-2">Spaces</h1>
-          <p className="text-muted-foreground">Your client spaces</p>
+          <h1 className="text-4xl font-bold mb-2">Brands</h1>
+          <p className="text-muted-foreground">Your client brands</p>
         </div>
 
         {/* Search and Create */}
@@ -60,7 +60,7 @@ const Spaces = () => {
           <div className="flex-1 relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
             <Input
-              placeholder="Search spaces..."
+              placeholder="Search brands..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-12 rounded-[35px] border-foreground h-12"
@@ -72,44 +72,44 @@ const Spaces = () => {
               className="rounded-[35px] h-12 px-6"
             >
               <Plus className="w-5 h-5 mr-2" />
-              New Space
+              New Brand
             </Button>
           )}
         </div>
 
-        {/* Spaces Grid */}
+        {/* Brands Grid */}
         {loading ? (
-          <div className="text-center py-12">Loading spaces...</div>
-        ) : filteredSpaces.length === 0 ? (
+          <div className="text-center py-12">Loading brands...</div>
+        ) : filteredBrands.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-muted-foreground mb-4">
-              {searchQuery ? "No spaces found" : "No spaces yet"}
+              {searchQuery ? "No brands found" : "No brands yet"}
             </p>
             {!searchQuery && isAdmin && (
               <Button
                 onClick={() => setIsCreateDialogOpen(true)}
                 className="rounded-[35px]"
               >
-                Create your first space
+                Create your first brand
               </Button>
             )}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredSpaces.map((space) => (
-              <SpaceCard key={space.id} space={space} onUpdate={fetchSpaces} />
+            {filteredBrands.map((brand) => (
+              <BrandCard key={brand.id} brand={brand} onUpdate={fetchBrands} />
             ))}
           </div>
         )}
       </div>
 
-      <CreateSpaceDialog
+      <CreateBrandDialog
         open={isCreateDialogOpen}
         onOpenChange={setIsCreateDialogOpen}
-        onSuccess={fetchSpaces}
+        onSuccess={fetchBrands}
       />
     </div>
   );
 };
 
-export default Spaces;
+export default Brands;
