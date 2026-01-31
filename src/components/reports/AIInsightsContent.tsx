@@ -548,21 +548,40 @@ export const AIInsightsContent = ({
         </h2>
         {insights.creator_performance && insights.creator_performance.length > 0 ? (
           <div className="space-y-6">
-            {insights.creator_performance.map((creator) => (
-              <CreatorPerformanceCard
-                key={creator.handle}
-                creator={creator}
-                canEdit={canEdit}
-                onSaveKeyInsight={(handle, insight) => {
-                  if (onSaveInsights) {
-                    const updatedPerformance = (insights.creator_performance || []).map((c) =>
-                      c.handle === handle ? { ...c, key_insight: insight } : c
-                    );
-                    onSaveInsights({ creator_performance: updatedPerformance });
-                  }
-                }}
-              />
-            ))}
+            {insights.creator_performance.map((creator) => {
+              // Transform old data structure to new format with defensive defaults
+              const transformedCreator = {
+                handle: creator.handle || "",
+                avatar_url: creator.avatar_url || null,
+                platforms: creator.platforms || [],
+                top_content: creator.top_content || null,
+                sentiment_breakdown: creator.sentiment_breakdown || {
+                  positive: 0,
+                  neutral: 0,
+                  negative: 0,
+                },
+                relevance: creator.relevance || ("medium" as const),
+                key_insight: creator.key_insight || "",
+                positive_topics: creator.positive_topics || [],
+                negative_topics: creator.negative_topics || [],
+              };
+
+              return (
+                <CreatorPerformanceCard
+                  key={creator.handle}
+                  creator={transformedCreator}
+                  canEdit={canEdit}
+                  onSaveKeyInsight={(handle, insight) => {
+                    if (onSaveInsights) {
+                      const updatedPerformance = (insights.creator_performance || []).map((c) =>
+                        c.handle === handle ? { ...c, key_insight: insight } : c
+                      );
+                      onSaveInsights({ creator_performance: updatedPerformance });
+                    }
+                  }}
+                />
+              );
+            })}
           </div>
         ) : (
           <p className="text-muted-foreground text-center py-8">No creator performance data available</p>

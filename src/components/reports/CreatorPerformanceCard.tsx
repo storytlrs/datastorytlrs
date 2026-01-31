@@ -131,24 +131,26 @@ export const CreatorPerformanceCard = ({
           )}
 
           {/* Sentiment Breakdown */}
-          <div>
-            <span className="text-sm font-medium text-muted-foreground mb-2 block">
-              Sentiment Breakdown:
-            </span>
-            <div className="flex items-center gap-2 text-sm">
-              <span className="text-accent-green font-medium">
-                {creator.sentiment_breakdown.positive}% Positive
+          {creator.sentiment_breakdown && (
+            <div>
+              <span className="text-sm font-medium text-muted-foreground mb-2 block">
+                Sentiment Breakdown:
               </span>
-              <span className="text-muted-foreground">|</span>
-              <span className="text-muted-foreground font-medium">
-                {creator.sentiment_breakdown.neutral}% Neutral
-              </span>
-              <span className="text-muted-foreground">|</span>
-              <span className="text-accent-orange font-medium">
-                {creator.sentiment_breakdown.negative}% Negative
-              </span>
+              <div className="flex items-center gap-2 text-sm">
+                <span className="text-accent-green font-medium">
+                  {creator.sentiment_breakdown.positive ?? 0}% Positive
+                </span>
+                <span className="text-muted-foreground">|</span>
+                <span className="text-muted-foreground font-medium">
+                  {creator.sentiment_breakdown.neutral ?? 0}% Neutral
+                </span>
+                <span className="text-muted-foreground">|</span>
+                <span className="text-accent-orange font-medium">
+                  {creator.sentiment_breakdown.negative ?? 0}% Negative
+                </span>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Relevance */}
           <div>
