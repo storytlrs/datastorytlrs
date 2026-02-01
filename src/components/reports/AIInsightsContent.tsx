@@ -424,7 +424,7 @@ export const AIInsightsContent = ({
     <div className="space-y-8">
       {/* Executive Summary Block */}
       <Card className="p-6 rounded-[20px] border-foreground">
-        <h2 className="text-xl font-bold mb-4 border-b border-border pb-2">
+        <h2 className="text-xl font-bold mb-4">
           Executive Summary
         </h2>
         
@@ -494,7 +494,7 @@ export const AIInsightsContent = ({
 
       {/* Top 5 Content Block */}
       <Card className="p-6 rounded-[20px] border-foreground">
-        <div className="flex items-center justify-between mb-4 border-b border-border pb-2">
+        <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-bold">Top 5 Content</h2>
           {canEdit && reportId && (
             <Button
@@ -531,7 +531,7 @@ export const AIInsightsContent = ({
 
       {/* Campaign Overview Block */}
       <Card className="p-6 rounded-[20px] border-foreground">
-        <h2 className="text-xl font-bold mb-4 border-b border-border pb-2">
+        <h2 className="text-xl font-bold mb-4">
           Základní přehled kampaně
         </h2>
         {overviewParagraph && (
@@ -571,7 +571,7 @@ export const AIInsightsContent = ({
 
       {/* Innovation Metrics Block */}
       <Card className="p-6 rounded-[20px] border-foreground">
-        <h2 className="text-xl font-bold mb-4 border-b border-border pb-2">
+        <h2 className="text-xl font-bold mb-4">
           Inovativní a kvalitativní metriky
         </h2>
         {innovationParagraph && (
@@ -611,7 +611,7 @@ export const AIInsightsContent = ({
 
       {/* Campaign Sentiment Block */}
       <Card className="p-6 rounded-[20px] border-foreground">
-        <h2 className="text-xl font-bold mb-4 border-b border-border pb-2">
+        <h2 className="text-xl font-bold mb-4">
           Sentiment kampaně
         </h2>
         
@@ -651,7 +651,7 @@ export const AIInsightsContent = ({
 
       {/* Creators Leaderboard Block */}
       <Card className="p-6 rounded-[20px] border-foreground">
-        <h2 className="text-xl font-bold mb-4 border-b border-border pb-2">
+        <h2 className="text-xl font-bold mb-4">
           Creators Leaderboard
         </h2>
         {insights.leaderboard && insights.leaderboard.length > 0 ? (
