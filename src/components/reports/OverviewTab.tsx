@@ -127,6 +127,13 @@ export const OverviewTab = ({ reportId }: OverviewTabProps) => {
     return platforms.sort();
   }, [content]);
 
+  // Sorted creators for filter dropdown
+  const sortedCreators = useMemo(() => {
+    return [...creators].sort((a, b) => 
+      a.handle.toLowerCase().localeCompare(b.handle.toLowerCase())
+    );
+  }, [creators]);
+
   // Filter content by date range, creator, and platform
   const filteredContent = useMemo(() => {
     return content.filter((item) => {
@@ -347,7 +354,7 @@ export const OverviewTab = ({ reportId }: OverviewTabProps) => {
           </SelectTrigger>
           <SelectContent className="rounded-[20px]">
             <SelectItem value="all">All creators</SelectItem>
-            {creators.map((creator) => (
+            {sortedCreators.map((creator) => (
               <SelectItem key={creator.id} value={creator.id}>
                 {creator.handle}
               </SelectItem>
