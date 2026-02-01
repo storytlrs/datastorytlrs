@@ -1,23 +1,59 @@
-import { useNavigate, useLocation } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useNavigate, useLocation, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { LogOut, Settings } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { LogOut, Settings, Building2, ChevronDown, Check } from "lucide-react";
 import { useUserRole } from "@/hooks/useUserRole";
-import { NavLink } from "@/components/NavLink";
-import { cn } from "@/lib/utils";
+
+interface Brand {
+  id: string;
+  name: string;
+}
 
 const MainNavigation = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { brandId } = useParams();
   const { isAdmin } = useUserRole();
+  const [brands, setBrands] = useState<Brand[]>([]);
+  const [currentBrand, setCurrentBrand] = useState<Brand | null>(null);
+
+  useEffect(() => {
+    fetchBrands();
+  }, []);
+
+  useEffect(() => {
+    if (brandId && brands.length > 0) {
+      const brand = brands.find((b) => b.id === brandId);
+      setCurrentBrand(brand || null);
+    }
+  }, [brandId, brands]);
+
+  const fetchBrands = async () => {
+    const { data } = await supabase
+      .from("spaces")
+      .select("id, name")
+      .order("name");
+    setBrands(data || []);
+  };
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     navigate("/auth");
   };
 
-  const isBrandsActive = location.pathname.startsWith("/brands");
-  const isReportsActive = location.pathname.startsWith("/reports");
+  const handleBrandChange = (brand: Brand) => {
+    navigate(`/brands/${brand.id}`);
+  };
+
+  // Check if we're on a brand-related page
+  const isOnBrandPage = location.pathname.startsWith("/brands/");
 
   return (
     <nav className="w-full py-4 border-b border-foreground">
@@ -25,31 +61,38 @@ const MainNavigation = () => {
         {/* Logo/Brand */}
         <div className="text-xl font-bold">Story TLRS</div>
 
-        {/* Centered Navigation Tabs */}
-        <div className="flex items-center gap-1 rounded-[35px] border border-foreground p-1">
-          <NavLink
-            to="/brands"
-            className={cn(
-              "px-6 py-2 rounded-[35px] text-sm font-medium transition-colors",
-              isBrandsActive
-                ? "bg-foreground text-background"
-                : "hover:bg-muted"
-            )}
-          >
-            Brands
-          </NavLink>
-          <NavLink
-            to="/reports"
-            className={cn(
-              "px-6 py-2 rounded-[35px] text-sm font-medium transition-colors",
-              isReportsActive
-                ? "bg-foreground text-background"
-                : "hover:bg-muted"
-            )}
-          >
-            Reports
-          </NavLink>
-        </div>
+        {/* Brand Switcher Dropdown */}
+        {isOnBrandPage && brands.length > 0 && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                className="rounded-[35px] gap-2 border-foreground px-6"
+              >
+                <Building2 className="h-4 w-4" />
+                {currentBrand?.name || "Select brand"}
+                <ChevronDown className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="center" className="w-56">
+              {brands.map((brand) => (
+                <DropdownMenuItem
+                  key={brand.id}
+                  onClick={() => handleBrandChange(brand)}
+                  className="cursor-pointer"
+                >
+                  <span className="flex-1">{brand.name}</span>
+                  {brand.id === currentBrand?.id && (
+                    <Check className="h-4 w-4 ml-2" />
+                  )}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+
+        {/* Spacer for non-brand pages */}
+        {!isOnBrandPage && <div />}
 
         {/* Right side: Admin + Logout */}
         <div className="flex items-center gap-2">
