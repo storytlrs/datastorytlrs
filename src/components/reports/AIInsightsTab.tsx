@@ -8,7 +8,8 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Loader2, Sparkles, Save, Settings2, Pencil, Eye, RefreshCw, Download } from "lucide-react";
 import { useUserRole } from "@/hooks/useUserRole";
-import html2pdf from "html2pdf.js";
+import html2canvas from "html2canvas";
+import { jsPDF } from "jspdf";
 import {
   Collapsible,
   CollapsibleContent,
@@ -231,7 +232,7 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
       await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(() => r(null))));
       
       // Wait a bit more for DOM to settle
-      await new Promise(r => setTimeout(r, 100));
+      await new Promise(r => setTimeout(r, 200));
       
       if (!pdfRef.current) {
         throw new Error("PDF container not ready");
@@ -240,26 +241,38 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
       // Wait for images to load
       await waitForImages(pdfRef.current);
       
-      const opt = {
-        margin: 10, // Small margin around content
-        filename: `insights-report-${new Date().toISOString().split('T')[0]}.pdf`,
-        image: { type: 'jpeg', quality: 0.95 },
-        html2canvas: { 
-          scale: 2,
-          useCORS: true,
-          logging: false,
-          backgroundColor: '#E9E9E9',
-          width: 1100, // Fixed width matching .pdf-continuous
-        },
-        jsPDF: { 
-          unit: 'mm', 
-          format: 'a4', 
-          orientation: 'landscape' as const
-        },
-        // No pagebreak config - let html2pdf handle it automatically
-      };
+      // Step 1: Render to canvas
+      const canvas = await html2canvas(pdfRef.current, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#E9E9E9',
+        width: 1100,
+      });
       
-      await html2pdf().set(opt).from(pdfRef.current).save();
+      // Step 2: Get canvas dimensions
+      const imgWidth = canvas.width;
+      const imgHeight = canvas.height;
+      
+      // Step 3: Convert to mm (96 DPI * scale factor)
+      const pxToMm = 25.4 / (96 * 2); // 2 is the scale factor
+      const pdfWidth = imgWidth * pxToMm;
+      const pdfHeight = imgHeight * pxToMm;
+      
+      // Step 4: Create PDF with custom dimensions (single page)
+      const pdf = new jsPDF({
+        orientation: pdfWidth > pdfHeight ? 'landscape' : 'portrait',
+        unit: 'mm',
+        format: [pdfWidth, pdfHeight], // Custom size = one continuous page
+      });
+      
+      // Step 5: Add image to fill entire page
+      const imgData = canvas.toDataURL('image/jpeg', 0.95);
+      pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+      
+      // Step 6: Save
+      pdf.save(`insights-report-${new Date().toISOString().split('T')[0]}.pdf`);
+      
       toast.success("PDF exportováno úspěšně!");
     } catch (error) {
       console.error("Error exporting PDF:", error);
