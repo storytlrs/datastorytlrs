@@ -182,7 +182,7 @@ const BrandDetail = () => {
         <Tabs defaultValue={defaultTab} className="w-full">
           <TabsList className="rounded-[35px] border border-foreground mb-8">
             <TabsTrigger value="overview" className="rounded-[35px]">Overview</TabsTrigger>
-            <TabsTrigger value="insights" className="rounded-[35px]">AI Insights</TabsTrigger>
+            <TabsTrigger value="insights" className="rounded-[35px]">Insights</TabsTrigger>
             <TabsTrigger value="reports" className="rounded-[35px]">Reports</TabsTrigger>
           </TabsList>
 
@@ -193,7 +193,7 @@ const BrandDetail = () => {
           <TabsContent value="insights">
             <Card className="p-8 rounded-[35px] border-foreground">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-2xl font-bold">AI Insights</h2>
+                <h2 className="text-2xl font-bold">Insights</h2>
                 <Button className="rounded-[35px]">
                   Generate AI Insights
                 </Button>
