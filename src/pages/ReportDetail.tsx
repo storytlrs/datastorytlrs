@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { OverviewTab } from "@/components/reports/OverviewTab";
 import { CreatorsTab } from "@/components/reports/CreatorsTab";
 import { ContentTab } from "@/components/reports/ContentTab";
-import { AdsTab } from "@/components/reports/AdsTab";
+
 import { DataTab } from "@/components/reports/DataTab";
 import { AdCreativesTab } from "@/components/reports/AdCreativesTab";
 import { AdsDataTab } from "@/components/reports/AdsDataTab";
@@ -199,9 +199,6 @@ const ReportDetail = () => {
                 <TabsTrigger value="content" className="rounded-[35px]">
                   Content
                 </TabsTrigger>
-                <TabsTrigger value="ads" className="rounded-[35px]">
-                  Ads
-                </TabsTrigger>
                 <TabsTrigger value="data" className="rounded-[35px]">
                   Data
                 </TabsTrigger>
@@ -253,9 +250,6 @@ const ReportDetail = () => {
                 <ContentTab reportId={reportId!} />
               </TabsContent>
 
-              <TabsContent value="ads">
-                <AdsTab />
-              </TabsContent>
 
               <TabsContent value="data">
                 <DataTab reportId={reportId!} onImportSuccess={fetchReport} />
