@@ -114,6 +114,13 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
   const [overviewParagraph, setOverviewParagraph] = useState<string>("");
   const [innovationParagraph, setInnovationParagraph] = useState<string>("");
   const [sentimentParagraph, setSentimentParagraph] = useState<string>("");
+  const [reportMetadata, setReportMetadata] = useState<{
+    name?: string;
+    type?: string;
+    status?: string;
+    start_date?: string | null;
+    end_date?: string | null;
+  }>({});
 
   useEffect(() => {
     fetchReportData();
@@ -124,7 +131,7 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
     try {
       const { data, error } = await supabase
         .from("reports")
-        .select("ai_insights, ai_webhook_url, space_id, ai_insights_structured, ai_insights_context")
+        .select("ai_insights, ai_webhook_url, space_id, ai_insights_structured, ai_insights_context, name, type, status, start_date, end_date")
         .eq("id", reportId)
         .single();
 
@@ -141,6 +148,14 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
           setSentimentParagraph(structured.sentiment_analysis.summary);
         }
       }
+      
+      setReportMetadata({
+        name: data.name,
+        type: data.type,
+        status: data.status,
+        start_date: data.start_date,
+        end_date: data.end_date,
+      });
     } catch (error) {
       console.error("Error fetching report data:", error);
       toast.error("Nepodařilo se načíst data");
@@ -386,6 +401,11 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
               overviewParagraph={overviewParagraph}
               innovationParagraph={innovationParagraph}
               sentimentParagraph={sentimentParagraph}
+              reportName={reportMetadata.name}
+              reportType={reportMetadata.type}
+              reportStatus={reportMetadata.status}
+              startDate={reportMetadata.start_date}
+              endDate={reportMetadata.end_date}
             />
           </div>
         )}
