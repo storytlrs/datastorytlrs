@@ -1,171 +1,92 @@
 
-
-# Plán: Přidání benchmarků do sekce Inovativní a kvalitativní metriky
+# Plán: Odstranění targets ze sekce Inovativní a kvalitativní metriky
 
 ## Přehled
 
-Přidáme benchmark hodnoty (průměr ze všech reportů stejného typu v daném space) pro všechny čtyři metriky v sekci "Inovativní a kvalitativní metriky":
-- TSWB Cost
-- Interactions
-- Engagement Rate
-- Virality Rate
-
-Benchmarky se budou počítat výhradně z `content` tabulky (ne z `creators`).
+Odstraníme `target` prop z MetricTile komponent v sekci "Inovativní a kvalitativní metriky". Ponecháme pouze `benchmark` hodnoty, které zobrazují průměr ze všech reportů stejného typu v daném space.
 
 ---
 
-## Dotčené soubory
+## Aktuální stav
 
-| Soubor | Změny |
+V sekci "Inovativní a kvalitativní metriky" se zobrazují:
+- **value** - aktuální hodnota metriky
+- **target** - hodnota z `kpiTargets.innovation` (která je paradoxně nastavena na benchmark hodnoty)
+- **benchmark** - průměrná hodnota ze všech reportů stejného typu
+
+Toto je matoucí, protože target a benchmark zobrazují podobné hodnoty.
+
+---
+
+## Požadovaný stav
+
+V sekci "Inovativní a kvalitativní metriky" zobrazit pouze:
+- **value** - aktuální hodnota metriky
+- **benchmark** - průměrná hodnota ze všech reportů stejného typu v daném space (s popiskem "Avg:")
+
+---
+
+## Dotčený soubor
+
+| Soubor | Změna |
 |--------|-------|
-| `src/components/reports/MetricTile.tsx` | Přidání `benchmark` a `benchmarkLabel` props |
-| `src/components/reports/LeaderboardTable.tsx` | Rozšíření `Benchmarks` interface o `interactions` |
-| `src/components/reports/AIInsightsContent.tsx` | Předání benchmarků do MetricTile komponent |
-| `supabase/functions/generate-ai-insights/index.ts` | Přidání `interactions` do benchmarks objektu + oprava filtrování podle typu reportu |
+| `src/components/reports/AIInsightsContent.tsx` | Odstranění `target` prop ze 4 MetricTile komponent |
 
 ---
 
 ## Změny
 
-### 1. MetricTile.tsx - Přidání benchmark podpory
+### AIInsightsContent.tsx (řádky 641-672)
 
-Rozšíříme interface a UI:
+Odstraníme `target` prop ze všech čtyř MetricTile v sekci innovation metrics:
 
-```typescript
-interface MetricTileProps {
-  title: string;
-  value: string | number;
-  icon?: LucideIcon;
-  accentColor?: "default" | "orange" | "green" | "blue";
-  size?: "small" | "medium";
-  target?: string | number;
-  targetLabel?: string;
-  benchmark?: string | number;     // NOVÉ
-  benchmarkLabel?: string;         // NOVÉ - default "Avg:"
-}
-```
-
-Přidáme zobrazení benchmarku pod hodnotu:
-
+**TSWB Cost (řádky 641-648)**
 ```tsx
-<div className="flex-1 flex flex-col justify-end">
-  <p className={cn("font-bold text-foreground", valueSize)}>{value}</p>
-  {benchmark !== undefined && (
-    <p className={cn("font-medium text-muted-foreground mt-1", titleSize)}>
-      {benchmarkLabel || "Avg:"} {benchmark}
-    </p>
-  )}
-  {target !== undefined && (
-    <div className="flex items-center gap-1 text-muted-foreground mt-1">
-      <Target className="w-3 h-3" />
-      <span className={cn("font-medium", titleSize)}>
-        {targetLabel || ""} {target}
-      </span>
-    </div>
-  )}
-</div>
+<MetricTile
+  title="TSWB Cost"
+  value={formatCurrency(insights.innovation_metrics.tswbCost, insights.innovation_metrics.currency)}
+  icon={Clock}
+  accentColor="green"
+  benchmark={insights.benchmarks?.tswbCost !== undefined ? formatCurrency(insights.benchmarks.tswbCost, insights.innovation_metrics.currency) : undefined}
+/>
 ```
 
-### 2. LeaderboardTable.tsx - Rozšíření Benchmarks interface
-
-```typescript
-export interface Benchmarks {
-  engagementRate: number;
-  viralityRate: number;
-  tswbCost: number;
-  interactions: number;  // NOVÉ
-}
-```
-
-### 3. generate-ai-insights/index.ts - Opravy edge funkce
-
-**3a. Oprava filtrování podle typu reportu (řádky 62-67)**
-
-Z:
-```typescript
-const { data: spaceReports } = await supabase
-  .from("reports")
-  .select("id")
-  .eq("space_id", report.space_id)
-  .eq("type", "influencer")  // Hardcoded!
-  .neq("id", report_id);
-```
-
-Na:
-```typescript
-const { data: spaceReports } = await supabase
-  .from("reports")
-  .select("id")
-  .eq("space_id", report.space_id)
-  .eq("type", report.type)  // Dynamicky podle aktuálního reportu
-  .neq("id", report_id);
-```
-
-**3b. Přidání interactions do benchmarks objektu (řádky 522-526)**
-
-Z:
-```typescript
-benchmarks: {
-  engagementRate: benchmarkER || avgER,
-  viralityRate: benchmarkVirality || avgVirality,
-  tswbCost: benchmarkTswbCost || tswbCost,
-},
-```
-
-Na:
-```typescript
-benchmarks: {
-  engagementRate: benchmarkER || avgER,
-  viralityRate: benchmarkVirality || avgVirality,
-  tswbCost: benchmarkTswbCost || tswbCost,
-  interactions: benchmarkInteractions || totalInteractions,  // NOVÉ
-},
-```
-
-### 4. AIInsightsContent.tsx - Předání benchmarků do MetricTile
-
-V sekci innovation metrics (řádky 640-669) přidáme benchmark prop ke každému MetricTile:
-
+**Interactions (řádky 649-656)**
 ```tsx
-<div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-  <MetricTile
-    title="TSWB Cost"
-    value={formatCurrency(insights.innovation_metrics.tswbCost, insights.innovation_metrics.currency)}
-    icon={Clock}
-    accentColor="green"
-    target={kpiTargets?.innovation.tswbCost ? formatCurrency(kpiTargets.innovation.tswbCost, insights.innovation_metrics.currency) : undefined}
-    benchmark={formatCurrency(insights.benchmarks.tswbCost, insights.innovation_metrics.currency)}
-  />
-  <MetricTile
-    title="Interactions"
-    value={formatNumber(insights.innovation_metrics.interactions)}
-    icon={Heart}
-    accentColor="green"
-    target={kpiTargets?.innovation.interactions ? formatNumber(kpiTargets.innovation.interactions) : undefined}
-    benchmark={insights.benchmarks.interactions ? formatNumber(insights.benchmarks.interactions) : undefined}
-  />
-  <MetricTile
-    title="Engagement Rate"
-    value={formatPercent(insights.innovation_metrics.engagementRate)}
-    icon={TrendingUp}
-    accentColor="green"
-    target={kpiTargets?.innovation.engagementRate ? formatPercent(kpiTargets.innovation.engagementRate) : undefined}
-    benchmark={formatPercent(insights.benchmarks.engagementRate)}
-  />
-  <MetricTile
-    title="Virality Rate"
-    value={formatPercent(insights.innovation_metrics.viralityRate)}
-    icon={MessageSquare}
-    accentColor="green"
-    target={kpiTargets?.innovation.viralityRate ? formatPercent(kpiTargets.innovation.viralityRate) : undefined}
-    benchmark={formatPercent(insights.benchmarks.viralityRate)}
-  />
-</div>
+<MetricTile
+  title="Interactions"
+  value={formatNumber(insights.innovation_metrics.interactions)}
+  icon={Heart}
+  accentColor="green"
+  benchmark={insights.benchmarks?.interactions !== undefined ? formatNumber(insights.benchmarks.interactions) : undefined}
+/>
+```
+
+**Engagement Rate (řádky 657-664)**
+```tsx
+<MetricTile
+  title="Engagement Rate"
+  value={formatPercent(insights.innovation_metrics.engagementRate)}
+  icon={TrendingUp}
+  accentColor="green"
+  benchmark={insights.benchmarks?.engagementRate !== undefined ? formatPercent(insights.benchmarks.engagementRate) : undefined}
+/>
+```
+
+**Virality Rate (řádky 665-672)**
+```tsx
+<MetricTile
+  title="Virality Rate"
+  value={formatPercent(insights.innovation_metrics.viralityRate)}
+  icon={MessageSquare}
+  accentColor="green"
+  benchmark={insights.benchmarks?.viralityRate !== undefined ? formatPercent(insights.benchmarks.viralityRate) : undefined}
+/>
 ```
 
 ---
 
-## Vizuální design
+## Výsledné zobrazení
 
 ```text
 ┌─────────────────────────────┐
@@ -173,35 +94,12 @@ V sekci innovation metrics (řádky 640-669) přidáme benchmark prop ke každé
 │                             │
 │  4.25%                      │  ← aktuální hodnota (tučně)
 │  Avg: 3.80%                 │  ← benchmark (šedý)
-│  🎯 5.00%                   │  ← target (s ikonou)
 └─────────────────────────────┘
 ```
 
 ---
 
-## Výpočet benchmarků (z content tabulky)
-
-| Metrika | Vzorec |
-|---------|--------|
-| TSWB Cost | AVG(cost / tswb_minutes) ze všech content v reportech stejného typu |
-| Interactions | AVG(likes + comments + saves + shares + reposts) ze všech content |
-| Engagement Rate | AVG(engagement_rate) ze všech content |
-| Virality Rate | AVG((shares + reposts) / views * 100) ze všech content |
-
----
-
-## Pořadí implementace
-
-1. Upravit `MetricTile.tsx` - přidat benchmark props a UI
-2. Upravit `LeaderboardTable.tsx` - rozšířit Benchmarks interface
-3. Upravit edge funkci - opravit filtr typu + přidat interactions
-4. Nasadit edge funkci
-5. Upravit `AIInsightsContent.tsx` - předat benchmarky do MetricTile
-
----
-
 ## Poznámky
 
-- Pro existující reporty bude potřeba kliknout na "Regenerate" v AI Insights, aby se nová data s `benchmarks.interactions` naplnila
-- Pokud v daném space není jiný report stejného typu, použije se jako benchmark průměr z aktuálního reportu (fallback logika už existuje v edge funkci)
-
+- Sekce "Základní metriky" (Overview) si ponechá `target` hodnoty, protože ty jsou počítány z plánovaných hodnot v creators tabulce
+- `kpiTargets.innovation` objekt zůstane v edge funkci pro případné budoucí použití, ale nebude se zobrazovat v UI
