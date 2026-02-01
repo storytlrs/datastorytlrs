@@ -156,13 +156,9 @@ export const AdsDataTab = ({ reportId, onImportSuccess }: AdsDataTabProps) => {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="rounded-[35px] border border-foreground mb-6">
-          <TabsTrigger value="planning" className="rounded-[35px]">
-            Planning
-          </TabsTrigger>
-          <TabsTrigger value="ads" className="rounded-[35px]">
-            Ads Details
-          </TabsTrigger>
+        <TabsList className="mb-6">
+          <TabsTrigger value="planning">Planning</TabsTrigger>
+          <TabsTrigger value="ads">Ads Details</TabsTrigger>
         </TabsList>
 
         <TabsContent value="planning" className="space-y-4">

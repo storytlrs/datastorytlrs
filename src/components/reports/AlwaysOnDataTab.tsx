@@ -157,13 +157,9 @@ export const AlwaysOnDataTab = ({ reportId, onImportSuccess }: AlwaysOnDataTabPr
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="rounded-[35px] border border-foreground mb-6">
-          <TabsTrigger value="planning" className="rounded-[35px]">
-            Planning
-          </TabsTrigger>
-          <TabsTrigger value="content" className="rounded-[35px]">
-            Content Details
-          </TabsTrigger>
+        <TabsList className="mb-6">
+          <TabsTrigger value="planning">Planning</TabsTrigger>
+          <TabsTrigger value="content">Content Details</TabsTrigger>
         </TabsList>
 
         <TabsContent value="planning" className="space-y-4">

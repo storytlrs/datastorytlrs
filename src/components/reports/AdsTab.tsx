@@ -77,16 +77,10 @@ export const AdsTab = () => {
 
       {/* Detailed Tables */}
       <Tabs defaultValue="campaigns" className="w-full">
-        <TabsList className="rounded-[35px] border border-foreground">
-          <TabsTrigger value="campaigns" className="rounded-[35px]">
-            Campaigns
-          </TabsTrigger>
-          <TabsTrigger value="adsets" className="rounded-[35px]">
-            Ad Sets
-          </TabsTrigger>
-          <TabsTrigger value="ads" className="rounded-[35px]">
-            Ads
-          </TabsTrigger>
+        <TabsList>
+          <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
+          <TabsTrigger value="adsets">Ad Sets</TabsTrigger>
+          <TabsTrigger value="ads">Ads</TabsTrigger>
         </TabsList>
 
         <TabsContent value="campaigns">

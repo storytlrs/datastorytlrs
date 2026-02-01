@@ -181,51 +181,33 @@ const ReportDetail = () => {
 
         {/* Report Tabs - Conditional based on report type */}
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="rounded-[35px] border border-foreground mb-8">
+          <TabsList className="mb-8">
             {/* Common tabs for all report types */}
-            <TabsTrigger value="overview" className="rounded-[35px]">
-              Overview
-            </TabsTrigger>
-            <TabsTrigger value="insights" className="rounded-[35px]">
-              Insights
-            </TabsTrigger>
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="insights">Insights</TabsTrigger>
 
             {/* Influencer-specific tabs */}
             {isInfluencer && (
               <>
-                <TabsTrigger value="creators" className="rounded-[35px]">
-                  Creators
-                </TabsTrigger>
-                <TabsTrigger value="content" className="rounded-[35px]">
-                  Content
-                </TabsTrigger>
-                <TabsTrigger value="data" className="rounded-[35px]">
-                  Data
-                </TabsTrigger>
+                <TabsTrigger value="creators">Creators</TabsTrigger>
+                <TabsTrigger value="content">Content</TabsTrigger>
+                <TabsTrigger value="data">Data</TabsTrigger>
               </>
             )}
 
             {/* Ads Campaign tabs */}
             {isAds && (
               <>
-                <TabsTrigger value="ad-creatives" className="rounded-[35px]">
-                  Ad Creatives
-                </TabsTrigger>
-                <TabsTrigger value="data" className="rounded-[35px]">
-                  Data
-                </TabsTrigger>
+                <TabsTrigger value="ad-creatives">Ad Creatives</TabsTrigger>
+                <TabsTrigger value="data">Data</TabsTrigger>
               </>
             )}
 
             {/* Always-on Content tabs */}
             {isAlwaysOn && (
               <>
-                <TabsTrigger value="content" className="rounded-[35px]">
-                  Content
-                </TabsTrigger>
-                <TabsTrigger value="data" className="rounded-[35px]">
-                  Data
-                </TabsTrigger>
+                <TabsTrigger value="content">Content</TabsTrigger>
+                <TabsTrigger value="data">Data</TabsTrigger>
               </>
             )}
           </TabsList>

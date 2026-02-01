@@ -36,19 +36,9 @@ const Admin = () => {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="mb-6 rounded-[35px] border border-foreground p-1 bg-transparent w-auto inline-flex">
-            <TabsTrigger
-              value="users"
-              className="rounded-[35px] px-6 py-2 text-foreground data-[state=active]:bg-accent-orange data-[state=active]:text-accent-orange-foreground"
-            >
-              Users
-            </TabsTrigger>
-            <TabsTrigger
-              value="brands"
-              className="rounded-[35px] px-6 py-2 text-foreground data-[state=active]:bg-accent-orange data-[state=active]:text-accent-orange-foreground"
-            >
-              Brands
-            </TabsTrigger>
+          <TabsList className="mb-6">
+            <TabsTrigger value="users">Users</TabsTrigger>
+            <TabsTrigger value="brands">Brands</TabsTrigger>
           </TabsList>
 
           <TabsContent value="users">

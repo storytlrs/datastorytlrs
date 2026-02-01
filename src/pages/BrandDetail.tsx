@@ -180,10 +180,10 @@ const BrandDetail = () => {
 
         {/* Tabs */}
         <Tabs defaultValue={defaultTab} className="w-full">
-          <TabsList className="rounded-[35px] border border-foreground mb-8">
-            <TabsTrigger value="overview" className="rounded-[35px]">Overview</TabsTrigger>
-            <TabsTrigger value="insights" className="rounded-[35px]">Insights</TabsTrigger>
-            <TabsTrigger value="reports" className="rounded-[35px]">Reports</TabsTrigger>
+          <TabsList className="mb-8">
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="insights">Insights</TabsTrigger>
+            <TabsTrigger value="reports">Reports</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview">

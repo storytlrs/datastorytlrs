@@ -314,16 +314,10 @@ export const DataTab = ({ reportId, onImportSuccess }: DataTabProps) => {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="rounded-[35px] border border-foreground mb-6">
-          <TabsTrigger value="creators" className="rounded-[35px]">
-            Creators
-          </TabsTrigger>
-          <TabsTrigger value="content" className="rounded-[35px]">
-            Content
-          </TabsTrigger>
-          <TabsTrigger value="promo" className="rounded-[35px]">
-            Promo Codes
-          </TabsTrigger>
+        <TabsList className="mb-6">
+          <TabsTrigger value="creators">Creators</TabsTrigger>
+          <TabsTrigger value="content">Content</TabsTrigger>
+          <TabsTrigger value="promo">Promo Codes</TabsTrigger>
         </TabsList>
 
         <TabsContent value="creators" className="space-y-4">
