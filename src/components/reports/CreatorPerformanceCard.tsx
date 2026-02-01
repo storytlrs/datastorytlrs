@@ -39,6 +39,7 @@ interface CreatorPerformanceData {
 interface CreatorPerformanceCardProps {
   creator: CreatorPerformanceData;
   canEdit?: boolean;
+  variant?: 'default' | 'flat';
   onSaveKeyInsight?: (handle: string, insight: string) => void;
   onSaveTopics?: (handle: string, positiveTopics: string[], negativeTopics: string[]) => void;
 }
@@ -52,6 +53,7 @@ const getRelevanceColor = (relevance: number) => {
 export const CreatorPerformanceCard = ({
   creator,
   canEdit = false,
+  variant = 'default',
   onSaveKeyInsight,
   onSaveTopics,
 }: CreatorPerformanceCardProps) => {
@@ -96,8 +98,8 @@ export const CreatorPerformanceCard = ({
     setIsEditingNegativeTopics(false);
   };
 
-  return (
-    <Card className="p-6 rounded-[20px] border-foreground">
+  const content = (
+    <>
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
@@ -321,6 +323,18 @@ export const CreatorPerformanceCard = ({
           </div>
         </div>
       </div>
+    </>
+  );
+
+  // Flat variant - without Card wrapper (for PDF export)
+  if (variant === 'flat') {
+    return <div className="pdf-no-break">{content}</div>;
+  }
+
+  // Default variant - with Card wrapper
+  return (
+    <Card className="p-6 rounded-[20px] border-foreground">
+      {content}
     </Card>
   );
 };

@@ -211,13 +211,15 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
     setIsExporting(true);
     try {
       const opt = {
-        margin: [10, 15, 10, 15],
+        margin: [8, 12, 8, 12],
         filename: `insights-report-${new Date().toISOString().split('T')[0]}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
+        image: { type: 'jpeg', quality: 0.95 },
         html2canvas: { 
           scale: 2,
           useCORS: true,
           logging: false,
+          backgroundColor: '#E9E9E9',
+          windowWidth: 1200,
         },
         jsPDF: { 
           unit: 'mm', 
@@ -226,7 +228,8 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
         },
         pagebreak: { 
           mode: ['css'],
-          before: '.pdf-page-break'
+          before: '.pdf-page-break',
+          avoid: '.pdf-no-break'
         }
       };
       

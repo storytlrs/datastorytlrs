@@ -133,7 +133,7 @@ All colors MUST be HSL.
   }
 }
 
-/* PDF Export - Page Breaks */
+/* PDF Export Styles */
 @media print {
   .pdf-page-break {
     page-break-before: always;
@@ -142,4 +142,15 @@ All colors MUST be HSL.
 
 .pdf-page-break {
   break-before: page;
+}
+
+/* Prevent breaking inside elements */
+.pdf-no-break {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+/* PDF export container background */
+.pdf-export-container {
+  background-color: #E9E9E9 !important;
 }
