@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, forwardRef } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -303,7 +303,7 @@ const EditableListSection = ({
   );
 };
 
-export const AIInsightsContent = ({
+export const AIInsightsContent = forwardRef<HTMLDivElement, AIInsightsContentProps>(({
   insights,
   overviewParagraph,
   innovationParagraph,
@@ -311,7 +311,7 @@ export const AIInsightsContent = ({
   canEdit = false,
   reportId,
   onSaveInsights,
-}: AIInsightsContentProps) => {
+}, ref) => {
   const [editingSections, setEditingSections] = useState<Set<string>>(new Set());
   const [selectedTopContentIds, setSelectedTopContentIds] = useState<string[]>(
     insights.selected_top_content_ids || (insights.top_content || []).map((c) => c.id)
@@ -465,8 +465,8 @@ export const AIInsightsContent = ({
   const kpiTargets = insights.kpi_targets;
 
   return (
-    <div className="space-y-8">
-      {/* Executive Summary Block */}
+    <div ref={ref} className="space-y-8">
+      {/* Executive Summary Block - Page 1 */}
       <Card className="p-6 rounded-[20px] border-foreground">
         <h2 className="text-xl font-bold mb-4">
           Executive Summary
@@ -536,8 +536,8 @@ export const AIInsightsContent = ({
         </div>
       </Card>
 
-      {/* Top 5 Content Block */}
-      <Card className="p-6 rounded-[20px] border-foreground">
+      {/* Top 5 Content Block - Page 2 */}
+      <Card className="p-6 rounded-[20px] border-foreground pdf-page-break">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-bold">Top 5 Content</h2>
           {canEdit && reportId && (
@@ -573,8 +573,8 @@ export const AIInsightsContent = ({
         )}
       </Card>
 
-      {/* Campaign Overview Block */}
-      <Card className="p-6 rounded-[20px] border-foreground">
+      {/* Campaign Overview Block - Page 3 */}
+      <Card className="p-6 rounded-[20px] border-foreground pdf-page-break">
         <h2 className="text-xl font-bold mb-4">
           Základní přehled kampaně
         </h2>
@@ -621,8 +621,8 @@ export const AIInsightsContent = ({
         </div>
       </Card>
 
-      {/* Innovation Metrics Block */}
-      <Card className="p-6 rounded-[20px] border-foreground">
+      {/* Innovation Metrics Block - Page 4 */}
+      <Card className="p-6 rounded-[20px] border-foreground pdf-page-break">
         <h2 className="text-xl font-bold mb-4">
           Inovativní a kvalitativní metriky
         </h2>
@@ -669,8 +669,8 @@ export const AIInsightsContent = ({
         </div>
       </Card>
 
-      {/* Campaign Sentiment Block */}
-      <Card className="p-6 rounded-[20px] border-foreground">
+      {/* Campaign Sentiment Block - Page 5 */}
+      <Card className="p-6 rounded-[20px] border-foreground pdf-page-break">
         <h2 className="text-xl font-bold mb-4">
           Sentiment kampaně
         </h2>
@@ -745,8 +745,8 @@ export const AIInsightsContent = ({
         </div>
       </Card>
 
-      {/* Creators Leaderboard Block */}
-      <Card className="p-6 rounded-[20px] border-foreground">
+      {/* Creators Leaderboard Block - Page 6 */}
+      <Card className="p-6 rounded-[20px] border-foreground pdf-page-break">
         <h2 className="text-xl font-bold mb-4">
           Creators Leaderboard
         </h2>
@@ -760,63 +760,63 @@ export const AIInsightsContent = ({
         )}
       </Card>
 
-      {/* Content Performance Block */}
-      <Card className="p-6 rounded-[20px] border-foreground">
-        <h2 className="text-xl font-bold mb-4">
-          Content Performance
-        </h2>
-        {insights.creator_performance && insights.creator_performance.length > 0 ? (
-          <div className="space-y-6">
-            {insights.creator_performance.map((creator) => {
-              // Transform old data structure to new format with defensive defaults
-              const transformedCreator = {
-                handle: creator.handle || "",
-                avatar_url: creator.avatar_url || null,
-                platforms: creator.platforms || [],
-                top_content: creator.top_content || null,
-                sentiment_breakdown: creator.sentiment_breakdown || {
-                  positive: 0,
-                  neutral: 0,
-                  negative: 0,
-                },
-                relevance: getRelevanceAsNumber(creator.relevance),
-                key_insight: creator.key_insight || "",
-                positive_topics: creator.positive_topics || [],
-                negative_topics: creator.negative_topics || [],
-              };
+      {/* Content Performance - Each creator on separate page (Page 7+) */}
+      {insights.creator_performance && insights.creator_performance.length > 0 ? (
+        insights.creator_performance.map((creator) => {
+          // Transform old data structure to new format with defensive defaults
+          const transformedCreator = {
+            handle: creator.handle || "",
+            avatar_url: creator.avatar_url || null,
+            platforms: creator.platforms || [],
+            top_content: creator.top_content || null,
+            sentiment_breakdown: creator.sentiment_breakdown || {
+              positive: 0,
+              neutral: 0,
+              negative: 0,
+            },
+            relevance: getRelevanceAsNumber(creator.relevance),
+            key_insight: creator.key_insight || "",
+            positive_topics: creator.positive_topics || [],
+            negative_topics: creator.negative_topics || [],
+          };
 
-              return (
-                <CreatorPerformanceCard
-                  key={creator.handle}
-                  creator={transformedCreator}
-                  canEdit={canEdit}
-                  onSaveKeyInsight={(handle, insight) => {
-                    if (onSaveInsights) {
-                      const updatedPerformance = (insights.creator_performance || []).map((c) =>
-                        c.handle === handle ? { ...c, key_insight: insight } : c
-                      );
-                      onSaveInsights({ creator_performance: updatedPerformance });
-                    }
-                  }}
-                  onSaveTopics={(handle, positiveTopics, negativeTopics) => {
-                    if (onSaveInsights) {
-                      const updatedPerformance = (insights.creator_performance || []).map((c) =>
-                        c.handle === handle ? { ...c, positive_topics: positiveTopics, negative_topics: negativeTopics } : c
-                      );
-                      onSaveInsights({ creator_performance: updatedPerformance });
-                    }
-                  }}
-                />
-              );
-            })}
-          </div>
-        ) : (
+          return (
+            <Card key={creator.handle} className="p-6 rounded-[20px] border-foreground pdf-page-break">
+              <h2 className="text-xl font-bold mb-4">
+                Content Performance: @{creator.handle}
+              </h2>
+              <CreatorPerformanceCard
+                creator={transformedCreator}
+                canEdit={canEdit}
+                onSaveKeyInsight={(handle, insight) => {
+                  if (onSaveInsights) {
+                    const updatedPerformance = (insights.creator_performance || []).map((c) =>
+                      c.handle === handle ? { ...c, key_insight: insight } : c
+                    );
+                    onSaveInsights({ creator_performance: updatedPerformance });
+                  }
+                }}
+                onSaveTopics={(handle, positiveTopics, negativeTopics) => {
+                  if (onSaveInsights) {
+                    const updatedPerformance = (insights.creator_performance || []).map((c) =>
+                      c.handle === handle ? { ...c, positive_topics: positiveTopics, negative_topics: negativeTopics } : c
+                    );
+                    onSaveInsights({ creator_performance: updatedPerformance });
+                  }
+                }}
+              />
+            </Card>
+          );
+        })
+      ) : (
+        <Card className="p-6 rounded-[20px] border-foreground pdf-page-break">
+          <h2 className="text-xl font-bold mb-4">Content Performance</h2>
           <p className="text-muted-foreground text-center py-8">No creator performance data available</p>
-        )}
-      </Card>
+        </Card>
+      )}
 
-      {/* Summary & Takeaways Block */}
-      <Card className="p-6 rounded-[20px] border-foreground">
+      {/* Summary & Takeaways Block - Last Page */}
+      <Card className="p-6 rounded-[20px] border-foreground pdf-page-break">
         <h2 className="text-xl font-bold mb-4">
           Summary & Takeaways
         </h2>
@@ -878,4 +878,6 @@ export const AIInsightsContent = ({
       )}
     </div>
   );
-};
+});
+
+AIInsightsContent.displayName = "AIInsightsContent";
