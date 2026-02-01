@@ -246,8 +246,7 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
           {/* Action buttons */}
           <div className="flex items-center justify-end gap-2">
             {canEdit && (
-              <>
-                <Button
+              <Button
                   onClick={() => setIsInputDialogOpen(true)}
                   variant="outline"
                   className="rounded-[35px] border-foreground"
@@ -256,16 +255,6 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
                   <RefreshCw className="w-4 h-4 mr-2" />
                   Regenerate
                 </Button>
-                <Button
-                  onClick={() => setIsEditing(true)}
-                  variant="ghost"
-                  size="sm"
-                  className="rounded-[35px]"
-                >
-                  <Pencil className="w-4 h-4 mr-2" />
-                  Edit raw
-                </Button>
-              </>
             )}
           </div>
 
