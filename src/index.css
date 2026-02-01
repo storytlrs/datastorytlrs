@@ -163,10 +163,3 @@ All colors MUST be HSL.
   font-size: 0.65rem !important;
 }
 
-/* Line clamp for long text */
-.pdf-continuous .pdf-line-clamp {
-  display: -webkit-box;
-  -webkit-line-clamp: 5;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}

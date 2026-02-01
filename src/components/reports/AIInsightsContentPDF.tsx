@@ -431,7 +431,7 @@ export const AIInsightsContentPDF = forwardRef<HTMLDivElement, AIInsightsContent
                 <div className="space-y-3">
                   <div>
                     <span className="text-xs font-medium text-muted-foreground mb-1 block">Key Insight:</span>
-                    <p className="text-xs pdf-line-clamp">{creator.key_insight || "No insight available"}</p>
+                    <p className="text-xs leading-relaxed">{creator.key_insight || "No insight available"}</p>
                   </div>
 
                   <div>
