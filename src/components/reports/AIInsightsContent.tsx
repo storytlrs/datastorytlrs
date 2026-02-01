@@ -206,6 +206,89 @@ const EditableSection = ({
   );
 };
 
+interface EditableListSectionProps {
+  items: string[];
+  isEditing: boolean;
+  onStartEdit: () => void;
+  onSave: (items: string[]) => void;
+  onCancel: () => void;
+  canEdit?: boolean;
+  bulletColor?: string;
+  placeholder?: string;
+}
+
+const EditableListSection = ({
+  items,
+  isEditing,
+  onStartEdit,
+  onSave,
+  onCancel,
+  canEdit = false,
+  bulletColor = "text-foreground",
+  placeholder = "Enter items (one per line)...",
+}: EditableListSectionProps) => {
+  const [editValue, setEditValue] = useState(items.join('\n'));
+
+  const handleSave = () => {
+    const newItems = editValue.split('\n').filter(line => line.trim());
+    onSave(newItems);
+  };
+
+  const handleCancel = () => {
+    setEditValue(items.join('\n'));
+    onCancel();
+  };
+
+  if (isEditing) {
+    return (
+      <div className="space-y-2">
+        <Textarea
+          value={editValue}
+          onChange={(e) => setEditValue(e.target.value)}
+          placeholder={placeholder}
+          className="min-h-[100px] rounded-[15px] border-foreground text-sm"
+        />
+        <div className="flex gap-2">
+          <Button size="sm" onClick={handleSave} className="rounded-[35px]">
+            <Save className="w-3 h-3 mr-1" />
+            Save
+          </Button>
+          <Button size="sm" variant="outline" onClick={handleCancel} className="rounded-[35px] border-foreground">
+            <X className="w-3 h-3 mr-1" />
+            Cancel
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="group relative">
+      <ul className="space-y-2">
+        {(items || []).map((item, i) => (
+          <li key={i} className="text-sm text-foreground flex items-start gap-2">
+            <span className={bulletColor}>•</span>
+            {item}
+          </li>
+        ))}
+        {(!items || items.length === 0) && (
+          <li className="text-sm text-muted-foreground italic">{placeholder}</li>
+        )}
+      </ul>
+      {canEdit && (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onStartEdit}
+          className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 p-0"
+        >
+          <Pencil className="w-3 h-3" />
+        </Button>
+      )}
+    </div>
+  );
+};
+
 export const AIInsightsContent = ({
   insights,
   overviewParagraph,
@@ -226,6 +309,9 @@ export const AIInsightsContent = ({
   const [mainGoal, setMainGoal] = useState(insights.campaign_context.mainGoal);
   const [actions, setActions] = useState(insights.campaign_context.actions);
   const [highlights, setHighlights] = useState(insights.campaign_context.highlights);
+  const [worksItems, setWorksItems] = useState(insights.recommendations?.works || []);
+  const [doesntWorkItems, setDoesntWorkItems] = useState(insights.recommendations?.doesnt_work || []);
+  const [suggestionsItems, setSuggestionsItems] = useState(insights.recommendations?.suggestions || []);
   const [sentimentSummary, setSentimentSummary] = useState(sentimentParagraph || insights.sentiment_analysis.summary);
 
   const startEditing = (section: string) => {
@@ -277,6 +363,32 @@ export const AIInsightsContent = ({
           summary: value,
         };
       }
+      await onSaveInsights(updates);
+    }
+  };
+
+  const handleSaveListSection = async (section: string, items: string[]) => {
+    switch (section) {
+      case "recommendations_works":
+        setWorksItems(items);
+        break;
+      case "recommendations_doesnt_work":
+        setDoesntWorkItems(items);
+        break;
+      case "recommendations_suggestions":
+        setSuggestionsItems(items);
+        break;
+    }
+    stopEditing(section);
+    
+    if (onSaveInsights) {
+      const updates: Partial<StructuredInsights> = {
+        recommendations: {
+          works: section === "recommendations_works" ? items : worksItems,
+          doesnt_work: section === "recommendations_doesnt_work" ? items : doesntWorkItems,
+          suggestions: section === "recommendations_suggestions" ? items : suggestionsItems,
+        },
+      };
       await onSaveInsights(updates);
     }
   };
@@ -590,44 +702,50 @@ export const AIInsightsContent = ({
 
       {/* Summary & Takeaways Block */}
       <Card className="p-6 rounded-[20px] border-foreground">
-        <h2 className="text-xl font-bold mb-4 border-b border-border pb-2">
+        <h2 className="text-xl font-bold mb-4">
           Summary & Takeaways
         </h2>
         <div className="grid md:grid-cols-3 gap-4">
           <Card className="p-6 rounded-[20px] border-accent-green">
             <h3 className="font-bold text-accent-green mb-3">✓ What Works</h3>
-            <ul className="space-y-2">
-              {(insights.recommendations?.works || []).map((item, i) => (
-                <li key={i} className="text-sm text-foreground flex items-start gap-2">
-                  <span className="text-accent-green">•</span>
-                  {item}
-                </li>
-              ))}
-            </ul>
+            <EditableListSection
+              items={worksItems}
+              isEditing={editingSections.has("recommendations_works")}
+              onStartEdit={() => startEditing("recommendations_works")}
+              onSave={(items) => handleSaveListSection("recommendations_works", items)}
+              onCancel={() => stopEditing("recommendations_works")}
+              canEdit={canEdit}
+              bulletColor="text-accent-green"
+              placeholder="Add what works..."
+            />
           </Card>
 
           <Card className="p-6 rounded-[20px] border-accent-orange">
             <h3 className="font-bold text-accent-orange mb-3">✗ What Doesn't Work</h3>
-            <ul className="space-y-2">
-              {(insights.recommendations?.doesnt_work || []).map((item, i) => (
-                <li key={i} className="text-sm text-foreground flex items-start gap-2">
-                  <span className="text-accent-orange">•</span>
-                  {item}
-                </li>
-              ))}
-            </ul>
+            <EditableListSection
+              items={doesntWorkItems}
+              isEditing={editingSections.has("recommendations_doesnt_work")}
+              onStartEdit={() => startEditing("recommendations_doesnt_work")}
+              onSave={(items) => handleSaveListSection("recommendations_doesnt_work", items)}
+              onCancel={() => stopEditing("recommendations_doesnt_work")}
+              canEdit={canEdit}
+              bulletColor="text-accent-orange"
+              placeholder="Add what doesn't work..."
+            />
           </Card>
 
           <Card className="p-6 rounded-[20px] border-accent-blue">
             <h3 className="font-bold text-accent-blue mb-3">→ Recommendations</h3>
-            <ul className="space-y-2">
-              {(insights.recommendations?.suggestions || []).map((item, i) => (
-                <li key={i} className="text-sm text-foreground flex items-start gap-2">
-                  <span className="text-accent-blue">•</span>
-                  {item}
-                </li>
-              ))}
-            </ul>
+            <EditableListSection
+              items={suggestionsItems}
+              isEditing={editingSections.has("recommendations_suggestions")}
+              onStartEdit={() => startEditing("recommendations_suggestions")}
+              onSave={(items) => handleSaveListSection("recommendations_suggestions", items)}
+              onCancel={() => stopEditing("recommendations_suggestions")}
+              canEdit={canEdit}
+              bulletColor="text-accent-blue"
+              placeholder="Add recommendations..."
+            />
           </Card>
         </div>
       </Card>
