@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { MetricTile } from "./MetricTile";
 import { ContentPreviewCard } from "./ContentPreviewCard";
 import { LeaderboardTable, LeaderboardEntry, Benchmarks } from "./LeaderboardTable";
@@ -324,6 +325,12 @@ export const AIInsightsContent = ({
   const [doesntWorkItems, setDoesntWorkItems] = useState(insights.recommendations?.doesnt_work || []);
   const [suggestionsItems, setSuggestionsItems] = useState(insights.recommendations?.suggestions || []);
   const [sentimentSummary, setSentimentSummary] = useState(sentimentParagraph || insights.sentiment_analysis.summary);
+  
+  // Sentiment topics editing state
+  const [isEditingSentimentTopics, setIsEditingSentimentTopics] = useState(false);
+  const [editedSentimentTopics, setEditedSentimentTopics] = useState(
+    insights.top_sentiment_topics?.join(', ') || ''
+  );
 
   const startEditing = (section: string) => {
     setEditingSections((prev) => new Set([...prev, section]));
@@ -409,6 +416,23 @@ export const AIInsightsContent = ({
     if (onSaveInsights) {
       onSaveInsights({ selected_top_content_ids: ids });
     }
+  };
+
+  const handleSaveSentimentTopics = async () => {
+    const topics = editedSentimentTopics
+      .split(',')
+      .map(t => t.trim())
+      .filter(t => t);
+    
+    if (onSaveInsights) {
+      await onSaveInsights({ top_sentiment_topics: topics });
+    }
+    setIsEditingSentimentTopics(false);
+  };
+
+  const handleCancelSentimentTopics = () => {
+    setEditedSentimentTopics(insights.top_sentiment_topics?.join(', ') || '');
+    setIsEditingSentimentTopics(false);
   };
 
   // Filter top content based on selection
@@ -635,18 +659,54 @@ export const AIInsightsContent = ({
           />
         </div>
 
-        {insights.top_sentiment_topics && insights.top_sentiment_topics.length > 0 && (
-          <div>
-            <span className="text-sm font-medium text-muted-foreground block mb-2">
+        <div>
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-sm font-medium text-muted-foreground">
               Top Topics:
             </span>
-            <div className="flex flex-wrap gap-2">
-              {insights.top_sentiment_topics.map((topic, i) => (
-                <TopicBadge key={i} topic={topic} variant="default" />
-              ))}
-            </div>
+            {canEdit && !isEditingSentimentTopics && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsEditingSentimentTopics(true)}
+                className="h-6 w-6 p-0"
+              >
+                <Pencil className="w-3 h-3" />
+              </Button>
+            )}
           </div>
-        )}
+          
+          {isEditingSentimentTopics ? (
+            <div className="space-y-2">
+              <Input
+                value={editedSentimentTopics}
+                onChange={(e) => setEditedSentimentTopics(e.target.value)}
+                placeholder="Enter topics separated by commas..."
+                className="rounded-[15px] border-foreground"
+              />
+              <div className="flex gap-2">
+                <Button size="sm" onClick={handleSaveSentimentTopics} className="rounded-[35px]">
+                  <Save className="w-3 h-3 mr-1" />
+                  Save
+                </Button>
+                <Button size="sm" variant="outline" onClick={handleCancelSentimentTopics} className="rounded-[35px] border-foreground">
+                  <X className="w-3 h-3 mr-1" />
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {insights.top_sentiment_topics && insights.top_sentiment_topics.length > 0 ? (
+                insights.top_sentiment_topics.map((topic, i) => (
+                  <TopicBadge key={i} topic={topic} variant="default" />
+                ))
+              ) : (
+                <span className="text-sm text-muted-foreground italic">No topics defined</span>
+              )}
+            </div>
+          )}
+        </div>
       </Card>
 
       {/* Creators Leaderboard Block */}
