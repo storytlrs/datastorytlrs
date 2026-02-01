@@ -98,6 +98,11 @@ export const OverviewTab = ({ reportId }: OverviewTabProps) => {
   const [creators, setCreators] = useState<Creator[]>([]);
   const [content, setContent] = useState<Content[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // Space benchmark data
+  const [spaceContent, setSpaceContent] = useState<Content[]>([]);
+  const [spaceCreators, setSpaceCreators] = useState<Creator[]>([]);
+  const [spaceReportCount, setSpaceReportCount] = useState(0);
 
   // Filter state
   const [dateRange, setDateRange] = useState<{ start: Date | null; end: Date | null }>({
@@ -110,12 +115,37 @@ export const OverviewTab = ({ reportId }: OverviewTabProps) => {
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
-      const [creatorsRes, contentRes] = await Promise.all([
+      
+      // 1. Get current report to find space_id
+      const { data: reportData } = await supabase
+        .from("reports")
+        .select("space_id")
+        .eq("id", reportId)
+        .single();
+      
+      const currentSpaceId = reportData?.space_id;
+      
+      // 2. Get all reports in the same space
+      const { data: spaceReports } = await supabase
+        .from("reports")
+        .select("id")
+        .eq("space_id", currentSpaceId);
+      
+      const allReportIds = spaceReports?.map(r => r.id) || [];
+      setSpaceReportCount(allReportIds.length);
+      
+      // 3. Fetch current report data AND space-wide data in parallel
+      const [creatorsRes, contentRes, spaceCreatorsRes, spaceContentRes] = await Promise.all([
         supabase.from("creators").select("id, handle, currency, posts_count, reels_count, stories_count, posts_cost, reels_cost, stories_cost").eq("report_id", reportId),
         supabase.from("content").select("id, creator_id, platform, reach, impressions, views, watch_time, likes, comments, shares, saves, link_clicks, sticker_clicks, published_date, reposts").eq("report_id", reportId),
+        supabase.from("creators").select("id, handle, currency, posts_count, reels_count, stories_count, posts_cost, reels_cost, stories_cost").in("report_id", allReportIds),
+        supabase.from("content").select("id, creator_id, platform, reach, impressions, views, watch_time, likes, comments, shares, saves, link_clicks, sticker_clicks, published_date, reposts").in("report_id", allReportIds),
       ]);
+      
       setCreators(creatorsRes.data || []);
       setContent(contentRes.data || []);
+      setSpaceCreators(spaceCreatorsRes.data || []);
+      setSpaceContent(spaceContentRes.data || []);
       setLoading(false);
     };
     fetchData();
@@ -258,6 +288,79 @@ export const OverviewTab = ({ reportId }: OverviewTabProps) => {
     };
   }, [relevantCreators, awarenessKPIs, engagementKPIs, filteredContent]);
 
+  // Space benchmarks calculation
+  const benchmarks = useMemo(() => {
+    if (spaceReportCount === 0) return null;
+
+    // Awareness benchmarks
+    const totalReach = spaceContent.reduce((sum, c) => sum + (c.reach || 0), 0);
+    const totalViews = spaceContent.reduce((sum, c) => sum + (c.impressions || 0) + (c.views || 0), 0);
+    const totalWatchTimeSeconds = spaceContent.reduce((sum, c) => sum + (c.watch_time || 0), 0);
+
+    // Engagement benchmarks
+    const totalLikes = spaceContent.reduce((sum, c) => sum + (c.likes || 0), 0);
+    const totalComments = spaceContent.reduce((sum, c) => sum + (c.comments || 0), 0);
+    const totalShares = spaceContent.reduce((sum, c) => sum + (c.shares || 0), 0);
+    const totalSaves = spaceContent.reduce((sum, c) => sum + (c.saves || 0), 0);
+    const totalReposts = spaceContent.reduce((sum, c) => sum + (c.reposts || 0), 0);
+    const totalLinkClicks = spaceContent.reduce((sum, c) => sum + (c.link_clicks || 0), 0);
+    const totalStickerClicks = spaceContent.reduce((sum, c) => sum + (c.sticker_clicks || 0), 0);
+    const totalInteractions = totalLikes + totalComments + totalShares + totalSaves;
+
+    // TSWB calculation for space
+    const totalTSWB = spaceContent.reduce((sum, c) => {
+      const watchTime = c.watch_time || 0;
+      const likes = c.likes || 0;
+      const comments = c.comments || 0;
+      const saves = c.saves || 0;
+      const shares = c.shares || 0;
+      const reposts = c.reposts || 0;
+      return sum + watchTime + (likes * 3) + (comments * 5) + ((saves + shares + reposts) * 10);
+    }, 0);
+
+    // Rate calculations based on totals (not averages of averages)
+    const engagementRate = totalViews > 0 ? (totalInteractions / totalViews) * 100 : 0;
+    const viralityRate = totalViews > 0 ? (totalShares / totalViews) * 100 : 0;
+    const utilityScore = totalViews > 0 ? (totalSaves / totalViews) * 100 : 0;
+
+    // Effectiveness benchmarks
+    const totalBudget = spaceCreators.reduce((sum, c) => {
+      return sum + 
+        (c.posts_count || 0) * (c.posts_cost || 0) +
+        (c.reels_count || 0) * (c.reels_cost || 0) +
+        (c.stories_count || 0) * (c.stories_cost || 0);
+    }, 0);
+
+    const tswbMinutes = totalTSWB / 60;
+    const tswbCostPerMinute = tswbMinutes > 0 ? totalBudget / tswbMinutes : 0;
+    const cpm = totalViews > 0 ? (totalBudget / totalViews) * 1000 : 0;
+    const cpc = totalLinkClicks > 0 ? totalBudget / totalLinkClicks : 0;
+
+    return {
+      reach: totalReach / spaceReportCount,
+      views: totalViews / spaceReportCount,
+      watchTimeSeconds: totalWatchTimeSeconds / spaceReportCount,
+      interactions: totalInteractions / spaceReportCount,
+      likes: totalLikes / spaceReportCount,
+      comments: totalComments / spaceReportCount,
+      shares: totalShares / spaceReportCount,
+      saves: totalSaves / spaceReportCount,
+      reposts: totalReposts / spaceReportCount,
+      linkClicks: totalLinkClicks / spaceReportCount,
+      stickerClicks: totalStickerClicks / spaceReportCount,
+      tswb: totalTSWB / spaceReportCount,
+      engagementRate,
+      viralityRate,
+      utilityScore,
+      creatorsCount: spaceCreators.length / spaceReportCount,
+      contentPieces: spaceContent.length / spaceReportCount,
+      budgetSpent: totalBudget / spaceReportCount,
+      tswbCostPerMinute,
+      cpm,
+      cpc,
+    };
+  }, [spaceContent, spaceCreators, spaceReportCount]);
+
   const clearFilters = () => {
     setDateRange({ start: null, end: null });
     setSelectedCreator("all");
@@ -398,36 +501,36 @@ export const OverviewTab = ({ reportId }: OverviewTabProps) => {
           <h3 className="font-bold text-lg uppercase tracking-wide">Awareness</h3>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <KPICard title="Reach" value={formatNumber(awarenessKPIs.reach)} icon={Users} accentColor="blue" />
-          <KPICard title="Views" value={formatNumber(awarenessKPIs.impressionsViews)} icon={Eye} accentColor="blue" />
-          <KPICard title="Watch Time" value={secondsToReadableTime(awarenessKPIs.watchTimeSeconds)} icon={Clock} accentColor="blue" />
+          <KPICard title="Reach" value={formatNumber(awarenessKPIs.reach)} icon={Users} accentColor="blue" benchmark={benchmarks ? formatNumber(benchmarks.reach) : undefined} />
+          <KPICard title="Views" value={formatNumber(awarenessKPIs.impressionsViews)} icon={Eye} accentColor="blue" benchmark={benchmarks ? formatNumber(benchmarks.views) : undefined} />
+          <KPICard title="Watch Time" value={secondsToReadableTime(awarenessKPIs.watchTimeSeconds)} icon={Clock} accentColor="blue" benchmark={benchmarks ? secondsToReadableTime(benchmarks.watchTimeSeconds) : undefined} />
         </div>
       </div>
 
       {/* Engagement Section */}
       <KPISection title="Engagement" icon={MessageCircle}>
-        <KPICard title="Interactions" value={formatNumber(engagementKPIs.interactions)} icon={TrendingUp} accentColor="green" />
-        <KPICard title="Likes" value={formatNumber(engagementKPIs.likes)} icon={Heart} accentColor="green" />
-        <KPICard title="Comments" value={formatNumber(engagementKPIs.comments)} icon={MessageCircle} accentColor="green" />
-        <KPICard title="Shares" value={formatNumber(engagementKPIs.shares)} icon={Share2} accentColor="green" />
-        <KPICard title="Saves" value={formatNumber(engagementKPIs.saves)} icon={Bookmark} accentColor="green" />
-        <KPICard title="Reposts" value={formatNumber(engagementKPIs.reposts)} icon={Share2} accentColor="green" />
-        <KPICard title="TSWB" value={secondsToReadableTime(engagementKPIs.tswb)} icon={Clock} accentColor="green" tooltip="TSWB (Time Spent With Brand) = Watch Time + (Likes × 3) + (Comments × 5) + ((Saves + Shares + Reposts) × 10). Výsledek je v sekundách." />
-        <KPICard title="Engagement Rate" value={formatPercent(engagementKPIs.engagementRate)} icon={TrendingUp} accentColor="green" tooltip="Engagement Rate = (Interactions / Views) × 100. Interactions = Likes + Comments + Shares + Saves." />
-        <KPICard title="Virality Rate" value={formatPercent(engagementKPIs.viralityRate, 3)} icon={Zap} accentColor="green" tooltip="Virality Rate = (Shares / Views) × 100. Měří podíl obsahu, který byl sdílen." />
-        <KPICard title="Utility Score" value={formatPercent(engagementKPIs.utilityScore, 3)} icon={Award} accentColor="green" tooltip="Utility Score = (Saves / Views) × 100. Měří podíl obsahu, který byl uložen." />
-        <KPICard title="Link Clicks" value={formatNumber(engagementKPIs.linkClicks)} icon={Link} accentColor="green" />
-        <KPICard title="Sticker Clicks" value={formatNumber(engagementKPIs.stickerClicks)} icon={Target} accentColor="green" />
+        <KPICard title="Interactions" value={formatNumber(engagementKPIs.interactions)} icon={TrendingUp} accentColor="green" benchmark={benchmarks ? formatNumber(benchmarks.interactions) : undefined} />
+        <KPICard title="Likes" value={formatNumber(engagementKPIs.likes)} icon={Heart} accentColor="green" benchmark={benchmarks ? formatNumber(benchmarks.likes) : undefined} />
+        <KPICard title="Comments" value={formatNumber(engagementKPIs.comments)} icon={MessageCircle} accentColor="green" benchmark={benchmarks ? formatNumber(benchmarks.comments) : undefined} />
+        <KPICard title="Shares" value={formatNumber(engagementKPIs.shares)} icon={Share2} accentColor="green" benchmark={benchmarks ? formatNumber(benchmarks.shares) : undefined} />
+        <KPICard title="Saves" value={formatNumber(engagementKPIs.saves)} icon={Bookmark} accentColor="green" benchmark={benchmarks ? formatNumber(benchmarks.saves) : undefined} />
+        <KPICard title="Reposts" value={formatNumber(engagementKPIs.reposts)} icon={Share2} accentColor="green" benchmark={benchmarks ? formatNumber(benchmarks.reposts) : undefined} />
+        <KPICard title="TSWB" value={secondsToReadableTime(engagementKPIs.tswb)} icon={Clock} accentColor="green" tooltip="TSWB (Time Spent With Brand) = Watch Time + (Likes × 3) + (Comments × 5) + ((Saves + Shares + Reposts) × 10). Výsledek je v sekundách." benchmark={benchmarks ? secondsToReadableTime(benchmarks.tswb) : undefined} />
+        <KPICard title="Engagement Rate" value={formatPercent(engagementKPIs.engagementRate)} icon={TrendingUp} accentColor="green" tooltip="Engagement Rate = (Interactions / Views) × 100. Interactions = Likes + Comments + Shares + Saves." benchmark={benchmarks ? formatPercent(benchmarks.engagementRate) : undefined} />
+        <KPICard title="Virality Rate" value={formatPercent(engagementKPIs.viralityRate, 3)} icon={Zap} accentColor="green" tooltip="Virality Rate = (Shares / Views) × 100. Měří podíl obsahu, který byl sdílen." benchmark={benchmarks ? formatPercent(benchmarks.viralityRate, 3) : undefined} />
+        <KPICard title="Utility Score" value={formatPercent(engagementKPIs.utilityScore, 3)} icon={Award} accentColor="green" tooltip="Utility Score = (Saves / Views) × 100. Měří podíl obsahu, který byl uložen." benchmark={benchmarks ? formatPercent(benchmarks.utilityScore, 3) : undefined} />
+        <KPICard title="Link Clicks" value={formatNumber(engagementKPIs.linkClicks)} icon={Link} accentColor="green" benchmark={benchmarks ? formatNumber(benchmarks.linkClicks) : undefined} />
+        <KPICard title="Sticker Clicks" value={formatNumber(engagementKPIs.stickerClicks)} icon={Target} accentColor="green" benchmark={benchmarks ? formatNumber(benchmarks.stickerClicks) : undefined} />
       </KPISection>
 
       {/* Effectiveness Section */}
       <KPISection title="Effectiveness" icon={BarChart3}>
-        <KPICard title="Creators" value={effectivenessKPIs.creatorsCount.toString()} icon={Users} accentColor="orange" />
-        <KPICard title="Content Pieces" value={effectivenessKPIs.contentPieces.toString()} icon={FileText} accentColor="orange" />
-        <KPICard title="Budget Spent" value={formatCurrency(effectivenessKPIs.budgetSpent)} icon={DollarSign} accentColor="orange" />
-        <KPICard title="TSWB Cost per Minute" value={formatCurrency(effectivenessKPIs.tswbCostPerMinute)} icon={Clock} accentColor="orange" tooltip="TSWB Cost per Minute = Budget Spent / (TSWB v minutách). Kolik stojí jedna minuta pozornosti značce." />
-        <KPICard title="CPM" value={formatCurrency(effectivenessKPIs.cpm)} icon={DollarSign} accentColor="orange" tooltip="CPM (Cost per Mille) = (Budget Spent / Views) × 1000. Náklad na 1000 zobrazení." />
-        <KPICard title="CPC" value={formatCurrency(effectivenessKPIs.cpc)} icon={MousePointer} accentColor="orange" tooltip="CPC (Cost per Click) = Budget Spent / Link Clicks. Náklad na jeden proklik." />
+        <KPICard title="Creators" value={effectivenessKPIs.creatorsCount.toString()} icon={Users} accentColor="orange" benchmark={benchmarks ? Math.round(benchmarks.creatorsCount).toString() : undefined} />
+        <KPICard title="Content Pieces" value={effectivenessKPIs.contentPieces.toString()} icon={FileText} accentColor="orange" benchmark={benchmarks ? Math.round(benchmarks.contentPieces).toString() : undefined} />
+        <KPICard title="Budget Spent" value={formatCurrency(effectivenessKPIs.budgetSpent)} icon={DollarSign} accentColor="orange" benchmark={benchmarks ? formatCurrency(benchmarks.budgetSpent) : undefined} />
+        <KPICard title="TSWB Cost per Minute" value={formatCurrency(effectivenessKPIs.tswbCostPerMinute)} icon={Clock} accentColor="orange" tooltip="TSWB Cost per Minute = Budget Spent / (TSWB v minutách). Kolik stojí jedna minuta pozornosti značce." benchmark={benchmarks ? formatCurrency(benchmarks.tswbCostPerMinute) : undefined} />
+        <KPICard title="CPM" value={formatCurrency(effectivenessKPIs.cpm)} icon={DollarSign} accentColor="orange" tooltip="CPM (Cost per Mille) = (Budget Spent / Views) × 1000. Náklad na 1000 zobrazení." benchmark={benchmarks ? formatCurrency(benchmarks.cpm) : undefined} />
+        <KPICard title="CPC" value={formatCurrency(effectivenessKPIs.cpc)} icon={MousePointer} accentColor="orange" tooltip="CPC (Cost per Click) = Budget Spent / Link Clicks. Náklad na jeden proklik." benchmark={benchmarks ? formatCurrency(benchmarks.cpc) : undefined} />
       </KPISection>
     </div>
   );
