@@ -30,7 +30,7 @@ interface CreatorPerformanceData {
     neutral: number;
     negative: number;
   };
-  relevance: "high" | "medium" | "low";
+  relevance: number | "high" | "medium" | "low"; // Support both old string and new number format
   key_insight: string;
   positive_topics: string[];
   negative_topics: string[];

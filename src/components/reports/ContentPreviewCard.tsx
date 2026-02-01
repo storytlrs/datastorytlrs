@@ -1,6 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { ExternalLink, Play } from "lucide-react";
 import { StatusBadge, StatusType } from "./StatusBadge";
+import { cn } from "@/lib/utils";
 
 interface ContentPreviewCardProps {
   thumbnailUrl?: string | null;
@@ -62,7 +63,7 @@ export const ContentPreviewCard = ({
   return (
     <Card className="rounded-[20px] border-foreground overflow-hidden hover:shadow-lg transition-shadow">
       {/* Thumbnail */}
-      <div className="relative aspect-[9/16] max-h-[300px] bg-muted">
+      <div className="relative aspect-[9/16] bg-muted overflow-hidden">
         {thumbnailUrl ? (
           <img
             src={thumbnailUrl}
@@ -77,7 +78,12 @@ export const ContentPreviewCard = ({
         )}
         {/* Platform & Type badge */}
         <div className="absolute top-2 left-2 flex gap-1">
-          <span className="px-2 py-1 bg-background/80 backdrop-blur-sm rounded-full text-xs font-medium capitalize">
+          <span className={cn(
+            "px-2 py-1 backdrop-blur-sm rounded-full text-xs font-medium capitalize",
+            platform.toLowerCase() === "instagram"
+              ? "bg-accent-purple text-accent-purple-foreground"
+              : "bg-background/80"
+          )}>
             {platform}
           </span>
           <span className="px-2 py-1 bg-background/80 backdrop-blur-sm rounded-full text-xs font-medium capitalize">
