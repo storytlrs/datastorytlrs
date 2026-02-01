@@ -11,12 +11,21 @@ function Calendar({ className, classNames, showOutsideDays = true, ...props }: C
   return (
     <DayPicker
       showOutsideDays={showOutsideDays}
-      className={cn("p-3", className)}
+      captionLayout="dropdown"
+      fromMonth={new Date(2020, 0)}
+      toMonth={new Date(2030, 11)}
+      fixedWeeks
+      className={cn("p-3 pointer-events-auto", className)}
       classNames={{
         months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
-        month: "space-y-4",
-        caption: "flex justify-center pt-1 relative items-center",
-        caption_label: "text-sm font-medium",
+        month: "space-y-4 w-[280px]",
+        caption: "flex justify-center pt-1 relative items-center h-10",
+        caption_label: "text-sm font-medium hidden",
+        caption_dropdowns: "flex gap-1 items-center",
+        dropdown: "appearance-none bg-transparent border border-foreground rounded-md px-2 py-1 text-sm cursor-pointer hover:bg-foreground hover:text-background focus:outline-none focus:ring-2 focus:ring-ring",
+        dropdown_month: "",
+        dropdown_year: "",
+        vhidden: "hidden",
         nav: "space-x-1 flex items-center",
         nav_button: cn(
           buttonVariants({ variant: "outline" }),
