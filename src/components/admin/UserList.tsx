@@ -2,9 +2,10 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { UserPlus, X } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { UserPlus, X, Search } from "lucide-react";
 import { AssignUserToBrand } from "./AssignUserToBrand";
 import { toast } from "sonner";
 import {
@@ -29,6 +30,7 @@ interface UserWithRole {
 export const UserList = () => {
   const [users, setUsers] = useState<UserWithRole[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<string | null>(null);
   const [removeBrandDialog, setRemoveBrandDialog] = useState<{
@@ -135,6 +137,10 @@ export const UserList = () => {
     }
   };
 
+  const filteredUsers = users.filter((user) =>
+    user.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    user.email.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   if (loading) {
     return <div className="text-center py-8">Loading users...</div>;
@@ -143,77 +149,93 @@ export const UserList = () => {
   return (
     <>
       <div className="space-y-4">
-        <h2 className="text-xl font-semibold">Users</h2>
-        <div className="grid gap-4">
-          {users.map((user) => (
-            <Card key={user.id} className="p-4 rounded-[35px] border-foreground">
-              <div className="space-y-3">
-                <div className="flex items-start justify-between">
-                  <div className="space-y-1 flex-1">
-                    <h3 className="font-medium">{user.full_name}</h3>
-                    <p className="text-sm text-muted-foreground">{user.email}</p>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="rounded-[35px] gap-2"
-                    onClick={() => setSelectedUserId(user.id)}
-                  >
-                    <UserPlus className="h-4 w-4" />
-                    Assign to Brand
-                  </Button>
-                </div>
+        {/* Search */}
+        <div className="relative">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+          <Input
+            placeholder="Search users..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-12 rounded-[35px] border-foreground h-12"
+          />
+        </div>
 
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-muted-foreground">Role:</span>
-                  <Select
-                    value={user.role}
-                    onValueChange={(value) => handleRoleChange(user.id, value as any)}
-                  >
-                    <SelectTrigger className="w-[140px] h-8 rounded-[35px] border-foreground">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="admin">Admin</SelectItem>
-                      <SelectItem value="analyst">Analyst</SelectItem>
-                      <SelectItem value="client">Client</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <span className="text-sm text-muted-foreground">Brands:</span>
-                  {user.brands.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">No brands assigned</p>
-                  ) : (
-                    <div className="flex flex-wrap gap-2">
-                      {user.brands.map((brand) => (
-                        <Badge
-                          key={brand.id}
-                          variant="outline"
-                          className="gap-1 pr-1 rounded-[35px]"
-                        >
-                          {brand.name}
-                          <button
-                            onClick={() =>
-                              setRemoveBrandDialog({
-                                userId: user.id,
-                                brandId: brand.id,
-                                brandName: brand.name,
-                              })
-                            }
-                            className="ml-1 rounded-full hover:bg-muted p-0.5"
+        {/* Table */}
+        <div className="border border-foreground rounded-[20px] overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow className="border-foreground">
+                <TableHead>Name</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Role</TableHead>
+                <TableHead>Brands</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredUsers.map((user) => (
+                <TableRow key={user.id} className="border-foreground">
+                  <TableCell className="font-medium">{user.full_name || "-"}</TableCell>
+                  <TableCell>{user.email}</TableCell>
+                  <TableCell>
+                    <Select
+                      value={user.role}
+                      onValueChange={(value) => handleRoleChange(user.id, value as any)}
+                    >
+                      <SelectTrigger className="w-[120px] h-8 rounded-[35px] border-foreground">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="admin">Admin</SelectItem>
+                        <SelectItem value="analyst">Analyst</SelectItem>
+                        <SelectItem value="client">Client</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
+                  <TableCell>
+                    {user.brands.length === 0 ? (
+                      <span className="text-muted-foreground">-</span>
+                    ) : (
+                      <div className="flex flex-wrap gap-1">
+                        {user.brands.map((brand) => (
+                          <Badge
+                            key={brand.id}
+                            variant="outline"
+                            className="gap-1 pr-1 rounded-[35px] text-xs"
                           >
-                            <X className="h-3 w-3" />
-                          </button>
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </Card>
-          ))}
+                            {brand.name}
+                            <button
+                              onClick={() =>
+                                setRemoveBrandDialog({
+                                  userId: user.id,
+                                  brandId: brand.id,
+                                  brandName: brand.name,
+                                })
+                              }
+                              className="ml-1 rounded-full hover:bg-muted p-0.5"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="rounded-[35px] gap-2"
+                      onClick={() => setSelectedUserId(user.id)}
+                    >
+                      <UserPlus className="h-4 w-4" />
+                      Assign
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </div>
       </div>
 

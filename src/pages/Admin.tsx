@@ -40,12 +40,7 @@ const Admin = () => {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-4xl font-bold mb-2">Admin Panel</h1>
-            <p className="text-muted-foreground">
-              Manage users, brands, and permissions
-            </p>
-          </div>
+          <h1 className="text-4xl font-bold">Admin Panel</h1>
           {activeTab === "users" && (
             <Button
               onClick={() => setIsCreateDialogOpen(true)}
@@ -59,7 +54,7 @@ const Admin = () => {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="mb-6 rounded-[35px] border border-foreground p-1 bg-transparent">
+          <TabsList className="mb-6 rounded-[35px] border border-foreground p-1 bg-transparent w-auto inline-flex">
             <TabsTrigger
               value="users"
               className="rounded-[35px] px-6 py-2 data-[state=active]:bg-foreground data-[state=active]:text-background"

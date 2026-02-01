@@ -8,8 +8,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { LogOut, Settings, Building2, ChevronDown, Check } from "lucide-react";
+import { LogOut, Settings, Building2, ChevronDown, Check, ArrowLeft } from "lucide-react";
 import { useUserRole } from "@/hooks/useUserRole";
+import { EditProfileDialog } from "@/components/profile/EditProfileDialog";
 
 interface Brand {
   id: string;
@@ -23,6 +24,7 @@ const MainNavigation = () => {
   const { isAdmin } = useUserRole();
   const [brands, setBrands] = useState<Brand[]>([]);
   const [currentBrand, setCurrentBrand] = useState<Brand | null>(null);
+  const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
 
   useEffect(() => {
     fetchBrands();
@@ -52,8 +54,17 @@ const MainNavigation = () => {
     navigate(`/brands/${brand.id}`);
   };
 
+  const handleSettingsClick = () => {
+    if (isAdmin) {
+      navigate("/admin");
+    } else {
+      setIsProfileDialogOpen(true);
+    }
+  };
+
   // Check if we're on a brand-related page
   const isOnBrandPage = location.pathname.startsWith("/brands/");
+  const isOnAdminPage = location.pathname === "/admin";
 
   return (
     <nav className="w-full py-4 border-b border-foreground">
@@ -94,18 +105,26 @@ const MainNavigation = () => {
         {/* Spacer for non-brand pages */}
         {!isOnBrandPage && <div />}
 
-        {/* Right side: Admin + Logout */}
+        {/* Right side: Back + Settings + Logout */}
         <div className="flex items-center gap-2">
-          {isAdmin && (
+          {isOnAdminPage && (
             <Button
-              onClick={() => navigate("/admin")}
+              onClick={() => navigate("/dashboard")}
               variant="outline"
               size="icon"
-              className="rounded-[35px] border-foreground hover:bg-accent-orange hover:border-accent-orange hover:text-accent-orange-foreground"
+              className="rounded-[35px] border-foreground"
             >
-              <Settings className="h-4 w-4" />
+              <ArrowLeft className="h-4 w-4" />
             </Button>
           )}
+          <Button
+            onClick={handleSettingsClick}
+            variant="outline"
+            size="icon"
+            className="rounded-[35px] border-foreground hover:bg-accent-orange hover:border-accent-orange hover:text-accent-orange-foreground"
+          >
+            <Settings className="h-4 w-4" />
+          </Button>
           <Button
             onClick={handleSignOut}
             variant="outline"
@@ -116,6 +135,11 @@ const MainNavigation = () => {
           </Button>
         </div>
       </div>
+
+      <EditProfileDialog
+        open={isProfileDialogOpen}
+        onOpenChange={setIsProfileDialogOpen}
+      />
     </nav>
   );
 };
