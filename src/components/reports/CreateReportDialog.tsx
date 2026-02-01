@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -24,11 +24,14 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { CalendarIcon, Upload, FileText } from "lucide-react";
+import { CalendarIcon, Upload, FileSpreadsheet, X } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import * as XLSX from "xlsx";
+import { parseFile, type ParsedFile } from "./import/fileParser";
+import { ColumnMappingStep } from "./import/ColumnMappingStep";
+import { ImportReviewStep } from "./import/ImportReviewStep";
+import { parseMappingTarget, MAPPING_FIELDS } from "./import/mappingConfig";
 
 interface CreateReportDialogProps {
   open: boolean;
@@ -55,7 +58,7 @@ const CreateReportDialog = ({
   onSuccess,
 }: CreateReportDialogProps) => {
   const navigate = useNavigate();
-  const { role, isAdmin } = useUserRole();
+  const { isAdmin } = useUserRole();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
 
@@ -68,9 +71,12 @@ const CreateReportDialog = ({
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(false);
 
-  // Step 2 state
+  // Step 2 state (file upload)
   const [file, setFile] = useState<File | null>(null);
   const [dragActive, setDragActive] = useState(false);
+  const [parsedFile, setParsedFile] = useState<ParsedFile | null>(null);
+  const [mappings, setMappings] = useState<Record<string, string | null>>({});
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   const fetchProjects = async () => {
     setProjectsLoading(true);
@@ -105,6 +111,8 @@ const CreateReportDialog = ({
       setStartDate(undefined);
       setEndDate(undefined);
       setFile(null);
+      setParsedFile(null);
+      setMappings({});
     }
     onOpenChange(newOpen);
   };
@@ -125,14 +133,28 @@ const CreateReportDialog = ({
     setDragActive(false);
 
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      setFile(e.dataTransfer.files[0]);
+      const droppedFile = e.dataTransfer.files[0];
+      const extension = droppedFile.name.split(".").pop()?.toLowerCase();
+      if (extension === "xlsx" || extension === "xls" || extension === "csv") {
+        setFile(droppedFile);
+        setParsedFile(null);
+        setMappings({});
+      }
     }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setFile(e.target.files[0]);
+      setParsedFile(null);
+      setMappings({});
     }
+  };
+
+  const handleRemoveFile = () => {
+    setFile(null);
+    setParsedFile(null);
+    setMappings({});
   };
 
   const canProceedStep1 = () => {
@@ -146,80 +168,51 @@ const CreateReportDialog = ({
   };
 
   const handleBack = () => {
-    if (step > 1) {
+    if (step === 4) {
+      setStep(3);
+    } else if (step === 3) {
+      setStep(2);
+    } else if (step > 1) {
       setStep(step - 1);
     }
   };
 
   const handleSkipUpload = () => {
-    setStep(3);
+    setStep(5); // Go to review without file
   };
 
-  const handleContinueWithFile = () => {
-    if (file) {
-      setStep(3);
-    }
-  };
-
-  const processHypeAuditorFile = async (reportId: string) => {
+  const handleAnalyzeFile = async () => {
     if (!file) return;
 
+    setIsAnalyzing(true);
     try {
-      const arrayBuffer = await file.arrayBuffer();
-      const workbook = XLSX.read(arrayBuffer, { type: "array" });
+      const parsed = await parseFile(file);
+      setParsedFile(parsed);
 
-      const parsedData = {
-        campaign: {},
-        influencers: [],
-        media: [],
-        ecommerce: [],
-      };
+      // Initialize mappings with suggestions
+      const initialMappings: Record<string, string | null> = {};
+      parsed.columns.forEach((column) => {
+        initialMappings[column.name] = column.suggestedMapping;
+      });
+      setMappings(initialMappings);
 
-      // Parse the file (reusing logic from ImportDataDialog)
-      const campaignSheet = workbook.Sheets["Page 1"] || workbook.Sheets[workbook.SheetNames[0]];
-      if (campaignSheet) {
-        const campaignData = XLSX.utils.sheet_to_json(campaignSheet, { header: 1 });
-        // Extract campaign data as key-value pairs
-        for (const row of campaignData as any[]) {
-          if (row[0] && row[1]) {
-            parsedData.campaign[row[0]] = row[1];
-          }
-        }
-      }
-
-      // Parse influencers, media, ecommerce sheets...
-      // (Similar logic to ImportDataDialog)
-
-      // Call the import edge function
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
-
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/import-hypeauditor`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
-          },
-          body: JSON.stringify({
-            reportId,
-            parsedData: parsedData,
-            fileName: file.name,
-          }),
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error("Import failed");
-      }
-
-      const result = await response.json();
-      return result;
-    } catch (error) {
-      console.error("Error processing file:", error);
-      throw error;
+      setStep(3); // Go to mapping step
+    } catch (error: any) {
+      toast.error(error.message || "Failed to analyze file");
+    } finally {
+      setIsAnalyzing(false);
     }
+  };
+
+  const handleMappingChange = useCallback((column: string, value: string | null) => {
+    setMappings((prev) => ({
+      ...prev,
+      [column]: value,
+    }));
+  }, []);
+
+  const handleMappingNext = () => {
+    setStep(4); // Go to import review
   };
 
   const handleCreateReport = async () => {
@@ -247,12 +240,51 @@ const CreateReportDialog = ({
 
       if (reportError) throw reportError;
 
-      // If file was uploaded, process it
-      if (file) {
+      // If file was uploaded and mapped, process it
+      if (parsedFile && Object.values(mappings).some(Boolean)) {
         try {
-          await processHypeAuditorFile(report.id);
-          toast.success("Report created and data imported successfully!");
+          const mappingsList = Object.entries(mappings)
+            .filter(([_, target]) => target !== null)
+            .map(([sourceColumn, target]) => {
+              const parsed = parseMappingTarget(target!);
+              return {
+                sourceColumn,
+                targetTable: parsed!.table,
+                targetField: parsed!.field,
+              };
+            });
+
+          const { data: session } = await supabase.auth.getSession();
+          if (!session?.session) {
+            throw new Error("Not authenticated");
+          }
+
+          const response = await fetch(
+            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/import-mapped-data`,
+            {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${session.session.access_token}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                reportId: report.id,
+                fileName: parsedFile.fileName,
+                mappings: mappingsList,
+                rows: parsedFile.rows,
+              }),
+            }
+          );
+
+          const result = await response.json();
+
+          if (response.ok && result.success) {
+            toast.success(`Report created and ${result.rowsImported} rows imported!`);
+          } else {
+            toast.warning("Report created, but data import had issues");
+          }
         } catch (importError) {
+          console.error("Import error:", importError);
           toast.warning("Report created, but data import failed");
         }
       } else {
@@ -389,8 +421,9 @@ const CreateReportDialog = ({
     <div className="space-y-4">
       <div
         className={cn(
-          "border-2 border-dashed rounded-[35px] p-12 text-center transition-colors",
-          dragActive ? "border-accent bg-accent/10" : "border-foreground/20",
+          "relative border-2 border-dashed rounded-[35px] p-12 text-center transition-colors",
+          dragActive ? "border-primary bg-primary/5" : "border-foreground/20",
+          file && "border-primary bg-primary/5",
           "hover:border-foreground/40"
         )}
         onDragEnter={handleDrag}
@@ -401,36 +434,50 @@ const CreateReportDialog = ({
         <input
           type="file"
           id="file-upload"
-          className="hidden"
-          accept=".xlsx,.xls"
+          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+          accept=".xlsx,.xls,.csv"
           onChange={handleFileChange}
         />
-        <label htmlFor="file-upload" className="cursor-pointer">
-          <Upload className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-          <p className="text-lg font-medium mb-2">
-            {file ? file.name : "Drop your file here or click to browse"}
-          </p>
-          <p className="text-sm text-muted-foreground">
-            Supports XLSX files (HypeAuditor export)
-          </p>
-        </label>
-      </div>
-
-      {file && (
-        <div className="flex items-center gap-3 p-4 bg-muted rounded-[35px]">
-          <FileText className="w-5 h-5" />
-          <div className="flex-1 min-w-0">
-            <p className="font-medium truncate">{file.name}</p>
-            <p className="text-sm text-muted-foreground">
-              {(file.size / 1024 / 1024).toFixed(2)} MB
-            </p>
-          </div>
+        <div className="flex flex-col items-center gap-4">
+          {file ? (
+            <>
+              <FileSpreadsheet className="w-12 h-12 text-primary" />
+              <div>
+                <p className="font-medium text-lg">{file.name}</p>
+                <p className="text-sm text-muted-foreground">
+                  {(file.size / 1024 / 1024).toFixed(2)} MB
+                </p>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleRemoveFile();
+                }}
+                className="text-muted-foreground hover:text-destructive"
+              >
+                <X className="w-4 h-4 mr-1" />
+                Remove
+              </Button>
+            </>
+          ) : (
+            <>
+              <Upload className="w-12 h-12 text-muted-foreground" />
+              <div>
+                <p className="font-medium text-lg">Drop your file here or click to browse</p>
+                <p className="text-sm text-muted-foreground">
+                  Supports XLSX, XLS, and CSV files
+                </p>
+              </div>
+            </>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 
-  const renderStep3 = () => (
+  const renderStep5 = () => (
     <div className="space-y-6">
       <div className="space-y-4 p-6 bg-muted rounded-[35px]">
         <h3 className="font-bold text-lg">Review Report Details</h3>
@@ -471,41 +518,65 @@ const CreateReportDialog = ({
           </div>
         </div>
 
-        {file && (
+        {parsedFile && (
           <div>
             <p className="text-sm text-muted-foreground">Data File</p>
-            <p className="font-medium">{file.name}</p>
+            <p className="font-medium">{parsedFile.fileName}</p>
+            <p className="text-sm text-muted-foreground">
+              {parsedFile.totalRows} rows • {Object.values(mappings).filter(Boolean).length} fields mapped
+            </p>
           </div>
         )}
       </div>
     </div>
   );
 
-  const renderStepIndicator = () => (
-    <div className="flex items-center justify-center gap-2 mb-6">
-      {[1, 2, 3].map((stepNum) => (
-        <div
-          key={stepNum}
-          className={cn(
-            "w-2 h-2 rounded-full transition-colors",
-            step === stepNum ? "bg-accent" : "bg-muted-foreground/30"
-          )}
-        />
-      ))}
-    </div>
-  );
+  const renderStepIndicator = () => {
+    const totalSteps = parsedFile ? 5 : 5;
+    const displayStep = step > 2 ? (step === 5 ? 3 : step - 1) : step;
+    
+    return (
+      <div className="flex items-center justify-center gap-2 mb-6">
+        {[1, 2, 3].map((stepNum) => (
+          <div
+            key={stepNum}
+            className={cn(
+              "w-2 h-2 rounded-full transition-colors",
+              displayStep === stepNum ? "bg-primary" : "bg-muted-foreground/30"
+            )}
+          />
+        ))}
+      </div>
+    );
+  };
+
+  const getStepTitle = () => {
+    switch (step) {
+      case 1:
+        return "Report Details";
+      case 2:
+        return "Upload Data (Optional)";
+      case 3:
+        return "Map Columns";
+      case 4:
+        return "Review Import";
+      case 5:
+        return "Create Report";
+      default:
+        return "";
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-[600px] rounded-[35px]">
+      <DialogContent className={cn(
+        "rounded-[35px]",
+        step === 3 || step === 4 ? "sm:max-w-[900px] max-h-[90vh] overflow-y-auto" : "sm:max-w-[600px]"
+      )}>
         <DialogHeader>
-          <DialogTitle>
-            {step === 1 && "Report Details"}
-            {step === 2 && "Upload Data (Optional)"}
-            {step === 3 && "Create Report"}
-          </DialogTitle>
+          <DialogTitle>{getStepTitle()}</DialogTitle>
           <p className="text-sm text-muted-foreground">
-            Step {step} of 3
+            Step {step <= 2 ? step : step === 5 ? 3 : step - 1} of {parsedFile ? 4 : 3}
           </p>
         </DialogHeader>
 
@@ -514,62 +585,84 @@ const CreateReportDialog = ({
         <div className="py-4">
           {step === 1 && renderStep1()}
           {step === 2 && renderStep2()}
-          {step === 3 && renderStep3()}
+          {step === 3 && parsedFile && (
+            <ColumnMappingStep
+              parsedFile={parsedFile}
+              mappings={mappings}
+              onMappingChange={handleMappingChange}
+              onNext={handleMappingNext}
+              onBack={() => setStep(2)}
+              onCancel={() => handleOpenChange(false)}
+            />
+          )}
+          {step === 4 && parsedFile && (
+            <ImportReviewStep
+              parsedFile={parsedFile}
+              mappings={mappings}
+              onImport={() => setStep(5)}
+              onBack={() => setStep(3)}
+              onCancel={() => handleOpenChange(false)}
+              isLoading={false}
+            />
+          )}
+          {step === 5 && renderStep5()}
         </div>
 
-        <div className="flex justify-between gap-3">
-          {step > 1 && (
-            <Button
-              variant="outline"
-              onClick={handleBack}
-              disabled={loading}
-              className="rounded-[35px]"
-            >
-              Back
-            </Button>
-          )}
-
-          <div className="flex gap-3 ml-auto">
-            {step === 1 && (
+        {(step === 1 || step === 2 || step === 5) && (
+          <div className="flex justify-between gap-3">
+            {step > 1 && (
               <Button
-                onClick={handleNext}
-                disabled={!canProceedStep1()}
-                className="rounded-[35px]"
-              >
-                Next
-              </Button>
-            )}
-
-            {step === 2 && (
-              <>
-                <Button
-                  variant="outline"
-                  onClick={handleSkipUpload}
-                  className="rounded-[35px]"
-                >
-                  Skip
-                </Button>
-                <Button
-                  onClick={handleContinueWithFile}
-                  disabled={!file}
-                  className="rounded-[35px]"
-                >
-                  Continue
-                </Button>
-              </>
-            )}
-
-            {step === 3 && (
-              <Button
-                onClick={handleCreateReport}
+                variant="outline"
+                onClick={handleBack}
                 disabled={loading}
                 className="rounded-[35px]"
               >
-                {loading ? "Creating..." : "Create Report"}
+                Back
               </Button>
             )}
+
+            <div className="flex gap-3 ml-auto">
+              {step === 1 && (
+                <Button
+                  onClick={handleNext}
+                  disabled={!canProceedStep1()}
+                  className="rounded-[35px]"
+                >
+                  Next
+                </Button>
+              )}
+
+              {step === 2 && (
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={handleSkipUpload}
+                    className="rounded-[35px]"
+                  >
+                    Skip
+                  </Button>
+                  <Button
+                    onClick={handleAnalyzeFile}
+                    disabled={!file || isAnalyzing}
+                    className="rounded-[35px]"
+                  >
+                    {isAnalyzing ? "Analyzing..." : "Analyze & Map"}
+                  </Button>
+                </>
+              )}
+
+              {step === 5 && (
+                <Button
+                  onClick={handleCreateReport}
+                  disabled={loading}
+                  className="rounded-[35px]"
+                >
+                  {loading ? "Creating..." : "Create Report"}
+                </Button>
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </DialogContent>
     </Dialog>
   );
