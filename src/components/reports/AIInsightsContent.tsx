@@ -465,9 +465,9 @@ export const AIInsightsContent = forwardRef<HTMLDivElement, AIInsightsContentPro
   const kpiTargets = insights.kpi_targets;
 
   return (
-    <div ref={ref} className="space-y-8">
+    <div ref={ref} className="space-y-8 pdf-export-container" style={{ backgroundColor: '#E9E9E9' }}>
       {/* Executive Summary Block - Page 1 */}
-      <Card className="p-6 rounded-[20px] border-foreground">
+      <Card className="p-6 rounded-[20px] border-foreground" style={{ backgroundColor: '#E9E9E9' }}>
         <h2 className="text-xl font-bold mb-4">
           Executive Summary
         </h2>
@@ -537,7 +537,7 @@ export const AIInsightsContent = forwardRef<HTMLDivElement, AIInsightsContentPro
       </Card>
 
       {/* Top 5 Content Block - Page 2 */}
-      <Card className="p-6 rounded-[20px] border-foreground pdf-page-break">
+      <Card className="p-6 rounded-[20px] border-foreground pdf-page-break" style={{ backgroundColor: '#E9E9E9' }}>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-bold">Top 5 Content</h2>
           {canEdit && reportId && (
@@ -574,7 +574,7 @@ export const AIInsightsContent = forwardRef<HTMLDivElement, AIInsightsContentPro
       </Card>
 
       {/* Campaign Overview Block - Page 3 */}
-      <Card className="p-6 rounded-[20px] border-foreground pdf-page-break">
+      <Card className="p-6 rounded-[20px] border-foreground pdf-page-break" style={{ backgroundColor: '#E9E9E9' }}>
         <h2 className="text-xl font-bold mb-4">
           Základní přehled kampaně
         </h2>
@@ -622,7 +622,7 @@ export const AIInsightsContent = forwardRef<HTMLDivElement, AIInsightsContentPro
       </Card>
 
       {/* Innovation Metrics Block - Page 4 */}
-      <Card className="p-6 rounded-[20px] border-foreground pdf-page-break">
+      <Card className="p-6 rounded-[20px] border-foreground pdf-page-break" style={{ backgroundColor: '#E9E9E9' }}>
         <h2 className="text-xl font-bold mb-4">
           Inovativní a kvalitativní metriky
         </h2>
@@ -670,7 +670,7 @@ export const AIInsightsContent = forwardRef<HTMLDivElement, AIInsightsContentPro
       </Card>
 
       {/* Campaign Sentiment Block - Page 5 */}
-      <Card className="p-6 rounded-[20px] border-foreground pdf-page-break">
+      <Card className="p-6 rounded-[20px] border-foreground pdf-page-break" style={{ backgroundColor: '#E9E9E9' }}>
         <h2 className="text-xl font-bold mb-4">
           Sentiment kampaně
         </h2>
@@ -746,7 +746,7 @@ export const AIInsightsContent = forwardRef<HTMLDivElement, AIInsightsContentPro
       </Card>
 
       {/* Creators Leaderboard Block - Page 6 */}
-      <Card className="p-6 rounded-[20px] border-foreground pdf-page-break">
+      <Card className="p-6 rounded-[20px] border-foreground pdf-page-break" style={{ backgroundColor: '#E9E9E9' }}>
         <h2 className="text-xl font-bold mb-4">
           Creators Leaderboard
         </h2>
@@ -781,13 +781,14 @@ export const AIInsightsContent = forwardRef<HTMLDivElement, AIInsightsContentPro
           };
 
           return (
-            <Card key={creator.handle} className="p-6 rounded-[20px] border-foreground pdf-page-break">
+            <Card key={creator.handle} className="p-6 rounded-[20px] border-foreground pdf-page-break" style={{ backgroundColor: '#E9E9E9' }}>
               <h2 className="text-xl font-bold mb-4">
                 Content Performance: @{creator.handle}
               </h2>
               <CreatorPerformanceCard
                 creator={transformedCreator}
                 canEdit={canEdit}
+                variant="flat"
                 onSaveKeyInsight={(handle, insight) => {
                   if (onSaveInsights) {
                     const updatedPerformance = (insights.creator_performance || []).map((c) =>
@@ -809,14 +810,14 @@ export const AIInsightsContent = forwardRef<HTMLDivElement, AIInsightsContentPro
           );
         })
       ) : (
-        <Card className="p-6 rounded-[20px] border-foreground pdf-page-break">
+        <Card className="p-6 rounded-[20px] border-foreground pdf-page-break" style={{ backgroundColor: '#E9E9E9' }}>
           <h2 className="text-xl font-bold mb-4">Content Performance</h2>
           <p className="text-muted-foreground text-center py-8">No creator performance data available</p>
         </Card>
       )}
 
       {/* Summary & Takeaways Block - Last Page */}
-      <Card className="p-6 rounded-[20px] border-foreground pdf-page-break">
+      <Card className="p-6 rounded-[20px] border-foreground pdf-page-break" style={{ backgroundColor: '#E9E9E9' }}>
         <h2 className="text-xl font-bold mb-4">
           Summary & Takeaways
         </h2>
