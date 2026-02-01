@@ -58,7 +58,7 @@ serve(async (req) => {
       .select("*, creators(handle, avatar_url, platform)")
       .eq("report_id", report_id);
 
-    // Fetch benchmarks from other reports in the same space (same type)
+    // Fetch other reports in the same space (same type) for benchmarks
     const { data: spaceReports } = await supabase
       .from("reports")
       .select("id")
@@ -72,77 +72,145 @@ serve(async (req) => {
     let benchmarkInteractions = 0;
     let benchmarkCount = 0;
 
+    // Calculate benchmarks per report (not per content item)
     if (spaceReports && spaceReports.length > 0) {
-      const reportIds = spaceReports.map((r) => r.id);
-      const { data: benchmarkContent } = await supabase
-        .from("content")
-        .select("engagement_rate, shares, reposts, views, cost, watch_time, likes, comments, saves")
-        .in("report_id", reportIds);
+      for (const spaceReport of spaceReports) {
+        // Fetch content for this report
+        const { data: reportContent } = await supabase
+          .from("content")
+          .select("engagement_rate, shares, reposts, views, watch_time, likes, comments, saves")
+          .eq("report_id", spaceReport.id);
 
-      if (benchmarkContent && benchmarkContent.length > 0) {
-        benchmarkContent.forEach((c) => {
-          if (c.engagement_rate) benchmarkER += c.engagement_rate;
-          const views = (c.views || 0);
-          const shares = (c.shares || 0) + (c.reposts || 0);
-          if (views > 0) {
-            benchmarkVirality += (shares / views) * 100;
+        // Fetch creators for this report (for budget calculation)
+        const { data: reportCreators } = await supabase
+          .from("creators")
+          .select("posts_count, posts_cost, reels_count, reels_cost, stories_count, stories_cost")
+          .eq("report_id", spaceReport.id);
+
+        if (reportContent && reportContent.length > 0) {
+          // Calculate totals for this report
+          let reportER = 0;
+          let reportERCount = 0;
+          let reportVirality = 0;
+          let reportViralityCount = 0;
+          let reportInteractions = 0;
+          let reportTswb = 0;
+
+          reportContent.forEach((c) => {
+            if (c.engagement_rate) {
+              reportER += c.engagement_rate;
+              reportERCount++;
+            }
+            const views = c.views || 0;
+            const shares = (c.shares || 0) + (c.reposts || 0);
+            if (views > 0) {
+              reportVirality += (shares / views) * 100;
+              reportViralityCount++;
+            }
+            reportInteractions += (c.likes || 0) + (c.comments || 0) + (c.saves || 0) + (c.shares || 0) + (c.reposts || 0);
+            reportTswb += (c.watch_time || 0) + ((c.likes || 0) * 3) + ((c.comments || 0) * 5) +
+                          (((c.saves || 0) + (c.shares || 0) + (c.reposts || 0)) * 10);
+          });
+
+          // Calculate budget from creators (planned costs)
+          let reportBudget = 0;
+          reportCreators?.forEach((c: any) => {
+            reportBudget += ((c.posts_count || 0) * (c.posts_cost || 0)) +
+                            ((c.reels_count || 0) * (c.reels_cost || 0)) +
+                            ((c.stories_count || 0) * (c.stories_cost || 0));
+          });
+
+          // Add this report's values to benchmarks
+          if (reportERCount > 0) benchmarkER += reportER / reportERCount;
+          if (reportViralityCount > 0) benchmarkVirality += reportVirality / reportViralityCount;
+          benchmarkInteractions += reportInteractions; // Total interactions for this report
+          const reportTswbMinutes = reportTswb / 60;
+          if (reportTswbMinutes > 0 && reportBudget > 0) {
+            benchmarkTswbCost += reportBudget / reportTswbMinutes;
           }
-          const tswb = (c.watch_time || 0) + ((c.likes || 0) * 3) + ((c.comments || 0) * 5) + 
-                       (((c.saves || 0) + (c.shares || 0) + (c.reposts || 0)) * 10);
-          const tswbMinutes = tswb / 60;
-          if (tswbMinutes > 0 && c.cost) {
-            benchmarkTswbCost += c.cost / tswbMinutes;
-          }
-          benchmarkInteractions += (c.likes || 0) + (c.comments || 0) + 
-                                   (c.saves || 0) + (c.shares || 0) + (c.reposts || 0);
+
           benchmarkCount++;
-        });
-        if (benchmarkCount > 0) {
-          benchmarkER /= benchmarkCount;
-          benchmarkVirality /= benchmarkCount;
-          benchmarkTswbCost /= benchmarkCount;
-          benchmarkInteractions /= benchmarkCount;
         }
+      }
+
+      // Divide by number of reports to get averages
+      if (benchmarkCount > 0) {
+        benchmarkER /= benchmarkCount;
+        benchmarkVirality /= benchmarkCount;
+        benchmarkTswbCost /= benchmarkCount;
+        benchmarkInteractions /= benchmarkCount;
       }
     }
 
+    // Calculate metrics for current report
+    const creatorsCount = creators?.length || 0;
+    const contentCount = content?.length || 0;
+    let totalViews = 0;
+    let totalInteractions = 0;
+    let totalTswb = 0;
+    let totalER = 0;
+    let totalVirality = 0;
+    let erCount = 0;
+    let viralityCount = 0;
+    let sentimentCounts = { positive: 0, neutral: 0, negative: 0 };
+
+    const currency = creators?.[0]?.currency || "CZK";
+
+    // Collect all sentiment summaries for topic extraction
+    const allSentimentSummaries: string[] = [];
+
+    content?.forEach((c) => {
+      const views = (c.impressions || 0) + (c.views || 0);
+      totalViews += views;
+      totalInteractions += (c.likes || 0) + (c.comments || 0) + (c.saves || 0) + (c.shares || 0) + (c.reposts || 0);
+      
+      // TSWB calculation
+      const tswb = (c.watch_time || 0) + ((c.likes || 0) * 3) + ((c.comments || 0) * 5) + 
+                   (((c.saves || 0) + (c.shares || 0) + (c.reposts || 0)) * 10);
+      totalTswb += tswb;
+
+      if (c.engagement_rate) {
+        totalER += c.engagement_rate;
+        erCount++;
+      }
+
+      const shares = (c.shares || 0) + (c.reposts || 0);
+      if (views > 0) {
+        totalVirality += (shares / views) * 100;
+        viralityCount++;
+      }
+
+      if (c.sentiment) {
+        sentimentCounts[c.sentiment as keyof typeof sentimentCounts]++;
+      }
+
+      if (c.sentiment_summary) {
+        allSentimentSummaries.push(c.sentiment_summary);
+      }
+    });
+
+    // Calculate budget from creators (planned costs) - this matches Overview tab calculation
+    let totalBudget = 0;
+    creators?.forEach((c: any) => {
+      totalBudget += ((c.posts_count || 0) * (c.posts_cost || 0)) +
+                     ((c.reels_count || 0) * (c.reels_cost || 0)) +
+                     ((c.stories_count || 0) * (c.stories_cost || 0));
+    });
+
+    const avgCpm = totalViews > 0 ? (totalBudget / totalViews) * 1000 : 0;
+    const avgER = erCount > 0 ? totalER / erCount : 0;
+    const avgVirality = viralityCount > 0 ? totalVirality / viralityCount : 0;
+    const tswbMinutes = totalTswb / 60;
+    const tswbCost = tswbMinutes > 0 ? totalBudget / tswbMinutes : 0;
+
     // Fallback - use current report data if no other reports exist in space
     const hasBenchmarks = spaceReports && spaceReports.length > 0 && benchmarkCount > 0;
-    if (!hasBenchmarks && content && content.length > 0) {
-      let fallbackER = 0;
-      let fallbackVirality = 0;
-      let fallbackTswbCost = 0;
-      let fallbackInteractions = 0;
-      let fallbackCount = 0;
-
-      content.forEach((c: any) => {
-        if (c.engagement_rate) fallbackER += c.engagement_rate;
-
-        const views = (c.views || 0);
-        const shares = (c.shares || 0) + (c.reposts || 0);
-        if (views > 0) {
-          fallbackVirality += (shares / views) * 100;
-        }
-
-        const tswb = (c.watch_time || 0) + ((c.likes || 0) * 3) + ((c.comments || 0) * 5) + 
-                     (((c.saves || 0) + (c.shares || 0) + (c.reposts || 0)) * 10);
-        const tswbMinutes = tswb / 60;
-        if (tswbMinutes > 0 && c.cost) {
-          fallbackTswbCost += c.cost / tswbMinutes;
-        }
-
-        fallbackInteractions += (c.likes || 0) + (c.comments || 0) + 
-                                (c.saves || 0) + (c.shares || 0) + (c.reposts || 0);
-
-        fallbackCount++;
-      });
-
-      if (fallbackCount > 0) {
-        benchmarkER = fallbackER / fallbackCount;
-        benchmarkVirality = fallbackVirality / fallbackCount;
-        benchmarkTswbCost = fallbackTswbCost / fallbackCount;
-        benchmarkInteractions = fallbackInteractions / fallbackCount;
-      }
+    if (!hasBenchmarks) {
+      // Use identical values as the current report
+      benchmarkER = avgER;
+      benchmarkVirality = avgVirality;
+      benchmarkTswbCost = tswbCost;
+      benchmarkInteractions = totalInteractions;
     }
 
     // Calculate KPI Targets from Creators (planned values)
@@ -190,61 +258,6 @@ serve(async (req) => {
 
     const kpiTargets = calculateKPITargets();
 
-    // Calculate metrics
-    const creatorsCount = creators?.length || 0;
-    const contentCount = content?.length || 0;
-    let totalViews = 0;
-    let totalCost = 0;
-    let totalInteractions = 0;
-    let totalTswb = 0;
-    let totalER = 0;
-    let totalVirality = 0;
-    let erCount = 0;
-    let viralityCount = 0;
-    let sentimentCounts = { positive: 0, neutral: 0, negative: 0 };
-
-    const currency = creators?.[0]?.currency || "CZK";
-
-    // Collect all sentiment summaries for topic extraction
-    const allSentimentSummaries: string[] = [];
-
-    content?.forEach((c) => {
-      const views = (c.impressions || 0) + (c.views || 0);
-      totalViews += views;
-      totalCost += c.cost || 0;
-      totalInteractions += (c.likes || 0) + (c.comments || 0) + (c.saves || 0) + (c.shares || 0) + (c.reposts || 0);
-      
-      // TSWB calculation
-      const tswb = (c.watch_time || 0) + ((c.likes || 0) * 3) + ((c.comments || 0) * 5) + 
-                   (((c.saves || 0) + (c.shares || 0) + (c.reposts || 0)) * 10);
-      totalTswb += tswb;
-
-      if (c.engagement_rate) {
-        totalER += c.engagement_rate;
-        erCount++;
-      }
-
-      const shares = (c.shares || 0) + (c.reposts || 0);
-      if (views > 0) {
-        totalVirality += (shares / views) * 100;
-        viralityCount++;
-      }
-
-      if (c.sentiment) {
-        sentimentCounts[c.sentiment as keyof typeof sentimentCounts]++;
-      }
-
-      if (c.sentiment_summary) {
-        allSentimentSummaries.push(c.sentiment_summary);
-      }
-    });
-
-    const avgCpm = totalViews > 0 ? (totalCost / totalViews) * 1000 : 0;
-    const avgER = erCount > 0 ? totalER / erCount : 0;
-    const avgVirality = viralityCount > 0 ? totalVirality / viralityCount : 0;
-    const tswbMinutes = totalTswb / 60;
-    const tswbCost = tswbMinutes > 0 ? totalCost / tswbMinutes : 0;
-
     // Determine average sentiment
     const maxSentiment = Object.entries(sentimentCounts).reduce((a, b) => 
       a[1] > b[1] ? a : b
@@ -270,7 +283,7 @@ serve(async (req) => {
       creator_handle: (c.creators as any)?.handle || "unknown",
     }));
 
-    // Build leaderboard
+    // Build leaderboard - use budget from creators, not content.cost
     const leaderboard = (creators || []).map((creator) => {
       const creatorContent = content?.filter((c) => c.creator_id === creator.id) || [];
       let views = 0;
@@ -280,7 +293,6 @@ serve(async (req) => {
       let virality = 0;
       let viralityC = 0;
       let creatorTswb = 0;
-      let creatorCost = 0;
 
       creatorContent.forEach((c) => {
         const v = (c.impressions || 0) + (c.views || 0);
@@ -297,11 +309,15 @@ serve(async (req) => {
         }
         creatorTswb += (c.watch_time || 0) + ((c.likes || 0) * 3) + ((c.comments || 0) * 5) + 
                        (((c.saves || 0) + (c.shares || 0) + (c.reposts || 0)) * 10);
-        creatorCost += c.cost || 0;
       });
 
+      // Calculate budget for this creator
+      const creatorBudget = ((creator.posts_count || 0) * (creator.posts_cost || 0)) +
+                            ((creator.reels_count || 0) * (creator.reels_cost || 0)) +
+                            ((creator.stories_count || 0) * (creator.stories_cost || 0));
+
       const creatorTswbMinutes = creatorTswb / 60;
-      const creatorTswbCost = creatorTswbMinutes > 0 ? creatorCost / creatorTswbMinutes : 0;
+      const creatorTswbCost = creatorTswbMinutes > 0 ? creatorBudget / creatorTswbMinutes : 0;
 
       return {
         handle: creator.handle,
@@ -388,7 +404,7 @@ Data kampaně:
 - Počet creatorů: ${creatorsCount}
 - Počet content pieces: ${contentCount}
 - Celkem views: ${totalViews}
-- Celkový budget: ${totalCost} ${currency}
+- Celkový budget: ${totalBudget} ${currency}
 - Průměrný CPM: ${avgCpm.toFixed(2)} ${currency}
 - Celkové interakce: ${totalInteractions}
 - Průměrný ER: ${avgER.toFixed(2)}%
@@ -520,10 +536,10 @@ Pro creator_insights vytvoř entry pro každého z těchto creatorů: ${creatorP
       top_sentiment_topics: aiContent.top_sentiment_topics || [],
       leaderboard,
       benchmarks: {
-        engagementRate: benchmarkER || avgER,
-        viralityRate: benchmarkVirality || avgVirality,
-        tswbCost: benchmarkTswbCost || tswbCost,
-        interactions: benchmarkInteractions || totalInteractions,
+        engagementRate: benchmarkER,
+        viralityRate: benchmarkVirality,
+        tswbCost: benchmarkTswbCost,
+        interactions: benchmarkInteractions,
       },
       creator_performance: enhancedCreatorPerformance,
       recommendations: aiContent.recommendations,
