@@ -194,6 +194,14 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
     }
   };
 
+  const handleRegenerate = async () => {
+    if (!structuredData?.campaign_context) {
+      toast.error("Chybí kontext kampaně. Použijte 'Generate AI Insights' pro první generování.");
+      return;
+    }
+    await handleGenerateInsights(structuredData.campaign_context);
+  };
+
   const handleSaveInsights = async () => {
     setIsSaving(true);
     try {
@@ -247,14 +255,19 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
           <div className="flex items-center justify-end gap-2">
             {canEdit && (
               <Button
-                  onClick={() => setIsInputDialogOpen(true)}
-                  variant="outline"
-                  className="rounded-[35px] border-foreground"
-                  title="Vygenerovat nové AI Insights"
-                >
+                onClick={handleRegenerate}
+                disabled={isGenerating}
+                variant="outline"
+                className="rounded-[35px] border-foreground"
+                title="Regenerovat AI Insights s existujícím kontextem"
+              >
+                {isGenerating ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
                   <RefreshCw className="w-4 h-4 mr-2" />
-                  Regenerate
-                </Button>
+                )}
+                Regenerate
+              </Button>
             )}
           </div>
 
@@ -269,12 +282,6 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
           />
         </div>
 
-        <AIInsightsInputDialog
-          open={isInputDialogOpen}
-          onOpenChange={setIsInputDialogOpen}
-          onSubmit={handleGenerateInsights}
-          isGenerating={isGenerating}
-        />
       </>
     );
   }
