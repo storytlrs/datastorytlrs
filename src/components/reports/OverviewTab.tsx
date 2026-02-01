@@ -50,6 +50,7 @@ interface Creator {
 interface Content {
   id: string;
   creator_id: string;
+  platform: "instagram" | "tiktok" | "youtube" | "facebook" | "twitter";
   reach: number | null;
   impressions: number | null;
   views: number | null;
@@ -104,13 +105,14 @@ export const OverviewTab = ({ reportId }: OverviewTabProps) => {
     end: null,
   });
   const [selectedCreator, setSelectedCreator] = useState<string>("all");
+  const [selectedPlatform, setSelectedPlatform] = useState<string>("all");
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       const [creatorsRes, contentRes] = await Promise.all([
         supabase.from("creators").select("id, handle, currency, posts_count, reels_count, stories_count, posts_cost, reels_cost, stories_cost").eq("report_id", reportId),
-        supabase.from("content").select("id, creator_id, reach, impressions, views, watch_time, likes, comments, shares, saves, link_clicks, sticker_clicks, published_date, reposts").eq("report_id", reportId),
+        supabase.from("content").select("id, creator_id, platform, reach, impressions, views, watch_time, likes, comments, shares, saves, link_clicks, sticker_clicks, published_date, reposts").eq("report_id", reportId),
       ]);
       setCreators(creatorsRes.data || []);
       setContent(contentRes.data || []);
@@ -119,15 +121,22 @@ export const OverviewTab = ({ reportId }: OverviewTabProps) => {
     fetchData();
   }, [reportId]);
 
-  // Filter content by date range and creator
+  // Get available platforms from data
+  const availablePlatforms = useMemo(() => {
+    const platforms = [...new Set(content.map((c) => c.platform))];
+    return platforms.sort();
+  }, [content]);
+
+  // Filter content by date range, creator, and platform
   const filteredContent = useMemo(() => {
     return content.filter((item) => {
       if (selectedCreator !== "all" && item.creator_id !== selectedCreator) return false;
+      if (selectedPlatform !== "all" && item.platform !== selectedPlatform) return false;
       if (dateRange.start && item.published_date && new Date(item.published_date) < dateRange.start) return false;
       if (dateRange.end && item.published_date && new Date(item.published_date) > dateRange.end) return false;
       return true;
     });
-  }, [content, selectedCreator, dateRange]);
+  }, [content, selectedCreator, selectedPlatform, dateRange]);
 
   // Filter creators if specific one selected
   const relevantCreators = useMemo(() => {
@@ -245,9 +254,10 @@ export const OverviewTab = ({ reportId }: OverviewTabProps) => {
   const clearFilters = () => {
     setDateRange({ start: null, end: null });
     setSelectedCreator("all");
+    setSelectedPlatform("all");
   };
 
-  const hasFilters = dateRange.start || dateRange.end || selectedCreator !== "all";
+  const hasFilters = dateRange.start || dateRange.end || selectedCreator !== "all" || selectedPlatform !== "all";
 
   if (loading) {
     return (
@@ -340,6 +350,26 @@ export const OverviewTab = ({ reportId }: OverviewTabProps) => {
             {creators.map((creator) => (
               <SelectItem key={creator.id} value={creator.id}>
                 {creator.handle}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {/* Platform Filter */}
+        <Select value={selectedPlatform} onValueChange={setSelectedPlatform}>
+          <SelectTrigger className={cn(
+            "w-[180px] rounded-[35px]",
+            selectedPlatform !== "all"
+              ? "border-accent-orange bg-accent-orange text-foreground"
+              : ""
+          )}>
+            <SelectValue placeholder="All platforms" />
+          </SelectTrigger>
+          <SelectContent className="rounded-[20px]">
+            <SelectItem value="all">All platforms</SelectItem>
+            {availablePlatforms.map((platform) => (
+              <SelectItem key={platform} value={platform}>
+                {platform.charAt(0).toUpperCase() + platform.slice(1)}
               </SelectItem>
             ))}
           </SelectContent>
