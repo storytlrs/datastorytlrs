@@ -1,51 +1,76 @@
 
-# Plán: Opravit ořezávání textů v PDF
+# Plán: Zarovnání textů v badges a přidání záhlaví do PDF
 
-## Problém
+## Problémy
 
-V PDF exportu je text "Key Insight" ořezáván kvůli CSS třídě `.pdf-line-clamp`, která omezuje zobrazení na 5 řádků pomocí `-webkit-line-clamp: 5` a `overflow: hidden`.
-
-Screenshot ukazuje, že text u @filipsido končí uprostřed věty: "...Nízká zmínka Birellu v komentářích ukazuje na malou přímou relevanci."
+1. **TopicBadge texty nejsou vertikálně na středu** - screenshot ukazuje, že texty v bublinách (positive/negative topics) nejsou správně zarovnány
+2. **Chybí záhlaví v PDF** - je třeba přidat header s názvem kampaně, typem reportu, statusem a datumem
 
 ---
 
 ## Řešení
 
-1. **Odstranit** třídu `pdf-line-clamp` z elementu Key Insight v `AIInsightsContentPDF.tsx`
-2. **Alternativně** nebo **navíc**: Upravit CSS, aby `.pdf-line-clamp` neořezával text (pro případ, že by byla použita jinde)
+### 1. Oprava zarovnání textů v TopicBadge
 
----
+V komponentě `TopicBadge` přidat `justify-center` a `text-center` pro horizontální zarovnání textu na střed bubliny.
 
-## Změny
-
-### 1. src/components/reports/AIInsightsContentPDF.tsx
-
-**Řádek 434** - Odstranit třídu `pdf-line-clamp`:
+**Soubor:** `src/components/reports/TopicBadge.tsx`
 
 ```tsx
 // PŘED:
-<p className="text-xs pdf-line-clamp">{creator.key_insight || "No insight available"}</p>
+"inline-flex items-center px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide"
 
 // PO:
-<p className="text-xs leading-relaxed">{creator.key_insight || "No insight available"}</p>
+"inline-flex items-center justify-center text-center px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide"
 ```
 
-Přidání `leading-relaxed` zajistí lepší čitelnost delšího textu.
+### 2. Přidání záhlaví do PDF
 
-### 2. src/index.css
+Přidat props pro report metadata do `AIInsightsContentPDF` a zobrazit je v záhlaví.
 
-**Řádky 166-172** - Odstranit nebo upravit `.pdf-line-clamp` pravidlo (pro jistotu):
+**Soubor:** `src/components/reports/AIInsightsContentPDF.tsx`
 
-```css
-/* PŘED: */
-.pdf-continuous .pdf-line-clamp {
-  display: -webkit-box;
-  -webkit-line-clamp: 5;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
+- Přidat nové props: `reportName`, `reportType`, `reportStatus`, `startDate`, `endDate`
+- Přidat header sekci na začátek dokumentu:
 
-/* PO: Odstranit celý blok nebo změnit na vyšší limit */
+```tsx
+{/* PDF Header */}
+<div className="mb-6">
+  <h1 className="text-2xl font-bold">{reportName}</h1>
+  <p className="text-sm text-muted-foreground">
+    {getReportTypeLabel(reportType)} • {reportStatus === "active" ? "Published" : reportStatus}
+  </p>
+  {startDate && endDate && (
+    <p className="text-xs text-muted-foreground mt-1">
+      {formatDate(startDate)} - {formatDate(endDate)}
+    </p>
+  )}
+</div>
+```
+
+**Soubor:** `src/components/reports/AIInsightsTab.tsx`
+
+- Načíst report data (name, type, status, start_date, end_date) a předat do PDF komponenty:
+
+```tsx
+// Rozšířit fetchReportData nebo přidat nový dotaz
+const { data: reportData } = await supabase
+  .from("reports")
+  .select("name, type, status, start_date, end_date")
+  .eq("id", reportId)
+  .single();
+
+// Předat do komponenty
+<AIInsightsContentPDF
+  ref={pdfRef}
+  insights={structuredData}
+  reportName={reportData?.name}
+  reportType={reportData?.type}
+  reportStatus={reportData?.status}
+  startDate={reportData?.start_date}
+  endDate={reportData?.end_date}
+  ...
+/>
 ```
 
 ---
@@ -54,14 +79,41 @@ Přidání `leading-relaxed` zajistí lepší čitelnost delšího textu.
 
 | Soubor | Změna |
 |--------|-------|
-| `src/components/reports/AIInsightsContentPDF.tsx` | Odstranit `pdf-line-clamp` třídu z Key Insight |
-| `src/index.css` | Odstranit `.pdf-line-clamp` CSS pravidlo |
+| `src/components/reports/TopicBadge.tsx` | Přidat `justify-center text-center` pro zarovnání |
+| `src/components/reports/AIInsightsContentPDF.tsx` | Přidat props pro report metadata a header sekci |
+| `src/components/reports/AIInsightsTab.tsx` | Načíst a předat report metadata do PDF komponenty |
 
 ---
 
-## Výsledek
+## Vizualizace výsledku
 
-| Vlastnost | Před | Po |
-|-----------|------|-----|
-| Key Insight text | Ořezaný na 5 řádků | Plný text bez ořezání |
-| Ostatní sekce | Beze změny | Beze změny |
+### TopicBadge (zarovnání)
+
+```text
+PŘED:                  PO:
+┌─────────────────┐    ┌─────────────────┐
+│BĚŽECKÉ VÝKONY   │    │ BĚŽECKÉ VÝKONY  │
+└─────────────────┘    └─────────────────┘
+(text vlevo)           (text na středu)
+```
+
+### PDF Header
+
+```text
+┌─────────────────────────────────────────┐
+│  Influencer Campaign                     │  ← Název reportu (h1, bold)
+│  Influencer campaign • draft             │  ← Typ + status
+│  01/11/2025 - 30/11/2025                 │  ← Datum rozsah
+├─────────────────────────────────────────┤
+│  Executive Summary                       │
+│  ...                                     │
+└─────────────────────────────────────────┘
+```
+
+---
+
+## Implementační kroky
+
+1. Upravit `TopicBadge.tsx` - přidat zarovnání textu na střed
+2. Rozšířit props v `AIInsightsContentPDF.tsx` a přidat header
+3. Upravit `AIInsightsTab.tsx` - načíst report data a předat do PDF komponenty
