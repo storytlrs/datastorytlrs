@@ -241,7 +241,7 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
       await waitForImages(pdfRef.current);
       
       const opt = {
-        margin: 0, // No margin - .pdf-page handles padding
+        margin: 10, // Small margin around content
         filename: `insights-report-${new Date().toISOString().split('T')[0]}.pdf`,
         image: { type: 'jpeg', quality: 0.95 },
         html2canvas: { 
@@ -249,16 +249,14 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
           useCORS: true,
           logging: false,
           backgroundColor: '#E9E9E9',
-          windowWidth: 1123, // A4 landscape at 96dpi (297mm)
+          width: 1100, // Fixed width matching .pdf-continuous
         },
         jsPDF: { 
           unit: 'mm', 
           format: 'a4', 
           orientation: 'landscape' as const
         },
-        pagebreak: { 
-          mode: ['css'] // Only CSS mode, no "before" or "avoid"
-        }
+        // No pagebreak config - let html2pdf handle it automatically
       };
       
       await html2pdf().set(opt).from(pdfRef.current).save();
