@@ -1,143 +1,185 @@
 
-# Plán: Editovatelné Top Topics v sekci Sentiment kampaně
+# Plán: Editovatelné odstavce pro Základní přehled a Inovativní metriky
 
 ## Přehled
 
-Přidáme možnost editovat "Top Topics" v sekci Sentiment kampaně. Použijeme stejný pattern jako u editace topics v Content Performance kartách.
+Přidáme editovatelné AI-generované odstavce pod headline v sekcích "Základní přehled kampaně" a "Inovativní a kvalitativní metriky". Tyto texty budou:
+1. Automaticky generovány AI při vytváření insights
+2. Persistovány v databázi v rámci `ai_insights_structured`
+3. Editovatelné pomocí stejného patternu jako ostatní sekce
 
 ---
 
 ## Změny
 
+### 1. Aktualizace TypeScript rozhraní
+
 **Soubor:** `src/components/reports/AIInsightsContent.tsx`
 
-### 1. Přidání editačního stavu pro sentiment topics
+Přidáme nová pole do `StructuredInsights` interface:
+
+```typescript
+interface StructuredInsights {
+  // ... existující pole
+  overview_summary?: string;      // Nové
+  innovation_summary?: string;    // Nové
+  // ...
+}
+```
+
+### 2. Přidání lokálního stavu pro editaci
+
+**Soubor:** `src/components/reports/AIInsightsContent.tsx`
 
 ```typescript
 // Přidat do komponenty
-const [isEditingSentimentTopics, setIsEditingSentimentTopics] = useState(false);
-const [editedSentimentTopics, setEditedSentimentTopics] = useState(
-  insights.top_sentiment_topics?.join(', ') || ''
+const [overviewSummary, setOverviewSummary] = useState(
+  insights.overview_summary || overviewParagraph || ''
+);
+const [innovationSummary, setInnovationSummary] = useState(
+  insights.innovation_summary || innovationParagraph || ''
 );
 ```
 
-### 2. Handler pro uložení topics
+### 3. Rozšíření handleSaveSection
+
+Přidáme handling pro nové sekce:
 
 ```typescript
-const handleSaveSentimentTopics = async () => {
-  const topics = editedSentimentTopics
-    .split(',')
-    .map(t => t.trim())
-    .filter(t => t);
-  
-  // Uložení do ai_insights_structured
-  const updatedInsights = {
-    ...insights,
-    top_sentiment_topics: topics,
-  };
-  
-  try {
-    await supabase
-      .from("reports")
-      .update({ ai_insights_structured: updatedInsights })
-      .eq("id", reportId);
-    
-    onUpdate?.(updatedInsights);
-    setIsEditingSentimentTopics(false);
-    toast.success("Topics updated successfully");
-  } catch (error) {
-    toast.error("Failed to update topics");
+case "overview_summary":
+  setOverviewSummary(value);
+  if (onSaveInsights) {
+    await onSaveInsights({ overview_summary: value });
   }
+  break;
+case "innovation_summary":
+  setInnovationSummary(value);
+  if (onSaveInsights) {
+    await onSaveInsights({ innovation_summary: value });
+  }
+  break;
+```
+
+### 4. Úprava UI sekcí
+
+**Základní přehled kampaně:**
+
+```tsx
+<Card className="p-6 rounded-[20px] border-foreground">
+  <h2 className="text-xl font-bold mb-4">
+    Základní přehled kampaně
+  </h2>
+  
+  {/* Nový editovatelný odstavec */}
+  <div className="mb-4">
+    <EditableSection
+      value={overviewSummary}
+      isEditing={editingSections.has("overview_summary")}
+      onStartEdit={() => startEditing("overview_summary")}
+      onSave={(value) => handleSaveSection("overview_summary", value)}
+      onCancel={() => stopEditing("overview_summary")}
+      canEdit={canEdit}
+      placeholder="AI summary of campaign overview metrics..."
+    />
+  </div>
+  
+  {/* Existující metriky */}
+  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+    {/* MetricTile komponenty */}
+  </div>
+</Card>
+```
+
+**Inovativní a kvalitativní metriky:**
+
+```tsx
+<Card className="p-6 rounded-[20px] border-foreground">
+  <h2 className="text-xl font-bold mb-4">
+    Inovativní a kvalitativní metriky
+  </h2>
+  
+  {/* Nový editovatelný odstavec */}
+  <div className="mb-4">
+    <EditableSection
+      value={innovationSummary}
+      isEditing={editingSections.has("innovation_summary")}
+      onStartEdit={() => startEditing("innovation_summary")}
+      onSave={(value) => handleSaveSection("innovation_summary", value)}
+      onCancel={() => stopEditing("innovation_summary")}
+      canEdit={canEdit}
+      placeholder="AI summary of innovation metrics..."
+    />
+  </div>
+  
+  {/* Existující metriky */}
+  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+    {/* MetricTile komponenty */}
+  </div>
+</Card>
+```
+
+### 5. Aktualizace Edge funkce
+
+**Soubor:** `supabase/functions/generate-ai-insights/index.ts`
+
+Přidáme nová pole do uloženého strukturovaného objektu:
+
+```typescript
+const structuredInsights = {
+  // ... existující pole
+  overview_summary: aiContent.overview_paragraph,    // Nové
+  innovation_summary: aiContent.innovation_paragraph, // Nové
+  // ...
 };
 ```
 
-### 3. Úprava UI pro Top Topics sekci
+### 6. Aktualizace AIInsightsTab
 
-```tsx
-{/* Před - pouze zobrazení */}
-<div>
-  <span className="text-sm font-medium text-muted-foreground block mb-2">
-    Top Topics:
-  </span>
-  <div className="flex flex-wrap gap-2">
-    {insights.top_sentiment_topics.map((topic, i) => (
-      <TopicBadge key={i} topic={topic} variant="default" />
-    ))}
-  </div>
-</div>
+**Soubor:** `src/components/reports/AIInsightsTab.tsx`
 
-{/* Po - editovatelné */}
-<div>
-  <div className="flex items-center gap-2 mb-2">
-    <span className="text-sm font-medium text-muted-foreground">
-      Top Topics:
-    </span>
-    {canEdit && !isEditingSentimentTopics && (
-      <Button
-        variant="ghost"
-        size="icon"
-        className="h-6 w-6"
-        onClick={() => setIsEditingSentimentTopics(true)}
-      >
-        <Pencil className="h-3 w-3" />
-      </Button>
-    )}
-  </div>
-  
-  {isEditingSentimentTopics ? (
-    <div className="space-y-2">
-      <Input
-        value={editedSentimentTopics}
-        onChange={(e) => setEditedSentimentTopics(e.target.value)}
-        placeholder="Enter topics separated by commas..."
-      />
-      <div className="flex gap-2">
-        <Button size="sm" onClick={handleSaveSentimentTopics}>
-          <Save className="h-3 w-3 mr-1" />
-          Save
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => {
-            setEditedSentimentTopics(insights.top_sentiment_topics?.join(', ') || '');
-            setIsEditingSentimentTopics(false);
-          }}
-        >
-          <X className="h-3 w-3 mr-1" />
-          Cancel
-        </Button>
-      </div>
-    </div>
-  ) : (
-    <div className="flex flex-wrap gap-2">
-      {insights.top_sentiment_topics?.map((topic, i) => (
-        <TopicBadge key={i} topic={topic} variant="default" />
-      ))}
-    </div>
-  )}
-</div>
+Také aktualizujeme interface a předávání dat:
+
+```typescript
+interface StructuredInsights {
+  // ... existující pole
+  overview_summary?: string;
+  innovation_summary?: string;
+  // ...
+}
 ```
 
 ---
 
-## Souhrn
+## Souhrn souborů ke změně
 
 | Soubor | Změny |
 |--------|-------|
-| `src/components/reports/AIInsightsContent.tsx` | Přidání stavu, handleru a UI pro editaci sentiment topics |
+| `src/components/reports/AIInsightsContent.tsx` | Interface, state, handlery, UI pro editaci obou odstavců |
+| `src/components/reports/AIInsightsTab.tsx` | Aktualizace interface |
+| `supabase/functions/generate-ai-insights/index.ts` | Uložení odstavců do struktury |
 
 ---
 
 ## Technické detaily
 
-### Flow editace
-1. Uživatel klikne na ikonu tužky vedle "Top Topics:"
-2. Zobrazí se Input s hodnotami oddělenými čárkou
-3. Po kliknutí na Save se topics rozdělí a uloží jako pole do `ai_insights_structured.top_sentiment_topics`
-4. Cancel vrátí původní hodnoty
+### Datový tok
 
-### Konzistence s existujícím kódem
-- Použití stejných komponent (Input, Button, Pencil/Save/X ikony)
-- Stejný pattern pro save (update do Supabase + refresh přes onUpdate)
-- Stejné UX jako u topics v CreatorPerformanceCard
+1. **Generování**: AI vytvoří `overview_paragraph` a `innovation_paragraph`
+2. **Uložení**: Edge funkce uloží do `ai_insights_structured.overview_summary` a `ai_insights_structured.innovation_summary`
+3. **Načtení**: Frontend načte z `ai_insights_structured`
+4. **Editace**: Uživatel může upravit text pomocí `EditableSection`
+5. **Persistování**: Změny se ukládají zpět do `ai_insights_structured`
+
+### Zpětná kompatibilita
+
+Komponenta bude využívat prioritně:
+1. `insights.overview_summary` (nově uložená data)
+2. `overviewParagraph` prop (legacy data z API response)
+3. Prázdný string jako fallback
+
+### UX
+
+- Odstavec se zobrazí pod headline, nad metrikami
+- Při hoveru se objeví ikona tužky pro editaci
+- Kliknutím se otevře Textarea
+- Save/Cancel tlačítka pro potvrzení/zrušení změn
