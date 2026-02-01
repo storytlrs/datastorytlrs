@@ -1,126 +1,176 @@
 
-Cíl
-- Opravit PDF export tak, aby:
-  1) Stránky PDF měly jednotné pozadí #E9E9E9 po celé ploše (ne jen uvnitř karet).
-  2) Nevznikaly prázdné stránky (např. Page 9, 11).
-  3) “Content Performance” karty se nelámaly “divně” (ideálně se vešly na jednu stránku; pokud bude obsah extrémně dlouhý, bude mít deterministické chování bez “rozbitých” okrajů).
+# Plán: PDF Export bez stránkování (single continuous page)
 
-Co je špatně teď (z přiloženého PDF)
-1) Bílé pozadí stránky
-- Do PDF se vkládá vykreslený obrázek (canvas) jen o velikosti exportovaného DOM obsahu. Okraje PDF (margin) jsou prázdné = bílá stránka.
-- I když máme backgroundColor v html2canvas, ten se vztahuje na canvas plochu exportovaného elementu, ne na “zbytek stránky PDF” mimo vložený obrázek.
+## Cíl
 
-2) Prázdné stránky (Page 9, 11)
-- V exportu používáme zároveň:
-  - CSS break (.pdf-page-break { break-before: page; })
-  - a zároveň html2pdf pagebreak.before: '.pdf-page-break'
-- html2pdf pagebreak plugin tím může vložit “spacer” dvakrát, nebo posunout obsah tak, že vznikne extra prázdná stránka.
-- Navíc Creator sekce občas výškově těsně přesahuje stránku (dlouhé texty, topic badges), takže plugin udělá “posun”, a výsledkem je “poloprázdná” pokračovací stránka s okrajem.
+Změnit PDF export tak, aby generoval **jeden souvislý dokument** bez nucených page breaks mezi sekcemi. Obsah bude plynulý jako na webu.
 
-3) “Rozbíjení” layoutu v PDF
-- Na PDF se používá stejný UI layout jako na webu (včetně interaktivních prvků), který není navržený pro pevný A4 landscape page box.
-- Breakpointy (md: grid) + html2canvas “windowWidth” mohou způsobit jinou responsivní variantu, než očekáváme.
+---
 
-Navržené řešení (robustní)
-Zavedeme samostatný “PDF render mód” a export budeme dělat z off-screen (skrytého) PDF layoutu, který:
-- Má pevné rozměry A4 landscape (v CSS mm jednotkách).
-- Každá “stránka” je wrapper, který má background #E9E9E9 a vlastní padding (a html2pdf margin nastavíme na 0).
-- Zcela odstraníme dvojité triggerování pagebreaků (budeme používat jen CSS režim, bez pagebreak.before).
-- V PDF módu skryjeme UI-only prvky (tlačítka, ikonky editace, “Select Content”, odkazy “Zobrazit obsah” apod.).
-- Pro Content Performance dáme kompaktnější typografii/spacování + stabilní dvousloupcový layout.
+## Technický přístup
 
-Změny v kódu (konkrétní kroky)
+1. **Odstranit `.pdf-page` wrappers** - nebudeme používat pevné A4 rozměry pro každou sekci
+2. **Použít jednoduchý kontejner** s pozadím `#E9E9E9` a fixní šířkou
+3. **Nechat html2pdf automaticky rozdělit** obsah podle potřeby (bez nuceného `break-before`)
+4. **Zjednodušit CSS** - odebrat page-break pravidla
 
-1) src/index.css – přidat pevné “PDF page” styly
-- Přidat třídy:
-  - .pdf-page – pevný A4 landscape box v mm, background, padding, box-sizing, overflow hidden.
-  - .pdf-mode – kompaktní typografie/spacování (menší fonty, menší gapy, menší paddingy).
-  - .pdf-hide – display:none pro prvky, které nechceme v exportu.
-  - Nastavit print-color-adjust pro zachování barev.
+---
 
-Příklad (koncept):
-- .pdf-page { width: 297mm; min-height: 210mm; background:#E9E9E9; padding: 12mm; box-sizing:border-box; overflow:hidden; }
-- .pdf-page + .pdf-page { break-before: page; }
-- .pdf-mode * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+## Dotčené soubory
 
-2) src/components/reports/AIInsightsTab.tsx – exportovat z “PDF render” containeru, ne z UI containeru
-- Přidat nový ref: pdfRef (např. const pdfRef = useRef<HTMLDivElement>(null))
-- Přidat state isPdfMode (např. const [isPdfMode, setIsPdfMode] = useState(false))
-- V renderu:
-  - Nechat stávající UI render beze změny.
-  - Přidat skrytý off-screen blok (např. position: fixed; left:-10000px; top:0;), který renderuje AIInsightsContent s propem pdfMode={true} a ref={pdfRef}. (Tento blok bude jen při exportu nebo stále, dle preferencí; ideálně jen při exportu.)
-- V handleExportPDF:
-  - setIsPdfMode(true)
-  - počkat na re-render (např. await new Promise(r => requestAnimationFrame(() => r(null))) + další raf)
-  - počkat na dojití obrázků v pdfRef (helper “waitForImages(container)” – projde img a čeká na complete/onload)
-  - zavolat html2pdf na pdfRef.current (ne na contentRef)
-  - po dokončení setIsPdfMode(false)
+| Soubor | Změna |
+|--------|-------|
+| `src/index.css` | Odstranit `.pdf-page` styly, přidat jednoduchý `.pdf-continuous` wrapper |
+| `src/components/reports/AIInsightsContentPDF.tsx` | Odstranit `.pdf-page` wrappers, použít plynulý layout |
+| `src/components/reports/AIInsightsTab.tsx` | Zjednodušit html2pdf konfiguraci |
 
-- Změnit html2pdf options:
-  - margin: 0 (protože padding řeší .pdf-page)
-  - pagebreak: { mode: ['css'] } (bez “before”, bez “avoid” – ty dnes způsobují blank pages)
-  - html2canvas: ponechat backgroundColor '#E9E9E9', windowWidth nastavit tak, aby odpovídal A4 landscape renderu (např. 1123px při 96dpi), nebo nechat a spoléhat na mm layout; důležité je stabilní výsledek.
+---
 
-3) src/components/reports/AIInsightsContent.tsx – přidat pdfMode a renderovat “stránky” jako .pdf-page wrappery
-- Přidat nový prop: pdfMode?: boolean
-- Když pdfMode=true:
-  - Každý blok (Executive Summary, Top 5, Overview, Innovation, Sentiment, Leaderboard, každá creator performance, Summary) obalit do:
-    <div className="pdf-page pdf-mode"> ... </div>
-  - Uvnitř stránky mít jednu hlavní kartu (border, radius), ale bez toho, aby stránka “končila” bílým okrajem.
-  - Skrytí UI prvků:
-    - “Select Content” button (Settings2) – v PDF módu vůbec nerenderovat.
-    - Edit buttony (pencil) – v PDF módu nerenderovat (nebo canEdit vynutit na false v PDF renderu).
+## Detailní změny
 
-Poznámka: Tím úplně odstraníme potřebu .pdf-page-break na Card elementech; pagebreak bude řídit wrapper .pdf-page.
+### 1. src/index.css - Zjednodušené PDF styly
 
-4) src/components/reports/CreatorPerformanceCard.tsx – stabilní PDF layout + bez interaktivních prvků
-- Rozšířit props o pdfMode?: boolean (nebo mode: 'screen' | 'pdf')
-- V pdfMode:
-  - Vynutit dvousloupcový layout vždy (grid-cols-2), nepoužívat md: breakpointy.
-  - Zmenšit gapy, fonty, marginy.
-  - Skryt edit ikonky (pencil) a inputy (renderovat čistě text).
-  - Zachovat variant="flat" (bez vnější Card) – to už máme, ale doplnit i PDF kompaktní třídy.
+Odstranit:
+```css
+.pdf-page { ... }
+.pdf-page + .pdf-page { break-before: page; }
+```
 
-5) src/components/reports/ContentPreviewCard.tsx – PDF kompaktní varianta (aby se creator vešel)
-- Přidat prop size?: 'default' | 'pdf'
-- V pdf variantě:
-  - Zmenšit padding (p-4 -> p-3 / p-2)
-  - Zmenšit text
-  - Omezit hover efekty (shadow/transition)
-  - Volitelně skrýt link “Zobrazit obsah” (v PDF většinou nedává smysl a zabírá místo)
-- V CreatorPerformanceCard v pdfMode poslat size="pdf"
+Přidat:
+```css
+/* PDF Continuous Export (no forced page breaks) */
+.pdf-continuous {
+  background-color: #E9E9E9;
+  width: 1100px; /* Fixed width for consistent rendering */
+  padding: 20px;
+}
 
-Očekávaný dopad na chyby
-- Pozadí stránky bude #E9E9E9, protože:
-  - html2pdf margin=0
-  - každá stránka je .pdf-page element přesně na velikost A4 landscape a s bg #E9E9E9
-- Prázdné stránky zmizí, protože:
-  - zrušíme “double break” (nebudeme používat pagebreak.before + CSS break zároveň)
-  - nebudeme používat pagebreak.avoid, které často způsobí přesuny celých bloků a generuje “empty leftovers”
-- Rozbité karty se výrazně omezí, protože:
-  - PDF módu zjednodušíme a zkompaktníme layout
-  - stabilizujeme responsivitu (žádné md: pro klíčové gridy)
-  - odstraníme UI prvky, které v PDF nemají funkci a jen rozbíjejí rozměry
+.pdf-continuous * {
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+```
 
-Testovací checklist (po implementaci)
-1) Export PDF z /reports/1dde8ef8-29a9-4a30-b1bc-a3236082e19e
-2) Ověřit:
-  - žádná prázdná stránka mezi creator kartami
-  - každá stránka má pozadí #E9E9E9 “až do okraje” (bez bílé plochy)
-  - creator karty nejsou uříznuté (konec karty není mimo stránku); pokud nějaký creator má extrémně dlouhý Key Insight, ověřit, že:
-    - buď se vejde díky kompaktnímu módu, nebo
-    - je deterministicky zkrácen (pokud se rozhodneme přidat line-clamp) – volitelné rozšíření
+### 2. AIInsightsContentPDF.tsx - Plynulý layout
 
-Volitelná “pojistka” (pokud i po kompaktním layoutu některé creator karty stále přesahují)
-- Přidat v pdfMode pro Key Insight “max lines” (CSS line-clamp implementované ručně pro PDF mód) + na konec textu “…”
-- Alternativně povolit, aby creator karta mohla zabrat 2 stránky, ale bez prázdné mezistránky (to je druhá varianta, pokud nechceme text zkracovat)
+Kompletní refactor - místo `.pdf-page` wrapperů použít:
 
-Dotčené soubory
-- src/index.css
-- src/components/reports/AIInsightsTab.tsx
-- src/components/reports/AIInsightsContent.tsx
-- src/components/reports/CreatorPerformanceCard.tsx
-- src/components/reports/ContentPreviewCard.tsx
+```tsx
+export const AIInsightsContentPDF = forwardRef<HTMLDivElement, AIInsightsContentPDFProps>(({
+  insights,
+  // ...
+}, ref) => {
+  return (
+    <div ref={ref} className="pdf-continuous space-y-6">
+      {/* Executive Summary */}
+      <Card className="p-4 rounded-[20px] border-foreground" style={{ backgroundColor: '#E9E9E9' }}>
+        <h2>Executive Summary</h2>
+        {/* ... content ... */}
+      </Card>
 
-Poznámka k omezení ověření
-- V aktuálním režimu (read-only) nemůžu export spustit a ověřit přímo v preview; po implementaci bude potřeba to otestovat end-to-end kliknutím na “Export PDF” a porovnat výsledný PDF.
+      {/* Top 5 Content */}
+      <Card className="p-4 rounded-[20px] border-foreground" style={{ backgroundColor: '#E9E9E9' }}>
+        <h2>Top 5 Content</h2>
+        {/* ... content ... */}
+      </Card>
+
+      {/* ... ostatní sekce bez page-break wrapperů ... */}
+
+      {/* Creator Performance - všichni v jednom plynulém toku */}
+      {insights.creator_performance?.map((creator) => (
+        <Card key={creator.handle} className="p-4 rounded-[20px] border-foreground" style={{ backgroundColor: '#E9E9E9' }}>
+          <h2>Content Performance: @{creator.handle}</h2>
+          {/* ... content ... */}
+        </Card>
+      ))}
+
+      {/* Summary & Takeaways */}
+      <Card className="p-4 rounded-[20px] border-foreground" style={{ backgroundColor: '#E9E9E9' }}>
+        {/* ... content ... */}
+      </Card>
+    </div>
+  );
+});
+```
+
+### 3. AIInsightsTab.tsx - Jednodušší export konfigurace
+
+```tsx
+const handleExportPDF = async () => {
+  // ...
+  const opt = {
+    margin: 10, // Small margin around content
+    filename: `insights-report-${new Date().toISOString().split('T')[0]}.pdf`,
+    image: { type: 'jpeg', quality: 0.95 },
+    html2canvas: { 
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      backgroundColor: '#E9E9E9',
+      width: 1100, // Fixed width
+    },
+    jsPDF: { 
+      unit: 'mm', 
+      format: 'a4', 
+      orientation: 'landscape'
+    },
+    // NO pagebreak config - let html2pdf handle it naturally
+  };
+  
+  await html2pdf().set(opt).from(pdfRef.current).save();
+};
+```
+
+---
+
+## Výsledek
+
+| Vlastnost | Před | Po |
+|-----------|------|-----|
+| Stránkování | Nucené per sekce | Automatické (plynulé) |
+| Prázdné stránky | Ano | Ne |
+| Pozadí | Bílé okraje | Jednotné #E9E9E9 |
+| Layout | Rozbitý | Plynulý |
+
+---
+
+## Vizuální struktura PDF
+
+```text
+┌─────────────────────────────────────────┐
+│  Executive Summary                       │
+│  + Campaign Context tiles                │
+├─────────────────────────────────────────┤
+│  Top 5 Content                           │
+│  (5 karet vedle sebe)                    │
+├─────────────────────────────────────────┤
+│  Základní přehled kampaně               │
+│  (4 metriky)                             │
+├─────────────────────────────────────────┤
+│  Inovativní metriky                      │
+│  (4 metriky)                             │
+├─────────────────────────────────────────┤
+│  Sentiment kampaně                       │
+├─────────────────────────────────────────┤
+│  Creators Leaderboard                    │
+├─────────────────────────────────────────┤
+│  Content Performance: @creator1          │
+├─────────────────────────────────────────┤
+│  Content Performance: @creator2          │
+├─────────────────────────────────────────┤
+│  ... (další creatori)                    │
+├─────────────────────────────────────────┤
+│  Summary & Takeaways                     │
+│  (What Works / Doesn't / Recommendations)│
+└─────────────────────────────────────────┘
+   ↓ Pokračuje na další stránky automaticky
+```
+
+---
+
+## Implementační kroky
+
+1. Upravit `src/index.css` - nahradit `.pdf-page` za `.pdf-continuous`
+2. Refaktorovat `src/components/reports/AIInsightsContentPDF.tsx` - odstranit page wrappers
+3. Zjednodušit `src/components/reports/AIInsightsTab.tsx` - odstranit pagebreak config
+4. Otestovat export
