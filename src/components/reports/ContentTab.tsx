@@ -156,16 +156,17 @@ export const ContentTab = ({ reportId }: ContentTabProps) => {
     return ((interactions / reach) * 100);
   };
 
-  // Get unique creators and platforms for filters
+  // Get unique creators and platforms for filters (sorted A-Z)
   const uniqueCreators = useMemo(() => {
     const creators = content
       .filter(item => item.creators)
       .map(item => ({ id: item.creators!.id, handle: item.creators!.handle }));
-    return Array.from(new Map(creators.map(c => [c.id, c])).values());
+    return Array.from(new Map(creators.map(c => [c.id, c])).values())
+      .sort((a, b) => a.handle.toLowerCase().localeCompare(b.handle.toLowerCase()));
   }, [content]);
 
   const uniquePlatforms = useMemo(() => {
-    return Array.from(new Set(content.map(item => item.platform)));
+    return Array.from(new Set(content.map(item => item.platform))).sort();
   }, [content]);
 
   // Filter and sort content

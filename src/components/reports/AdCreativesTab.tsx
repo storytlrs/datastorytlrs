@@ -141,17 +141,19 @@ export const AdCreativesTab = ({ reportId }: AdCreativesTabProps) => {
     return num.toString();
   };
 
-  // Get unique values for filters
+  // Get unique values for filters (sorted A-Z)
   const uniqueCampaigns = useMemo(() => {
-    return Array.from(new Set(adCreatives.filter(item => item.campaign_name).map(item => item.campaign_name!)));
+    return Array.from(new Set(adCreatives.filter(item => item.campaign_name).map(item => item.campaign_name!)))
+      .sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
   }, [adCreatives]);
 
   const uniquePlatforms = useMemo(() => {
-    return Array.from(new Set(adCreatives.map(item => item.platform)));
+    return Array.from(new Set(adCreatives.map(item => item.platform))).sort();
   }, [adCreatives]);
 
   const uniqueAdTypes = useMemo(() => {
-    return Array.from(new Set(adCreatives.filter(item => item.ad_type).map(item => item.ad_type!)));
+    return Array.from(new Set(adCreatives.filter(item => item.ad_type).map(item => item.ad_type!)))
+      .sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
   }, [adCreatives]);
 
   // Filter and sort
