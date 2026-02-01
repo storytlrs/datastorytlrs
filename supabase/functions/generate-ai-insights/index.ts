@@ -58,12 +58,12 @@ serve(async (req) => {
       .select("*, creators(handle, avatar_url, platform)")
       .eq("report_id", report_id);
 
-    // Fetch benchmarks from other reports in the same space
+    // Fetch benchmarks from other reports in the same space (same type)
     const { data: spaceReports } = await supabase
       .from("reports")
       .select("id")
       .eq("space_id", report.space_id)
-      .eq("type", "influencer")
+      .eq("type", report.type)
       .neq("id", report_id);
 
     let benchmarkER = 0;
@@ -523,6 +523,7 @@ Pro creator_insights vytvoř entry pro každého z těchto creatorů: ${creatorP
         engagementRate: benchmarkER || avgER,
         viralityRate: benchmarkVirality || avgVirality,
         tswbCost: benchmarkTswbCost || tswbCost,
+        interactions: benchmarkInteractions || totalInteractions,
       },
       creator_performance: enhancedCreatorPerformance,
       recommendations: aiContent.recommendations,

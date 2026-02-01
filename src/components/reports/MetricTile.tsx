@@ -10,6 +10,8 @@ interface MetricTileProps {
   size?: "small" | "medium";
   target?: string | number;
   targetLabel?: string;
+  benchmark?: string | number;
+  benchmarkLabel?: string;
 }
 
 export const MetricTile = ({
@@ -20,6 +22,8 @@ export const MetricTile = ({
   size = "medium",
   target,
   targetLabel,
+  benchmark,
+  benchmarkLabel = "Avg:",
 }: MetricTileProps) => {
   const accentClass = {
     default: "border-accent",
@@ -52,6 +56,11 @@ export const MetricTile = ({
       </div>
       <div className="flex-1 flex flex-col justify-end">
         <p className={cn("font-bold text-foreground", valueSize)}>{value}</p>
+        {benchmark !== undefined && (
+          <p className={cn("font-medium text-muted-foreground mt-1", titleSize)}>
+            {benchmarkLabel} {benchmark}
+          </p>
+        )}
         {target !== undefined && (
           <div className="flex items-center gap-1 text-muted-foreground mt-1">
             <Target className="w-3 h-3" />
