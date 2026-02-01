@@ -330,9 +330,16 @@ serve(async (req) => {
     });
 
     // Generate AI content with enhanced prompt
-    const systemPrompt = `Jsi analytik influencer marketingu. Na základě dat z kampaně a kontextu od uživatele vytvoř strukturovaný report v češtině.
+const systemPrompt = `Jsi analytik influencer marketingu. Na základě dat z kampaně a kontextu od uživatele vytvoř strukturovaný report v češtině.
 
 Tvým úkolem je vytvořit stručné, ale výstižné analytické texty pro jednotlivé sekce reportu. Piš profesionálně, ale přístupně.
+
+Pro výpočet relevance (0-100%):
+- Analyzuj témata v komentářích daného creatora
+- Spočítej poměr témat týkajících se brandu/produktu/kampaně vs. off-topic témat (životní styl, osobní komentáře, etc.)
+- 100% = všechny komentáře jsou relevantní k brandu
+- 50% = polovina témat je o brandu, polovina off-topic
+- 0% = žádné komentáře se netýkají brandu
 
 Data kampaně:
 - Počet creatorů: ${creatorsCount}
@@ -368,7 +375,7 @@ ${creatorPerformance.map(c => `@${c.handle}: ${(c as any)._sentiment_summaries?.
   "creator_insights": [
     {
       "handle": "creator_handle",
-      "relevance": "high/medium/low - jak relevantní jsou komentáře k brand message",
+      "relevance": 75,
       "key_insight": "Klíčový insight o tomto creatorovi (1-2 věty)",
       "positive_topics": ["max 3 pozitivní témata"],
       "negative_topics": ["max 3 negativní témata"]
@@ -435,7 +442,7 @@ Pro creator_insights vytvoř entry pro každého z těchto creatorů: ${creatorP
       
       return {
         ...cleanCreator,
-        relevance: aiInsight?.relevance || "medium",
+        relevance: typeof aiInsight?.relevance === "number" ? aiInsight.relevance : 50,
         key_insight: aiInsight?.key_insight || "",
         positive_topics: aiInsight?.positive_topics || [],
         negative_topics: aiInsight?.negative_topics || [],
