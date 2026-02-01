@@ -133,7 +133,95 @@ All colors MUST be HSL.
   }
 }
 
-/* PDF Export Styles */
+/* PDF Export Styles - Robust PDF Render Mode */
+
+/* Fixed A4 landscape page wrapper */
+.pdf-page {
+  width: 297mm;
+  min-height: 210mm;
+  background-color: #E9E9E9 !important;
+  padding: 10mm;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+/* Page break between PDF pages */
+.pdf-page + .pdf-page {
+  break-before: page;
+  page-break-before: always;
+}
+
+/* Preserve colors in print */
+.pdf-mode,
+.pdf-mode * {
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+/* Compact typography for PDF mode */
+.pdf-mode .text-xl {
+  font-size: 1rem !important;
+}
+
+.pdf-mode .text-sm {
+  font-size: 0.75rem !important;
+}
+
+.pdf-mode .p-6 {
+  padding: 0.75rem !important;
+}
+
+.pdf-mode .p-4 {
+  padding: 0.5rem !important;
+}
+
+.pdf-mode .gap-6 {
+  gap: 0.75rem !important;
+}
+
+.pdf-mode .gap-4 {
+  gap: 0.5rem !important;
+}
+
+.pdf-mode .space-y-4 > * + * {
+  margin-top: 0.5rem !important;
+}
+
+.pdf-mode .mb-4 {
+  margin-bottom: 0.5rem !important;
+}
+
+.pdf-mode .mb-6 {
+  margin-bottom: 0.75rem !important;
+}
+
+/* Force 2-column layout in PDF mode */
+.pdf-mode .pdf-grid-2 {
+  display: grid !important;
+  grid-template-columns: repeat(2, 1fr) !important;
+  gap: 0.75rem !important;
+}
+
+/* Hide UI-only elements in PDF */
+.pdf-hide {
+  display: none !important;
+}
+
+/* Prevent breaking inside cards */
+.pdf-no-break {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+/* Line clamp for long text in PDF */
+.pdf-mode .pdf-line-clamp {
+  display: -webkit-box;
+  -webkit-line-clamp: 6;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Legacy classes for backwards compatibility */
 @media print {
   .pdf-page-break {
     page-break-before: always;
@@ -142,12 +230,6 @@ All colors MUST be HSL.
 
 .pdf-page-break {
   break-before: page;
-}
-
-/* Prevent breaking inside elements */
-.pdf-no-break {
-  break-inside: avoid;
-  page-break-inside: avoid;
 }
 
 /* PDF export container background */
