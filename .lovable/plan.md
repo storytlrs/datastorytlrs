@@ -1,33 +1,143 @@
 
-# Plán: Odstranění linky pod headliny
+# Plán: Editovatelné Top Topics v sekci Sentiment kampaně
 
 ## Přehled
 
-Odstraníme `border-b border-border pb-2` z `<h2>` tagů v šesti sekcích AI Insights.
+Přidáme možnost editovat "Top Topics" v sekci Sentiment kampaně. Použijeme stejný pattern jako u editace topics v Content Performance kartách.
+
+---
 
 ## Změny
 
 **Soubor:** `src/components/reports/AIInsightsContent.tsx`
 
-| Sekce | Řádek | Změna |
-|-------|-------|-------|
-| Executive Summary | 427 | Odstranit `border-b border-border pb-2` |
-| Top Five Content | 497 | Odstranit `border-b border-border pb-2` |
-| Základní přehled kampaně | 534 | Odstranit `border-b border-border pb-2` |
-| Inovativní a kvalitativní metriky | 574 | Odstranit `border-b border-border pb-2` |
-| Sentiment kampaně | 614 | Odstranit `border-b border-border pb-2` |
-| Creators Leaderboard | 654 | Odstranit `border-b border-border pb-2` |
+### 1. Přidání editačního stavu pro sentiment topics
 
-### Příklad změny
-
-```tsx
-// Před
-<h2 className="text-xl font-bold mb-4 border-b border-border pb-2">
-
-// Po
-<h2 className="text-xl font-bold mb-4">
+```typescript
+// Přidat do komponenty
+const [isEditingSentimentTopics, setIsEditingSentimentTopics] = useState(false);
+const [editedSentimentTopics, setEditedSentimentTopics] = useState(
+  insights.top_sentiment_topics?.join(', ') || ''
+);
 ```
 
-### Poznámka
+### 2. Handler pro uložení topics
 
-Sekce **Content Performance** (řádek 669) a **Summary & Takeaways** (řádek 724) již byly upraveny dříve a border nemají.
+```typescript
+const handleSaveSentimentTopics = async () => {
+  const topics = editedSentimentTopics
+    .split(',')
+    .map(t => t.trim())
+    .filter(t => t);
+  
+  // Uložení do ai_insights_structured
+  const updatedInsights = {
+    ...insights,
+    top_sentiment_topics: topics,
+  };
+  
+  try {
+    await supabase
+      .from("reports")
+      .update({ ai_insights_structured: updatedInsights })
+      .eq("id", reportId);
+    
+    onUpdate?.(updatedInsights);
+    setIsEditingSentimentTopics(false);
+    toast.success("Topics updated successfully");
+  } catch (error) {
+    toast.error("Failed to update topics");
+  }
+};
+```
+
+### 3. Úprava UI pro Top Topics sekci
+
+```tsx
+{/* Před - pouze zobrazení */}
+<div>
+  <span className="text-sm font-medium text-muted-foreground block mb-2">
+    Top Topics:
+  </span>
+  <div className="flex flex-wrap gap-2">
+    {insights.top_sentiment_topics.map((topic, i) => (
+      <TopicBadge key={i} topic={topic} variant="default" />
+    ))}
+  </div>
+</div>
+
+{/* Po - editovatelné */}
+<div>
+  <div className="flex items-center gap-2 mb-2">
+    <span className="text-sm font-medium text-muted-foreground">
+      Top Topics:
+    </span>
+    {canEdit && !isEditingSentimentTopics && (
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-6 w-6"
+        onClick={() => setIsEditingSentimentTopics(true)}
+      >
+        <Pencil className="h-3 w-3" />
+      </Button>
+    )}
+  </div>
+  
+  {isEditingSentimentTopics ? (
+    <div className="space-y-2">
+      <Input
+        value={editedSentimentTopics}
+        onChange={(e) => setEditedSentimentTopics(e.target.value)}
+        placeholder="Enter topics separated by commas..."
+      />
+      <div className="flex gap-2">
+        <Button size="sm" onClick={handleSaveSentimentTopics}>
+          <Save className="h-3 w-3 mr-1" />
+          Save
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => {
+            setEditedSentimentTopics(insights.top_sentiment_topics?.join(', ') || '');
+            setIsEditingSentimentTopics(false);
+          }}
+        >
+          <X className="h-3 w-3 mr-1" />
+          Cancel
+        </Button>
+      </div>
+    </div>
+  ) : (
+    <div className="flex flex-wrap gap-2">
+      {insights.top_sentiment_topics?.map((topic, i) => (
+        <TopicBadge key={i} topic={topic} variant="default" />
+      ))}
+    </div>
+  )}
+</div>
+```
+
+---
+
+## Souhrn
+
+| Soubor | Změny |
+|--------|-------|
+| `src/components/reports/AIInsightsContent.tsx` | Přidání stavu, handleru a UI pro editaci sentiment topics |
+
+---
+
+## Technické detaily
+
+### Flow editace
+1. Uživatel klikne na ikonu tužky vedle "Top Topics:"
+2. Zobrazí se Input s hodnotami oddělenými čárkou
+3. Po kliknutí na Save se topics rozdělí a uloží jako pole do `ai_insights_structured.top_sentiment_topics`
+4. Cancel vrátí původní hodnoty
+
+### Konzistence s existujícím kódem
+- Použití stejných komponent (Input, Button, Pencil/Save/X ikony)
+- Stejný pattern pro save (update do Supabase + refresh přes onUpdate)
+- Stejné UX jako u topics v CreatorPerformanceCard
