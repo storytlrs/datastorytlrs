@@ -3,6 +3,9 @@ project_id = "rzetgajncoedibmlfyvl"
 [functions.import-hypeauditor]
 verify_jwt = true
 
+[functions.import-mapped-data]
+verify_jwt = true
+
 [functions.create-user]
 verify_jwt = true
 
