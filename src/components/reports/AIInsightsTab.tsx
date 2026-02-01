@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/collapsible";
 import { AIInsightsInputDialog, CampaignContext } from "./AIInsightsInputDialog";
 import { AIInsightsContent } from "./AIInsightsContent";
-
+import { AIInsightsContentPDF } from "./AIInsightsContentPDF";
 interface AIInsightsTabProps {
   reportId: string;
 }
@@ -97,6 +97,7 @@ interface StructuredInsights {
 export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
   const { isAdmin, canEdit } = useUserRole();
   const contentRef = useRef<HTMLDivElement>(null);
+  const pdfRef = useRef<HTMLDivElement>(null);
   const [aiInsights, setAiInsights] = useState<string>("");
   const [webhookUrl, setWebhookUrl] = useState<string>("");
   const [spaceId, setSpaceId] = useState<string>("");
@@ -104,6 +105,7 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
   const [isSaving, setIsSaving] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [isPdfMode, setIsPdfMode] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [isInputDialogOpen, setIsInputDialogOpen] = useState(false);
@@ -205,13 +207,41 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
     await handleGenerateInsights(structuredData.campaign_context);
   };
 
+  // Helper to wait for all images to load
+  const waitForImages = (container: HTMLElement): Promise<void> => {
+    const images = container.querySelectorAll('img');
+    const promises = Array.from(images).map((img) => {
+      if (img.complete) return Promise.resolve();
+      return new Promise<void>((resolve) => {
+        img.onload = () => resolve();
+        img.onerror = () => resolve();
+      });
+    });
+    return Promise.all(promises).then(() => {});
+  };
+
   const handleExportPDF = async () => {
-    if (!contentRef.current) return;
+    if (!structuredData) return;
     
     setIsExporting(true);
+    setIsPdfMode(true);
+    
     try {
+      // Wait for re-render
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(() => r(null))));
+      
+      // Wait a bit more for DOM to settle
+      await new Promise(r => setTimeout(r, 100));
+      
+      if (!pdfRef.current) {
+        throw new Error("PDF container not ready");
+      }
+      
+      // Wait for images to load
+      await waitForImages(pdfRef.current);
+      
       const opt = {
-        margin: [8, 12, 8, 12],
+        margin: 0, // No margin - .pdf-page handles padding
         filename: `insights-report-${new Date().toISOString().split('T')[0]}.pdf`,
         image: { type: 'jpeg', quality: 0.95 },
         html2canvas: { 
@@ -219,7 +249,7 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
           useCORS: true,
           logging: false,
           backgroundColor: '#E9E9E9',
-          windowWidth: 1200,
+          windowWidth: 1123, // A4 landscape at 96dpi (297mm)
         },
         jsPDF: { 
           unit: 'mm', 
@@ -227,18 +257,17 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
           orientation: 'landscape' as const
         },
         pagebreak: { 
-          mode: ['css'],
-          before: '.pdf-page-break',
-          avoid: '.pdf-no-break'
+          mode: ['css'] // Only CSS mode, no "before" or "avoid"
         }
       };
       
-      await html2pdf().set(opt).from(contentRef.current).save();
+      await html2pdf().set(opt).from(pdfRef.current).save();
       toast.success("PDF exportováno úspěšně!");
     } catch (error) {
       console.error("Error exporting PDF:", error);
       toast.error("Nepodařilo se exportovat PDF");
     } finally {
+      setIsPdfMode(false);
       setIsExporting(false);
     }
   };
@@ -337,6 +366,18 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
           />
         </div>
 
+        {/* Hidden off-screen PDF render container */}
+        {isPdfMode && structuredData && (
+          <div style={{ position: 'fixed', left: '-10000px', top: 0 }}>
+            <AIInsightsContentPDF
+              ref={pdfRef}
+              insights={structuredData}
+              overviewParagraph={overviewParagraph}
+              innovationParagraph={innovationParagraph}
+              sentimentParagraph={sentimentParagraph}
+            />
+          </div>
+        )}
       </>
     );
   }
