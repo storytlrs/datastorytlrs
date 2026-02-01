@@ -15,6 +15,8 @@ interface KPICardProps {
   icon?: LucideIcon;
   accentColor?: "default" | "orange" | "green" | "blue";
   tooltip?: string;
+  benchmark?: string | number;
+  benchmarkLabel?: string;
 }
 
 export const KPICard = ({ 
@@ -23,7 +25,9 @@ export const KPICard = ({
   change, 
   icon: Icon,
   accentColor = "default",
-  tooltip
+  tooltip,
+  benchmark,
+  benchmarkLabel = "Avg:"
 }: KPICardProps) => {
   const accentClass = {
     default: "border-accent",
@@ -74,6 +78,11 @@ export const KPICard = ({
         <p className="text-3xl font-bold text-foreground">
           {value}
         </p>
+        {benchmark !== undefined && (
+          <p className="text-sm font-medium text-muted-foreground">
+            {benchmarkLabel} {benchmark}
+          </p>
+        )}
         {change !== undefined && (
           <p className={cn("text-sm font-medium", changeColor)}>
             {change > 0 ? "+" : ""}{change}%
