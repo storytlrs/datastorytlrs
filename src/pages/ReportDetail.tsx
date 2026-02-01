@@ -187,7 +187,7 @@ const ReportDetail = () => {
               Overview
             </TabsTrigger>
             <TabsTrigger value="insights" className="rounded-[35px]">
-              AI Insights
+              Insights
             </TabsTrigger>
 
             {/* Influencer-specific tabs */}
