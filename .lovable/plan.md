@@ -1,48 +1,85 @@
 
-# Plán: Odstranění tlačítka "Edit raw"
+# Plán: Odstranění sekce "Ads" z Influencer campaign reportů
 
 ## Přehled
 
-Odstraníme tlačítko "Edit raw" ze sekce AI Insights, které se nachází vedle tlačítka "Regenerate".
+Odstraníme záložku "Ads" a její obsah z reportů typu Influencer campaign. Tato sekce se nachází v souboru `ReportDetail.tsx`.
 
 ---
 
 ## Změny
 
-**Soubor:** `src/components/reports/AIInsightsTab.tsx`
+**Soubor:** `src/pages/ReportDetail.tsx`
 
-### Odstranění tlačítka (řádky 259-267)
+### 1. Odstranění importu AdsTab (řádek 11)
 
-Odstraníme tento kód:
-
-```tsx
-<Button
-  onClick={() => setIsEditing(true)}
-  variant="ghost"
-  size="sm"
-  className="rounded-[35px]"
->
-  <Pencil className="w-4 h-4 mr-2" />
-  Edit raw
-</Button>
+```typescript
+// Odstranit tento import
+import { AdsTab } from "@/components/reports/AdsTab";
 ```
 
-Po změně zůstane pouze tlačítko "Regenerate":
+### 2. Odstranění TabsTrigger pro "Ads" (řádky 202-204)
+
+V sekci Influencer-specific tabs odstraníme:
 
 ```tsx
-<div className="flex items-center justify-end gap-2">
-  {canEdit && (
-    <Button
-      onClick={() => setIsInputDialogOpen(true)}
-      variant="outline"
-      className="rounded-[35px] border-foreground"
-      title="Vygenerovat nové AI Insights"
-    >
-      <RefreshCw className="w-4 h-4 mr-2" />
-      Regenerate
-    </Button>
-  )}
-</div>
+<TabsTrigger value="ads" className="rounded-[35px]">
+  Ads
+</TabsTrigger>
+```
+
+### 3. Odstranění TabsContent pro "Ads" (řádky 256-258)
+
+V sekci Influencer-specific content odstraníme:
+
+```tsx
+<TabsContent value="ads">
+  <AdsTab />
+</TabsContent>
+```
+
+---
+
+## Výsledný kód
+
+Po úpravě bude sekce Influencer tabs vypadat takto:
+
+```tsx
+{/* Influencer-specific tabs */}
+{isInfluencer && (
+  <>
+    <TabsTrigger value="creators" className="rounded-[35px]">
+      Creators
+    </TabsTrigger>
+    <TabsTrigger value="content" className="rounded-[35px]">
+      Content
+    </TabsTrigger>
+    <TabsTrigger value="data" className="rounded-[35px]">
+      Data
+    </TabsTrigger>
+  </>
+)}
+```
+
+A sekce Influencer content:
+
+```tsx
+{/* Influencer-specific content */}
+{isInfluencer && (
+  <>
+    <TabsContent value="creators">
+      <CreatorsTab reportId={reportId!} />
+    </TabsContent>
+
+    <TabsContent value="content">
+      <ContentTab reportId={reportId!} />
+    </TabsContent>
+
+    <TabsContent value="data">
+      <DataTab reportId={reportId!} onImportSuccess={fetchReport} />
+    </TabsContent>
+  </>
+)}
 ```
 
 ---
@@ -51,10 +88,10 @@ Po změně zůstane pouze tlačítko "Regenerate":
 
 | Soubor | Změny |
 |--------|-------|
-| `src/components/reports/AIInsightsTab.tsx` | Odstranění tlačítka "Edit raw" (řádky 259-267) |
+| `src/pages/ReportDetail.tsx` | Odstranění importu `AdsTab`, TabsTrigger a TabsContent pro "Ads" |
 
 ---
 
 ## Poznámka
 
-Stav `isEditing` a související logika pro raw editaci zůstanou v kódu (pro případné budoucí použití), ale tlačítko pro přepnutí do tohoto režimu bude odstraněno.
+Soubor `src/components/reports/AdsTab.tsx` zůstane v projektu pro případné budoucí použití, ale nebude již importován ani zobrazen v Influencer campaign reportech.
