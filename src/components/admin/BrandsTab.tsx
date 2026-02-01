@@ -4,9 +4,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Search, Eye, Trash2 } from "lucide-react";
+import { Plus, Search, Eye, Trash2, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { CreateBrandDialog } from "@/components/brands/CreateBrandDialog";
+import EditBrandDialog from "@/components/brands/EditBrandDialog";
 import { format } from "date-fns";
 import {
   AlertDialog,
@@ -34,6 +35,7 @@ export const BrandsTab = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [deleteBrandDialog, setDeleteBrandDialog] = useState<Brand | null>(null);
+  const [editBrand, setEditBrand] = useState<Brand | null>(null);
 
   useEffect(() => {
     fetchBrands();
@@ -147,6 +149,15 @@ export const BrandsTab = () => {
                           variant="outline"
                           size="sm"
                           className="rounded-[35px] gap-2"
+                          onClick={() => setEditBrand(brand)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                          Edit
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="rounded-[35px] gap-2"
                           onClick={() => navigate(`/brands/${brand.id}`)}
                         >
                           <Eye className="h-4 w-4" />
@@ -175,6 +186,15 @@ export const BrandsTab = () => {
         onOpenChange={setIsCreateDialogOpen}
         onSuccess={fetchBrands}
       />
+
+      {editBrand && (
+        <EditBrandDialog
+          open={!!editBrand}
+          onOpenChange={(open) => !open && setEditBrand(null)}
+          brand={editBrand}
+          onSuccess={fetchBrands}
+        />
+      )}
 
       <AlertDialog
         open={!!deleteBrandDialog}
