@@ -116,20 +116,22 @@ export const OverviewTab = ({ reportId }: OverviewTabProps) => {
     const fetchData = async () => {
       setLoading(true);
       
-      // 1. Get current report to find space_id
+      // 1. Get current report to find space_id and type
       const { data: reportData } = await supabase
         .from("reports")
-        .select("space_id")
+        .select("space_id, type")
         .eq("id", reportId)
         .single();
       
       const currentSpaceId = reportData?.space_id;
+      const currentReportType = reportData?.type;
       
-      // 2. Get all reports in the same space
+      // 2. Get all reports in the same space WITH SAME TYPE
       const { data: spaceReports } = await supabase
         .from("reports")
         .select("id")
-        .eq("space_id", currentSpaceId);
+        .eq("space_id", currentSpaceId)
+        .eq("type", currentReportType);
       
       const allReportIds = spaceReports?.map(r => r.id) || [];
       setSpaceReportCount(allReportIds.length);
