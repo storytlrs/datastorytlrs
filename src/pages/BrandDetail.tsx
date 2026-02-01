@@ -170,7 +170,7 @@ const BrandDetail = () => {
                 variant="outline"
                 onClick={() => setEditDialogOpen(true)}
                 size="icon"
-                className="rounded-[35px] border-foreground hover:bg-accent-orange hover:border-accent-orange hover:text-accent-orange-foreground"
+                className="rounded-[35px] border-foreground"
               >
                 <Settings className="w-4 h-4" />
               </Button>

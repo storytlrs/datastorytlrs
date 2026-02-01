@@ -121,7 +121,7 @@ const MainNavigation = () => {
             onClick={handleSettingsClick}
             variant="outline"
             size="icon"
-            className="rounded-[35px] border-foreground hover:bg-accent-orange hover:border-accent-orange hover:text-accent-orange-foreground"
+            className="rounded-[35px] border-foreground"
           >
             <Settings className="h-4 w-4" />
           </Button>
