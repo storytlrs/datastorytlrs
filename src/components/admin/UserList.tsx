@@ -5,8 +5,10 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { UserPlus, X, Search } from "lucide-react";
+import { Plus, X, Search, Pencil, Trash2, UserPlus } from "lucide-react";
 import { AssignUserToBrand } from "./AssignUserToBrand";
+import { CreateUserDialog } from "./CreateUserDialog";
+import { EditUserDialog } from "./EditUserDialog";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -33,6 +35,9 @@ export const UserList = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<string | null>(null);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [editUser, setEditUser] = useState<UserWithRole | null>(null);
+  const [deleteUserDialog, setDeleteUserDialog] = useState<UserWithRole | null>(null);
   const [removeBrandDialog, setRemoveBrandDialog] = useState<{
     userId: string;
     brandId: string;
@@ -137,6 +142,45 @@ export const UserList = () => {
     }
   };
 
+  const handleDeleteUser = async () => {
+    if (!deleteUserDialog) return;
+
+    if (deleteUserDialog.id === currentUser) {
+      toast.error("You cannot delete your own account");
+      setDeleteUserDialog(null);
+      return;
+    }
+
+    try {
+      // Delete from space_users first (foreign key constraint)
+      await supabase
+        .from("space_users")
+        .delete()
+        .eq("user_id", deleteUserDialog.id);
+
+      // Delete from user_roles
+      await supabase
+        .from("user_roles")
+        .delete()
+        .eq("user_id", deleteUserDialog.id);
+
+      // Delete from profiles
+      const { error } = await supabase
+        .from("profiles")
+        .delete()
+        .eq("id", deleteUserDialog.id);
+
+      if (error) throw error;
+
+      toast.success(`User "${deleteUserDialog.email}" deleted`);
+      setDeleteUserDialog(null);
+      fetchUsers();
+    } catch (error: any) {
+      console.error("Error deleting user:", error);
+      toast.error("Failed to delete user");
+    }
+  };
+
   const filteredUsers = users.filter((user) =>
     user.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     user.email.toLowerCase().includes(searchQuery.toLowerCase())
@@ -149,15 +193,24 @@ export const UserList = () => {
   return (
     <>
       <div className="space-y-4">
-        {/* Search */}
-        <div className="relative">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-          <Input
-            placeholder="Search users..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-12 rounded-[35px] border-foreground h-12"
-          />
+        {/* Search and Create */}
+        <div className="flex gap-4">
+          <div className="flex-1 relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+            <Input
+              placeholder="Search users..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-12 rounded-[35px] border-foreground h-12"
+            />
+          </div>
+          <Button
+            onClick={() => setIsCreateDialogOpen(true)}
+            className="rounded-[35px] h-12 px-6"
+          >
+            <Plus className="w-5 h-5 mr-2" />
+            New User
+          </Button>
         </div>
 
         {/* Table */}
@@ -222,15 +275,34 @@ export const UserList = () => {
                     )}
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="rounded-[35px] gap-2"
-                      onClick={() => setSelectedUserId(user.id)}
-                    >
-                      <UserPlus className="h-4 w-4" />
-                      Assign
-                    </Button>
+                    <div className="flex items-center justify-end gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="rounded-[35px] gap-2"
+                        onClick={() => setSelectedUserId(user.id)}
+                      >
+                        <UserPlus className="h-4 w-4" />
+                        Assign
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="rounded-[35px] gap-2"
+                        onClick={() => setEditUser(user)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                        Edit
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-destructive hover:text-destructive"
+                        onClick={() => setDeleteUserDialog(user)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -238,6 +310,19 @@ export const UserList = () => {
           </Table>
         </div>
       </div>
+
+      <CreateUserDialog
+        open={isCreateDialogOpen}
+        onOpenChange={setIsCreateDialogOpen}
+        onSuccess={fetchUsers}
+      />
+
+      <EditUserDialog
+        open={!!editUser}
+        onOpenChange={(open) => !open && setEditUser(null)}
+        user={editUser}
+        onSuccess={fetchUsers}
+      />
 
       <AssignUserToBrand
         userId={selectedUserId}
@@ -251,6 +336,7 @@ export const UserList = () => {
         onSuccess={fetchUsers}
       />
 
+      {/* Remove from brand dialog */}
       <AlertDialog
         open={!!removeBrandDialog}
         onOpenChange={(open) => !open && setRemoveBrandDialog(null)}
@@ -270,6 +356,31 @@ export const UserList = () => {
               onClick={handleRemoveFromBrand}
             >
               Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete user dialog */}
+      <AlertDialog
+        open={!!deleteUserDialog}
+        onOpenChange={(open) => !open && setDeleteUserDialog(null)}
+      >
+        <AlertDialogContent className="rounded-[35px]">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete user?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete "{deleteUserDialog?.email}" and remove all their brand
+              assignments. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="rounded-[35px]">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="rounded-[35px] bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={handleDeleteUser}
+            >
+              Delete
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
