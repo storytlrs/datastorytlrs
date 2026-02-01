@@ -1,85 +1,105 @@
 
-# Plán: Odstranění sekce "Ads" z Influencer campaign reportů
+# Plán: Přidání filtru podle platformy do Overview sekce
 
 ## Přehled
 
-Odstraníme záložku "Ads" a její obsah z reportů typu Influencer campaign. Tato sekce se nachází v souboru `ReportDetail.tsx`.
+V sekci Overview reportu přidáme nový filtr, který umožní filtrovat metriky nejen podle data a creatora, ale také podle platformy (Instagram, TikTok, YouTube, Facebook, Twitter).
 
 ---
 
 ## Změny
 
-**Soubor:** `src/pages/ReportDetail.tsx`
+**Soubor:** `src/components/reports/OverviewTab.tsx`
 
-### 1. Odstranění importu AdsTab (řádek 11)
+### 1. Rozšíření Content interface (řádky 50-65)
+
+Přidáme pole `platform` do interface:
 
 ```typescript
-// Odstranit tento import
-import { AdsTab } from "@/components/reports/AdsTab";
+interface Content {
+  id: string;
+  creator_id: string;
+  platform: "instagram" | "tiktok" | "youtube" | "facebook" | "twitter";
+  reach: number | null;
+  // ... ostatní pole
+}
 ```
 
-### 2. Odstranění TabsTrigger pro "Ads" (řádky 202-204)
+### 2. Rozšíření Supabase query (řádek 113)
 
-V sekci Influencer-specific tabs odstraníme:
+Přidáme `platform` do select query:
 
-```tsx
-<TabsTrigger value="ads" className="rounded-[35px]">
-  Ads
-</TabsTrigger>
+```typescript
+supabase.from("content").select("id, creator_id, platform, reach, impressions, views, watch_time, likes, comments, shares, saves, link_clicks, sticker_clicks, published_date, reposts").eq("report_id", reportId),
 ```
 
-### 3. Odstranění TabsContent pro "Ads" (řádky 256-258)
+### 3. Přidání stavu pro platform filter (řádek 106)
 
-V sekci Influencer-specific content odstraníme:
-
-```tsx
-<TabsContent value="ads">
-  <AdsTab />
-</TabsContent>
+```typescript
+const [selectedPlatform, setSelectedPlatform] = useState<string>("all");
 ```
 
----
+### 4. Rozšíření filter logiky (řádky 123-130)
 
-## Výsledný kód
+Přidáme filtrování podle platformy do `filteredContent`:
 
-Po úpravě bude sekce Influencer tabs vypadat takto:
-
-```tsx
-{/* Influencer-specific tabs */}
-{isInfluencer && (
-  <>
-    <TabsTrigger value="creators" className="rounded-[35px]">
-      Creators
-    </TabsTrigger>
-    <TabsTrigger value="content" className="rounded-[35px]">
-      Content
-    </TabsTrigger>
-    <TabsTrigger value="data" className="rounded-[35px]">
-      Data
-    </TabsTrigger>
-  </>
-)}
+```typescript
+const filteredContent = useMemo(() => {
+  return content.filter((item) => {
+    if (selectedCreator !== "all" && item.creator_id !== selectedCreator) return false;
+    if (selectedPlatform !== "all" && item.platform !== selectedPlatform) return false;
+    if (dateRange.start && item.published_date && new Date(item.published_date) < dateRange.start) return false;
+    if (dateRange.end && item.published_date && new Date(item.published_date) > dateRange.end) return false;
+    return true;
+  });
+}, [content, selectedCreator, selectedPlatform, dateRange]);
 ```
 
-A sekce Influencer content:
+### 5. Extrakce unikátních platforem z dat
+
+```typescript
+const availablePlatforms = useMemo(() => {
+  const platforms = [...new Set(content.map((c) => c.platform))];
+  return platforms.sort();
+}, [content]);
+```
+
+### 6. Aktualizace clearFilters a hasFilters (řádky 245-250)
+
+```typescript
+const clearFilters = () => {
+  setDateRange({ start: null, end: null });
+  setSelectedCreator("all");
+  setSelectedPlatform("all");
+};
+
+const hasFilters = dateRange.start || dateRange.end || selectedCreator !== "all" || selectedPlatform !== "all";
+```
+
+### 7. Přidání Platform Select do UI (řádky 346-355)
+
+Za Creator filter přidáme nový Select pro platformy:
 
 ```tsx
-{/* Influencer-specific content */}
-{isInfluencer && (
-  <>
-    <TabsContent value="creators">
-      <CreatorsTab reportId={reportId!} />
-    </TabsContent>
-
-    <TabsContent value="content">
-      <ContentTab reportId={reportId!} />
-    </TabsContent>
-
-    <TabsContent value="data">
-      <DataTab reportId={reportId!} onImportSuccess={fetchReport} />
-    </TabsContent>
-  </>
-)}
+{/* Platform Filter */}
+<Select value={selectedPlatform} onValueChange={setSelectedPlatform}>
+  <SelectTrigger className={cn(
+    "w-[180px] rounded-[35px]",
+    selectedPlatform !== "all"
+      ? "border-accent-orange bg-accent-orange text-foreground"
+      : ""
+  )}>
+    <SelectValue placeholder="All platforms" />
+  </SelectTrigger>
+  <SelectContent className="rounded-[20px]">
+    <SelectItem value="all">All platforms</SelectItem>
+    {availablePlatforms.map((platform) => (
+      <SelectItem key={platform} value={platform}>
+        {platform.charAt(0).toUpperCase() + platform.slice(1)}
+      </SelectItem>
+    ))}
+  </SelectContent>
+</Select>
 ```
 
 ---
@@ -88,10 +108,21 @@ A sekce Influencer content:
 
 | Soubor | Změny |
 |--------|-------|
-| `src/pages/ReportDetail.tsx` | Odstranění importu `AdsTab`, TabsTrigger a TabsContent pro "Ads" |
+| `src/components/reports/OverviewTab.tsx` | Přidání platform filtru: interface, stav, query, filter logika, UI select |
 
 ---
 
-## Poznámka
+## Výsledné chování
 
-Soubor `src/components/reports/AdsTab.tsx` zůstane v projektu pro případné budoucí použití, ale nebude již importován ani zobrazen v Influencer campaign reportech.
+1. Uživatel uvidí 4 filtry: Start date, End date, Creator, **Platform**
+2. Platform dropdown zobrazí pouze platformy, které existují v datech reportu
+3. Všechny KPI metriky (Awareness, Engagement, Effectiveness) se přepočítají podle zvoleného filtru
+4. Aktivní filtry budou vizuálně odlišeny (oranžová barva)
+5. Tlačítko "Clear filters" vymaže všechny filtry včetně platformy
+
+### Platformy v systému
+- Instagram
+- TikTok
+- YouTube
+- Facebook
+- Twitter
