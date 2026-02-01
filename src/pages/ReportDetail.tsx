@@ -128,7 +128,7 @@ const ReportDetail = () => {
               <Button
                 variant="ghost"
                 onClick={() => navigate(`/brands/${report.space_id}?tab=reports`)}
-                className="p-0 h-auto font-normal text-muted-foreground hover:text-foreground hover:bg-accent-green rounded-[35px] px-2 mb-2"
+                className="p-0 h-auto font-normal text-muted-foreground rounded-[35px] px-2 mb-2"
               >
                 <ArrowLeft className="w-4 h-4 mr-1" />
                 All reports
