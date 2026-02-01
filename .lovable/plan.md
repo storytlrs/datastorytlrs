@@ -1,119 +1,249 @@
 
-# Plán: Zarovnání textů v badges a přidání záhlaví do PDF
+# Plán: Restrukturalizace navigace platformy
 
-## Problémy
+## Přehled změn
 
-1. **TopicBadge texty nejsou vertikálně na středu** - screenshot ukazuje, že texty v bublinách (positive/negative topics) nejsou správně zarovnány
-2. **Chybí záhlaví v PDF** - je třeba přidat header s názvem kampaně, typem reportu, statusem a datumem
+Po přihlášení bude uživatel přesměrován přímo na detail prvního dostupného brandu (sekce Overview). Horní navigace "Brands / Reports" bude nahrazena **dropdownem pro přepínání mezi brandy**. Aktuální seznam značek (stránka `/brands`) se přesune do **Admin panelu**.
 
 ---
 
-## Řešení
+## Nová struktura navigace
 
-### 1. Oprava zarovnání textů v TopicBadge
+```text
+PŘED:
+┌─────────────────────────────────────────────────────────┐
+│  Story TLRS    [ Brands | Reports ]    [⚙️] [🚪]       │
+└─────────────────────────────────────────────────────────┘
 
-V komponentě `TopicBadge` přidat `justify-center` a `text-center` pro horizontální zarovnání textu na střed bubliny.
+PO:
+┌─────────────────────────────────────────────────────────┐
+│  Story TLRS    [▼ Brand Name ▼]        [⚙️] [🚪]       │
+└─────────────────────────────────────────────────────────┘
+```
 
-**Soubor:** `src/components/reports/TopicBadge.tsx`
+---
+
+## Tok uživatele
+
+```text
+┌──────────┐      ┌─────────────────────────────┐
+│  Login   │ ───► │  Brand Detail (Overview)    │
+└──────────┘      │  - První dostupný brand     │
+                  │  - Dropdown pro přepínání   │
+                  └─────────────────────────────┘
+                             │
+         ┌───────────────────┼───────────────────┐
+         ▼                   ▼                   ▼
+    ┌─────────┐        ┌───────────┐      ┌───────────┐
+    │ Overview│        │ Insights  │      │  Reports  │
+    └─────────┘        └───────────┘      └───────────┘
+```
+
+---
+
+## Změny v souborech
+
+### 1. src/App.tsx
+
+**Změny:**
+- Přidat novou route `/` pro přesměrování na první dostupný brand
+- Odstranit route `/brands` (přesune se do admin)
+- Route `/brands/:brandId` zůstává (= hlavní stránka po přihlášení)
+
+```tsx
+// Nová struktura routes:
+<Route path="/" element={<Navigate to="/dashboard" replace />} />
+<Route path="/auth" element={<Auth />} />
+<Route path="/dashboard" element={<MainLayout><DashboardRedirect /></MainLayout>} />
+<Route path="/brands/:brandId" element={<MainLayout><BrandDetail /></MainLayout>} />
+<Route path="/reports/:reportId" element={<MainLayout><ReportDetail /></MainLayout>} />
+<Route path="/admin" element={<MainLayout><Admin /></MainLayout>} />
+```
+
+### 2. src/pages/DashboardRedirect.tsx (NOVÝ SOUBOR)
+
+Komponenta, která:
+- Načte brandy dostupné pro aktuálního uživatele
+- Přesměruje na první dostupný brand (`/brands/{firstBrandId}`)
+- Zobrazí chybovou zprávu, pokud uživatel nemá přístup k žádnému brandu
+
+```tsx
+const DashboardRedirect = () => {
+  const navigate = useNavigate();
+  
+  useEffect(() => {
+    const fetchFirstBrand = async () => {
+      const { data: brands } = await supabase
+        .from("spaces")
+        .select("id")
+        .order("name")
+        .limit(1);
+      
+      if (brands && brands.length > 0) {
+        navigate(`/brands/${brands[0].id}`, { replace: true });
+      }
+    };
+    fetchFirstBrand();
+  }, []);
+  
+  return <Loading />;
+};
+```
+
+### 3. src/components/MainNavigation.tsx
+
+**Odstranit:**
+- Tabs "Brands" a "Reports"
+
+**Přidat:**
+- Dropdown pro přepínání mezi brandy
+- Aktuální brand se zobrazuje jako vybraný
+- Načítá seznam brandů z databáze
+
+```tsx
+// Nová navigace:
+<nav>
+  <div>Story TLRS</div>
+  
+  {/* Brand Switcher Dropdown */}
+  <DropdownMenu>
+    <DropdownMenuTrigger asChild>
+      <Button variant="outline" className="rounded-[35px] gap-2">
+        <Building2 className="h-4 w-4" />
+        {currentBrand?.name || "Select brand"}
+        <ChevronDown className="h-4 w-4" />
+      </Button>
+    </DropdownMenuTrigger>
+    <DropdownMenuContent>
+      {brands.map(brand => (
+        <DropdownMenuItem 
+          key={brand.id}
+          onClick={() => navigate(`/brands/${brand.id}`)}
+        >
+          {brand.name}
+        </DropdownMenuItem>
+      ))}
+    </DropdownMenuContent>
+  </DropdownMenu>
+  
+  <div>
+    {isAdmin && <SettingsButton />}
+    <LogoutButton />
+  </div>
+</nav>
+```
+
+### 4. src/pages/Admin.tsx
+
+**Přidat:**
+- Tabs pro přepínání mezi "Users" a "Brands"
+- Sekce "Brands" obsahuje grid karet značek (přesunutá funkcionalita z `/brands`)
+
+```tsx
+<Tabs defaultValue="users">
+  <TabsList>
+    <TabsTrigger value="users">Users</TabsTrigger>
+    <TabsTrigger value="brands">Brands</TabsTrigger>
+  </TabsList>
+  
+  <TabsContent value="users">
+    <UserList />
+  </TabsContent>
+  
+  <TabsContent value="brands">
+    {/* Přesunutý obsah z Brands.tsx */}
+    <BrandsGrid />
+  </TabsContent>
+</Tabs>
+```
+
+### 5. src/components/admin/BrandsTab.tsx (NOVÝ SOUBOR)
+
+Nová komponenta obsahující:
+- Search bar pro vyhledávání značek
+- Tlačítko "New Brand" pro vytvoření nové značky
+- Grid karet značek (BrandCard komponenta)
+- CreateBrandDialog
+
+```tsx
+export const BrandsTab = () => {
+  const [brands, setBrands] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  
+  // Logika z původního Brands.tsx
+  return (
+    <div className="space-y-6">
+      <div className="flex gap-4">
+        <SearchInput />
+        <CreateBrandButton />
+      </div>
+      <BrandsGrid brands={filteredBrands} />
+      <CreateBrandDialog />
+    </div>
+  );
+};
+```
+
+### 6. src/pages/Auth.tsx
+
+**Změnit:**
+- Přesměrování po přihlášení z `/brands` na `/dashboard`
 
 ```tsx
 // PŘED:
-"inline-flex items-center px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide"
+navigate("/brands");
 
 // PO:
-"inline-flex items-center justify-center text-center px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide"
+navigate("/dashboard");
 ```
 
-### 2. Přidání záhlaví do PDF
+### 7. src/components/MainLayout.tsx
 
-Přidat props pro report metadata do `AIInsightsContentPDF` a zobrazit je v záhlaví.
+**Změnit:**
+- Přesměrování nepřihlášených uživatelů na `/auth` zůstává
+- Upravit fallback redirect z `/brands` na `/dashboard`
 
-**Soubor:** `src/components/reports/AIInsightsContentPDF.tsx`
+### 8. Odstranit src/pages/Brands.tsx
 
-- Přidat nové props: `reportName`, `reportType`, `reportStatus`, `startDate`, `endDate`
-- Přidat header sekci na začátek dokumentu:
+Stránka už nebude potřeba - funkcionalita se přesune do Admin panelu.
 
-```tsx
-{/* PDF Header */}
-<div className="mb-6">
-  <h1 className="text-2xl font-bold">{reportName}</h1>
-  <p className="text-sm text-muted-foreground">
-    {getReportTypeLabel(reportType)} • {reportStatus === "active" ? "Published" : reportStatus}
-  </p>
-  {startDate && endDate && (
-    <p className="text-xs text-muted-foreground mt-1">
-      {formatDate(startDate)} - {formatDate(endDate)}
-    </p>
-  )}
-</div>
-```
+### 9. Odstranit src/pages/Reports.tsx
 
-**Soubor:** `src/components/reports/AIInsightsTab.tsx`
-
-- Načíst report data (name, type, status, start_date, end_date) a předat do PDF komponenty:
-
-```tsx
-// Rozšířit fetchReportData nebo přidat nový dotaz
-const { data: reportData } = await supabase
-  .from("reports")
-  .select("name, type, status, start_date, end_date")
-  .eq("id", reportId)
-  .single();
-
-// Předat do komponenty
-<AIInsightsContentPDF
-  ref={pdfRef}
-  insights={structuredData}
-  reportName={reportData?.name}
-  reportType={reportData?.type}
-  reportStatus={reportData?.status}
-  startDate={reportData?.start_date}
-  endDate={reportData?.end_date}
-  ...
-/>
-```
+Stránka s globálním přehledem reportů už nebude potřeba - reporty se zobrazují v rámci detailu brandu.
 
 ---
 
 ## Dotčené soubory
 
-| Soubor | Změna |
-|--------|-------|
-| `src/components/reports/TopicBadge.tsx` | Přidat `justify-center text-center` pro zarovnání |
-| `src/components/reports/AIInsightsContentPDF.tsx` | Přidat props pro report metadata a header sekci |
-| `src/components/reports/AIInsightsTab.tsx` | Načíst a předat report metadata do PDF komponenty |
+| Soubor | Akce |
+|--------|------|
+| `src/App.tsx` | Upravit routes |
+| `src/pages/DashboardRedirect.tsx` | Vytvořit (přesměrování na první brand) |
+| `src/components/MainNavigation.tsx` | Přepsat (brand dropdown místo tabs) |
+| `src/pages/Admin.tsx` | Přidat tabs Users/Brands |
+| `src/components/admin/BrandsTab.tsx` | Vytvořit (přesunout z Brands.tsx) |
+| `src/pages/Auth.tsx` | Změnit redirect na `/dashboard` |
+| `src/components/MainLayout.tsx` | Změnit fallback redirect |
+| `src/pages/Brands.tsx` | Odstranit |
+| `src/pages/Reports.tsx` | Odstranit |
 
 ---
 
-## Vizualizace výsledku
+## Edge cases
 
-### TopicBadge (zarovnání)
-
-```text
-PŘED:                  PO:
-┌─────────────────┐    ┌─────────────────┐
-│BĚŽECKÉ VÝKONY   │    │ BĚŽECKÉ VÝKONY  │
-└─────────────────┘    └─────────────────┘
-(text vlevo)           (text na středu)
-```
-
-### PDF Header
-
-```text
-┌─────────────────────────────────────────┐
-│  Influencer Campaign                     │  ← Název reportu (h1, bold)
-│  Influencer campaign • draft             │  ← Typ + status
-│  01/11/2025 - 30/11/2025                 │  ← Datum rozsah
-├─────────────────────────────────────────┤
-│  Executive Summary                       │
-│  ...                                     │
-└─────────────────────────────────────────┘
-```
+1. **Uživatel bez brandů**: Zobrazí se zpráva "No brands assigned. Contact your administrator."
+2. **Admin bez brandů**: Zobrazí se odkaz na Admin panel pro vytvoření brandu
+3. **Změna brandu**: Dropdown okamžitě přesměruje na nový brand (Overview tab)
+4. **Oprávnění**: BrandsTab v adminu je přístupný pouze pro admin role
 
 ---
 
-## Implementační kroky
+## Výsledek
 
-1. Upravit `TopicBadge.tsx` - přidat zarovnání textu na střed
-2. Rozšířit props v `AIInsightsContentPDF.tsx` a přidat header
-3. Upravit `AIInsightsTab.tsx` - načíst report data a předat do PDF komponenty
+| Před | Po |
+|------|-----|
+| Login → Seznam brandů | Login → Detail prvního brandu |
+| Navigace: Brands / Reports tabs | Navigace: Brand dropdown |
+| Správa brandů: `/brands` | Správa brandů: `/admin` (Brands tab) |
+| Globální Reports: `/reports` | Odstraněno (reporty jsou v rámci brandu) |
