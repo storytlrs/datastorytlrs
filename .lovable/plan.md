@@ -1,125 +1,110 @@
 
-# Plán: PDF Export bez stránkování (single continuous page)
+# Plán: PDF Export jako jeden souvislý dokument bez stránkování
 
-## Cíl
+## Problém
 
-Změnit PDF export tak, aby generoval **jeden souvislý dokument** bez nucených page breaks mezi sekcemi. Obsah bude plynulý jako na webu.
+`html2pdf.js` standardně používá pevný formát stránky (A4) a automaticky dělí obsah na více stránek. To způsobuje:
+- Bílé marginy na každé stránce
+- Nucené page breaks, které mohou "rozříznout" obsah
 
----
+## Řešení
 
-## Technický přístup
+Místo standardního `html2pdf()` použijeme **ruční workflow**:
+1. Vyrendrovat HTML pomocí `html2canvas`
+2. Získat rozměry výsledného canvas
+3. Vytvořit jsPDF s **vlastními rozměry odpovídajícími obsahu**
+4. Vložit canvas jako jeden obrázek (bez stránkování)
 
-1. **Odstranit `.pdf-page` wrappers** - nebudeme používat pevné A4 rozměry pro každou sekci
-2. **Použít jednoduchý kontejner** s pozadím `#E9E9E9` a fixní šířkou
-3. **Nechat html2pdf automaticky rozdělit** obsah podle potřeby (bez nuceného `break-before`)
-4. **Zjednodušit CSS** - odebrat page-break pravidla
-
----
-
-## Dotčené soubory
-
-| Soubor | Změna |
-|--------|-------|
-| `src/index.css` | Odstranit `.pdf-page` styly, přidat jednoduchý `.pdf-continuous` wrapper |
-| `src/components/reports/AIInsightsContentPDF.tsx` | Odstranit `.pdf-page` wrappers, použít plynulý layout |
-| `src/components/reports/AIInsightsTab.tsx` | Zjednodušit html2pdf konfiguraci |
+Výsledkem bude **jeden souvislý PDF dokument** s dynamickou výškou.
 
 ---
 
-## Detailní změny
+## Technické změny
 
-### 1. src/index.css - Zjednodušené PDF styly
+### 1. src/components/reports/AIInsightsTab.tsx
 
-Odstranit:
-```css
-.pdf-page { ... }
-.pdf-page + .pdf-page { break-before: page; }
-```
-
-Přidat:
-```css
-/* PDF Continuous Export (no forced page breaks) */
-.pdf-continuous {
-  background-color: #E9E9E9;
-  width: 1100px; /* Fixed width for consistent rendering */
-  padding: 20px;
-}
-
-.pdf-continuous * {
-  -webkit-print-color-adjust: exact !important;
-  print-color-adjust: exact !important;
-}
-```
-
-### 2. AIInsightsContentPDF.tsx - Plynulý layout
-
-Kompletní refactor - místo `.pdf-page` wrapperů použít:
+Kompletní přepsání `handleExportPDF` funkce:
 
 ```tsx
-export const AIInsightsContentPDF = forwardRef<HTMLDivElement, AIInsightsContentPDFProps>(({
-  insights,
-  // ...
-}, ref) => {
-  return (
-    <div ref={ref} className="pdf-continuous space-y-6">
-      {/* Executive Summary */}
-      <Card className="p-4 rounded-[20px] border-foreground" style={{ backgroundColor: '#E9E9E9' }}>
-        <h2>Executive Summary</h2>
-        {/* ... content ... */}
-      </Card>
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
 
-      {/* Top 5 Content */}
-      <Card className="p-4 rounded-[20px] border-foreground" style={{ backgroundColor: '#E9E9E9' }}>
-        <h2>Top 5 Content</h2>
-        {/* ... content ... */}
-      </Card>
-
-      {/* ... ostatní sekce bez page-break wrapperů ... */}
-
-      {/* Creator Performance - všichni v jednom plynulém toku */}
-      {insights.creator_performance?.map((creator) => (
-        <Card key={creator.handle} className="p-4 rounded-[20px] border-foreground" style={{ backgroundColor: '#E9E9E9' }}>
-          <h2>Content Performance: @{creator.handle}</h2>
-          {/* ... content ... */}
-        </Card>
-      ))}
-
-      {/* Summary & Takeaways */}
-      <Card className="p-4 rounded-[20px] border-foreground" style={{ backgroundColor: '#E9E9E9' }}>
-        {/* ... content ... */}
-      </Card>
-    </div>
-  );
-});
-```
-
-### 3. AIInsightsTab.tsx - Jednodušší export konfigurace
-
-```tsx
 const handleExportPDF = async () => {
-  // ...
-  const opt = {
-    margin: 10, // Small margin around content
-    filename: `insights-report-${new Date().toISOString().split('T')[0]}.pdf`,
-    image: { type: 'jpeg', quality: 0.95 },
-    html2canvas: { 
+  if (!structuredData) return;
+  
+  setIsExporting(true);
+  setIsPdfMode(true);
+  
+  try {
+    // Wait for DOM to settle
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(() => r(null))));
+    await new Promise(r => setTimeout(r, 200));
+    
+    if (!pdfRef.current) {
+      throw new Error("PDF container not ready");
+    }
+    
+    await waitForImages(pdfRef.current);
+    
+    // Step 1: Render to canvas
+    const canvas = await html2canvas(pdfRef.current, {
       scale: 2,
       useCORS: true,
       logging: false,
       backgroundColor: '#E9E9E9',
-      width: 1100, // Fixed width
-    },
-    jsPDF: { 
-      unit: 'mm', 
-      format: 'a4', 
-      orientation: 'landscape'
-    },
-    // NO pagebreak config - let html2pdf handle it naturally
-  };
-  
-  await html2pdf().set(opt).from(pdfRef.current).save();
+      width: 1100,
+    });
+    
+    // Step 2: Get canvas dimensions
+    const imgWidth = canvas.width;
+    const imgHeight = canvas.height;
+    
+    // Step 3: Convert to mm (96 DPI * scale factor)
+    const pxToMm = 25.4 / (96 * 2); // 2 is the scale factor
+    const pdfWidth = imgWidth * pxToMm;
+    const pdfHeight = imgHeight * pxToMm;
+    
+    // Step 4: Create PDF with custom dimensions (single page)
+    const pdf = new jsPDF({
+      orientation: pdfWidth > pdfHeight ? 'landscape' : 'portrait',
+      unit: 'mm',
+      format: [pdfWidth, pdfHeight], // Custom size = one continuous page
+    });
+    
+    // Step 5: Add image to fill entire page
+    const imgData = canvas.toDataURL('image/jpeg', 0.95);
+    pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+    
+    // Step 6: Save
+    pdf.save(`insights-report-${new Date().toISOString().split('T')[0]}.pdf`);
+    
+    toast.success("PDF exportováno úspěšně!");
+  } catch (error) {
+    console.error("Error exporting PDF:", error);
+    toast.error("Nepodařilo se exportovat PDF");
+  } finally {
+    setIsPdfMode(false);
+    setIsExporting(false);
+  }
 };
 ```
+
+### 2. Nové importy
+
+```tsx
+// Změnit import na přímé použití knihoven
+// html2pdf.js interně používá html2canvas a jspdf, ale my je použijeme přímo
+```
+
+Poznámka: `html2pdf.js` již obsahuje `html2canvas` a `jspdf` jako závislosti, takže je nemusíme instalovat zvlášť - můžeme je importovat přímo.
+
+### 3. src/components/reports/AIInsightsContentPDF.tsx
+
+Ponechat beze změn - již má správný kontinuální layout s `.pdf-continuous`.
+
+### 4. src/index.css
+
+Ponechat beze změn - `.pdf-continuous` je správně nastavený.
 
 ---
 
@@ -127,50 +112,58 @@ const handleExportPDF = async () => {
 
 | Vlastnost | Před | Po |
 |-----------|------|-----|
-| Stránkování | Nucené per sekce | Automatické (plynulé) |
-| Prázdné stránky | Ano | Ne |
-| Pozadí | Bílé okraje | Jednotné #E9E9E9 |
-| Layout | Rozbitý | Plynulý |
+| Počet stránek | Mnoho (A4) | 1 kontinuální |
+| Bílé marginy | Ano (na každé stránce) | Ne |
+| Page breaks | Automatické (nežádoucí) | Žádné |
+| Rozměry | Fixní A4 | Dynamické podle obsahu |
 
 ---
 
-## Vizuální struktura PDF
+## Vizualizace
 
 ```text
-┌─────────────────────────────────────────┐
-│  Executive Summary                       │
-│  + Campaign Context tiles                │
-├─────────────────────────────────────────┤
-│  Top 5 Content                           │
-│  (5 karet vedle sebe)                    │
-├─────────────────────────────────────────┤
-│  Základní přehled kampaně               │
-│  (4 metriky)                             │
-├─────────────────────────────────────────┤
-│  Inovativní metriky                      │
-│  (4 metriky)                             │
-├─────────────────────────────────────────┤
-│  Sentiment kampaně                       │
-├─────────────────────────────────────────┤
-│  Creators Leaderboard                    │
-├─────────────────────────────────────────┤
-│  Content Performance: @creator1          │
-├─────────────────────────────────────────┤
-│  Content Performance: @creator2          │
-├─────────────────────────────────────────┤
-│  ... (další creatori)                    │
-├─────────────────────────────────────────┤
-│  Summary & Takeaways                     │
-│  (What Works / Doesn't / Recommendations)│
-└─────────────────────────────────────────┘
-   ↓ Pokračuje na další stránky automaticky
+PŘED (A4 stránkování):
+┌─────────┐ ┌─────────┐ ┌─────────┐
+│ Page 1  │ │ Page 2  │ │ Page 3  │
+│ [margin]│ │ [margin]│ │ [margin]│
+│ Content │ │ Content │ │ Content │
+│ [margin]│ │ [margin]│ │ [margin]│
+└─────────┘ └─────────┘ └─────────┘
+
+PO (jeden souvislý dokument):
+┌─────────────────────────────────┐
+│                                 │
+│  Executive Summary              │
+│  Top 5 Content                  │
+│  Metrics                        │
+│  Leaderboard                    │
+│  Creator 1                      │
+│  Creator 2                      │
+│  ...                            │
+│  Summary                        │
+│                                 │
+└─────────────────────────────────┘
+(Jeden velký "papír")
 ```
 
 ---
 
-## Implementační kroky
+## Dotčené soubory
 
-1. Upravit `src/index.css` - nahradit `.pdf-page` za `.pdf-continuous`
-2. Refaktorovat `src/components/reports/AIInsightsContentPDF.tsx` - odstranit page wrappers
-3. Zjednodušit `src/components/reports/AIInsightsTab.tsx` - odstranit pagebreak config
-4. Otestovat export
+| Soubor | Změna |
+|--------|-------|
+| `src/components/reports/AIInsightsTab.tsx` | Přepsat `handleExportPDF` na ruční html2canvas + jsPDF workflow |
+
+---
+
+## Technické poznámky
+
+1. **Import knihoven**: `html2pdf.js` obsahuje `html2canvas` a `jspdf` jako bundled dependencies. Můžeme:
+   - Buď importovat přímo z html2pdf.js (pokud exportuje)
+   - Nebo přidat explicitní import jspdf (již by měl být v node_modules)
+
+2. **Rozměry PDF**: Použijeme `format: [width, height]` v mm, což vytvoří custom page size
+
+3. **Kvalita**: Zachováme scale: 2 pro vysoké rozlišení, JPEG quality 0.95
+
+4. **Paměť**: Pro velmi dlouhé dokumenty může být canvas velký, ale pro běžné reporty by měl být v pořádku
