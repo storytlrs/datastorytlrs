@@ -69,6 +69,7 @@ serve(async (req) => {
     let benchmarkER = 0;
     let benchmarkVirality = 0;
     let benchmarkTswbCost = 0;
+    let benchmarkInteractions = 0;
     let benchmarkCount = 0;
 
     if (spaceReports && spaceReports.length > 0) {
@@ -92,13 +93,55 @@ serve(async (req) => {
           if (tswbMinutes > 0 && c.cost) {
             benchmarkTswbCost += c.cost / tswbMinutes;
           }
+          benchmarkInteractions += (c.likes || 0) + (c.comments || 0) + 
+                                   (c.saves || 0) + (c.shares || 0) + (c.reposts || 0);
           benchmarkCount++;
         });
         if (benchmarkCount > 0) {
           benchmarkER /= benchmarkCount;
           benchmarkVirality /= benchmarkCount;
           benchmarkTswbCost /= benchmarkCount;
+          benchmarkInteractions /= benchmarkCount;
         }
+      }
+    }
+
+    // Fallback - use current report data if no other reports exist in space
+    const hasBenchmarks = spaceReports && spaceReports.length > 0 && benchmarkCount > 0;
+    if (!hasBenchmarks && content && content.length > 0) {
+      let fallbackER = 0;
+      let fallbackVirality = 0;
+      let fallbackTswbCost = 0;
+      let fallbackInteractions = 0;
+      let fallbackCount = 0;
+
+      content.forEach((c: any) => {
+        if (c.engagement_rate) fallbackER += c.engagement_rate;
+
+        const views = (c.views || 0);
+        const shares = (c.shares || 0) + (c.reposts || 0);
+        if (views > 0) {
+          fallbackVirality += (shares / views) * 100;
+        }
+
+        const tswb = (c.watch_time || 0) + ((c.likes || 0) * 3) + ((c.comments || 0) * 5) + 
+                     (((c.saves || 0) + (c.shares || 0) + (c.reposts || 0)) * 10);
+        const tswbMinutes = tswb / 60;
+        if (tswbMinutes > 0 && c.cost) {
+          fallbackTswbCost += c.cost / tswbMinutes;
+        }
+
+        fallbackInteractions += (c.likes || 0) + (c.comments || 0) + 
+                                (c.saves || 0) + (c.shares || 0) + (c.reposts || 0);
+
+        fallbackCount++;
+      });
+
+      if (fallbackCount > 0) {
+        benchmarkER = fallbackER / fallbackCount;
+        benchmarkVirality = fallbackVirality / fallbackCount;
+        benchmarkTswbCost = fallbackTswbCost / fallbackCount;
+        benchmarkInteractions = fallbackInteractions / fallbackCount;
       }
     }
 
@@ -138,7 +181,7 @@ serve(async (req) => {
         },
         innovation: {
           tswbCost: benchmarkTswbCost || 0,
-          interactions: totalExpectedInteractions,
+          interactions: benchmarkInteractions || 0,
           engagementRate: benchmarkER || 0,
           viralityRate: benchmarkVirality || 0,
         },
