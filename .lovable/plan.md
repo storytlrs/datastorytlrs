@@ -1,87 +1,123 @@
 
 
-# Plán: Benchmarky podle typu reportu
+# Plán: Regenerate bez opětovného vyplňování formuláře
 
 ## Přehled
 
-Upravíme výpočet benchmarků tak, aby se počítaly pouze z reportů stejného typu (influencer, ads, always_on) v rámci daného space. Nyní se benchmarky počítají ze všech reportů v space bez ohledu na typ.
+Upravíme tlačítko "Regenerate" v AI Insights tak, aby automaticky použilo existující data z `campaign_context` (Main goal, Actions, Highlights) uložené ve strukturovaných datech. Uživatel nebude muset znovu vyplňovat formulář.
 
 ---
 
-## Problém
+## Aktuální chování
 
-Aktuální kód (řádky 119-134):
-```typescript
-// 1. Get current report to find space_id
-const { data: reportData } = await supabase
-  .from("reports")
-  .select("space_id")  // Chybí "type"
-  .eq("id", reportId)
-  .single();
+1. Kliknutí na "Regenerate" → Otevře se `AIInsightsInputDialog`
+2. Uživatel musí znovu vyplnit Main goal, Actions, Highlights
+3. Po odeslání se generují nové insights
 
-// 2. Get all reports in the same space
-const { data: spaceReports } = await supabase
-  .from("reports")
-  .select("id")
-  .eq("space_id", currentSpaceId);  // Chybí filter .eq("type", reportType)
-```
+## Nové chování
+
+1. Kliknutí na "Regenerate" → Přímo se zavolá `handleGenerateInsights` s existujícími daty
+2. Není potřeba dialog
+3. Pokud data neexistují (edge case), zobrazí se chybová hláška
+
+---
+
+## Dotčené soubory
+
+| Soubor | Změna |
+|--------|-------|
+| `src/components/reports/AIInsightsTab.tsx` | Nová funkce `handleRegenerate`, úprava onClick na Regenerate tlačítku |
 
 ---
 
 ## Změny
 
-**Soubor:** `src/components/reports/OverviewTab.tsx`
+### AIInsightsTab.tsx
 
-### 1. Rozšíření dotazu na aktuální report (řádek 121-124)
-
-Přidáme načtení typu reportu spolu se space_id:
+**1. Nová funkce pro regeneraci (po řádku ~195)**
 
 ```typescript
-// 1. Get current report to find space_id and type
-const { data: reportData } = await supabase
-  .from("reports")
-  .select("space_id, type")  // Přidáno "type"
-  .eq("id", reportId)
-  .single();
-
-const currentSpaceId = reportData?.space_id;
-const currentReportType = reportData?.type;
+const handleRegenerate = async () => {
+  // Načteme existující campaign_context ze strukturovaných dat
+  if (!structuredData?.campaign_context) {
+    toast.error("Chybí kontext kampaně. Použijte 'Generate AI Insights' pro první generování.");
+    return;
+  }
+  
+  // Zavoláme generování s existujícím kontextem
+  await handleGenerateInsights(structuredData.campaign_context);
+};
 ```
 
-### 2. Filtrování reportů podle typu (řádky 128-134)
+**2. Úprava onClick u Regenerate tlačítka (řádky 249-257)**
 
-Přidáme filter podle typu reportu:
-
-```typescript
-// 2. Get all reports in the same space WITH SAME TYPE
-const { data: spaceReports } = await supabase
-  .from("reports")
-  .select("id")
-  .eq("space_id", currentSpaceId)
-  .eq("type", currentReportType);  // Přidán filter podle typu
-
-const allReportIds = spaceReports?.map(r => r.id) || [];
-setSpaceReportCount(allReportIds.length);
+Z:
+```tsx
+<Button
+  onClick={() => setIsInputDialogOpen(true)}
+  variant="outline"
+  className="rounded-[35px] border-foreground"
+  title="Vygenerovat nové AI Insights"
+>
+  <RefreshCw className="w-4 h-4 mr-2" />
+  Regenerate
+</Button>
 ```
 
----
+Na:
+```tsx
+<Button
+  onClick={handleRegenerate}
+  disabled={isGenerating}
+  variant="outline"
+  className="rounded-[35px] border-foreground"
+  title="Regenerovat AI Insights s existujícím kontextem"
+>
+  {isGenerating ? (
+    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+  ) : (
+    <RefreshCw className="w-4 h-4 mr-2" />
+  )}
+  Regenerate
+</Button>
+```
 
-## Souhrn
+**3. Odstranění nepotřebného dialogu ze strukturovaného view (řádky 272-278)**
 
-| Řádek | Změna |
-|-------|-------|
-| 121-124 | `.select("space_id")` → `.select("space_id, type")` |
-| 129-132 | Přidání `.eq("type", currentReportType)` do dotazu |
+Dialog `AIInsightsInputDialog` ve strukturovaném view již není potřeba, protože Regenerate nepoužívá dialog.
 
 ---
 
 ## Výsledné chování
 
-| Typ reportu | Benchmarky se počítají z |
-|-------------|--------------------------|
-| influencer | Všech influencer reportů v daném space |
-| ads | Všech ads reportů v daném space |
-| always_on | Všech always_on reportů v daném space |
+| Akce | Výsledek |
+|------|----------|
+| První generování (bez dat) | Otevře se dialog pro vyplnění kontextu |
+| Regenerace (s existujícími daty) | Přímo se zavolá AI s uloženým kontextem |
+| Regenerace (bez kontextu - edge case) | Toast error "Chybí kontext kampaně" |
 
-Pokud je v space pouze jeden report daného typu, benchmark = aktuální hodnoty.
+---
+
+## Technické poznámky
+
+### Kde je uložen campaign_context
+
+Data jsou uložena v `ai_insights_structured.campaign_context`:
+```typescript
+interface CampaignContext {
+  mainGoal: string;
+  actions: string;
+  highlights: string;
+}
+```
+
+### Loading state
+
+Tlačítko Regenerate bude:
+- Zobrazovat spinner během generování (`isGenerating` state)
+- Být disabled během generování
+
+### Edge case handling
+
+Pokud by `campaign_context` neexistoval (starší data), zobrazí se chybová hláška a uživatel bude muset použít první generování s dialogem.
 
