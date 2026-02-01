@@ -132,3 +132,14 @@ All colors MUST be HSL.
     font-family: 'Young Serif', serif;
   }
 }
+
+/* PDF Export - Page Breaks */
+@media print {
+  .pdf-page-break {
+    page-break-before: always;
+  }
+}
+
+.pdf-page-break {
+  break-before: page;
+}

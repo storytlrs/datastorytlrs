@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -6,8 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Loader2, Sparkles, Save, Settings2, Pencil, Eye, RefreshCw } from "lucide-react";
+import { Loader2, Sparkles, Save, Settings2, Pencil, Eye, RefreshCw, Download } from "lucide-react";
 import { useUserRole } from "@/hooks/useUserRole";
+import html2pdf from "html2pdf.js";
 import {
   Collapsible,
   CollapsibleContent,
@@ -95,12 +96,14 @@ interface StructuredInsights {
 
 export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
   const { isAdmin, canEdit } = useUserRole();
+  const contentRef = useRef<HTMLDivElement>(null);
   const [aiInsights, setAiInsights] = useState<string>("");
   const [webhookUrl, setWebhookUrl] = useState<string>("");
   const [spaceId, setSpaceId] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [isInputDialogOpen, setIsInputDialogOpen] = useState(false);
@@ -202,6 +205,41 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
     await handleGenerateInsights(structuredData.campaign_context);
   };
 
+  const handleExportPDF = async () => {
+    if (!contentRef.current) return;
+    
+    setIsExporting(true);
+    try {
+      const opt = {
+        margin: [10, 15, 10, 15],
+        filename: `insights-report-${new Date().toISOString().split('T')[0]}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { 
+          scale: 2,
+          useCORS: true,
+          logging: false,
+        },
+        jsPDF: { 
+          unit: 'mm', 
+          format: 'a4', 
+          orientation: 'landscape' as const
+        },
+        pagebreak: { 
+          mode: ['css'],
+          before: '.pdf-page-break'
+        }
+      };
+      
+      await html2pdf().set(opt).from(contentRef.current).save();
+      toast.success("PDF exportováno úspěšně!");
+    } catch (error) {
+      console.error("Error exporting PDF:", error);
+      toast.error("Nepodařilo se exportovat PDF");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const handleSaveInsights = async () => {
     setIsSaving(true);
     try {
@@ -253,6 +291,19 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
         <div className="space-y-6">
           {/* Action buttons */}
           <div className="flex items-center justify-end gap-2">
+            <Button
+              onClick={handleExportPDF}
+              disabled={isExporting}
+              variant="outline"
+              className="rounded-[35px] border-foreground"
+            >
+              {isExporting ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Download className="w-4 h-4 mr-2" />
+              )}
+              Export PDF
+            </Button>
             {canEdit && (
               <Button
                 onClick={handleRegenerate}
@@ -272,6 +323,7 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
           </div>
 
           <AIInsightsContent
+            ref={contentRef}
             insights={structuredData}
             overviewParagraph={overviewParagraph}
             innovationParagraph={innovationParagraph}
