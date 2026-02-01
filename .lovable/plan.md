@@ -1,185 +1,150 @@
 
-# Plán: Editovatelné odstavce pro Základní přehled a Inovativní metriky
+# Plán: Jednotné benchmark KPI targets pro Innovation metriky
 
 ## Přehled
 
-Přidáme editovatelné AI-generované odstavce pod headline v sekcích "Základní přehled kampaně" a "Inovativní a kvalitativní metriky". Tyto texty budou:
-1. Automaticky generovány AI při vytváření insights
-2. Persistovány v databázi v rámci `ai_insights_structured`
-3. Editovatelné pomocí stejného patternu jako ostatní sekce
+Aktuálně jsou Innovation KPI targets počítány nekonzistentně:
+- **TSWB Cost, ER, Virality Rate**: Benchmarky z ostatních reportů v brand space
+- **Interactions**: Plánovaná data z creatorů v aktuálním reportu
+
+Uživatel požaduje:
+1. **Všechny** Innovation targets (včetně Interactions) mají být benchmarky z reportů v brand space
+2. Pokud existuje pouze jeden report ve space, použije se fallback z aktuálního reportu
 
 ---
 
 ## Změny
 
-### 1. Aktualizace TypeScript rozhraní
-
-**Soubor:** `src/components/reports/AIInsightsContent.tsx`
-
-Přidáme nová pole do `StructuredInsights` interface:
-
-```typescript
-interface StructuredInsights {
-  // ... existující pole
-  overview_summary?: string;      // Nové
-  innovation_summary?: string;    // Nové
-  // ...
-}
-```
-
-### 2. Přidání lokálního stavu pro editaci
-
-**Soubor:** `src/components/reports/AIInsightsContent.tsx`
-
-```typescript
-// Přidat do komponenty
-const [overviewSummary, setOverviewSummary] = useState(
-  insights.overview_summary || overviewParagraph || ''
-);
-const [innovationSummary, setInnovationSummary] = useState(
-  insights.innovation_summary || innovationParagraph || ''
-);
-```
-
-### 3. Rozšíření handleSaveSection
-
-Přidáme handling pro nové sekce:
-
-```typescript
-case "overview_summary":
-  setOverviewSummary(value);
-  if (onSaveInsights) {
-    await onSaveInsights({ overview_summary: value });
-  }
-  break;
-case "innovation_summary":
-  setInnovationSummary(value);
-  if (onSaveInsights) {
-    await onSaveInsights({ innovation_summary: value });
-  }
-  break;
-```
-
-### 4. Úprava UI sekcí
-
-**Základní přehled kampaně:**
-
-```tsx
-<Card className="p-6 rounded-[20px] border-foreground">
-  <h2 className="text-xl font-bold mb-4">
-    Základní přehled kampaně
-  </h2>
-  
-  {/* Nový editovatelný odstavec */}
-  <div className="mb-4">
-    <EditableSection
-      value={overviewSummary}
-      isEditing={editingSections.has("overview_summary")}
-      onStartEdit={() => startEditing("overview_summary")}
-      onSave={(value) => handleSaveSection("overview_summary", value)}
-      onCancel={() => stopEditing("overview_summary")}
-      canEdit={canEdit}
-      placeholder="AI summary of campaign overview metrics..."
-    />
-  </div>
-  
-  {/* Existující metriky */}
-  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-    {/* MetricTile komponenty */}
-  </div>
-</Card>
-```
-
-**Inovativní a kvalitativní metriky:**
-
-```tsx
-<Card className="p-6 rounded-[20px] border-foreground">
-  <h2 className="text-xl font-bold mb-4">
-    Inovativní a kvalitativní metriky
-  </h2>
-  
-  {/* Nový editovatelný odstavec */}
-  <div className="mb-4">
-    <EditableSection
-      value={innovationSummary}
-      isEditing={editingSections.has("innovation_summary")}
-      onStartEdit={() => startEditing("innovation_summary")}
-      onSave={(value) => handleSaveSection("innovation_summary", value)}
-      onCancel={() => stopEditing("innovation_summary")}
-      canEdit={canEdit}
-      placeholder="AI summary of innovation metrics..."
-    />
-  </div>
-  
-  {/* Existující metriky */}
-  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-    {/* MetricTile komponenty */}
-  </div>
-</Card>
-```
-
-### 5. Aktualizace Edge funkce
-
 **Soubor:** `supabase/functions/generate-ai-insights/index.ts`
 
-Přidáme nová pole do uloženého strukturovaného objektu:
+### 1. Rozšíření výpočtu benchmarků o Interactions
+
+Přidáme `benchmarkInteractions` do benchmark kalkulace:
 
 ```typescript
-const structuredInsights = {
-  // ... existující pole
-  overview_summary: aiContent.overview_paragraph,    // Nové
-  innovation_summary: aiContent.innovation_paragraph, // Nové
-  // ...
-};
+// Řádky ~69-72 - přidat novou proměnnou
+let benchmarkER = 0;
+let benchmarkVirality = 0;
+let benchmarkTswbCost = 0;
+let benchmarkInteractions = 0;  // Nové
+let benchmarkCount = 0;
 ```
 
-### 6. Aktualizace AIInsightsTab
-
-**Soubor:** `src/components/reports/AIInsightsTab.tsx`
-
-Také aktualizujeme interface a předávání dat:
+A do smyčky přes benchmark content (řádky ~82-95):
 
 ```typescript
-interface StructuredInsights {
-  // ... existující pole
-  overview_summary?: string;
-  innovation_summary?: string;
-  // ...
+benchmarkContent.forEach((c) => {
+  // ... existující logika pro ER, Virality, TSWB ...
+  
+  // Nové - přidat Interactions
+  benchmarkInteractions += (c.likes || 0) + (c.comments || 0) + 
+                           (c.saves || 0) + (c.shares || 0) + (c.reposts || 0);
+  
+  benchmarkCount++;
+});
+
+// Po smyčce - výpočet průměru
+if (benchmarkCount > 0) {
+  benchmarkER /= benchmarkCount;
+  benchmarkVirality /= benchmarkCount;
+  benchmarkTswbCost /= benchmarkCount;
+  benchmarkInteractions /= benchmarkCount;  // Nové
 }
+```
+
+### 2. Přidání fallback logiky pro jediný report ve space
+
+Pokud neexistují jiné reporty, použít aktuální report data:
+
+```typescript
+// Po benchmark kalkulaci (kolem řádku 103)
+const hasBenchmarks = spaceReports && spaceReports.length > 0 && benchmarkCount > 0;
+
+// Fallback - použít aktuální report data
+if (!hasBenchmarks && content && content.length > 0) {
+  let fallbackER = 0;
+  let fallbackVirality = 0;
+  let fallbackTswbCost = 0;
+  let fallbackInteractions = 0;
+  let fallbackCount = 0;
+  
+  content.forEach((c) => {
+    if (c.engagement_rate) fallbackER += c.engagement_rate;
+    
+    const views = (c.views || 0);
+    const shares = (c.shares || 0) + (c.reposts || 0);
+    if (views > 0) {
+      fallbackVirality += (shares / views) * 100;
+    }
+    
+    const tswb = (c.watch_time || 0) + ((c.likes || 0) * 3) + ((c.comments || 0) * 5) + 
+                 (((c.saves || 0) + (c.shares || 0) + (c.reposts || 0)) * 10);
+    const tswbMinutes = tswb / 60;
+    if (tswbMinutes > 0 && c.cost) {
+      fallbackTswbCost += c.cost / tswbMinutes;
+    }
+    
+    fallbackInteractions += (c.likes || 0) + (c.comments || 0) + 
+                            (c.saves || 0) + (c.shares || 0) + (c.reposts || 0);
+    
+    fallbackCount++;
+  });
+  
+  if (fallbackCount > 0) {
+    benchmarkER = fallbackER / fallbackCount;
+    benchmarkVirality = fallbackVirality / fallbackCount;
+    benchmarkTswbCost = fallbackTswbCost / fallbackCount;
+    benchmarkInteractions = fallbackInteractions / fallbackCount;
+  }
+}
+```
+
+### 3. Aktualizace KPI targets struktury
+
+Změnit `innovation.interactions` tak, aby používal benchmark:
+
+```typescript
+// Řádky ~139-144
+return {
+  overview: {
+    creators: creators.length,
+    content: totalPieces,
+    views: totalExpectedViews,
+    avgCpm: avgCpmTarget,
+  },
+  innovation: {
+    tswbCost: benchmarkTswbCost,
+    interactions: benchmarkInteractions,  // Změna z totalExpectedInteractions
+    engagementRate: benchmarkER,
+    viralityRate: benchmarkVirality,
+  },
+};
 ```
 
 ---
 
-## Souhrn souborů ke změně
+## Souhrn
 
 | Soubor | Změny |
 |--------|-------|
-| `src/components/reports/AIInsightsContent.tsx` | Interface, state, handlery, UI pro editaci obou odstavců |
-| `src/components/reports/AIInsightsTab.tsx` | Aktualizace interface |
-| `supabase/functions/generate-ai-insights/index.ts` | Uložení odstavců do struktury |
+| `supabase/functions/generate-ai-insights/index.ts` | Jednotný benchmark výpočet pro všechny Innovation metriky + fallback logika |
 
 ---
 
 ## Technické detaily
 
+### Logika výpočtu
+1. Načíst všechny ostatní influencer reporty ve stejném brand space
+2. Spočítat průměrné hodnoty (ER, Virality, TSWB Cost, Interactions) ze všech content pieces
+3. **Fallback**: Pokud žádné jiné reporty neexistují, použít průměry z aktuálního reportu
+4. Uložit tyto benchmarky jako `kpi_targets.innovation`
+
 ### Datový tok
+```
+Jiné reporty ve space existují?
+    ├── ANO → Použít benchmark průměry z ostatních reportů
+    └── NE → Použít fallback průměry z aktuálního reportu
+```
 
-1. **Generování**: AI vytvoří `overview_paragraph` a `innovation_paragraph`
-2. **Uložení**: Edge funkce uloží do `ai_insights_structured.overview_summary` a `ai_insights_structured.innovation_summary`
-3. **Načtení**: Frontend načte z `ai_insights_structured`
-4. **Editace**: Uživatel může upravit text pomocí `EditableSection`
-5. **Persistování**: Změny se ukládají zpět do `ai_insights_structured`
-
-### Zpětná kompatibilita
-
-Komponenta bude využívat prioritně:
-1. `insights.overview_summary` (nově uložená data)
-2. `overviewParagraph` prop (legacy data z API response)
-3. Prázdný string jako fallback
-
-### UX
-
-- Odstavec se zobrazí pod headline, nad metrikami
-- Při hoveru se objeví ikona tužky pro editaci
-- Kliknutím se otevře Textarea
-- Save/Cancel tlačítka pro potvrzení/zrušení změn
+### UI zobrazení
+Změny ve frontendu nejsou potřeba - UI již správně zobrazuje `kpiTargets.innovation.interactions` target.
