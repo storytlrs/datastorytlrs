@@ -483,6 +483,8 @@ Pro creator_insights vytvoř entry pro každého z těchto creatorů: ${creatorP
       },
       creator_performance: enhancedCreatorPerformance,
       recommendations: aiContent.recommendations,
+      overview_summary: aiContent.overview_paragraph,
+      innovation_summary: aiContent.innovation_paragraph,
     };
 
     // Save to database
