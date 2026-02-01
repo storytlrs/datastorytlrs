@@ -114,6 +114,11 @@ interface AIInsightsContentPDFProps {
   overviewParagraph?: string;
   innovationParagraph?: string;
   sentimentParagraph?: string;
+  reportName?: string;
+  reportType?: string;
+  reportStatus?: string;
+  startDate?: string | null;
+  endDate?: string | null;
 }
 
 const formatNumber = (num: number): string => {
@@ -148,11 +153,41 @@ const getSentimentLabel = (sentiment: string): string => {
  * - Compact typography and spacing
  * - No interactive elements
  */
+const getReportTypeLabel = (type?: string): string => {
+  switch (type) {
+    case "influencer": return "Influencer campaign";
+    case "social": return "Social media";
+    case "ads": return "Ads campaign";
+    case "always_on": return "Always On";
+    default: return type || "";
+  }
+};
+
+const getStatusLabel = (status?: string): string => {
+  switch (status) {
+    case "active": return "Published";
+    case "draft": return "Draft";
+    case "archived": return "Archived";
+    default: return status || "";
+  }
+};
+
+const formatDate = (dateStr?: string | null): string => {
+  if (!dateStr) return "";
+  const date = new Date(dateStr);
+  return date.toLocaleDateString("cs-CZ", { day: "2-digit", month: "2-digit", year: "numeric" });
+};
+
 export const AIInsightsContentPDF = forwardRef<HTMLDivElement, AIInsightsContentPDFProps>(({
   insights,
   overviewParagraph,
   innovationParagraph,
   sentimentParagraph,
+  reportName,
+  reportType,
+  reportStatus,
+  startDate,
+  endDate,
 }, ref) => {
   const selectedTopContentIds = insights.selected_top_content_ids || [];
   const topContentArray = insights.top_content || [];
@@ -167,6 +202,21 @@ export const AIInsightsContentPDF = forwardRef<HTMLDivElement, AIInsightsContent
 
   return (
     <div ref={ref} className="pdf-continuous space-y-4">
+      {/* PDF Header */}
+      {reportName && (
+        <Card className="p-4 rounded-[20px] border-foreground" style={{ backgroundColor: '#E9E9E9' }}>
+          <h1 className="text-2xl font-bold mb-1">{reportName}</h1>
+          <p className="text-sm text-muted-foreground">
+            {getReportTypeLabel(reportType)} • {getStatusLabel(reportStatus)}
+          </p>
+          {(startDate || endDate) && (
+            <p className="text-xs text-muted-foreground mt-1">
+              {formatDate(startDate)} - {formatDate(endDate)}
+            </p>
+          )}
+        </Card>
+      )}
+
       {/* Executive Summary */}
       <Card className="p-4 rounded-[20px] border-foreground" style={{ backgroundColor: '#E9E9E9' }}>
         <h2 className="text-lg font-bold mb-3">Executive Summary</h2>

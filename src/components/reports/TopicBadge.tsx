@@ -17,7 +17,7 @@ export const TopicBadge = ({ topic, variant = "default", className }: TopicBadge
   return (
     <span
       className={cn(
-        "inline-flex items-center px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide",
+        "inline-flex items-center justify-center text-center px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide",
         variantConfig[variant],
         className
       )}
