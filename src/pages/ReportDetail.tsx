@@ -3,12 +3,11 @@ import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Settings, Send, ArrowLeft } from "lucide-react";
+import { Settings, Send, ArrowLeft, ClipboardList } from "lucide-react";
 import { toast } from "sonner";
 import { OverviewTab } from "@/components/reports/OverviewTab";
 import { CreatorsTab } from "@/components/reports/CreatorsTab";
 import { ContentTab } from "@/components/reports/ContentTab";
-
 import { DataTab } from "@/components/reports/DataTab";
 import { AdCreativesTab } from "@/components/reports/AdCreativesTab";
 import { AdsDataTab } from "@/components/reports/AdsDataTab";
@@ -16,6 +15,8 @@ import { AlwaysOnDataTab } from "@/components/reports/AlwaysOnDataTab";
 import { AIInsightsTab } from "@/components/reports/AIInsightsTab";
 import { EditReportDialog } from "@/components/reports/EditReportDialog";
 import { useUserRole } from "@/hooks/useUserRole";
+import { ReportContributors, Contributor } from "@/components/reports/ReportContributors";
+import { ReportActivityLog } from "@/components/reports/ReportActivityLog";
 
 interface Report {
   id: string;
@@ -35,12 +36,54 @@ const ReportDetail = () => {
   const [report, setReport] = useState<Report | null>(null);
   const [loading, setLoading] = useState(true);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [contributors, setContributors] = useState<Contributor[]>([]);
+  const [isLogOpen, setIsLogOpen] = useState(false);
 
   useEffect(() => {
     if (reportId) {
       fetchReport();
+      fetchContributors();
     }
   }, [reportId]);
+
+  const fetchContributors = async () => {
+    try {
+      // First fetch distinct user_ids from audit_log
+      const { data: auditData, error: auditError } = await supabase
+        .from("audit_log")
+        .select("user_id")
+        .eq("report_id", reportId);
+
+      if (auditError) throw auditError;
+
+      if (!auditData || auditData.length === 0) {
+        setContributors([]);
+        return;
+      }
+
+      // Get unique user IDs
+      const userIds = [...new Set(auditData.map((e) => e.user_id))];
+
+      // Fetch profiles for these users
+      const { data: profilesData, error: profilesError } = await supabase
+        .from("profiles")
+        .select("id, full_name, email, avatar_url")
+        .in("id", userIds);
+
+      if (profilesError) throw profilesError;
+
+      const contributors: Contributor[] = (profilesData || []).map((p) => ({
+        user_id: p.id,
+        full_name: p.full_name,
+        email: p.email,
+        avatar_url: p.avatar_url,
+      }));
+
+      setContributors(contributors);
+    } catch (error) {
+      console.error("Failed to fetch contributors:", error);
+    }
+  };
 
   const fetchReport = async () => {
     try {
@@ -134,10 +177,18 @@ const ReportDetail = () => {
                 All reports
               </Button>
               <h1 className="text-4xl font-bold mb-2">{report.name}</h1>
-              <p className="text-muted-foreground">
-                {getReportTypeLabel(report.type)} •{" "}
-                {report.status === "active" ? "Published" : report.status}
-              </p>
+              <div className="flex items-center gap-2 text-muted-foreground flex-wrap">
+                <span>
+                  {getReportTypeLabel(report.type)} •{" "}
+                  {report.status === "active" ? "Published" : report.status}
+                </span>
+                {contributors.length > 0 && (
+                  <>
+                    <span>•</span>
+                    <ReportContributors contributors={contributors} />
+                  </>
+                )}
+              </div>
               {report.start_date && report.end_date && (
                 <p className="text-sm text-muted-foreground mt-1">
                   {new Date(report.start_date).toLocaleDateString()} -{" "}
@@ -165,6 +216,14 @@ const ReportDetail = () => {
                   Unpublish
                 </Button>
               )}
+              <Button
+                variant="ghost"
+                onClick={() => setIsLogOpen(true)}
+                className="rounded-[35px]"
+              >
+                <ClipboardList className="w-4 h-4 mr-2" />
+                Log
+              </Button>
               {isAdmin && (
                 <Button
                   variant="outline"
@@ -266,6 +325,12 @@ const ReportDetail = () => {
           )}
         </Tabs>
       </div>
+
+      <ReportActivityLog
+        reportId={reportId!}
+        open={isLogOpen}
+        onOpenChange={setIsLogOpen}
+      />
 
       {report && (
         <EditReportDialog
