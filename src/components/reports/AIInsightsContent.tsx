@@ -104,6 +104,8 @@ interface StructuredInsights {
     doesnt_work: string[];
     suggestions: string[];
   };
+  overview_summary?: string;
+  innovation_summary?: string;
 }
 
 interface AIInsightsContentProps {
@@ -326,6 +328,14 @@ export const AIInsightsContent = ({
   const [suggestionsItems, setSuggestionsItems] = useState(insights.recommendations?.suggestions || []);
   const [sentimentSummary, setSentimentSummary] = useState(sentimentParagraph || insights.sentiment_analysis.summary);
   
+  // Overview and Innovation summary states
+  const [overviewSummary, setOverviewSummary] = useState(
+    insights.overview_summary || overviewParagraph || ''
+  );
+  const [innovationSummary, setInnovationSummary] = useState(
+    insights.innovation_summary || innovationParagraph || ''
+  );
+  
   // Sentiment topics editing state
   const [isEditingSentimentTopics, setIsEditingSentimentTopics] = useState(false);
   const [editedSentimentTopics, setEditedSentimentTopics] = useState(
@@ -361,6 +371,12 @@ export const AIInsightsContent = ({
       case "sentiment_summary":
         setSentimentSummary(value);
         break;
+      case "overview_summary":
+        setOverviewSummary(value);
+        break;
+      case "innovation_summary":
+        setInnovationSummary(value);
+        break;
     }
     stopEditing(section);
     
@@ -380,6 +396,10 @@ export const AIInsightsContent = ({
           ...insights.sentiment_analysis,
           summary: value,
         };
+      } else if (section === "overview_summary") {
+        updates.overview_summary = value;
+      } else if (section === "innovation_summary") {
+        updates.innovation_summary = value;
       }
       await onSaveInsights(updates);
     }
@@ -558,9 +578,17 @@ export const AIInsightsContent = ({
         <h2 className="text-xl font-bold mb-4">
           Základní přehled kampaně
         </h2>
-        {overviewParagraph && (
-          <p className="mb-4 text-foreground leading-relaxed">{overviewParagraph}</p>
-        )}
+        <div className="mb-4">
+          <EditableSection
+            value={overviewSummary}
+            isEditing={editingSections.has("overview_summary")}
+            onStartEdit={() => startEditing("overview_summary")}
+            onSave={(v) => handleSaveSection("overview_summary", v)}
+            onCancel={() => stopEditing("overview_summary")}
+            canEdit={canEdit}
+            placeholder="AI shrnutí základních metrik kampaně..."
+          />
+        </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <MetricTile
             title="Creators"
@@ -598,9 +626,17 @@ export const AIInsightsContent = ({
         <h2 className="text-xl font-bold mb-4">
           Inovativní a kvalitativní metriky
         </h2>
-        {innovationParagraph && (
-          <p className="mb-4 text-foreground leading-relaxed">{innovationParagraph}</p>
-        )}
+        <div className="mb-4">
+          <EditableSection
+            value={innovationSummary}
+            isEditing={editingSections.has("innovation_summary")}
+            onStartEdit={() => startEditing("innovation_summary")}
+            onSave={(v) => handleSaveSection("innovation_summary", v)}
+            onCancel={() => stopEditing("innovation_summary")}
+            canEdit={canEdit}
+            placeholder="AI shrnutí inovativních a kvalitativních metrik..."
+          />
+        </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <MetricTile
             title="TSWB Cost"

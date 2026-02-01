@@ -89,6 +89,8 @@ interface StructuredInsights {
     doesnt_work: string[];
     suggestions: string[];
   };
+  overview_summary?: string;
+  innovation_summary?: string;
 }
 
 export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
