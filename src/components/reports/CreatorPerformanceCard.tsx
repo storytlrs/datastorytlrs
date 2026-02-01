@@ -2,9 +2,11 @@ import { Card } from "@/components/ui/card";
 import { ContentPreviewCard } from "./ContentPreviewCard";
 import { TopicBadge } from "./TopicBadge";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Pencil, Save, X } from "lucide-react";
 import { useState } from "react";
+import { cn } from "@/lib/utils";
 
 interface TopContent {
   id: string;
@@ -28,7 +30,7 @@ interface CreatorPerformanceData {
     neutral: number;
     negative: number;
   };
-  relevance: "high" | "medium" | "low";
+  relevance: number; // 0-100 percentage
   key_insight: string;
   positive_topics: string[];
   negative_topics: string[];
@@ -38,37 +40,29 @@ interface CreatorPerformanceCardProps {
   creator: CreatorPerformanceData;
   canEdit?: boolean;
   onSaveKeyInsight?: (handle: string, insight: string) => void;
+  onSaveTopics?: (handle: string, positiveTopics: string[], negativeTopics: string[]) => void;
 }
 
-const getRelevanceColor = (relevance: "high" | "medium" | "low") => {
-  switch (relevance) {
-    case "high":
-      return "text-accent-green";
-    case "medium":
-      return "text-accent-orange";
-    case "low":
-      return "text-muted-foreground";
-  }
-};
-
-const getRelevanceLabel = (relevance: "high" | "medium" | "low") => {
-  switch (relevance) {
-    case "high":
-      return "HIGH";
-    case "medium":
-      return "MEDIUM";
-    case "low":
-      return "LOW";
-  }
+const getRelevanceColor = (relevance: number) => {
+  if (relevance >= 70) return "text-accent-green";
+  if (relevance >= 40) return "text-accent-orange";
+  return "text-muted-foreground";
 };
 
 export const CreatorPerformanceCard = ({
   creator,
   canEdit = false,
   onSaveKeyInsight,
+  onSaveTopics,
 }: CreatorPerformanceCardProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedInsight, setEditedInsight] = useState(creator.key_insight);
+  
+  // Topics editing state
+  const [isEditingPositiveTopics, setIsEditingPositiveTopics] = useState(false);
+  const [isEditingNegativeTopics, setIsEditingNegativeTopics] = useState(false);
+  const [editedPositiveTopics, setEditedPositiveTopics] = useState(creator.positive_topics.join(', '));
+  const [editedNegativeTopics, setEditedNegativeTopics] = useState(creator.negative_topics.join(', '));
 
   const handleSave = () => {
     onSaveKeyInsight?.(creator.handle, editedInsight);
@@ -78,6 +72,28 @@ export const CreatorPerformanceCard = ({
   const handleCancel = () => {
     setEditedInsight(creator.key_insight);
     setIsEditing(false);
+  };
+
+  const handleSavePositiveTopics = () => {
+    const topics = editedPositiveTopics.split(',').map(t => t.trim()).filter(t => t);
+    onSaveTopics?.(creator.handle, topics, creator.negative_topics);
+    setIsEditingPositiveTopics(false);
+  };
+
+  const handleCancelPositiveTopics = () => {
+    setEditedPositiveTopics(creator.positive_topics.join(', '));
+    setIsEditingPositiveTopics(false);
+  };
+
+  const handleSaveNegativeTopics = () => {
+    const topics = editedNegativeTopics.split(',').map(t => t.trim()).filter(t => t);
+    onSaveTopics?.(creator.handle, creator.positive_topics, topics);
+    setIsEditingNegativeTopics(false);
+  };
+
+  const handleCancelNegativeTopics = () => {
+    setEditedNegativeTopics(creator.negative_topics.join(', '));
+    setIsEditingNegativeTopics(false);
   };
 
   return (
@@ -105,7 +121,12 @@ export const CreatorPerformanceCard = ({
           {(creator.platforms || []).map((platform) => (
             <span
               key={platform}
-              className="text-xs text-muted-foreground capitalize bg-muted px-2 py-1 rounded-full"
+              className={cn(
+                "text-xs capitalize px-2 py-1 rounded-full",
+                platform.toLowerCase() === "instagram" 
+                  ? "bg-accent-purple text-accent-purple-foreground" 
+                  : "bg-muted text-muted-foreground"
+              )}
             >
               {platform}
             </span>
@@ -117,7 +138,7 @@ export const CreatorPerformanceCard = ({
         {/* Left: Top Post & Sentiment Breakdown */}
         <div className="space-y-4">
           {creator.top_content && (
-            <div className="max-w-[200px]">
+            <div className="w-[180px] flex-shrink-0">
               <ContentPreviewCard
                 thumbnailUrl={creator.top_content.thumbnail_url}
                 contentType={creator.top_content.content_type}
@@ -156,7 +177,7 @@ export const CreatorPerformanceCard = ({
           <div>
             <span className="text-sm text-muted-foreground">Relevance: </span>
             <span className={`font-bold ${getRelevanceColor(creator.relevance)}`}>
-              {getRelevanceLabel(creator.relevance)}
+              {creator.relevance}%
             </span>
           </div>
         </div>
@@ -202,32 +223,102 @@ export const CreatorPerformanceCard = ({
           </div>
 
           {/* Positive Topics */}
-          {creator.positive_topics.length > 0 && (
-            <div>
-              <span className="text-sm font-medium text-muted-foreground block mb-2">
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-muted-foreground">
                 Positive Topics:
               </span>
-              <div className="flex flex-wrap gap-2">
-                {creator.positive_topics.map((topic, i) => (
-                  <TopicBadge key={i} topic={topic} variant="positive" />
-                ))}
-              </div>
+              {canEdit && !isEditingPositiveTopics && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsEditingPositiveTopics(true)}
+                  className="h-6 w-6 p-0"
+                >
+                  <Pencil className="w-3 h-3" />
+                </Button>
+              )}
             </div>
-          )}
+            {isEditingPositiveTopics ? (
+              <div className="space-y-2">
+                <Input
+                  value={editedPositiveTopics}
+                  onChange={(e) => setEditedPositiveTopics(e.target.value)}
+                  placeholder="Topic 1, Topic 2, Topic 3..."
+                  className="rounded-[15px] border-foreground text-sm"
+                />
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={handleSavePositiveTopics} className="rounded-[35px]">
+                    <Save className="w-3 h-3 mr-1" />
+                    Save
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={handleCancelPositiveTopics} className="rounded-[35px] border-foreground">
+                    <X className="w-3 h-3 mr-1" />
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {creator.positive_topics.length > 0 ? (
+                  creator.positive_topics.map((topic, i) => (
+                    <TopicBadge key={i} topic={topic} variant="positive" />
+                  ))
+                ) : (
+                  <span className="text-sm text-muted-foreground italic">No positive topics</span>
+                )}
+              </div>
+            )}
+          </div>
 
           {/* Negative Topics */}
-          {creator.negative_topics.length > 0 && (
-            <div>
-              <span className="text-sm font-medium text-muted-foreground block mb-2">
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-muted-foreground">
                 Negative Topics:
               </span>
-              <div className="flex flex-wrap gap-2">
-                {creator.negative_topics.map((topic, i) => (
-                  <TopicBadge key={i} topic={topic} variant="negative" />
-                ))}
-              </div>
+              {canEdit && !isEditingNegativeTopics && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsEditingNegativeTopics(true)}
+                  className="h-6 w-6 p-0"
+                >
+                  <Pencil className="w-3 h-3" />
+                </Button>
+              )}
             </div>
-          )}
+            {isEditingNegativeTopics ? (
+              <div className="space-y-2">
+                <Input
+                  value={editedNegativeTopics}
+                  onChange={(e) => setEditedNegativeTopics(e.target.value)}
+                  placeholder="Topic 1, Topic 2, Topic 3..."
+                  className="rounded-[15px] border-foreground text-sm"
+                />
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={handleSaveNegativeTopics} className="rounded-[35px]">
+                    <Save className="w-3 h-3 mr-1" />
+                    Save
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={handleCancelNegativeTopics} className="rounded-[35px] border-foreground">
+                    <X className="w-3 h-3 mr-1" />
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {creator.negative_topics.length > 0 ? (
+                  creator.negative_topics.map((topic, i) => (
+                    <TopicBadge key={i} topic={topic} variant="negative" />
+                  ))
+                ) : (
+                  <span className="text-sm text-muted-foreground italic">No negative topics</span>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </Card>

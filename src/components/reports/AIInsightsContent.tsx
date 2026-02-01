@@ -33,11 +33,22 @@ interface CreatorPerformanceData {
     neutral: number;
     negative: number;
   };
-  relevance: "high" | "medium" | "low";
+  relevance: number | "high" | "medium" | "low"; // Support both old string and new number format
   key_insight: string;
   positive_topics: string[];
   negative_topics: string[];
 }
+
+// Helper function to convert old relevance values to percentage
+const getRelevanceAsNumber = (rel: string | number | undefined): number => {
+  if (typeof rel === "number") return rel;
+  switch (rel) {
+    case "high": return 85;
+    case "medium": return 55;
+    case "low": return 25;
+    default: return 50;
+  }
+};
 
 interface KPITargets {
   overview: {
@@ -655,7 +666,7 @@ export const AIInsightsContent = ({
 
       {/* Content Performance Block */}
       <Card className="p-6 rounded-[20px] border-foreground">
-        <h2 className="text-xl font-bold mb-4 border-b border-border pb-2">
+        <h2 className="text-xl font-bold mb-4">
           Content Performance
         </h2>
         {insights.creator_performance && insights.creator_performance.length > 0 ? (
@@ -672,7 +683,7 @@ export const AIInsightsContent = ({
                   neutral: 0,
                   negative: 0,
                 },
-                relevance: creator.relevance || ("medium" as const),
+                relevance: getRelevanceAsNumber(creator.relevance),
                 key_insight: creator.key_insight || "",
                 positive_topics: creator.positive_topics || [],
                 negative_topics: creator.negative_topics || [],
@@ -687,6 +698,14 @@ export const AIInsightsContent = ({
                     if (onSaveInsights) {
                       const updatedPerformance = (insights.creator_performance || []).map((c) =>
                         c.handle === handle ? { ...c, key_insight: insight } : c
+                      );
+                      onSaveInsights({ creator_performance: updatedPerformance });
+                    }
+                  }}
+                  onSaveTopics={(handle, positiveTopics, negativeTopics) => {
+                    if (onSaveInsights) {
+                      const updatedPerformance = (insights.creator_performance || []).map((c) =>
+                        c.handle === handle ? { ...c, positive_topics: positiveTopics, negative_topics: negativeTopics } : c
                       );
                       onSaveInsights({ creator_performance: updatedPerformance });
                     }
