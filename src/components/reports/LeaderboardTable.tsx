@@ -25,6 +25,7 @@ export interface Benchmarks {
   engagementRate: number;
   viralityRate: number;
   tswbCost: number;
+  interactions?: number;
 }
 
 interface LeaderboardTableProps {

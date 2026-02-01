@@ -644,6 +644,7 @@ export const AIInsightsContent = ({
             icon={Clock}
             accentColor="green"
             target={kpiTargets?.innovation.tswbCost ? formatCurrency(kpiTargets.innovation.tswbCost, insights.innovation_metrics.currency) : undefined}
+            benchmark={insights.benchmarks?.tswbCost !== undefined ? formatCurrency(insights.benchmarks.tswbCost, insights.innovation_metrics.currency) : undefined}
           />
           <MetricTile
             title="Interactions"
@@ -651,6 +652,7 @@ export const AIInsightsContent = ({
             icon={Heart}
             accentColor="green"
             target={kpiTargets?.innovation.interactions ? formatNumber(kpiTargets.innovation.interactions) : undefined}
+            benchmark={insights.benchmarks?.interactions !== undefined ? formatNumber(insights.benchmarks.interactions) : undefined}
           />
           <MetricTile
             title="Engagement Rate"
@@ -658,6 +660,7 @@ export const AIInsightsContent = ({
             icon={TrendingUp}
             accentColor="green"
             target={kpiTargets?.innovation.engagementRate ? formatPercent(kpiTargets.innovation.engagementRate) : undefined}
+            benchmark={insights.benchmarks?.engagementRate !== undefined ? formatPercent(insights.benchmarks.engagementRate) : undefined}
           />
           <MetricTile
             title="Virality Rate"
@@ -665,6 +668,7 @@ export const AIInsightsContent = ({
             icon={MessageSquare}
             accentColor="green"
             target={kpiTargets?.innovation.viralityRate ? formatPercent(kpiTargets.innovation.viralityRate) : undefined}
+            benchmark={insights.benchmarks?.viralityRate !== undefined ? formatPercent(insights.benchmarks.viralityRate) : undefined}
           />
         </div>
       </Card>
