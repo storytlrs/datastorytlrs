@@ -10,6 +10,7 @@ import ReportDetail from "./pages/ReportDetail";
 import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 import MainLayout from "./components/MainLayout";
+import { ProtectedRoute } from "./components/ProtectedRoute";
 
 const queryClient = new QueryClient();
 
@@ -25,7 +26,16 @@ const App = () => (
           <Route path="/dashboard" element={<MainLayout><DashboardRedirect /></MainLayout>} />
           <Route path="/brands/:brandId" element={<MainLayout><BrandDetail /></MainLayout>} />
           <Route path="/reports/:reportId" element={<MainLayout><ReportDetail /></MainLayout>} />
-          <Route path="/admin" element={<MainLayout><Admin /></MainLayout>} />
+          <Route 
+            path="/admin" 
+            element={
+              <MainLayout>
+                <ProtectedRoute requiredRole="admin">
+                  <Admin />
+                </ProtectedRoute>
+              </MainLayout>
+            } 
+          />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
