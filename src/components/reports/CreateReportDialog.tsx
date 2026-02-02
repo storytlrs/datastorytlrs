@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { logReportAction } from "@/lib/auditLog";
 import { useUserRole } from "@/hooks/useUserRole";
 import { Button } from "@/components/ui/button";
 import {
@@ -239,6 +240,12 @@ const CreateReportDialog = ({
         .single();
 
       if (reportError) throw reportError;
+
+      // Log the create action
+      await logReportAction(report.id, "create", {
+        name: campaignName,
+        type: reportType,
+      });
 
       // If file was uploaded and mapped, process it
       if (parsedFile && Object.values(mappings).some(Boolean)) {

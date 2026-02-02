@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { logReportAction } from "@/lib/auditLog";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Settings, Send, ArrowLeft, ClipboardList } from "lucide-react";
@@ -109,8 +110,10 @@ const ReportDetail = () => {
         .update({ status: "active" })
         .eq("id", reportId);
       if (error) throw error;
+      await logReportAction(reportId!, "publish");
       toast.success("Report published successfully");
       fetchReport();
+      fetchContributors();
     } catch (error) {
       toast.error("Failed to publish report");
     }
@@ -123,8 +126,10 @@ const ReportDetail = () => {
         .update({ status: "draft" })
         .eq("id", reportId);
       if (error) throw error;
+      await logReportAction(reportId!, "unpublish");
       toast.success("Report unpublished successfully");
       fetchReport();
+      fetchContributors();
     } catch (error) {
       toast.error("Failed to unpublish report");
     }

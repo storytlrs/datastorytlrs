@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { logReportAction } from "@/lib/auditLog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -107,6 +108,12 @@ export const EditReportDialog = ({ open, onOpenChange, report, onSuccess }: Edit
         .eq("id", report.id);
 
       if (error) throw error;
+
+      // Log the update action
+      await logReportAction(report.id, "update", {
+        name: name.trim(),
+        type,
+      });
 
       toast.success("Report settings updated");
       onSuccess();
