@@ -1,30 +1,14 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UserList } from "@/components/admin/UserList";
 import { BrandsTab } from "@/components/admin/BrandsTab";
-import { useUserRole } from "@/hooks/useUserRole";
-import { toast } from "sonner";
 
+/**
+ * Admin Panel - Access controlled by ProtectedRoute wrapper in App.tsx
+ * Backend RLS policies enforce all data operations server-side.
+ */
 const Admin = () => {
   const [activeTab, setActiveTab] = useState("users");
-  const navigate = useNavigate();
-  const { isAdmin, loading } = useUserRole();
-
-  useEffect(() => {
-    if (!loading && !isAdmin) {
-      toast.error("Access denied. Admin privileges required.");
-      navigate("/dashboard");
-    }
-  }, [navigate, isAdmin, loading]);
-
-  if (loading || !isAdmin) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p>Loading...</p>
-      </div>
-    );
-  }
 
   return (
     <div className="p-6">
