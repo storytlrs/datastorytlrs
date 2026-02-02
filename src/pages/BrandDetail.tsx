@@ -19,8 +19,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { format, subMonths } from "date-fns";
 import CreateReportDialog from "@/components/reports/CreateReportDialog";
+import { ReportContributors, Contributor } from "@/components/reports/ReportContributors";
 
 import BrandContentDashboard from "@/components/brands/BrandContentDashboard";
 import BrandAdsDashboard from "@/components/brands/BrandAdsDashboard";
@@ -88,6 +90,7 @@ const BrandDetail = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [reportContributors, setReportContributors] = useState<Record<string, Contributor[]>>({});
   
   
   // Dashboard filter states (shared across Content, Ads, Influencers tabs)
@@ -123,6 +126,65 @@ const BrandDetail = () => {
     }
   }, [brandId]);
 
+  const fetchReportContributors = async (reportIds: string[]) => {
+    if (reportIds.length === 0) return;
+    
+    try {
+      // Fetch all audit_log entries for the reports
+      const { data: auditData, error: auditError } = await supabase
+        .from("audit_log")
+        .select("report_id, user_id")
+        .in("report_id", reportIds);
+
+      if (auditError) throw auditError;
+      if (!auditData || auditData.length === 0) return;
+
+      // Get unique user IDs per report
+      const reportUserMap: Record<string, Set<string>> = {};
+      auditData.forEach((entry) => {
+        if (!reportUserMap[entry.report_id]) {
+          reportUserMap[entry.report_id] = new Set();
+        }
+        reportUserMap[entry.report_id].add(entry.user_id);
+      });
+
+      // Fetch all unique user profiles
+      const allUserIds = [...new Set(auditData.map((e) => e.user_id))];
+      const { data: profilesData, error: profilesError } = await supabase
+        .from("profiles")
+        .select("id, full_name, email, avatar_url")
+        .in("id", allUserIds);
+
+      if (profilesError) throw profilesError;
+
+      // Create profile map
+      const profilesMap = new Map(
+        (profilesData || []).map((p) => [p.id, p])
+      );
+
+      // Build contributors per report
+      const contributorsMap: Record<string, Contributor[]> = {};
+      Object.entries(reportUserMap).forEach(([reportId, userIds]) => {
+        contributorsMap[reportId] = [...userIds]
+          .map((userId) => {
+            const profile = profilesMap.get(userId);
+            if (!profile) return null;
+            return {
+              user_id: userId,
+              full_name: profile.full_name,
+              email: profile.email,
+              avatar_url: profile.avatar_url,
+            };
+          })
+          .filter((c): c is Contributor => c !== null);
+      });
+
+      setReportContributors(contributorsMap);
+    } catch (error) {
+      console.error("Failed to fetch report contributors:", error);
+    }
+  };
+
   const fetchBrandAndReports = async () => {
     try {
       const [brandResponse, reportsResponse, projectsResponse] = await Promise.all([
@@ -145,6 +207,10 @@ const BrandDetail = () => {
       setBrand(brandResponse.data);
       setReports(reportsResponse.data || []);
       setProjects(projectsResponse.data || []);
+      
+      // Fetch contributors for all reports
+      const reportIds = (reportsResponse.data || []).map((r) => r.id);
+      fetchReportContributors(reportIds);
     } catch (error) {
       toast.error("Failed to load brand details");
       navigate("/brands");
@@ -531,44 +597,64 @@ const BrandDetail = () => {
                 )}
               </Card>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredReports.map((report) => {
-                  const Icon = reportTypeIcons[report.type];
-                  const colorClass = reportTypeColors[report.type];
+              <div className="border border-foreground rounded-[20px] overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-foreground">
+                      <TableHead className="w-[60px]"></TableHead>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Start Date</TableHead>
+                      <TableHead>End Date</TableHead>
+                      <TableHead>Contributors</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredReports.map((report) => {
+                      const Icon = reportTypeIcons[report.type];
+                      const colorClass = reportTypeColors[report.type];
 
-                  return (
-                    <Card
-                      key={report.id}
-                      className="p-6 cursor-pointer transition-all hover:shadow-lg border-foreground rounded-[35px]"
-                      onClick={() => navigate(`/reports/${report.id}`)}
-                    >
-                      <div className="flex items-start gap-4">
-                        <div
-                          className={`w-12 h-12 rounded-[35px] ${colorClass} flex items-center justify-center flex-shrink-0`}
+                      return (
+                        <TableRow
+                          key={report.id}
+                          className="border-foreground cursor-pointer"
+                          onClick={() => navigate(`/reports/${report.id}`)}
                         >
-                          <Icon className="w-6 h-6" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-bold text-lg mb-1 truncate">
-                            {report.name}
-                          </h3>
-                          <Badge variant="outline" className="mb-2">
-                            {reportTypeLabels[report.type as keyof typeof reportTypeLabels]}
-                          </Badge>
-                          <p className="text-sm text-muted-foreground capitalize">
-                            {report.status}
-                          </p>
-                          {report.start_date && report.end_date && (
-                            <p className="text-xs text-muted-foreground mt-2">
-                              {new Date(report.start_date).toLocaleDateString()} -{" "}
-                              {new Date(report.end_date).toLocaleDateString()}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </Card>
-                  );
-                })}
+                          <TableCell>
+                            <div
+                              className={`w-10 h-10 rounded-full ${colorClass} flex items-center justify-center`}
+                            >
+                              <Icon className="w-5 h-5" />
+                            </div>
+                          </TableCell>
+                          <TableCell className="font-medium">{report.name}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline">
+                              {reportTypeLabels[report.type as keyof typeof reportTypeLabels]}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="capitalize">{report.status}</TableCell>
+                          <TableCell>
+                            {report.start_date
+                              ? new Date(report.start_date).toLocaleDateString()
+                              : "-"}
+                          </TableCell>
+                          <TableCell>
+                            {report.end_date
+                              ? new Date(report.end_date).toLocaleDateString()
+                              : "-"}
+                          </TableCell>
+                          <TableCell>
+                            <ReportContributors
+                              contributors={reportContributors[report.id] || []}
+                            />
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
               </div>
             )}
           </TabsContent>
