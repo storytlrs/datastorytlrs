@@ -1,178 +1,66 @@
 
 
-# Plán: Přidání filtrů Creator a Campaign do Influencers tabu
+# Plán: Vytvoření DESIGN_SYSTEM.md
 
-## Přehled změn
+## Přehled
 
-Přidáme dva nové filtry specifické pro Influencers tab:
-- **Creator** - filtr podle influencera (handle)
-- **Campaign** - filtr podle názvu reportu (kampaně)
+Vytvořím soubor `DESIGN_SYSTEM.md` v kořenovém adresáři projektu obsahující kompletní dokumentaci designového systému Story TLRS pro snadné sdílení a replikaci v dalších projektech.
 
 ---
 
-## Vizuální náhled
+## Struktura dokumentu
 
 ```text
-┌─────────────────────────────────────────────────────────────────────────────┐
-│  [Content]  [Ads]  [Influencers]  [Insights]  [Reports]                     │
-├─────────────────────────────────────────────────────────────────────────────┤
-│  Shared: [Start Date] [End Date] [Platform ▼]                               │
-│  Influencers only: [Creator ▼] [Campaign ▼] [Clear]                         │
-├─────────────────────────────────────────────────────────────────────────────┤
-│  Dashboard content...                                                        │
-└─────────────────────────────────────────────────────────────────────────────┘
+DESIGN_SYSTEM.md
+├── 1. Přehled
+├── 2. Fonty
+├── 3. Barevná paleta (CSS proměnné)
+├── 4. Tailwind konfigurace
+├── 5. Pravidla designu
+│   ├── Border radius
+│   ├── Hover chování
+│   └── Aktivní stavy
+├── 6. Komponenty
+│   ├── Button
+│   ├── Select
+│   ├── Tabs
+│   ├── Filter Buttons
+│   ├── Dropdown Menu
+│   ├── Popover
+│   └── Dialog
+├── 7. Status Badge systém
+├── 8. Quick Start checklist
+└── 9. Důležitá pravidla (tabulka)
 ```
 
 ---
 
-## Technická implementace
+## Obsah souboru
 
-### Možnost A: Filtry uvnitř BrandInfluencersDashboard
+Dokument bude obsahovat:
 
-Přidáme filtry přímo do komponenty `BrandInfluencersDashboard.tsx`, aby byly specifické pouze pro tento tab. Toto je čistší řešení, protože:
-- Creator a Campaign filtry nedávají smysl pro Content a Ads taby
-- Držíme logiku pohromadě
-
-### Změny v `BrandInfluencersDashboard.tsx`:
-
-1. **Přidat nové states pro filtry**:
-   ```typescript
-   const [selectedCreator, setSelectedCreator] = useState<string>("all");
-   const [selectedCampaign, setSelectedCampaign] = useState<string>("all");
-   ```
-
-2. **Rozšířit fetchData o načtení reportů**:
-   - Potřebujeme načíst i názvy reportů pro Campaign filtr
-   
-   ```typescript
-   interface Report {
-     id: string;
-     name: string;
-   }
-   
-   const [reports, setReports] = useState<Report[]>([]);
-   ```
-
-3. **Vytvořit seznamy pro filtry**:
-   ```typescript
-   // Unique creators for filter dropdown (sorted alphabetically)
-   const creatorOptions = useMemo(() => {
-     return [...new Set(creators.map(c => c.handle))]
-       .sort((a, b) => a.localeCompare(b, "cs"));
-   }, [creators]);
-   
-   // Report options for campaign filter (sorted alphabetically)
-   const campaignOptions = useMemo(() => {
-     return reports.sort((a, b) => a.name.localeCompare(b.name, "cs"));
-   }, [reports]);
-   ```
-
-4. **Filtrovat data podle vybraných filtrů**:
-   ```typescript
-   const filteredContent = useMemo(() => {
-     return content.filter(c => {
-       // Filter by creator
-       if (selectedCreator !== "all") {
-         const creator = creatorMap.get(c.creator_id);
-         if (creator?.handle !== selectedCreator) return false;
-       }
-       // Filter by campaign (report)
-       if (selectedCampaign !== "all" && c.report_id !== selectedCampaign) {
-         return false;
-       }
-       return true;
-     });
-   }, [content, selectedCreator, selectedCampaign, creatorMap]);
-   
-   const filteredCreators = useMemo(() => {
-     if (selectedCampaign === "all" && selectedCreator === "all") return creators;
-     return creators.filter(c => {
-       if (selectedCampaign !== "all" && c.report_id !== selectedCampaign) return false;
-       if (selectedCreator !== "all" && c.handle !== selectedCreator) return false;
-       return true;
-     });
-   }, [creators, selectedCampaign, selectedCreator]);
-   ```
-
-5. **Přidat UI pro filtry**:
-   ```tsx
-   {/* Influencer-specific filters */}
-   <div className="flex flex-wrap gap-3 mb-6">
-     <Select value={selectedCreator} onValueChange={setSelectedCreator}>
-       <SelectTrigger className={cn(
-         "w-[200px] rounded-[35px]",
-         selectedCreator !== "all"
-           ? "border-accent-orange bg-accent-orange text-foreground"
-           : ""
-       )}>
-         <SelectValue placeholder="Creator" />
-       </SelectTrigger>
-       <SelectContent>
-         <SelectItem value="all">All creators</SelectItem>
-         {creatorOptions.map((handle) => (
-           <SelectItem key={handle} value={handle}>{handle}</SelectItem>
-         ))}
-       </SelectContent>
-     </Select>
-     
-     <Select value={selectedCampaign} onValueChange={setSelectedCampaign}>
-       <SelectTrigger className={cn(
-         "w-[200px] rounded-[35px]",
-         selectedCampaign !== "all"
-           ? "border-accent-orange bg-accent-orange text-foreground"
-           : ""
-       )}>
-         <SelectValue placeholder="Campaign" />
-       </SelectTrigger>
-       <SelectContent>
-         <SelectItem value="all">All campaigns</SelectItem>
-         {campaignOptions.map((report) => (
-           <SelectItem key={report.id} value={report.id}>{report.name}</SelectItem>
-         ))}
-       </SelectContent>
-     </Select>
-     
-     {(selectedCreator !== "all" || selectedCampaign !== "all") && (
-       <Button
-         variant="ghost"
-         onClick={() => {
-           setSelectedCreator("all");
-           setSelectedCampaign("all");
-         }}
-         className="rounded-[35px]"
-       >
-         Clear
-       </Button>
-     )}
-   </div>
-   ```
-
-6. **Aktualizovat všechny výpočty (kpis, chartData, topContent)**:
-   - Použít `filteredContent` a `filteredCreators` místo `content` a `creators`
+1. **Fonty** - Google Fonts import pro Red Hat Display a Young Serif
+2. **CSS proměnné** - Kompletní light a dark mode definice
+3. **Tailwind config** - Rozšíření barev a border-radius
+4. **Pravidla interakcí** - Hover inverze, aktivní stavy (zelená pro taby, oranžová pro filtry)
+5. **Kód komponent** - Kopírovatelné snippety pro Button, Select, Tabs atd.
+6. **Status systém** - WOW!/VIRAL/OK/FAIL s barvami
+7. **Checklist** - Krok po kroku pro nový projekt
 
 ---
 
-## Potřebné importy
-
-```typescript
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-```
-
----
-
-## Dotčený soubor
+## Umístění souboru
 
 | Soubor | Akce |
 |--------|------|
-| `src/components/brands/BrandInfluencersDashboard.tsx` | Přidat Creator a Campaign filtry |
+| `DESIGN_SYSTEM.md` | Vytvořit v kořenovém adresáři projektu |
 
 ---
 
 ## Výsledek
 
-- Creator filtr - dropdown s abecedně seřazenými handly influencerů
-- Campaign filtr - dropdown s abecedně seřazenými názvy kampaní (reportů)
-- Filtry jsou specifické pouze pro Influencers tab
-- Konzistentní styling s ostatními filtry (orange accent když aktivní)
-- Všechny metriky, graf i Top 5 content se aktualizují podle vybraných filtrů
+- Jeden soubor obsahující veškerou dokumentaci
+- Snadno kopírovatelné code snippety
+- Okamžitě použitelné v nových projektech
+- Verzované společně s projektem v Gitu
 
