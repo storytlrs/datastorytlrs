@@ -100,14 +100,13 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
   const contentRef = useRef<HTMLDivElement>(null);
   const pdfRef = useRef<HTMLDivElement>(null);
   const [aiInsights, setAiInsights] = useState<string>("");
-  const [webhookUrl, setWebhookUrl] = useState<string>("");
   const [spaceId, setSpaceId] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isPdfMode, setIsPdfMode] = useState(false);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  
   const [isEditing, setIsEditing] = useState(false);
   const [isInputDialogOpen, setIsInputDialogOpen] = useState(false);
   const [structuredData, setStructuredData] = useState<StructuredInsights | null>(null);
@@ -138,7 +137,7 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
       if (error) throw error;
 
       setAiInsights(data.ai_insights || "");
-      setWebhookUrl(data.ai_webhook_url || "");
+      
       setSpaceId(data.space_id || "");
       
       if (data.ai_insights_structured) {
@@ -164,20 +163,6 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
     }
   };
 
-  const handleSaveWebhookUrl = async () => {
-    try {
-      const { error } = await supabase
-        .from("reports")
-        .update({ ai_webhook_url: webhookUrl })
-        .eq("id", reportId);
-
-      if (error) throw error;
-      toast.success("Webhook URL uložena");
-    } catch (error) {
-      console.error("Error saving webhook URL:", error);
-      toast.error("Nepodařilo se uložit webhook URL");
-    }
-  };
 
   const handleGenerateInsights = async (context: CampaignContext) => {
     setIsGenerating(true);
@@ -441,45 +426,6 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
           </div>
         )}
 
-        {isAdmin && (
-          <Collapsible open={isSettingsOpen} onOpenChange={setIsSettingsOpen} className="mb-6">
-            <CollapsibleTrigger asChild>
-              <Button
-                variant="ghost"
-                className="p-0 h-auto font-normal text-muted-foreground hover:text-foreground hover:bg-transparent"
-              >
-                <Settings2 className="w-4 h-4 mr-2" />
-                Legacy webhook nastavení
-              </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="mt-4">
-              <div className="space-y-4 p-4 bg-muted/50 rounded-[20px]">
-                <div className="space-y-2">
-                  <Label htmlFor="webhookUrl">n8n Webhook URL (legacy)</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="webhookUrl"
-                      value={webhookUrl}
-                      onChange={(e) => setWebhookUrl(e.target.value)}
-                      placeholder="https://your-n8n-instance.com/webhook/..."
-                      className="rounded-[35px] border-foreground"
-                    />
-                    <Button
-                      onClick={handleSaveWebhookUrl}
-                      variant="outline"
-                      className="rounded-[35px] border-foreground"
-                    >
-                      Uložit
-                    </Button>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    Toto nastavení je pro legacy webhook integrace. Nové AI Insights se generují automaticky.
-                  </p>
-                </div>
-              </div>
-            </CollapsibleContent>
-          </Collapsible>
-        )}
 
         <div className="space-y-4">
           <div className="space-y-2">
