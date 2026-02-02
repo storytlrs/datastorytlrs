@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Users, FileText, DollarSign, Eye, Clock, TrendingUp, Loader2, Heart, MessageSquare } from "lucide-react";
 import { MetricTile } from "@/components/reports/MetricTile";
 import { TopContentGrid, TopContentItem } from "./TopContentGrid";
@@ -54,13 +55,21 @@ interface Creator {
   currency: string | null;
 }
 
+interface Report {
+  id: string;
+  name: string;
+}
+
 type MetricKey = "views" | "content" | "budget" | "cpm" | "tswbCost" | "creators" | "interactions" | "engagementRate" | "viralityRate" | "watchTime" | "tswb";
 
 const BrandInfluencersDashboard = ({ spaceId, filters }: BrandInfluencersDashboardProps) => {
   const [content, setContent] = useState<Content[]>([]);
   const [creators, setCreators] = useState<Creator[]>([]);
+  const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedMetric, setSelectedMetric] = useState<MetricKey>("views");
+  const [selectedCreator, setSelectedCreator] = useState<string>("all");
+  const [selectedCampaign, setSelectedCampaign] = useState<string>("all");
 
   useEffect(() => {
     fetchData();
@@ -83,10 +92,11 @@ const BrandInfluencersDashboard = ({ spaceId, filters }: BrandInfluencersDashboa
         reportsQuery = reportsQuery.lte("end_date", filters.dateRange.end.toISOString().split("T")[0]);
       }
 
-      const { data: reportsData, error: reportsError } = await reportsQuery;
+      const { data: reportsData, error: reportsError } = await reportsQuery.select("id, name");
       if (reportsError) throw reportsError;
 
       const reportIds = reportsData?.map(r => r.id) || [];
+      setReports(reportsData?.map(r => ({ id: r.id, name: r.name })) || []);
 
       if (reportIds.length === 0) {
         setContent([]);
@@ -130,24 +140,59 @@ const BrandInfluencersDashboard = ({ spaceId, filters }: BrandInfluencersDashboa
     return new Map(creators.map(c => [c.id, c]));
   }, [creators]);
 
+  // Creator options for filter dropdown (sorted alphabetically)
+  const creatorOptions = useMemo(() => {
+    return [...new Set(creators.map(c => c.handle))]
+      .sort((a, b) => a.localeCompare(b, "cs"));
+  }, [creators]);
+
+  // Campaign options for filter dropdown (sorted alphabetically)
+  const campaignOptions = useMemo(() => {
+    return [...reports].sort((a, b) => a.name.localeCompare(b.name, "cs"));
+  }, [reports]);
+
+  // Filter content based on selected filters
+  const filteredContent = useMemo(() => {
+    return content.filter(c => {
+      if (selectedCreator !== "all") {
+        const creator = creatorMap.get(c.creator_id);
+        if (creator?.handle !== selectedCreator) return false;
+      }
+      if (selectedCampaign !== "all" && c.report_id !== selectedCampaign) {
+        return false;
+      }
+      return true;
+    });
+  }, [content, selectedCreator, selectedCampaign, creatorMap]);
+
+  // Filter creators based on selected filters
+  const filteredCreators = useMemo(() => {
+    if (selectedCampaign === "all" && selectedCreator === "all") return creators;
+    return creators.filter(c => {
+      if (selectedCampaign !== "all" && c.report_id !== selectedCampaign) return false;
+      if (selectedCreator !== "all" && c.handle !== selectedCreator) return false;
+      return true;
+    });
+  }, [creators, selectedCampaign, selectedCreator]);
+
   // Calculate KPIs
   const kpis = useMemo(() => {
-    const totalViews = content.reduce((sum, c) => sum + (c.impressions || 0) + (c.views || 0), 0);
-    const totalWatchTime = content.reduce((sum, c) => sum + (c.watch_time || 0), 0);
-    const totalLikes = content.reduce((sum, c) => sum + (c.likes || 0), 0);
-    const totalComments = content.reduce((sum, c) => sum + (c.comments || 0), 0);
-    const totalShares = content.reduce((sum, c) => sum + (c.shares || 0), 0);
-    const totalSaves = content.reduce((sum, c) => sum + (c.saves || 0), 0);
+    const totalViews = filteredContent.reduce((sum, c) => sum + (c.impressions || 0) + (c.views || 0), 0);
+    const totalWatchTime = filteredContent.reduce((sum, c) => sum + (c.watch_time || 0), 0);
+    const totalLikes = filteredContent.reduce((sum, c) => sum + (c.likes || 0), 0);
+    const totalComments = filteredContent.reduce((sum, c) => sum + (c.comments || 0), 0);
+    const totalShares = filteredContent.reduce((sum, c) => sum + (c.shares || 0), 0);
+    const totalSaves = filteredContent.reduce((sum, c) => sum + (c.saves || 0), 0);
     const totalInteractions = totalLikes + totalComments + totalShares + totalSaves;
     
     const engagementRate = totalViews > 0 ? (totalInteractions / totalViews) * 100 : 0;
-    const contentPieces = content.length;
-    const uniqueCreators = new Set(content.map(c => c.creator_id)).size;
+    const contentPieces = filteredContent.length;
+    const uniqueCreators = new Set(filteredContent.map(c => c.creator_id)).size;
     
     // TSWB = watch_time (total attention index)
     const tswb = totalWatchTime;
     
-    const totalBudget = creators.reduce((sum, c) => {
+    const totalBudget = filteredCreators.reduce((sum, c) => {
       const postsCost = (c.posts_count || 0) * (c.posts_cost || 0);
       const reelsCost = (c.reels_count || 0) * (c.reels_cost || 0);
       const storiesCost = (c.stories_count || 0) * (c.stories_cost || 0);
@@ -159,7 +204,7 @@ const BrandInfluencersDashboard = ({ spaceId, filters }: BrandInfluencersDashboa
     const cpm = totalViews > 0 ? (totalBudget / totalViews) * 1000 : 0;
 
     // Determine currency
-    const currencies = creators.map(c => c.currency || "CZK");
+    const currencies = filteredCreators.map(c => c.currency || "CZK");
     const currencyCounts = currencies.reduce((acc, cur) => ({ ...acc, [cur]: (acc[cur] || 0) + 1 }), {} as Record<string, number>);
     const currency = Object.entries(currencyCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "CZK";
 
@@ -179,7 +224,7 @@ const BrandInfluencersDashboard = ({ spaceId, filters }: BrandInfluencersDashboa
       interactions: totalInteractions,
       viralityRate,
     };
-  }, [content, creators]);
+  }, [filteredContent, filteredCreators]);
 
   // Helper function for formatting large numbers
   const formatLargeNumber = (value: number): string => {
@@ -209,7 +254,7 @@ const BrandInfluencersDashboard = ({ spaceId, filters }: BrandInfluencersDashboa
 
     const avgBudgetPerContent = kpis.contentPieces > 0 ? kpis.totalBudget / kpis.contentPieces : 0;
 
-    content.forEach(c => {
+    filteredContent.forEach(c => {
       if (!c.published_date) return;
       const date = parseISO(c.published_date);
       const monthKey = format(startOfMonth(date), "yyyy-MM");
@@ -260,19 +305,19 @@ const BrandInfluencersDashboard = ({ spaceId, filters }: BrandInfluencersDashboa
           tswb: d.watchTime, // Keep in seconds
         };
       });
-  }, [content, kpis]);
+  }, [filteredContent, kpis]);
 
   // Top 5 content by composite score
   const topContent: TopContentItem[] = useMemo(() => {
-    if (content.length === 0) return [];
+    if (filteredContent.length === 0) return [];
 
     // Normalize values for scoring
-    const maxViews = Math.max(...content.map(c => (c.impressions || 0) + (c.views || 0)), 1);
-    const maxER = Math.max(...content.map(c => c.engagement_rate || 0), 1);
-    const maxWatchTime = Math.max(...content.map(c => c.watch_time || 0), 1);
-    const maxSharesSaves = Math.max(...content.map(c => (c.shares || 0) + (c.saves || 0)), 1);
+    const maxViews = Math.max(...filteredContent.map(c => (c.impressions || 0) + (c.views || 0)), 1);
+    const maxER = Math.max(...filteredContent.map(c => c.engagement_rate || 0), 1);
+    const maxWatchTime = Math.max(...filteredContent.map(c => c.watch_time || 0), 1);
+    const maxSharesSaves = Math.max(...filteredContent.map(c => (c.shares || 0) + (c.saves || 0)), 1);
 
-    return content
+    return filteredContent
       .map(c => {
         const views = (c.impressions || 0) + (c.views || 0);
         const er = c.engagement_rate || 0;
@@ -301,7 +346,7 @@ const BrandInfluencersDashboard = ({ spaceId, filters }: BrandInfluencersDashboa
       })
       .sort((a, b) => b.score - a.score)
       .slice(0, 5);
-  }, [content, creatorMap]);
+  }, [filteredContent, creatorMap]);
 
   const metricLabels: Record<MetricKey, string> = {
     views: "Views",
@@ -352,6 +397,56 @@ const BrandInfluencersDashboard = ({ spaceId, filters }: BrandInfluencersDashboa
 
   return (
     <div className="space-y-8">
+      {/* Influencer-specific filters */}
+      <div className="flex flex-wrap gap-3">
+        <Select value={selectedCreator} onValueChange={setSelectedCreator}>
+          <SelectTrigger className={cn(
+            "w-[200px] rounded-[35px]",
+            selectedCreator !== "all"
+              ? "border-accent-orange bg-accent-orange text-foreground"
+              : ""
+          )}>
+            <SelectValue placeholder="Creator" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All creators</SelectItem>
+            {creatorOptions.map((handle) => (
+              <SelectItem key={handle} value={handle}>{handle}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={selectedCampaign} onValueChange={setSelectedCampaign}>
+          <SelectTrigger className={cn(
+            "w-[200px] rounded-[35px]",
+            selectedCampaign !== "all"
+              ? "border-accent-orange bg-accent-orange text-foreground"
+              : ""
+          )}>
+            <SelectValue placeholder="Campaign" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All campaigns</SelectItem>
+            {campaignOptions.map((report) => (
+              <SelectItem key={report.id} value={report.id}>{report.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {(selectedCreator !== "all" || selectedCampaign !== "all") && (
+          <Button
+            variant="ghost"
+            onClick={() => {
+              setSelectedCreator("all");
+              setSelectedCampaign("all");
+            }}
+            className="rounded-[35px]"
+          >
+            Clear
+          </Button>
+        )}
+      </div>
+
       {/* Bar Chart */}
       <Card className="p-6 rounded-[35px] border-foreground">
         <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
