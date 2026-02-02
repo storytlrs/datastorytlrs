@@ -1,100 +1,90 @@
 
 
-# Plán: Odstranění headline a zarovnání search baru
+# Plán: Odstranění webhook UI z nastavení reportů
 
 ## Přehled
 
-Odstraním nadpis "Reports" nad tabulkou a přesunu search bar na stejný řádek jako tlačítko "New Report".
+Odstraním veškeré UI prvky pro ruční vkládání webhook URL z aplikace. Webhooky budou konfigurovány centrálně jako secrets/environment variables a nebudou přístupné v UI.
 
-## Současný stav
+## Dotčené komponenty
 
-```text
-Reports                                    [New Report]
-┌──────────────────────────────────────────┐
-│ 🔍 Search reports...                     │
-└──────────────────────────────────────────┘
-[Date filters] [Type filter] [Project filter]
-```
-
-## Cílový stav
-
-```text
-🔍 Search reports...                       [New Report]
-[Date filters] [Type filter] [Project filter]
-```
+| Soubor | Změna |
+|--------|-------|
+| `src/components/reports/EditReportDialog.tsx` | Odstranit sentiment webhook URL input a state |
+| `src/components/reports/AIInsightsTab.tsx` | Odstranit celou "Legacy webhook nastavení" sekci |
+| `src/components/reports/CreateContentDialog.tsx` | Upravit - použít centrální secret místo per-report URL |
+| `src/components/reports/EditContentDialog.tsx` | Upravit - použít centrální secret místo per-report URL |
 
 ## Technické řešení
 
-### Změna v BrandDetail.tsx (řádky 399-425)
+### 1. EditReportDialog - odstranit webhook field
 
-**Stávající kód:**
-```tsx
-<TabsContent value="reports">
-  {/* Header with New Report button */}
-  <div className="flex items-center justify-between mb-6">
-    <h2 className="text-2xl font-bold">Reports</h2>
-    {canEdit && (
-      <Button ...>
-        New Report
-      </Button>
-    )}
-  </div>
+**Odstraním:**
+- State `sentimentWebhookUrl`
+- Input pro Sentiment Webhook URL (řádky 191-204)
+- Resetování state v useEffect (řádek 70)
+- Ukládání do DB (řádek 106)
 
-  {/* Filter Bar */}
-  <div className="mb-6 space-y-4">
-    {/* Search Bar */}
-    <div className="relative">
-      <Search ... />
-      <Input ... />
-    </div>
-    
-    {/* Filters */}
-    <div className="flex flex-wrap gap-3">
+### 2. AIInsightsTab - odstranit legacy webhook UI
+
+**Odstraním:**
+- Celou Collapsible sekci pro "Legacy webhook nastavení" (řádky 444-481)
+- Funkci `handleSaveWebhookUrl` (řádky 167-180)
+- State `webhookUrl` a `isSettingsOpen`
+
+### 3. Úprava volání webhooků
+
+Pro sentiment analysis v CreateContentDialog a EditContentDialog:
+- Namísto čtení `report.sentiment_webhook_url` z databáze
+- Vytvořím nový Edge Function, který bude číst webhook URL z secrets
+- Nebo zjednodušíme - pokud webhook není nakonfigurovaný jako secret, funkce se nevykoná
+
+**Nová architektura:**
+```text
+┌─────────────────┐     ┌──────────────────────┐     ┌───────────────┐
+│  Create/Edit    │────>│  Edge Function       │────>│  n8n Webhook  │
+│  Content        │     │  (reads from secret) │     │  (SENTIMENT)  │
+└─────────────────┘     └──────────────────────┘     └───────────────┘
 ```
 
-**Nový kód:**
-```tsx
-<TabsContent value="reports">
-  {/* Header with Search and New Report button */}
-  <div className="flex items-center gap-4 mb-6">
-    <div className="relative flex-1">
-      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-      <Input
-        placeholder="Search reports..."
-        value={searchQuery}
-        onChange={(e) => setSearchQuery(e.target.value)}
-        className="pl-10 rounded-[35px]"
-      />
-    </div>
-    {canEdit && (
-      <Button 
-        className="rounded-[35px]"
-        onClick={() => setCreateDialogOpen(true)}
-      >
-        <Plus className="w-5 h-5 mr-2" />
-        New Report
-      </Button>
-    )}
-  </div>
+### 4. Přidání nového secretu
 
-  {/* Filters */}
-  <div className="flex flex-wrap gap-3 mb-6">
+Bude potřeba přidat secret:
+- `SENTIMENT_WEBHOOK_URL` - centrální URL pro všechny reporty
+
+### 5. Úprava sentiment triggeru
+
+Místo volání webhooku přímo z frontendu:
+```typescript
+// STARÉ - čte URL z DB, volá z frontendu
+const { data: report } = await supabase
+  .from("reports")
+  .select("sentiment_webhook_url")
+  .eq("id", reportId);
+
+await fetch(report.sentiment_webhook_url, {...});
+```
+
+```typescript
+// NOVÉ - volá edge function, která má přístup k secretu
+await supabase.functions.invoke("trigger-sentiment-analysis", {
+  body: { content_id, report_id }
+});
 ```
 
 ---
 
 ## Shrnutí změn
 
-| Změna | Detail |
-|-------|--------|
-| Odstranit headline | `<h2 className="text-2xl font-bold">Reports</h2>` |
-| Přesunout search bar | Do header divu vedle tlačítka |
-| Upravit layout | Search bar s `flex-1` pro roztažení, gap-4 mezi prvky |
-| Zjednodušit Filter Bar | Odstranit obalující `space-y-4` div |
+| Typ změny | Detail |
+|-----------|--------|
+| UI odstranění | Webhook input z EditReportDialog |
+| UI odstranění | Legacy webhook sekce z AIInsightsTab |
+| Nový secret | `SENTIMENT_WEBHOOK_URL` |
+| Nová edge function | `trigger-sentiment-analysis` |
+| Refaktoring | CreateContentDialog, EditContentDialog - volání edge function |
 
-## Dotčené soubory
+## Poznámka k DB sloupcům
 
-| Soubor | Změna |
-|--------|-------|
-| `src/pages/BrandDetail.tsx` | Úprava layoutu header sekce (řádky 399-428) |
+Sloupce `sentiment_webhook_url` a `ai_webhook_url` v tabulce `reports` zůstanou v DB (pro zpětnou kompatibilitu), ale nebudou již používány. V budoucnu je lze odstranit migrací.
 
