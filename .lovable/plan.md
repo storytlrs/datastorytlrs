@@ -1,46 +1,55 @@
 
 
-# Plán: Oprava barvy vybrané položky v Command dropdown
+# Plán: Oprava jspdf bezpečnostní zranitelnosti
 
-## Problém
+## Analýza
 
-Vybraná položka v Command dropdownu (project filter) používá fialovou barvu (`bg-accent`), ale podle design systému by měla používat černé pozadí s bílým textem.
+### Současný stav
+| Balíček | Verze | Status |
+|---------|-------|--------|
+| jspdf | ^4.0.0 | ✅ Opravená verze |
+| html2pdf.js | ^0.10.3 | ⚠️ Nepoužívaný, obsahuje zranitelný jspdf@3.0.4 |
+
+### CVE-2025-68428
+- **Postižené verze:** jspdf < 4.0.0
+- **Typ:** Path Traversal / Local File Inclusion
+- **CVSS skóre:** 9.2 (kritické)
+- **Důležité:** Zranitelnost se týká **pouze Node.js buildů**. Browser buildy nejsou postiženy.
+
+### Hodnocení rizika pro tento projekt
+**Nízké riziko** - Projekt používá jspdf pouze v prohlížeči (React SPA), ne na serveru. I kdyby byla použita starší verze, zranitelnost by nebyla zneužitelná v kontextu prohlížeče.
 
 ---
 
 ## Řešení
 
-Upravíme `CommandItem` komponentu tak, aby použila stejný styl jako ostatní dropdown položky v projektu.
+### 1. Odstranit nepoužívaný balíček html2pdf.js
 
----
+Balíček `html2pdf.js` není nikde v kódu importován ani používán. Přináší zranitelnou transitní závislost `jspdf@3.0.4`. Jeho odstraněním vyčistíme supply chain.
 
-## Změna
-
-### src/components/ui/command.tsx
-
-**Řádek 108 - změna stylů pro selected stav:**
-
-```tsx
-// PŘED:
-"data-[selected='true']:bg-accent data-[selected=true]:text-accent-foreground"
-
-// PO:
-"data-[selected='true']:bg-foreground data-[selected=true]:text-background"
+**Změna v package.json:**
+```diff
+- "html2pdf.js": "^0.10.3",
 ```
 
+### 2. Aktualizovat security scan finding
+
+Po úspěšné opravě odstraním odpovídající security finding.
+
 ---
 
-## Dotčený soubor
+## Dotčené soubory
 
 | Soubor | Akce |
 |--------|------|
-| `src/components/ui/command.tsx` | Změnit barvu selected stavu z fialové na černou |
+| `package.json` | Odstranit html2pdf.js závislost |
 
 ---
 
 ## Výsledek
 
-- Vybraná položka bude mít černé pozadí s bílým textem
-- Konzistentní vzhled s ostatními dropdown komponentami v projektu
-- Odpovídá design systému (hover inverze)
+- Odstraněn nepoužívaný balíček
+- Eliminována zranitelná transitní závislost jspdf@3.0.4
+- Zachována funkčnost PDF exportu (používá přímo jspdf@4.0.0 + html2canvas)
+- Čistší dependency tree
 
