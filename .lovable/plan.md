@@ -1,130 +1,118 @@
 
-# Plán: Přidat logování pro create, update, publish a unpublish akce
+# Plán: Brand Picker na všech stránkách
 
-## Přehled
+## Problém
 
-Přidáme audit log záznamy pro všechny klíčové akce s reporty:
-- **Create** - při vytvoření nového reportu
-- **Update** - při úpravě nastavení reportu
-- **Publish** - při publikování reportu
-- **Unpublish** - při odpublikování reportu
+Brand picker se aktuálně zobrazuje pouze na stránkách `/brands/:brandId`, protože:
+1. Podmínka `isOnBrandPage = location.pathname.startsWith("/brands/")` skryje picker na `/reports/:reportId`
+2. `useParams()` vrací `brandId` pouze z URL, takže na report stránce je `undefined`
+
+---
+
+## Řešení
+
+Upravíme `MainNavigation.tsx` tak, aby:
+1. Zobrazoval brand picker na všech stránkách (kromě admin)
+2. Na stránce reportu zjistil `brandId` z reportu v databázi
+
+---
+
+## Vizuální náhled
+
+```text
+Před (Report Detail):
+┌────────────────────────────────────────────────────────┐
+│  Story TLRS              [nic]              [⚙] [↗]   │
+└────────────────────────────────────────────────────────┘
+
+Po (Report Detail):
+┌────────────────────────────────────────────────────────┐
+│  Story TLRS         [🏢 Brand Name ▼]       [⚙] [↗]   │
+└────────────────────────────────────────────────────────┘
+```
 
 ---
 
 ## Implementace
 
-### 1. Helper funkce pro logování
+### Úprava `MainNavigation.tsx`
 
-Vytvořím utilitu `src/lib/auditLog.ts`:
+1. **Přidat `reportId` z useParams**
+   - Získat `reportId` pokud jsme na stránce reportu
 
-```typescript
-import { supabase } from "@/integrations/supabase/client";
+2. **Přidat fetch pro report brand**
+   - Pokud máme `reportId`, načíst `space_id` z reportu
 
-export const logReportAction = async (
-  reportId: string,
-  actionType: "create" | "update" | "publish" | "unpublish",
-  details?: Record<string, unknown>
-) => {
-  const { data: session } = await supabase.auth.getSession();
-  if (!session?.session?.user?.id) return;
+3. **Upravit logiku pro currentBrand**
+   - Použít `brandId` z URL nebo `space_id` z reportu
 
-  await supabase.from("audit_log").insert({
-    report_id: reportId,
-    user_id: session.session.user.id,
-    action_type: actionType,
-    details: details || null,
-  });
-};
+4. **Změnit podmínku pro zobrazení pickeru**
+   - Zobrazit na všech stránkách kromě admin
+
+---
+
+## Změny v kódu
+
+```tsx
+// 1. Rozšířit useParams
+const { brandId, reportId } = useParams();
+
+// 2. Nový state pro report brand
+const [reportBrandId, setReportBrandId] = useState<string | null>(null);
+
+// 3. Fetch report brand když jsme na stránce reportu
+useEffect(() => {
+  const fetchReportBrand = async () => {
+    if (reportId) {
+      const { data } = await supabase
+        .from("reports")
+        .select("space_id")
+        .eq("id", reportId)
+        .single();
+      setReportBrandId(data?.space_id || null);
+    } else {
+      setReportBrandId(null);
+    }
+  };
+  fetchReportBrand();
+}, [reportId]);
+
+// 4. Použít activeBrandId - buď z URL nebo z reportu
+const activeBrandId = brandId || reportBrandId;
+
+// 5. Upravit useEffect pro currentBrand
+useEffect(() => {
+  if (activeBrandId && brands.length > 0) {
+    const brand = brands.find((b) => b.id === activeBrandId);
+    setCurrentBrand(brand || null);
+  } else {
+    setCurrentBrand(null);
+  }
+}, [activeBrandId, brands]);
+
+// 6. Změnit podmínku pro zobrazení - zobrazit všude kromě admin
+const isOnAdminPage = location.pathname === "/admin";
+
+// V JSX:
+{!isOnAdminPage && brands.length > 0 && (
+  <DropdownMenu>
+    ...
+  </DropdownMenu>
+)}
 ```
 
 ---
 
-### 2. Úprava CreateReportDialog.tsx
-
-Po úspěšném vytvoření reportu (po řádku 241):
-
-```typescript
-// Po: const { data: report, error: reportError } = await supabase...
-if (reportError) throw reportError;
-
-// Přidat:
-await logReportAction(report.id, "create", {
-  name: campaignName,
-  type: reportType,
-});
-```
-
----
-
-### 3. Úprava EditReportDialog.tsx
-
-Po úspěšné aktualizaci (po řádku 109):
-
-```typescript
-if (error) throw error;
-
-// Přidat:
-await logReportAction(report.id, "update", {
-  changes: ["name", "dates", "type", "project"].filter(Boolean),
-});
-
-toast.success("Report settings updated");
-```
-
----
-
-### 4. Úprava ReportDetail.tsx - handlePublish
-
-Po úspěšném publish (po řádku 111):
-
-```typescript
-if (error) throw error;
-
-// Přidat:
-await logReportAction(reportId!, "publish");
-
-toast.success("Report published successfully");
-```
-
----
-
-### 5. Úprava ReportDetail.tsx - handleUnpublish
-
-Po úspěšném unpublish (po řádku 125):
-
-```typescript
-if (error) throw error;
-
-// Přidat:
-await logReportAction(reportId!, "unpublish");
-
-toast.success("Report unpublished successfully");
-```
-
----
-
-## Výsledek v Activity Log
-
-| Akce | Zobrazení | Detail |
-|------|-----------|--------|
-| Create | "Created" | "Created report" |
-| Update | "Updated" | "Updated report settings" |
-| Publish | "Published" | "Published report" |
-| Unpublish | "Unpublished" | "Unpublished report" |
-
----
-
-## Dotčené soubory
+## Dotčený soubor
 
 | Soubor | Akce |
 |--------|------|
-| `src/lib/auditLog.ts` | Vytvořit - helper funkce |
-| `src/components/reports/CreateReportDialog.tsx` | Přidat logování create |
-| `src/components/reports/EditReportDialog.tsx` | Přidat logování update |
-| `src/pages/ReportDetail.tsx` | Přidat logování publish/unpublish |
+| `src/components/MainNavigation.tsx` | Upravit - přidat podporu pro report stránky |
 
 ---
 
-## Bonus: Aktualizace contributors
+## Výsledek
 
-Po přidání logu také zavoláme `fetchContributors()` v `ReportDetail.tsx`, aby se aktualizovali contributors po publish/unpublish akcích.
+- Brand picker viditelný na `/brands/:brandId` ✅
+- Brand picker viditelný na `/reports/:reportId` ✅ (s automatickou detekcí brandu)
+- Brand picker skrytý na `/admin` ✅
