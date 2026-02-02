@@ -28,7 +28,6 @@ interface Report {
   end_date: string | null;
   space_id: string;
   project_id?: string | null;
-  sentiment_webhook_url?: string | null;
 }
 
 interface EditReportDialogProps {
@@ -58,7 +57,7 @@ export const EditReportDialog = ({ open, onOpenChange, report, onSuccess }: Edit
     report.end_date ? new Date(report.end_date) : undefined
   );
   const [type, setType] = useState(report.type === "social" ? "always_on" : report.type);
-  const [sentimentWebhookUrl, setSentimentWebhookUrl] = useState(report.sentiment_webhook_url || "");
+  
 
   useEffect(() => {
     if (open) {
@@ -67,7 +66,7 @@ export const EditReportDialog = ({ open, onOpenChange, report, onSuccess }: Edit
       setStartDate(report.start_date ? new Date(report.start_date) : undefined);
       setEndDate(report.end_date ? new Date(report.end_date) : undefined);
       setType(report.type === "social" ? "always_on" : report.type);
-      setSentimentWebhookUrl(report.sentiment_webhook_url || "");
+      
       
       if (isAdmin) {
         fetchProjects();
@@ -103,7 +102,7 @@ export const EditReportDialog = ({ open, onOpenChange, report, onSuccess }: Edit
           start_date: startDate ? format(startDate, "yyyy-MM-dd") : null,
           end_date: endDate ? format(endDate, "yyyy-MM-dd") : null,
           type: type as "influencer" | "ads" | "always_on",
-          sentiment_webhook_url: sentimentWebhookUrl.trim() || null,
+          
         })
         .eq("id", report.id);
 
@@ -188,20 +187,6 @@ export const EditReportDialog = ({ open, onOpenChange, report, onSuccess }: Edit
             </Select>
           </div>
 
-          {isAdmin && (
-            <div className="space-y-2">
-              <Label>Sentiment Webhook URL</Label>
-              <Input
-                value={sentimentWebhookUrl}
-                onChange={(e) => setSentimentWebhookUrl(e.target.value)}
-                placeholder="https://n8n.example.com/webhook/..."
-                className="rounded-[35px]"
-              />
-              <p className="text-xs text-muted-foreground">
-                URL for automatic sentiment analysis when new content is created
-              </p>
-            </div>
-          )}
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">

@@ -155,29 +155,21 @@ export const EditContentDialog = ({ content, open, onOpenChange, onSuccess }: Ed
   const handleRegenerateSentiment = async () => {
     setIsRegeneratingSentiment(true);
     try {
-      // Fetch sentiment webhook URL from report
-      const { data: report } = await supabase
-        .from("reports")
-        .select("sentiment_webhook_url")
-        .eq("id", content.report_id)
-        .single();
-
-      if (!report?.sentiment_webhook_url) {
-        toast.warning("Sentiment webhook URL is not configured for this report");
-        return;
-      }
-
-      await fetch(report.sentiment_webhook_url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          content_id: content.id,
+      const { data, error } = await supabase.functions.invoke("trigger-sentiment-analysis", {
+        body: { 
+          content_id: content.id, 
           report_id: content.report_id,
           action: "regenerate_sentiment"
-        })
+        }
       });
 
-      toast.success("Sentiment regeneration triggered");
+      if (error) throw error;
+
+      if (data?.success) {
+        toast.success("Sentiment regeneration triggered");
+      } else {
+        toast.warning(data?.message || "Sentiment webhook not configured");
+      }
     } catch (error) {
       toast.error("Failed to trigger sentiment regeneration");
       console.error(error);

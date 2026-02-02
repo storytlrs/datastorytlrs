@@ -106,28 +106,17 @@ export const CreateContentDialog = ({ reportId, onSuccess }: CreateContentDialog
 
       if (error) throw error;
 
-      // 2. Fetch sentiment webhook URL and type from report
-      const { data: report } = await supabase
-        .from("reports")
-        .select("sentiment_webhook_url, type")
-        .eq("id", reportId)
-        .single();
-
-      // 3. Trigger sentiment webhook only for influencer reports
-      if (report?.type === "influencer" && report?.sentiment_webhook_url && newContent?.id) {
+      // 2. Trigger sentiment analysis via edge function (only for influencer reports)
+      if (newContent?.id) {
         try {
-          await fetch(report.sentiment_webhook_url, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              content_id: newContent.id,
-              report_id: reportId,
-              action: "analyze_sentiment"
-            })
+          await supabase.functions.invoke("trigger-sentiment-analysis", {
+            body: { 
+              content_id: newContent.id, 
+              report_id: reportId 
+            }
           });
-          toast.info("Sentiment analysis triggered");
         } catch (webhookError) {
-          console.error("Sentiment webhook error:", webhookError);
+          console.error("Sentiment trigger error:", webhookError);
           // Don't block content creation - just log the error
         }
       }
