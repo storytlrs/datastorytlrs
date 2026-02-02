@@ -2,8 +2,8 @@ import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Users, FileText, DollarSign, Eye, Clock, Award, TrendingUp, Loader2 } from "lucide-react";
-import { KPICard } from "@/components/reports/KPICard";
+import { Users, FileText, DollarSign, Eye, Clock, TrendingUp, Loader2, Heart, MessageSquare } from "lucide-react";
+import { MetricTile } from "@/components/reports/MetricTile";
 import { TopContentGrid, TopContentItem } from "./TopContentGrid";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { secondsToWatchTime } from "@/lib/watchTimeUtils";
@@ -163,6 +163,8 @@ const BrandInfluencersDashboard = ({ spaceId, filters }: BrandInfluencersDashboa
     const currencyCounts = currencies.reduce((acc, cur) => ({ ...acc, [cur]: (acc[cur] || 0) + 1 }), {} as Record<string, number>);
     const currency = Object.entries(currencyCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "CZK";
 
+    const viralityRate = totalViews > 0 ? (totalShares / totalViews) * 100 : 0;
+
     return {
       uniqueCreators,
       contentPieces,
@@ -174,8 +176,21 @@ const BrandInfluencersDashboard = ({ spaceId, filters }: BrandInfluencersDashboa
       tswbCostPerMinute,
       cpm,
       currency,
+      interactions: totalInteractions,
+      viralityRate,
     };
   }, [content, creators]);
+
+  // Helper function for formatting large numbers
+  const formatLargeNumber = (value: number): string => {
+    if (value >= 1000000) {
+      return `${(value / 1000000).toFixed(1)}M`;
+    }
+    if (value >= 1000) {
+      return `${(value / 1000).toFixed(1)}K`;
+    }
+    return value.toLocaleString("cs-CZ");
+  };
 
   // Monthly chart data
   const chartData = useMemo(() => {
@@ -362,61 +377,63 @@ const BrandInfluencersDashboard = ({ spaceId, filters }: BrandInfluencersDashboa
       {/* Top 5 Content */}
       <TopContentGrid items={topContent} title="Top 5 Influencer Content" emptyMessage="No influencer content found" />
 
-      {/* KPI Tiles */}
+      {/* Key Metrics */}
       <div className="space-y-4">
         <h3 className="text-lg font-semibold">Key Metrics</h3>
+        
+        {/* Row 1 - Blue accent */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <KPICard
+          <MetricTile
             title="Creators"
             value={kpis.uniqueCreators.toLocaleString()}
             icon={Users}
-            accentColor="green"
-            tooltip="Number of unique creators in influencer campaigns"
+            accentColor="blue"
           />
-          <KPICard
-            title="Content Pieces"
+          <MetricTile
+            title="Content"
             value={kpis.contentPieces.toLocaleString()}
             icon={FileText}
-            tooltip="Total content pieces created by influencers"
+            accentColor="blue"
           />
-          <KPICard
-            title="Total Budget"
-            value={formatCurrency(kpis.totalBudget, kpis.currency)}
-            icon={DollarSign}
-            accentColor="orange"
-            tooltip="Total budget spent on influencer collaborations"
-          />
-          <KPICard
+          <MetricTile
             title="Views"
-            value={kpis.views.toLocaleString()}
+            value={formatLargeNumber(kpis.views)}
             icon={Eye}
-            tooltip="Total impressions and views from influencer content"
+            accentColor="blue"
           />
-          <KPICard
-            title="Watch Time"
-            value={secondsToWatchTime(kpis.watchTime)}
+          <MetricTile
+            title="Avg CPM"
+            value={formatCurrency(kpis.cpm, kpis.currency)}
+            icon={DollarSign}
+            accentColor="blue"
+          />
+        </div>
+        
+        {/* Row 2 - Green accent */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <MetricTile
+            title="TSWB Cost"
+            value={formatCurrency(kpis.tswbCostPerMinute, kpis.currency)}
             icon={Clock}
-            tooltip="Total watch time across all influencer content"
-          />
-          <KPICard
-            title="TSWB"
-            value={secondsToWatchTime(kpis.tswb)}
-            icon={Award}
             accentColor="green"
-            tooltip="Time Spent With Brand - total attention index"
           />
-          <KPICard
+          <MetricTile
+            title="Interactions"
+            value={formatLargeNumber(kpis.interactions)}
+            icon={Heart}
+            accentColor="green"
+          />
+          <MetricTile
             title="Engagement Rate"
             value={`${kpis.engagementRate.toFixed(2)}%`}
             icon={TrendingUp}
-            tooltip="Average engagement rate across influencer content"
+            accentColor="green"
           />
-          <KPICard
-            title="TSWB Cost/Min"
-            value={formatCurrency(kpis.tswbCostPerMinute, kpis.currency)}
-            icon={Clock}
-            accentColor="orange"
-            tooltip="Cost per minute of audience attention"
+          <MetricTile
+            title="Virality Rate"
+            value={`${kpis.viralityRate.toFixed(2)}%`}
+            icon={MessageSquare}
+            accentColor="green"
           />
         </div>
       </div>
