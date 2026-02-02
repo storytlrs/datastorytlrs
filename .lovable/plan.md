@@ -1,171 +1,94 @@
 
-# Plán: Aktualizace Key Metrics pro Influencers Dashboard
 
-## Požadovaná změna
+# Plán: Změna navigace v Brand Space
 
-Nahradíme stávající KPICard komponenty za MetricTile komponenty s novou strukturou metrik - bez target/benchmark hodnot.
+## Přehled změn
+
+Nahradíme stávající strukturu s Overview tabem a sub-taby za jednoduchou plochou navigaci, kde Content, Ads a Influencers budou přímo v hlavní navigaci.
 
 ---
 
-## Struktura Key Metrics
+## Aktuální vs. nová struktura
 
-### Řada 1 (modrý accent)
+### Před změnou:
+```text
+[Overview]  [Insights]  [Reports]
+    │
+    └── [Content] [Ads] [Influencers]  (sub-taby)
+```
 
-| KPI | Hodnota | Ikona |
-|-----|---------|-------|
-| **CREATORS** | Počet unikátních tvůrců | Users |
-| **CONTENT** | Počet content pieces | FileText |
-| **VIEWS** | Celkové views (impressions + views) | Eye |
-| **AVG CPM** | (budget / views) × 1000 | DollarSign |
-
-### Řada 2 (zelený accent)
-
-| KPI | Hodnota | Ikona |
-|-----|---------|-------|
-| **TSWB COST** | budget / (TSWB v minutách) | Clock |
-| **INTERACTIONS** | likes + comments + shares + saves | Heart |
-| **ENGAGEMENT RATE** | (interakce / views) × 100 | TrendingUp |
-| **VIRALITY RATE** | (shares / views) × 100 | MessageSquare |
+### Po změně:
+```text
+[Content]  [Ads]  [Influencers]  [Insights]  [Reports]
+```
 
 ---
 
 ## Vizuální náhled
 
 ```text
-┌──────────────────────────────────────────────────────────────────────────────────┐
-│  Key Metrics                                                                      │
-├──────────────────────────────────────────────────────────────────────────────────┤
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐              │
-│  │ CREATORS    │  │ CONTENT     │  │ VIEWS       │  │ AVG CPM     │  (blue)     │
-│  │ 👤          │  │ 📄          │  │ 👁          │  │ 💰          │              │
-│  │ 7           │  │ 22          │  │ 2.6M        │  │ 104,68 Kč   │              │
-│  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘              │
-│                                                                                   │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐              │
-│  │ TSWB COST   │  │ INTERACTIONS│  │ ENGAGEMENT  │  │ VIRALITY    │  (green)    │
-│  │ ⏰          │  │ ❤️          │  │ RATE        │  │ RATE        │              │
-│  │ 13,59 Kč    │  │ 53.4K       │  │ 📈 2.25%    │  │ 💬 0.16%    │              │
-│  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘              │
-└──────────────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│  Brand Name                            [🏢 Brand ▼]  [⚙][↗] │
+├─────────────────────────────────────────────────────────────┤
+│  [Content]  [Ads]  [Influencers]  [Insights]  [Reports]     │
+├─────────────────────────────────────────────────────────────┤
+│  Filters: [Start Date] [End Date] [Platform ▼] [Clear]      │
+│  (pouze pro Content, Ads, Influencers taby)                 │
+├─────────────────────────────────────────────────────────────┤
+│  Dashboard content...                                        │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Implementace
+## Technická implementace
 
-### 1. Přidat nové importy
+### Změny v `BrandDetail.tsx`:
+
+1. **Nová struktura tabů**:
+   - Nahradíme `overview`, `insights`, `reports` za `content`, `ads`, `influencers`, `insights`, `reports`
+   - Default tab bude `content` místo `overview`
+
+2. **Přesun filtrů z BrandOverviewTab**:
+   - Filter state (`dateRange`, `platform`) přesuneme do `BrandDetail.tsx`
+   - Filtry budeme zobrazovat pouze pro taby `content`, `ads`, `influencers`
+
+3. **Přímé použití dashboard komponent**:
+   - Místo `<BrandOverviewTab>` použijeme přímo `<BrandContentDashboard>`, `<BrandAdsDashboard>`, `<BrandInfluencersDashboard>`
+
+4. **Úprava URL parametrů**:
+   - `?tab=overview` bude deprecated, nový default je `?tab=content`
+   - Zachováme zpětnou kompatibilitu - pokud přijde `overview`, přesměrujeme na `content`
+
+### Smazání `BrandOverviewTab.tsx`:
+
+- Komponenta již nebude potřeba - její logika (filtry, tab switching) se přesune do `BrandDetail.tsx`
+
+---
+
+## Logika zobrazení filtrů
 
 ```typescript
-import { MetricTile } from "@/components/reports/MetricTile";
-import { Heart, MessageSquare } from "lucide-react";
-```
-
-### 2. Rozšířit kpis useMemo
-
-Přidat nové metriky:
-- `interactions` - součet likes, comments, shares, saves
-- `viralityRate` - (shares / views) × 100
-
-```typescript
-return {
-  // ... stávající
-  interactions: totalInteractions,
-  viralityRate: totalViews > 0 ? (totalShares / totalViews) * 100 : 0,
-};
-```
-
-### 3. Přidat helper funkci pro formátování velkých čísel
-
-```typescript
-const formatLargeNumber = (value: number): string => {
-  if (value >= 1000000) {
-    return `${(value / 1000000).toFixed(1)}M`;
-  }
-  if (value >= 1000) {
-    return `${(value / 1000).toFixed(1)}K`;
-  }
-  return value.toLocaleString("cs-CZ");
-};
-```
-
-### 4. Nahradit KPI sekci
-
-```tsx
-{/* Key Metrics */}
-<div className="space-y-4">
-  <h3 className="text-lg font-semibold">Key Metrics</h3>
-  
-  {/* Row 1 - Blue accent */}
-  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-    <MetricTile
-      title="Creators"
-      value={kpis.uniqueCreators.toLocaleString()}
-      icon={Users}
-      accentColor="blue"
-    />
-    <MetricTile
-      title="Content"
-      value={kpis.contentPieces.toLocaleString()}
-      icon={FileText}
-      accentColor="blue"
-    />
-    <MetricTile
-      title="Views"
-      value={formatLargeNumber(kpis.views)}
-      icon={Eye}
-      accentColor="blue"
-    />
-    <MetricTile
-      title="Avg CPM"
-      value={formatCurrency(kpis.cpm, kpis.currency)}
-      icon={DollarSign}
-      accentColor="blue"
-    />
-  </div>
-  
-  {/* Row 2 - Green accent */}
-  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-    <MetricTile
-      title="TSWB Cost"
-      value={formatCurrency(kpis.tswbCostPerMinute, kpis.currency)}
-      icon={Clock}
-      accentColor="green"
-    />
-    <MetricTile
-      title="Interactions"
-      value={formatLargeNumber(kpis.interactions)}
-      icon={Heart}
-      accentColor="green"
-    />
-    <MetricTile
-      title="Engagement Rate"
-      value={`${kpis.engagementRate.toFixed(2)}%`}
-      icon={TrendingUp}
-      accentColor="green"
-    />
-    <MetricTile
-      title="Virality Rate"
-      value={`${kpis.viralityRate.toFixed(2)}%`}
-      icon={MessageSquare}
-      accentColor="green"
-    />
-  </div>
-</div>
+// Filtry se zobrazí pouze pro dashboard taby
+const showDashboardFilters = ["content", "ads", "influencers"].includes(activeTab);
 ```
 
 ---
 
-## Dotčený soubor
+## Dotčené soubory
 
 | Soubor | Akce |
 |--------|------|
-| `src/components/brands/BrandInfluencersDashboard.tsx` | Upravit - nahradit KPICard za MetricTile, přidat nové metriky |
+| `src/pages/BrandDetail.tsx` | Refaktor - nová struktura tabů, přidání filtrů |
+| `src/components/brands/BrandOverviewTab.tsx` | Smazat - logika přesunuta do BrandDetail |
 
 ---
 
 ## Výsledek
 
-- 8 KPI karet rozdělených do 2 řad
-- První řada (modrá): Creators, Content, Views, Avg CPM
-- Druhá řada (zelená): TSWB Cost, Interactions, Engagement Rate, Virality Rate
-- Bez target/benchmark hodnot - čisté jednoduché zobrazení
+- Jednodušší navigace bez vnořených tabů
+- Content, Ads a Influencers jsou přímo dostupné z hlavní navigace
+- Filtry sdílené mezi dashboard taby (Content, Ads, Influencers)
+- Insights a Reports taby zůstávají bez změny
+- Lepší UX - méně klikání pro přístup k dashboardům
+
