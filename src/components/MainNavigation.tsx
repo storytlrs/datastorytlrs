@@ -20,22 +20,45 @@ interface Brand {
 const MainNavigation = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { brandId } = useParams();
+  const { brandId, reportId } = useParams();
   const { isAdmin } = useUserRole();
   const [brands, setBrands] = useState<Brand[]>([]);
   const [currentBrand, setCurrentBrand] = useState<Brand | null>(null);
   const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
+  const [reportBrandId, setReportBrandId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchBrands();
   }, []);
 
+  // Fetch brand from report when on report page
   useEffect(() => {
-    if (brandId && brands.length > 0) {
-      const brand = brands.find((b) => b.id === brandId);
+    const fetchReportBrand = async () => {
+      if (reportId) {
+        const { data } = await supabase
+          .from("reports")
+          .select("space_id")
+          .eq("id", reportId)
+          .single();
+        setReportBrandId(data?.space_id || null);
+      } else {
+        setReportBrandId(null);
+      }
+    };
+    fetchReportBrand();
+  }, [reportId]);
+
+  // Use brandId from URL or from report
+  const activeBrandId = brandId || reportBrandId;
+
+  useEffect(() => {
+    if (activeBrandId && brands.length > 0) {
+      const brand = brands.find((b) => b.id === activeBrandId);
       setCurrentBrand(brand || null);
+    } else {
+      setCurrentBrand(null);
     }
-  }, [brandId, brands]);
+  }, [activeBrandId, brands]);
 
   const fetchBrands = async () => {
     const { data } = await supabase
@@ -62,8 +85,7 @@ const MainNavigation = () => {
     }
   };
 
-  // Check if we're on a brand-related page
-  const isOnBrandPage = location.pathname.startsWith("/brands/");
+  // Show brand picker on all pages except admin
   const isOnAdminPage = location.pathname === "/admin";
 
   return (
@@ -73,7 +95,7 @@ const MainNavigation = () => {
         <div className="text-xl font-bold">Story TLRS</div>
 
         {/* Brand Switcher Dropdown */}
-        {isOnBrandPage && brands.length > 0 && (
+        {!isOnAdminPage && brands.length > 0 && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -102,8 +124,8 @@ const MainNavigation = () => {
           </DropdownMenu>
         )}
 
-        {/* Spacer for non-brand pages */}
-        {!isOnBrandPage && <div />}
+        {/* Spacer when no brand picker */}
+        {isOnAdminPage && <div />}
 
         {/* Right side: Back + Settings + Logout */}
         <div className="flex items-center gap-2">
