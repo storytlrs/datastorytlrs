@@ -6,6 +6,23 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-api-key',
 };
 
+// Input validation constants
+const MAX_AI_INSIGHTS_LENGTH = 100000; // 100KB max for AI insights text
+
+// Validate UUID format
+const validateUUID = (value: unknown): string | null => {
+  if (value === null || value === undefined || value === '') return null;
+  const str = String(value).trim();
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(str) ? str : null;
+};
+
+// Sanitize AI insights text - limit length and basic sanitization
+const sanitizeAIInsights = (value: unknown): string | null => {
+  if (value === null || value === undefined || value === '') return null;
+  return String(value).slice(0, MAX_AI_INSIGHTS_LENGTH);
+};
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -34,11 +51,11 @@ serve(async (req) => {
 
     // Handle GET request - fetch AI insights for a report
     if (req.method === 'GET') {
-      const reportId = url.searchParams.get('report_id');
+      const reportId = validateUUID(url.searchParams.get('report_id'));
 
       if (!reportId) {
         return new Response(
-          JSON.stringify({ error: 'report_id is required' }),
+          JSON.stringify({ error: 'report_id is required and must be a valid UUID' }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
@@ -68,11 +85,12 @@ serve(async (req) => {
     // Handle POST/PUT request - update AI insights
     if (req.method === 'POST' || req.method === 'PUT') {
       const body = await req.json();
-      const { report_id, ai_insights } = body;
+      const report_id = validateUUID(body.report_id);
+      const ai_insights = sanitizeAIInsights(body.ai_insights);
 
       if (!report_id) {
         return new Response(
-          JSON.stringify({ error: 'report_id is required' }),
+          JSON.stringify({ error: 'report_id is required and must be a valid UUID' }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
