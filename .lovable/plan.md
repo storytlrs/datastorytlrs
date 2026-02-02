@@ -1,94 +1,131 @@
 
 
-# Plán: Změna navigace v Brand Space
+# Plán: Přidání nových metrik do grafu Influencers Dashboard
 
 ## Přehled změn
 
-Nahradíme stávající strukturu s Overview tabem a sub-taby za jednoduchou plochou navigaci, kde Content, Ads a Influencers budou přímo v hlavní navigaci.
+Rozšíříme graf o dalších 6 metrik tak, aby odpovídal metrikám v Key Metrics sekci a poskytoval kompletnější přehled.
 
 ---
 
-## Aktuální vs. nová struktura
+## Aktuální vs. nové metriky
 
-### Před změnou:
-```text
-[Overview]  [Insights]  [Reports]
-    │
-    └── [Content] [Ads] [Influencers]  (sub-taby)
-```
+### Stávající metriky v grafu:
+- Views
+- Budget
+- Creators
+- Engagement Rate
+- Watch Time
 
-### Po změně:
-```text
-[Content]  [Ads]  [Influencers]  [Insights]  [Reports]
-```
+### Nové metriky k přidání:
+- **Content** - počet content pieces za měsíc
+- **CPM** - (budget / views) × 1000
+- **TSWB Cost** - budget / (watch time v minutách)
+- **Interactions** - likes + comments + shares + saves
+- **Virality Rate** - (shares / views) × 100
+- **TSWB** - celkový watch time (attention index)
 
 ---
 
-## Vizuální náhled
+## Finální seznam metrik v grafu
 
-```text
-┌─────────────────────────────────────────────────────────────┐
-│  Brand Name                            [🏢 Brand ▼]  [⚙][↗] │
-├─────────────────────────────────────────────────────────────┤
-│  [Content]  [Ads]  [Influencers]  [Insights]  [Reports]     │
-├─────────────────────────────────────────────────────────────┤
-│  Filters: [Start Date] [End Date] [Platform ▼] [Clear]      │
-│  (pouze pro Content, Ads, Influencers taby)                 │
-├─────────────────────────────────────────────────────────────┤
-│  Dashboard content...                                        │
-└─────────────────────────────────────────────────────────────┘
-```
+| Metrika | Klíč | Formátování |
+|---------|------|-------------|
+| Views | `views` | Číslo s K/M |
+| Content | `content` | Celé číslo |
+| Creators | `creators` | Celé číslo |
+| Budget | `budget` | Měna |
+| CPM | `cpm` | Měna |
+| TSWB Cost | `tswbCost` | Měna |
+| Interactions | `interactions` | Číslo s K/M |
+| Engagement Rate | `engagementRate` | Procenta |
+| Virality Rate | `viralityRate` | Procenta |
+| Watch Time | `watchTime` | Minuty |
+| TSWB | `tswb` | Sekundy/minuty |
 
 ---
 
 ## Technická implementace
 
-### Změny v `BrandDetail.tsx`:
-
-1. **Nová struktura tabů**:
-   - Nahradíme `overview`, `insights`, `reports` za `content`, `ads`, `influencers`, `insights`, `reports`
-   - Default tab bude `content` místo `overview`
-
-2. **Přesun filtrů z BrandOverviewTab**:
-   - Filter state (`dateRange`, `platform`) přesuneme do `BrandDetail.tsx`
-   - Filtry budeme zobrazovat pouze pro taby `content`, `ads`, `influencers`
-
-3. **Přímé použití dashboard komponent**:
-   - Místo `<BrandOverviewTab>` použijeme přímo `<BrandContentDashboard>`, `<BrandAdsDashboard>`, `<BrandInfluencersDashboard>`
-
-4. **Úprava URL parametrů**:
-   - `?tab=overview` bude deprecated, nový default je `?tab=content`
-   - Zachováme zpětnou kompatibilitu - pokud přijde `overview`, přesměrujeme na `content`
-
-### Smazání `BrandOverviewTab.tsx`:
-
-- Komponenta již nebude potřeba - její logika (filtry, tab switching) se přesune do `BrandDetail.tsx`
-
----
-
-## Logika zobrazení filtrů
+### 1. Rozšíření typu `MetricKey`
 
 ```typescript
-// Filtry se zobrazí pouze pro dashboard taby
-const showDashboardFilters = ["content", "ads", "influencers"].includes(activeTab);
+type MetricKey = 
+  | "views" 
+  | "content"
+  | "budget" 
+  | "cpm"
+  | "tswbCost"
+  | "creators" 
+  | "interactions"
+  | "engagementRate" 
+  | "viralityRate"
+  | "watchTime"
+  | "tswb";
+```
+
+### 2. Rozšíření `chartData` useMemo
+
+Přidat do měsíčního výpočtu:
+- `content` - počet content pieces
+- `shares` - pro výpočet virality
+- `cpm` - vypočítat z budget/views
+- `tswbCost` - vypočítat z budget/watchTime
+- `viralityRate` - vypočítat ze shares/views
+- `tswb` - watch time v sekundách
+
+```typescript
+monthlyData[monthKey].contentCount += 1;
+monthlyData[monthKey].shares += c.shares || 0;
+```
+
+### 3. Rozšíření `metricLabels`
+
+```typescript
+const metricLabels: Record<MetricKey, string> = {
+  views: "Views",
+  content: "Content",
+  budget: "Budget",
+  cpm: "CPM",
+  tswbCost: "TSWB Cost",
+  creators: "Creators",
+  interactions: "Interactions",
+  engagementRate: "ER (%)",
+  viralityRate: "Virality (%)",
+  watchTime: "Watch Time",
+  tswb: "TSWB",
+};
+```
+
+### 4. Rozšíření `formatChartValue`
+
+```typescript
+case "cpm":
+case "tswbCost":
+  return formatCurrency(value, kpis.currency);
+case "content":
+case "interactions":
+  return formatLargeNumber(value);
+case "viralityRate":
+  return `${value.toFixed(2)}%`;
+case "tswb":
+  return `${Math.round(value)}s`;
 ```
 
 ---
 
-## Dotčené soubory
+## Dotčený soubor
 
 | Soubor | Akce |
 |--------|------|
-| `src/pages/BrandDetail.tsx` | Refaktor - nová struktura tabů, přidání filtrů |
-| `src/components/brands/BrandOverviewTab.tsx` | Smazat - logika přesunuta do BrandDetail |
+| `src/components/brands/BrandInfluencersDashboard.tsx` | Rozšířit - přidat nové metriky do grafu |
 
 ---
 
 ## Výsledek
 
-- Jednodušší navigace bez vnořených tabů
-- Content, Ads a Influencers jsou přímo dostupné z hlavní navigace
-- Filtry sdílené mezi dashboard taby (Content, Ads, Influencers)
-- Insights a Reports taby zůstávají bez změny
-- Lepší UX - méně klikání pro přístup k dashboardům
+- Graf bude mít 11 přepínatelných metrik
+- Metriky budou odpovídat Key Metrics sekci
+- Konzistentní formátování pro každý typ metriky
+- Uživatel získá kompletní přehled měsíčních trendů
 
