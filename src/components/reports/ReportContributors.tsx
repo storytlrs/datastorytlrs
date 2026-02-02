@@ -84,9 +84,6 @@ export const ReportContributors = ({
             </Tooltip>
           )}
         </div>
-        <span className="ml-2 text-sm">
-          {contributors.length} contributor{contributors.length !== 1 ? "s" : ""}
-        </span>
       </div>
     </TooltipProvider>
   );
