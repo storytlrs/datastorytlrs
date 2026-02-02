@@ -2,7 +2,15 @@ import { useEffect, useState, useMemo } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Plus, User, TrendingUp, BarChart3, Search, Calendar as CalendarIcon, Image } from "lucide-react";
+import { Plus, User, TrendingUp, BarChart3, Search, Calendar as CalendarIcon, Image, Check, ChevronsUpDown } from "lucide-react";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -96,6 +104,7 @@ const BrandDetail = () => {
   const [reportsDateRange, setReportsDateRange] = useState<{ start: Date | null; end: Date | null }>({ start: null, end: null });
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [projectFilter, setProjectFilter] = useState<string>("all");
+  const [projectFilterOpen, setProjectFilterOpen] = useState(false);
   
   const showProjectFilter = role === "admin" || role === "analyst";
   const showDashboardFilters = ["content", "ads", "influencers"].includes(defaultTab);
@@ -423,24 +432,69 @@ const BrandDetail = () => {
 
                 {/* Project Filter (Admin/Analyst only) */}
                 {showProjectFilter && (
-                  <Select value={projectFilter} onValueChange={setProjectFilter}>
-                    <SelectTrigger className={cn(
-                      "w-[200px] rounded-[35px]",
-                      projectFilter !== "all"
-                        ? "border-accent-orange bg-accent-orange text-foreground"
-                        : ""
-                    )}>
-                      <SelectValue placeholder="Project" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All projects</SelectItem>
-                      {projects.map((project) => (
-                        <SelectItem key={project.id} value={project.id}>
-                          {project.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Popover open={projectFilterOpen} onOpenChange={setProjectFilterOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={projectFilterOpen}
+                        className={cn(
+                          "w-[200px] justify-between rounded-[35px] hover:border-foreground hover:bg-foreground hover:text-background",
+                          projectFilter !== "all"
+                            ? "border-accent-orange bg-accent-orange text-foreground"
+                            : "border-foreground bg-card text-foreground"
+                        )}
+                      >
+                        {projectFilter === "all"
+                          ? "All projects"
+                          : projects.find((p) => p.id === projectFilter)?.name || "Project"}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[200px] p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Search projects..." />
+                        <CommandList>
+                          <CommandEmpty>No projects found.</CommandEmpty>
+                          <CommandGroup>
+                            <CommandItem
+                              value="all"
+                              onSelect={() => {
+                                setProjectFilter("all");
+                                setProjectFilterOpen(false);
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  projectFilter === "all" ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              All projects
+                            </CommandItem>
+                            {projects.map((project) => (
+                              <CommandItem
+                                key={project.id}
+                                value={project.name}
+                                onSelect={() => {
+                                  setProjectFilter(project.id);
+                                  setProjectFilterOpen(false);
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    projectFilter === project.id ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                {project.name}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                 )}
 
                 {/* Clear Filters */}
