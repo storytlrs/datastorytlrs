@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Plus, User, TrendingUp, BarChart3, Search, Calendar as CalendarIcon, Settings, Image } from "lucide-react";
+import { Plus, User, TrendingUp, BarChart3, Search, Calendar as CalendarIcon, Image } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -13,7 +13,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format, subMonths } from "date-fns";
 import CreateReportDialog from "@/components/reports/CreateReportDialog";
-import EditBrandDialog from "@/components/brands/EditBrandDialog";
+
 import BrandContentDashboard from "@/components/brands/BrandContentDashboard";
 import BrandAdsDashboard from "@/components/brands/BrandAdsDashboard";
 import BrandInfluencersDashboard from "@/components/brands/BrandInfluencersDashboard";
@@ -80,7 +80,7 @@ const BrandDetail = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  
   
   // Dashboard filter states (shared across Content, Ads, Influencers tabs)
   const [dashboardFilters, setDashboardFilters] = useState({
@@ -189,16 +189,6 @@ const BrandDetail = () => {
                 <p className="text-muted-foreground">{brand.description}</p>
               )}
             </div>
-            {isAdmin && (
-              <Button
-                variant="outline"
-                onClick={() => setEditDialogOpen(true)}
-                size="icon"
-                className="rounded-[35px] border-foreground"
-              >
-                <Settings className="w-4 h-4" />
-              </Button>
-            )}
           </div>
         </div>
 
@@ -537,14 +527,6 @@ const BrandDetail = () => {
           onSuccess={fetchBrandAndReports}
         />
 
-        {brand && (
-          <EditBrandDialog
-            open={editDialogOpen}
-            onOpenChange={setEditDialogOpen}
-            brand={brand}
-            onSuccess={fetchBrandAndReports}
-          />
-        )}
       </div>
     </div>
   );

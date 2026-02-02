@@ -8,7 +8,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { LogOut, Settings, Building2, ChevronDown, Check, ArrowLeft } from "lucide-react";
+import { LogOut, User, Building2, ChevronDown, Check, ArrowLeft } from "lucide-react";
 import { useUserRole } from "@/hooks/useUserRole";
 import { EditProfileDialog } from "@/components/profile/EditProfileDialog";
 
@@ -145,7 +145,7 @@ const MainNavigation = () => {
             size="icon"
             className="rounded-[35px] border-foreground"
           >
-            <Settings className="h-4 w-4" />
+            <User className="h-4 w-4" />
           </Button>
           <Button
             onClick={handleSignOut}
