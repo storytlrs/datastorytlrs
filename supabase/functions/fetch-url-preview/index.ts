@@ -1,5 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -17,6 +18,65 @@ interface PreviewResult {
   title: string | null;
   source: string;
 }
+
+// Whitelist of allowed domains for URL preview
+const ALLOWED_DOMAINS = [
+  'instagram.com',
+  'www.instagram.com',
+  'tiktok.com',
+  'www.tiktok.com',
+  'youtube.com',
+  'www.youtube.com',
+  'youtu.be',
+  'twitter.com',
+  'www.twitter.com',
+  'x.com',
+  'www.x.com',
+  'facebook.com',
+  'www.facebook.com',
+  'fb.watch',
+];
+
+// Validate URL to prevent SSRF attacks
+const validateUrl = (url: string): { valid: boolean; error?: string } => {
+  try {
+    const parsed = new URL(url);
+    
+    // Only allow HTTPS (and HTTP for some platforms that redirect)
+    if (!['https:', 'http:'].includes(parsed.protocol)) {
+      return { valid: false, error: 'Only HTTP/HTTPS URLs are allowed' };
+    }
+    
+    const hostname = parsed.hostname.toLowerCase();
+    
+    // Block private/internal IP ranges
+    if (hostname === 'localhost' || 
+        hostname === '127.0.0.1' ||
+        hostname.match(/^127\./) ||
+        hostname.match(/^10\./) ||
+        hostname.match(/^172\.(1[6-9]|2[0-9]|3[01])\./) ||
+        hostname.match(/^192\.168\./) ||
+        hostname === '169.254.169.254' ||
+        hostname.match(/^0\./) ||
+        hostname.endsWith('.local') ||
+        hostname.endsWith('.internal')) {
+      return { valid: false, error: 'Internal/private URLs are not allowed' };
+    }
+    
+    // Check against whitelist
+    const isAllowed = ALLOWED_DOMAINS.some(domain => 
+      hostname === domain || hostname.endsWith('.' + domain)
+    );
+    
+    if (!isAllowed) {
+      return { valid: false, error: 'URL domain is not in the allowed list. Supported: Instagram, TikTok, YouTube, Twitter/X, Facebook' };
+    }
+    
+    return { valid: true };
+  } catch {
+    return { valid: false, error: 'Invalid URL format' };
+  }
+};
 
 const getOEmbedUrl = (url: string): string | null => {
   const lowerUrl = url.toLowerCase();
@@ -107,12 +167,53 @@ serve(async (req) => {
   }
 
   try {
+    // Verify authentication
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      console.log('No authorization header provided');
+      return new Response(
+        JSON.stringify({ success: false, error: 'Authentication required' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Verify the JWT token
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    const token = authHeader.replace('Bearer ', '');
+    const { data: claimsData, error: claimsError } = await supabaseClient.auth.getClaims(token);
+    
+    if (claimsError || !claimsData?.claims) {
+      console.log('Invalid or expired token');
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid or expired token' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const userId = claimsData.claims.sub;
+    console.log(`Authenticated request from user: ${userId}`);
+
     const { url } = await req.json();
     
     if (!url) {
       return new Response(
         JSON.stringify({ success: false, error: 'URL is required' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Validate URL to prevent SSRF
+    const validation = validateUrl(url);
+    if (!validation.valid) {
+      console.log(`URL validation failed: ${validation.error}`);
+      return new Response(
+        JSON.stringify({ success: false, error: validation.error }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
