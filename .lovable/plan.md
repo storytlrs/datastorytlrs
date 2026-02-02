@@ -1,136 +1,100 @@
 
-# Plán: Zobrazení reportů jako tabulka
+
+# Plán: Odstranění headline a zarovnání search baru
 
 ## Přehled
 
-Změním zobrazení reportů v tabu Reports z grid layoutu s kartami na tabulkové zobrazení, které odpovídá designu admin panelu (UserList).
+Odstraním nadpis "Reports" nad tabulkou a přesunu search bar na stejný řádek jako tlačítko "New Report".
 
 ## Současný stav
 
-| Aspekt | Aktuálně |
-|--------|----------|
-| Layout | Grid 1-3 sloupce s kartami |
-| Data | Ikona, název, typ, status, datum |
-| Contributors | Nezobrazují se |
-| Styling | Card komponenta s rounded-[35px] |
+```text
+Reports                                    [New Report]
+┌──────────────────────────────────────────┐
+│ 🔍 Search reports...                     │
+└──────────────────────────────────────────┘
+[Date filters] [Type filter] [Project filter]
+```
 
 ## Cílový stav
 
-| Aspekt | Po změně |
-|--------|----------|
-| Layout | Tabulka se záhlavím |
-| Data | Icon, Název, Type, Status, Start date, End date, Contributors |
-| Contributors | Avatary přispěvatelů (ReportContributors komponenta) |
-| Styling | Table s border border-foreground rounded-[20px] (jako UserList) |
+```text
+🔍 Search reports...                       [New Report]
+[Date filters] [Type filter] [Project filter]
+```
 
 ## Technické řešení
 
-### 1. Přidat fetch pro contributors
+### Změna v BrandDetail.tsx (řádky 399-425)
 
-Bude potřeba načíst contributors pro všechny reporty najednou:
-
-```typescript
-// Nový state
-const [reportContributors, setReportContributors] = useState<Record<string, Contributor[]>>({});
-
-// Nová funkce - fetch contributors pro všechny reporty
-const fetchReportContributors = async (reportIds: string[]) => {
-  // 1. Fetch všech audit_log záznamů pro dané reporty
-  // 2. Seskupit podle report_id
-  // 3. Pro každý report načíst profily uživatelů
-};
-```
-
-### 2. Nahradit grid tabulkou
-
-Vyměním tento kód (řádky 533-573):
+**Stávající kód:**
 ```tsx
-// STARÉ - Grid layout
-<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-  {filteredReports.map((report) => (
-    <Card>...</Card>
-  ))}
-</div>
+<TabsContent value="reports">
+  {/* Header with New Report button */}
+  <div className="flex items-center justify-between mb-6">
+    <h2 className="text-2xl font-bold">Reports</h2>
+    {canEdit && (
+      <Button ...>
+        New Report
+      </Button>
+    )}
+  </div>
+
+  {/* Filter Bar */}
+  <div className="mb-6 space-y-4">
+    {/* Search Bar */}
+    <div className="relative">
+      <Search ... />
+      <Input ... />
+    </div>
+    
+    {/* Filters */}
+    <div className="flex flex-wrap gap-3">
 ```
 
-Za tabulkové zobrazení:
+**Nový kód:**
 ```tsx
-// NOVÉ - Table layout
-<div className="border border-foreground rounded-[20px] overflow-hidden">
-  <Table>
-    <TableHeader>
-      <TableRow className="border-foreground">
-        <TableHead className="w-[50px]"></TableHead>
-        <TableHead>Name</TableHead>
-        <TableHead>Type</TableHead>
-        <TableHead>Status</TableHead>
-        <TableHead>Start Date</TableHead>
-        <TableHead>End Date</TableHead>
-        <TableHead>Contributors</TableHead>
-      </TableRow>
-    </TableHeader>
-    <TableBody>
-      {filteredReports.map((report) => (
-        <TableRow 
-          key={report.id} 
-          className="border-foreground cursor-pointer hover:bg-muted/50"
-          onClick={() => navigate(`/reports/${report.id}`)}
-        >
-          <TableCell>
-            <div className={`w-10 h-10 rounded-full ${colorClass} flex items-center justify-center`}>
-              <Icon className="w-5 h-5" />
-            </div>
-          </TableCell>
-          <TableCell className="font-medium">{report.name}</TableCell>
-          <TableCell>
-            <Badge variant="outline">{reportTypeLabels[report.type]}</Badge>
-          </TableCell>
-          <TableCell className="capitalize">{report.status}</TableCell>
-          <TableCell>{formattedStartDate}</TableCell>
-          <TableCell>{formattedEndDate}</TableCell>
-          <TableCell>
-            <ReportContributors contributors={reportContributors[report.id] || []} />
-          </TableCell>
-        </TableRow>
-      ))}
-    </TableBody>
-  </Table>
-</div>
-```
+<TabsContent value="reports">
+  {/* Header with Search and New Report button */}
+  <div className="flex items-center gap-4 mb-6">
+    <div className="relative flex-1">
+      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+      <Input
+        placeholder="Search reports..."
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+        className="pl-10 rounded-[35px]"
+      />
+    </div>
+    {canEdit && (
+      <Button 
+        className="rounded-[35px]"
+        onClick={() => setCreateDialogOpen(true)}
+      >
+        <Plus className="w-5 h-5 mr-2" />
+        New Report
+      </Button>
+    )}
+  </div>
 
-### 3. Aktualizovat importy
-
-```typescript
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ReportContributors, Contributor } from "@/components/reports/ReportContributors";
+  {/* Filters */}
+  <div className="flex flex-wrap gap-3 mb-6">
 ```
 
 ---
+
+## Shrnutí změn
+
+| Změna | Detail |
+|-------|--------|
+| Odstranit headline | `<h2 className="text-2xl font-bold">Reports</h2>` |
+| Přesunout search bar | Do header divu vedle tlačítka |
+| Upravit layout | Search bar s `flex-1` pro roztažení, gap-4 mezi prvky |
+| Zjednodušit Filter Bar | Odstranit obalující `space-y-4` div |
 
 ## Dotčené soubory
 
 | Soubor | Změna |
 |--------|-------|
-| `src/pages/BrandDetail.tsx` | Hlavní úprava - grid na tabulku, přidání fetchContributors |
-
----
-
-## Vizuální náhled
-
-```text
-┌────────────────────────────────────────────────────────────────────────────┐
-│  Icon  │  Name           │  Type              │ Status │ Start  │ End    │ Contributors │
-├────────┼─────────────────┼────────────────────┼────────┼────────┼────────┼──────────────┤
-│  [🧑]  │  Q1 Campaign    │  Influencer camp.  │ active │ Jan 1  │ Mar 31 │  [👤👤+1]    │
-│  [📊]  │  Summer Ads     │  Ads campaign      │ draft  │ Jun 1  │ Aug 31 │  [👤]        │
-│  [📷]  │  Always-on IG   │  Always-on content │ active │ Jan 1  │ Dec 31 │  -           │
-└────────┴─────────────────┴────────────────────┴────────┴────────┴────────┴──────────────┘
-```
-
-## Zachované prvky
-
-- Vyhledávání a filtry zůstanou beze změny
-- Prázdný stav s "No reports yet" zůstane stejný
-- Kliknutí na řádek naviguje na detail reportu
-- Tlačítko "New Report" zůstává nahoře
+| `src/pages/BrandDetail.tsx` | Úprava layoutu header sekce (řádky 399-428) |
 
