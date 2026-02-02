@@ -1,55 +1,136 @@
 
+# Plán: Zobrazení reportů jako tabulka
 
-# Plán: Oprava jspdf bezpečnostní zranitelnosti
+## Přehled
 
-## Analýza
+Změním zobrazení reportů v tabu Reports z grid layoutu s kartami na tabulkové zobrazení, které odpovídá designu admin panelu (UserList).
 
-### Současný stav
-| Balíček | Verze | Status |
-|---------|-------|--------|
-| jspdf | ^4.0.0 | ✅ Opravená verze |
-| html2pdf.js | ^0.10.3 | ⚠️ Nepoužívaný, obsahuje zranitelný jspdf@3.0.4 |
+## Současný stav
 
-### CVE-2025-68428
-- **Postižené verze:** jspdf < 4.0.0
-- **Typ:** Path Traversal / Local File Inclusion
-- **CVSS skóre:** 9.2 (kritické)
-- **Důležité:** Zranitelnost se týká **pouze Node.js buildů**. Browser buildy nejsou postiženy.
+| Aspekt | Aktuálně |
+|--------|----------|
+| Layout | Grid 1-3 sloupce s kartami |
+| Data | Ikona, název, typ, status, datum |
+| Contributors | Nezobrazují se |
+| Styling | Card komponenta s rounded-[35px] |
 
-### Hodnocení rizika pro tento projekt
-**Nízké riziko** - Projekt používá jspdf pouze v prohlížeči (React SPA), ne na serveru. I kdyby byla použita starší verze, zranitelnost by nebyla zneužitelná v kontextu prohlížeče.
+## Cílový stav
 
----
+| Aspekt | Po změně |
+|--------|----------|
+| Layout | Tabulka se záhlavím |
+| Data | Icon, Název, Type, Status, Start date, End date, Contributors |
+| Contributors | Avatary přispěvatelů (ReportContributors komponenta) |
+| Styling | Table s border border-foreground rounded-[20px] (jako UserList) |
 
-## Řešení
+## Technické řešení
 
-### 1. Odstranit nepoužívaný balíček html2pdf.js
+### 1. Přidat fetch pro contributors
 
-Balíček `html2pdf.js` není nikde v kódu importován ani používán. Přináší zranitelnou transitní závislost `jspdf@3.0.4`. Jeho odstraněním vyčistíme supply chain.
+Bude potřeba načíst contributors pro všechny reporty najednou:
 
-**Změna v package.json:**
-```diff
-- "html2pdf.js": "^0.10.3",
+```typescript
+// Nový state
+const [reportContributors, setReportContributors] = useState<Record<string, Contributor[]>>({});
+
+// Nová funkce - fetch contributors pro všechny reporty
+const fetchReportContributors = async (reportIds: string[]) => {
+  // 1. Fetch všech audit_log záznamů pro dané reporty
+  // 2. Seskupit podle report_id
+  // 3. Pro každý report načíst profily uživatelů
+};
 ```
 
-### 2. Aktualizovat security scan finding
+### 2. Nahradit grid tabulkou
 
-Po úspěšné opravě odstraním odpovídající security finding.
+Vyměním tento kód (řádky 533-573):
+```tsx
+// STARÉ - Grid layout
+<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+  {filteredReports.map((report) => (
+    <Card>...</Card>
+  ))}
+</div>
+```
+
+Za tabulkové zobrazení:
+```tsx
+// NOVÉ - Table layout
+<div className="border border-foreground rounded-[20px] overflow-hidden">
+  <Table>
+    <TableHeader>
+      <TableRow className="border-foreground">
+        <TableHead className="w-[50px]"></TableHead>
+        <TableHead>Name</TableHead>
+        <TableHead>Type</TableHead>
+        <TableHead>Status</TableHead>
+        <TableHead>Start Date</TableHead>
+        <TableHead>End Date</TableHead>
+        <TableHead>Contributors</TableHead>
+      </TableRow>
+    </TableHeader>
+    <TableBody>
+      {filteredReports.map((report) => (
+        <TableRow 
+          key={report.id} 
+          className="border-foreground cursor-pointer hover:bg-muted/50"
+          onClick={() => navigate(`/reports/${report.id}`)}
+        >
+          <TableCell>
+            <div className={`w-10 h-10 rounded-full ${colorClass} flex items-center justify-center`}>
+              <Icon className="w-5 h-5" />
+            </div>
+          </TableCell>
+          <TableCell className="font-medium">{report.name}</TableCell>
+          <TableCell>
+            <Badge variant="outline">{reportTypeLabels[report.type]}</Badge>
+          </TableCell>
+          <TableCell className="capitalize">{report.status}</TableCell>
+          <TableCell>{formattedStartDate}</TableCell>
+          <TableCell>{formattedEndDate}</TableCell>
+          <TableCell>
+            <ReportContributors contributors={reportContributors[report.id] || []} />
+          </TableCell>
+        </TableRow>
+      ))}
+    </TableBody>
+  </Table>
+</div>
+```
+
+### 3. Aktualizovat importy
+
+```typescript
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ReportContributors, Contributor } from "@/components/reports/ReportContributors";
+```
 
 ---
 
 ## Dotčené soubory
 
-| Soubor | Akce |
-|--------|------|
-| `package.json` | Odstranit html2pdf.js závislost |
+| Soubor | Změna |
+|--------|-------|
+| `src/pages/BrandDetail.tsx` | Hlavní úprava - grid na tabulku, přidání fetchContributors |
 
 ---
 
-## Výsledek
+## Vizuální náhled
 
-- Odstraněn nepoužívaný balíček
-- Eliminována zranitelná transitní závislost jspdf@3.0.4
-- Zachována funkčnost PDF exportu (používá přímo jspdf@4.0.0 + html2canvas)
-- Čistší dependency tree
+```text
+┌────────────────────────────────────────────────────────────────────────────┐
+│  Icon  │  Name           │  Type              │ Status │ Start  │ End    │ Contributors │
+├────────┼─────────────────┼────────────────────┼────────┼────────┼────────┼──────────────┤
+│  [🧑]  │  Q1 Campaign    │  Influencer camp.  │ active │ Jan 1  │ Mar 31 │  [👤👤+1]    │
+│  [📊]  │  Summer Ads     │  Ads campaign      │ draft  │ Jun 1  │ Aug 31 │  [👤]        │
+│  [📷]  │  Always-on IG   │  Always-on content │ active │ Jan 1  │ Dec 31 │  -           │
+└────────┴─────────────────┴────────────────────┴────────┴────────┴────────┴──────────────┘
+```
+
+## Zachované prvky
+
+- Vyhledávání a filtry zůstanou beze změny
+- Prázdný stav s "No reports yet" zůstane stejný
+- Kliknutí na řádek naviguje na detail reportu
+- Tlačítko "New Report" zůstává nahoře
 
