@@ -6,6 +6,81 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-api-key',
 };
 
+// Input validation constants
+const MAX_STRING_LENGTH = 2000;
+const MAX_URL_LENGTH = 2048;
+const MAX_INT = 2147483647; // PostgreSQL integer max
+const MIN_DATE = new Date('1970-01-01');
+const MAX_DATE = new Date('2100-12-31');
+
+// Sanitize string input - remove potential XSS
+const sanitizeString = (value: unknown, maxLength = MAX_STRING_LENGTH): string | null => {
+  if (value === null || value === undefined || value === '') return null;
+  const str = String(value)
+    .slice(0, maxLength)
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    .replace(/<[^>]*>/g, '')
+    .trim();
+  return str || null;
+};
+
+// Validate and clamp numeric values
+const validateNumber = (value: unknown, min = 0, max = MAX_INT): number | null => {
+  if (value === null || value === undefined || value === '') return null;
+  const num = typeof value === 'number' ? value : parseFloat(String(value));
+  if (isNaN(num) || !isFinite(num)) return null;
+  return Math.max(min, Math.min(max, Math.floor(num)));
+};
+
+// Validate percentage (0-100)
+const validatePercentage = (value: unknown): number | null => {
+  if (value === null || value === undefined || value === '') return null;
+  const num = typeof value === 'number' ? value : parseFloat(String(value));
+  if (isNaN(num) || !isFinite(num)) return null;
+  return Math.max(0, Math.min(100, num));
+};
+
+// Validate decimal/currency values
+const validateDecimal = (value: unknown, min = 0, max = 999999999): number | null => {
+  if (value === null || value === undefined || value === '') return null;
+  const num = typeof value === 'number' ? value : parseFloat(String(value));
+  if (isNaN(num) || !isFinite(num)) return null;
+  return Math.max(min, Math.min(max, num));
+};
+
+// Validate URL format
+const validateUrl = (value: unknown): string | null => {
+  if (value === null || value === undefined || value === '') return null;
+  const str = String(value).slice(0, MAX_URL_LENGTH).trim();
+  try {
+    new URL(str);
+    return str;
+  } catch {
+    // Allow relative URLs or malformed but safe URLs
+    if (str.startsWith('/') || str.startsWith('http://') || str.startsWith('https://')) {
+      return str;
+    }
+    return null;
+  }
+};
+
+// Validate date is within reasonable range
+const validateDate = (value: unknown): string | null => {
+  if (value === null || value === undefined || value === '') return null;
+  const date = new Date(String(value));
+  if (isNaN(date.getTime())) return null;
+  if (date < MIN_DATE || date > MAX_DATE) return null;
+  return date.toISOString();
+};
+
+// Validate UUID format
+const validateUUID = (value: unknown): string | null => {
+  if (value === null || value === undefined || value === '') return null;
+  const str = String(value).trim();
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(str) ? str : null;
+};
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -259,40 +334,40 @@ serve(async (req) => {
       }
     }
 
-    // Prepare content data
+    // Prepare content data with validated and sanitized inputs
     const contentData = {
       report_id,
       creator_id,
       content_type,
       platform,
-      url: optionalFields.url || null,
-      thumbnail_url: optionalFields.thumbnail_url || null,
-      published_date: optionalFields.published_date || null,
-      views: optionalFields.views || 0,
-      impressions: optionalFields.impressions || 0,
-      reach: optionalFields.reach || 0,
-      likes: optionalFields.likes || 0,
-      comments: optionalFields.comments || 0,
-      shares: optionalFields.shares || 0,
-      saves: optionalFields.saves || 0,
-      link_clicks: optionalFields.link_clicks || 0,
-      sticker_clicks: optionalFields.sticker_clicks || 0,
-      watch_time: optionalFields.watch_time || null,
-      engagement_rate: optionalFields.engagement_rate || null,
+      url: validateUrl(optionalFields.url),
+      thumbnail_url: validateUrl(optionalFields.thumbnail_url),
+      published_date: validateDate(optionalFields.published_date),
+      views: validateNumber(optionalFields.views) ?? 0,
+      impressions: validateNumber(optionalFields.impressions) ?? 0,
+      reach: validateNumber(optionalFields.reach) ?? 0,
+      likes: validateNumber(optionalFields.likes) ?? 0,
+      comments: validateNumber(optionalFields.comments) ?? 0,
+      shares: validateNumber(optionalFields.shares) ?? 0,
+      saves: validateNumber(optionalFields.saves) ?? 0,
+      link_clicks: validateNumber(optionalFields.link_clicks) ?? 0,
+      sticker_clicks: validateNumber(optionalFields.sticker_clicks) ?? 0,
+      watch_time: validateNumber(optionalFields.watch_time),
+      engagement_rate: validatePercentage(optionalFields.engagement_rate),
       sentiment: optionalFields.sentiment || null,
-      sentiment_summary: optionalFields.sentiment_summary || null,
-      notes: optionalFields.notes || null,
-      main_usp: optionalFields.main_usp || null,
-      cost: optionalFields.cost || null,
-      cpm: optionalFields.cpm || null,
-      cpv: optionalFields.cpv || null,
-      cpe: optionalFields.cpe || null,
-      is_branded: optionalFields.is_branded || false,
-      branded_views: optionalFields.branded_views || 0,
-      paid_views: optionalFields.paid_views || 0,
-      organic_views: optionalFields.organic_views || 0,
-      aqs: optionalFields.aqs || null,
-      brand_minutes: optionalFields.brand_minutes || null,
+      sentiment_summary: sanitizeString(optionalFields.sentiment_summary),
+      notes: sanitizeString(optionalFields.notes),
+      main_usp: sanitizeString(optionalFields.main_usp),
+      cost: validateDecimal(optionalFields.cost),
+      cpm: validateDecimal(optionalFields.cpm),
+      cpv: validateDecimal(optionalFields.cpv),
+      cpe: validateDecimal(optionalFields.cpe),
+      is_branded: optionalFields.is_branded === true,
+      branded_views: validateNumber(optionalFields.branded_views) ?? 0,
+      paid_views: validateNumber(optionalFields.paid_views) ?? 0,
+      organic_views: validateNumber(optionalFields.organic_views) ?? 0,
+      aqs: validateDecimal(optionalFields.aqs, 0, 100),
+      brand_minutes: validateDecimal(optionalFields.brand_minutes),
     };
 
     console.log('Inserting content data:', JSON.stringify(contentData, null, 2));

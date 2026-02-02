@@ -50,21 +50,74 @@ const inferContentType = (value: any): string => {
   return "post";
 };
 
-// Parse numeric value
-const parseNumber = (value: any): number | null => {
-  if (value === null || value === undefined || value === "") return null;
-  if (typeof value === "number") return value;
-  const cleaned = String(value).replace(/[^0-9.-]/g, "");
-  const num = parseFloat(cleaned);
-  return isNaN(num) ? null : num;
+// Input validation constants
+const MAX_STRING_LENGTH = 2000;
+const MAX_URL_LENGTH = 2048;
+const MAX_INT = 2147483647; // PostgreSQL integer max
+const MIN_DATE = new Date('1970-01-01');
+const MAX_DATE = new Date('2100-12-31');
+
+// Sanitize string input - remove potential XSS
+const sanitizeString = (value: any, maxLength = MAX_STRING_LENGTH): string => {
+  if (value === null || value === undefined || value === "") return "";
+  return String(value)
+    .slice(0, maxLength)
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    .replace(/<[^>]*>/g, '')
+    .trim();
 };
 
-// Parse date value
+// Parse and validate numeric value with bounds
+const parseNumber = (value: any, min = 0, max = MAX_INT): number | null => {
+  if (value === null || value === undefined || value === "") return null;
+  if (typeof value === "number") {
+    if (!isFinite(value)) return null;
+    return Math.max(min, Math.min(max, Math.floor(value)));
+  }
+  const cleaned = String(value).replace(/[^0-9.-]/g, "");
+  const num = parseFloat(cleaned);
+  if (isNaN(num) || !isFinite(num)) return null;
+  return Math.max(min, Math.min(max, Math.floor(num)));
+};
+
+// Parse and validate decimal value with bounds
+const parseDecimal = (value: any, min = 0, max = 999999999): number | null => {
+  if (value === null || value === undefined || value === "") return null;
+  const num = typeof value === "number" ? value : parseFloat(String(value));
+  if (isNaN(num) || !isFinite(num)) return null;
+  return Math.max(min, Math.min(max, num));
+};
+
+// Parse and validate percentage (0-100)
+const parsePercentage = (value: any): number | null => {
+  if (value === null || value === undefined || value === "") return null;
+  const num = typeof value === "number" ? value : parseFloat(String(value));
+  if (isNaN(num) || !isFinite(num)) return null;
+  return Math.max(0, Math.min(100, num));
+};
+
+// Parse and validate date value with range check
 const parseDate = (value: any): string | null => {
   if (!value) return null;
-  if (value instanceof Date) return value.toISOString();
-  const date = new Date(value);
-  return isNaN(date.getTime()) ? null : date.toISOString();
+  const date = value instanceof Date ? value : new Date(value);
+  if (isNaN(date.getTime())) return null;
+  if (date < MIN_DATE || date > MAX_DATE) return null;
+  return date.toISOString();
+};
+
+// Validate URL format
+const validateUrl = (value: any): string | null => {
+  if (value === null || value === undefined || value === "") return null;
+  const str = String(value).slice(0, MAX_URL_LENGTH).trim();
+  try {
+    new URL(str);
+    return str;
+  } catch {
+    if (str.startsWith('/') || str.startsWith('http://') || str.startsWith('https://')) {
+      return str;
+    }
+    return null;
+  }
 };
 
 serve(async (req) => {
@@ -177,18 +230,23 @@ serve(async (req) => {
                   platform,
                 };
 
-                // Map other fields
+                // Map other fields with validation
                 creatorMappings.forEach(mapping => {
                   if (mapping.targetField !== "handle" && mapping.targetField !== "platform") {
                     const value = row[mapping.sourceColumn];
                     if (value !== null && value !== undefined && value !== "") {
-                      // Handle numeric fields
-                      if (["followers", "posts_count", "reels_count", "stories_count", "avg_reach", "avg_views"].includes(mapping.targetField)) {
-                        creatorData[mapping.targetField] = parseNumber(value);
-                      } else if (["posts_cost", "reels_cost", "stories_cost", "avg_engagement_rate"].includes(mapping.targetField)) {
-                        creatorData[mapping.targetField] = parseNumber(value);
+                      const field = mapping.targetField;
+                      // Handle numeric fields with proper validation
+                      if (["followers", "posts_count", "reels_count", "stories_count", "avg_reach", "avg_views"].includes(field)) {
+                        creatorData[field] = parseNumber(value, 0);
+                      } else if (["posts_cost", "reels_cost", "stories_cost"].includes(field)) {
+                        creatorData[field] = parseDecimal(value, 0);
+                      } else if (field === "avg_engagement_rate") {
+                        creatorData[field] = parsePercentage(value);
+                      } else if (field === "profile_url" || field === "avatar_url") {
+                        creatorData[field] = validateUrl(value);
                       } else {
-                        creatorData[mapping.targetField] = String(value).trim();
+                        creatorData[field] = sanitizeString(value);
                       }
                     }
                   }
@@ -289,27 +347,33 @@ serve(async (req) => {
                   content_type: contentType,
                 };
 
-                // Map other fields
+                // Map other fields with proper validation
                 contentMappings.forEach(mapping => {
                   if (!["creator_handle", "content_platform", "content_type"].includes(mapping.targetField)) {
                     const value = row[mapping.sourceColumn];
                     if (value !== null && value !== undefined && value !== "") {
                       const field = mapping.targetField;
                       
-                      // Handle numeric fields
-                      if (["reach", "impressions", "views", "likes", "comments", "shares", "saves", "reposts", "sticker_clicks", "link_clicks", "watch_time", "avg_watch_time"].includes(field)) {
-                        contentData[field] = parseNumber(value);
-                      } else if (["engagement_rate", "views_3s"].includes(field)) {
-                        contentData[field] = parseNumber(value);
+                      // Handle numeric fields with validation
+                      if (["reach", "impressions", "views", "likes", "comments", "shares", "saves", "reposts", "sticker_clicks", "link_clicks", "watch_time", "avg_watch_time", "branded_views", "paid_views", "organic_views"].includes(field)) {
+                        contentData[field] = parseNumber(value, 0);
+                      } else if (field === "engagement_rate") {
+                        contentData[field] = parsePercentage(value);
+                      } else if (field === "views_3s") {
+                        contentData[field] = parseDecimal(value, 0);
+                      } else if (["cost", "cpm", "cpv", "cpe", "aqs", "brand_minutes"].includes(field)) {
+                        contentData[field] = parseDecimal(value, 0);
                       } else if (field === "published_date") {
                         contentData[field] = parseDate(value);
+                      } else if (field === "url" || field === "thumbnail_url") {
+                        contentData[field] = validateUrl(value);
                       } else if (field === "sentiment") {
                         const sentiment = String(value).toLowerCase().trim();
                         if (["positive", "negative", "neutral"].includes(sentiment)) {
                           contentData[field] = sentiment;
                         }
                       } else {
-                        contentData[field] = String(value).trim();
+                        contentData[field] = sanitizeString(value);
                       }
                     }
                   }
@@ -363,7 +427,7 @@ serve(async (req) => {
                 creator_id: creatorId,
               };
 
-              // Map other fields
+              // Map other fields with validation
               promoMappings.forEach(mapping => {
                 if (!["code", "promo_creator_handle"].includes(mapping.targetField)) {
                   const value = row[mapping.sourceColumn];
@@ -371,11 +435,13 @@ serve(async (req) => {
                     const field = mapping.targetField;
                     
                     if (["clicks", "purchases"].includes(field)) {
-                      promoData[field] = parseNumber(value);
-                    } else if (["revenue", "conversion_rate"].includes(field)) {
-                      promoData[field] = parseNumber(value);
+                      promoData[field] = parseNumber(value, 0);
+                    } else if (field === "revenue") {
+                      promoData[field] = parseDecimal(value, 0);
+                    } else if (field === "conversion_rate") {
+                      promoData[field] = parsePercentage(value);
                     } else {
-                      promoData[field] = String(value).trim();
+                      promoData[field] = sanitizeString(value);
                     }
                   }
                 }
