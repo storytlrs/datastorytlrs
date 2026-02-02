@@ -1,66 +1,70 @@
 
 
-# Plán: Vytvoření DESIGN_SYSTEM.md
+# Plán: Úprava navigace a odstranění Settings tlačítka
 
-## Přehled
+## Přehled změn
 
-Vytvořím soubor `DESIGN_SYSTEM.md` v kořenovém adresáři projektu obsahující kompletní dokumentaci designového systému Story TLRS pro snadné sdílení a replikaci v dalších projektech.
+Provedeme dvě jednoduché úpravy:
+1. Odstraníme tlačítko Settings z detailu brand space
+2. Změníme ikonu v hlavní navigaci z ozubeného kolečka na ikonu uživatele
 
 ---
 
-## Struktura dokumentu
+## Změny
 
-```text
-DESIGN_SYSTEM.md
-├── 1. Přehled
-├── 2. Fonty
-├── 3. Barevná paleta (CSS proměnné)
-├── 4. Tailwind konfigurace
-├── 5. Pravidla designu
-│   ├── Border radius
-│   ├── Hover chování
-│   └── Aktivní stavy
-├── 6. Komponenty
-│   ├── Button
-│   ├── Select
-│   ├── Tabs
-│   ├── Filter Buttons
-│   ├── Dropdown Menu
-│   ├── Popover
-│   └── Dialog
-├── 7. Status Badge systém
-├── 8. Quick Start checklist
-└── 9. Důležitá pravidla (tabulka)
+### 1. BrandDetail.tsx - Odstranění Settings tlačítka
+
+Odstraníme celý blok s tlačítkem Settings v headeru (řádky 192-201):
+
+```tsx
+// PŘED - odstranit tento kód:
+{isAdmin && (
+  <Button
+    variant="outline"
+    onClick={() => setEditDialogOpen(true)}
+    size="icon"
+    className="rounded-[35px] border-foreground"
+  >
+    <Settings className="w-4 h-4" />
+  </Button>
+)}
+```
+
+Také odstraníme:
+- Import `Settings` z lucide-react (řádek 5)
+- State `editDialogOpen` (řádek 83)
+- Komponentu `EditBrandDialog` a její import (řádky 16 a konec souboru)
+
+### 2. MainNavigation.tsx - Změna ikony na User
+
+Změníme import a ikonu:
+
+```tsx
+// PŘED:
+import { LogOut, Settings, Building2, ChevronDown, Check, ArrowLeft } from "lucide-react";
+// ...
+<Settings className="h-4 w-4" />
+
+// PO:
+import { LogOut, User, Building2, ChevronDown, Check, ArrowLeft } from "lucide-react";
+// ...
+<User className="h-4 w-4" />
 ```
 
 ---
 
-## Obsah souboru
-
-Dokument bude obsahovat:
-
-1. **Fonty** - Google Fonts import pro Red Hat Display a Young Serif
-2. **CSS proměnné** - Kompletní light a dark mode definice
-3. **Tailwind config** - Rozšíření barev a border-radius
-4. **Pravidla interakcí** - Hover inverze, aktivní stavy (zelená pro taby, oranžová pro filtry)
-5. **Kód komponent** - Kopírovatelné snippety pro Button, Select, Tabs atd.
-6. **Status systém** - WOW!/VIRAL/OK/FAIL s barvami
-7. **Checklist** - Krok po kroku pro nový projekt
-
----
-
-## Umístění souboru
+## Dotčené soubory
 
 | Soubor | Akce |
 |--------|------|
-| `DESIGN_SYSTEM.md` | Vytvořit v kořenovém adresáři projektu |
+| `src/pages/BrandDetail.tsx` | Odstranit Settings tlačítko, EditBrandDialog a související kód |
+| `src/components/MainNavigation.tsx` | Změnit ikonu Settings na User |
 
 ---
 
 ## Výsledek
 
-- Jeden soubor obsahující veškerou dokumentaci
-- Snadno kopírovatelné code snippety
-- Okamžitě použitelné v nových projektech
-- Verzované společně s projektem v Gitu
+- V detailu brandu nebude žádné tlačítko pro editaci (správa pouze přes Admin panel)
+- V hlavní navigaci bude ikona uživatele místo ozubeného kolečka
+- Funkčnost zůstává stejná: Admin uživatelé půjdou do Admin panelu, ostatní otevřou profil
 
