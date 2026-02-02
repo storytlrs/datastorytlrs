@@ -54,7 +54,7 @@ interface Creator {
   currency: string | null;
 }
 
-type MetricKey = "views" | "budget" | "creators" | "engagementRate" | "watchTime";
+type MetricKey = "views" | "content" | "budget" | "cpm" | "tswbCost" | "creators" | "interactions" | "engagementRate" | "viralityRate" | "watchTime" | "tswb";
 
 const BrandInfluencersDashboard = ({ spaceId, filters }: BrandInfluencersDashboardProps) => {
   const [content, setContent] = useState<Content[]>([]);
@@ -203,6 +203,8 @@ const BrandInfluencersDashboard = ({ spaceId, filters }: BrandInfluencersDashboa
       interactions: number;
       totalViews: number;
       watchTime: number;
+      contentCount: number;
+      shares: number;
     }> = {};
 
     const avgBudgetPerContent = kpis.contentPieces > 0 ? kpis.totalBudget / kpis.contentPieces : 0;
@@ -223,6 +225,8 @@ const BrandInfluencersDashboard = ({ spaceId, filters }: BrandInfluencersDashboa
           interactions: 0,
           totalViews: 0,
           watchTime: 0,
+          contentCount: 0,
+          shares: 0,
         };
       }
 
@@ -233,18 +237,29 @@ const BrandInfluencersDashboard = ({ spaceId, filters }: BrandInfluencersDashboa
       monthlyData[monthKey].creators.add(c.creator_id);
       monthlyData[monthKey].budget += avgBudgetPerContent;
       monthlyData[monthKey].watchTime += c.watch_time || 0;
+      monthlyData[monthKey].contentCount += 1;
+      monthlyData[monthKey].shares += c.shares || 0;
     });
 
     return Object.values(monthlyData)
       .sort((a, b) => a.monthKey.localeCompare(b.monthKey))
-      .map(d => ({
-        month: d.month,
-        views: d.views,
-        budget: d.budget,
-        creators: d.creators.size,
-        engagementRate: d.totalViews > 0 ? (d.interactions / d.totalViews) * 100 : 0,
-        watchTime: d.watchTime / 60, // Convert to minutes for chart
-      }));
+      .map(d => {
+        const watchTimeMinutes = d.watchTime / 60;
+        return {
+          month: d.month,
+          views: d.views,
+          content: d.contentCount,
+          budget: d.budget,
+          cpm: d.views > 0 ? (d.budget / d.views) * 1000 : 0,
+          tswbCost: watchTimeMinutes > 0 ? d.budget / watchTimeMinutes : 0,
+          creators: d.creators.size,
+          interactions: d.interactions,
+          engagementRate: d.totalViews > 0 ? (d.interactions / d.totalViews) * 100 : 0,
+          viralityRate: d.totalViews > 0 ? (d.shares / d.totalViews) * 100 : 0,
+          watchTime: watchTimeMinutes,
+          tswb: d.watchTime, // Keep in seconds
+        };
+      });
   }, [content, kpis]);
 
   // Top 5 content by composite score
@@ -290,20 +305,37 @@ const BrandInfluencersDashboard = ({ spaceId, filters }: BrandInfluencersDashboa
 
   const metricLabels: Record<MetricKey, string> = {
     views: "Views",
+    content: "Content",
     budget: "Budget",
+    cpm: "CPM",
+    tswbCost: "TSWB Cost",
     creators: "Creators",
-    engagementRate: "Engagement Rate (%)",
-    watchTime: "Watch Time (min)",
+    interactions: "Interactions",
+    engagementRate: "ER (%)",
+    viralityRate: "Virality (%)",
+    watchTime: "Watch Time",
+    tswb: "TSWB",
   };
 
   const formatChartValue = (value: number, metric: MetricKey): string => {
     switch (metric) {
       case "budget":
+      case "cpm":
+      case "tswbCost":
         return formatCurrency(value, kpis.currency);
       case "engagementRate":
+      case "viralityRate":
         return `${value.toFixed(2)}%`;
       case "watchTime":
         return `${Math.round(value)}m`;
+      case "tswb":
+        return `${Math.round(value)}s`;
+      case "content":
+      case "creators":
+        return value.toLocaleString("cs-CZ", { maximumFractionDigits: 0 });
+      case "interactions":
+      case "views":
+        return formatLargeNumber(value);
       default:
         return value.toLocaleString("cs-CZ", { maximumFractionDigits: 0 });
     }
