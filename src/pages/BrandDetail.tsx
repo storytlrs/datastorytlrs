@@ -397,9 +397,17 @@ const BrandDetail = () => {
           </TabsContent>
 
           <TabsContent value="reports">
-            {/* Header with New Report button */}
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold">Reports</h2>
+            {/* Header with Search and New Report button */}
+            <div className="flex items-center gap-4 mb-6">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                <Input
+                  placeholder="Search reports..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 rounded-[35px]"
+                />
+              </div>
               {canEdit && (
                 <Button 
                   className="rounded-[35px]"
@@ -411,21 +419,8 @@ const BrandDetail = () => {
               )}
             </div>
 
-            {/* Filter Bar */}
-            <div className="mb-6 space-y-4">
-              {/* Search Bar */}
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                <Input
-                  placeholder="Search reports..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 rounded-[35px]"
-                />
-              </div>
-              
-              {/* Filters */}
-              <div className="flex flex-wrap gap-3">
+            {/* Filters */}
+            <div className="flex flex-wrap gap-3 mb-6">
                 {/* Date Range Start */}
                 <Popover>
                   <PopoverTrigger asChild>
@@ -578,7 +573,6 @@ const BrandDetail = () => {
                     Clear filters
                   </Button>
                 )}
-              </div>
             </div>
 
             {filteredReports.length === 0 ? (
