@@ -10,6 +10,7 @@ import { CreateAdSetDialog } from "./CreateAdSetDialog";
 import { EditAdSetDialog } from "./EditAdSetDialog";
 import { CreatePlanningItemDialog } from "./CreatePlanningItemDialog";
 import { EditPlanningItemDialog } from "./EditPlanningItemDialog";
+import { ImportMetaAdsDialog } from "./ImportMetaAdsDialog";
 import { formatCurrencySimple } from "@/lib/currencyUtils";
 import { Upload } from "lucide-react";
 
@@ -19,7 +20,7 @@ interface AdsDataTabProps {
 }
 
 export const AdsDataTab = ({ reportId, onImportSuccess }: AdsDataTabProps) => {
-  const { canEdit } = useUserRole();
+  const { canEdit, isAdmin } = useUserRole();
   const [activeTab, setActiveTab] = useState("planning");
   const [planning, setPlanning] = useState<any[]>([]);
   const [adCreatives, setAdCreatives] = useState<any[]>([]);
@@ -119,6 +120,11 @@ export const AdsDataTab = ({ reportId, onImportSuccess }: AdsDataTabProps) => {
     { key: "frequency", label: "Frequency", type: "number", width: "100px", editable: false, format: (val: number) => val ? val.toFixed(2) : "-" },
   ];
 
+  const handleImportSuccess = () => {
+    fetchData();
+    onImportSuccess?.();
+  };
+
   return (
     <Card className="p-8 rounded-[35px] border-foreground">
       <div className="flex items-start justify-between mb-6">
@@ -128,6 +134,9 @@ export const AdsDataTab = ({ reportId, onImportSuccess }: AdsDataTabProps) => {
             Manage planning and ad performance data {canEdit ? "(Click rows to edit)" : "(Read-only)"}
           </p>
         </div>
+        {isAdmin && (
+          <ImportMetaAdsDialog reportId={reportId} onSuccess={handleImportSuccess} />
+        )}
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
