@@ -20,6 +20,18 @@ interface BrandAdsDashboardProps {
   filters: OverviewFilters;
 }
 
+interface AdSetRow {
+  id: string;
+  ad_name: string | null;
+  platform: string;
+  amount_spent: number | null;
+  impressions: number | null;
+  link_clicks: number | null;
+  ctr: number | null;
+  frequency: number | null;
+  date_start: string | null;
+}
+
 interface AdCreative {
   id: string;
   name: string;
@@ -79,7 +91,7 @@ const BrandAdsDashboard = ({ spaceId, filters }: BrandAdsDashboardProps) => {
 
       let adsQuery = supabase
         .from("ad_sets")
-        .select("id, name, platform, spend, impressions, clicks, conversions, ctr, roas, frequency, thumbnail_url, url, published_date")
+        .select("id, ad_name, platform, amount_spent, impressions, link_clicks, ctr, frequency, date_start")
         .in("report_id", reportIds);
 
       if (filters.platform !== "all") {
@@ -89,7 +101,24 @@ const BrandAdsDashboard = ({ spaceId, filters }: BrandAdsDashboardProps) => {
       const { data: adsData, error: adsError } = await adsQuery;
       if (adsError) throw adsError;
 
-      setAdCreatives(adsData || []);
+      // Map database rows to AdCreative interface
+      const mappedData: AdCreative[] = (adsData || []).map((row: AdSetRow) => ({
+        id: row.id,
+        name: row.ad_name || "Unnamed Ad",
+        platform: row.platform,
+        spend: row.amount_spent,
+        impressions: row.impressions,
+        clicks: row.link_clicks,
+        conversions: null,
+        ctr: row.ctr,
+        roas: null,
+        frequency: row.frequency,
+        thumbnail_url: null,
+        url: null,
+        published_date: row.date_start,
+      }));
+
+      setAdCreatives(mappedData);
     } catch (error) {
       console.error("Failed to fetch ads data:", error);
     } finally {
