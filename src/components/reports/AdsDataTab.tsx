@@ -87,8 +87,8 @@ export const AdsDataTab = ({ reportId, onImportSuccess }: AdsDataTabProps) => {
     if (table === "ad_sets") await fetchAdCreatives();
   };
 
-  const formatNumber = (num: number | null) => {
-    if (num === null) return "-";
+  const formatNumber = (num: number | null | undefined) => {
+    if (num === null || num === undefined) return "-";
     if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
     if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
     return num.toString();
