@@ -14,7 +14,7 @@ export type Database = {
   }
   public: {
     Tables: {
-      ad_creatives: {
+      ad_sets: {
         Row: {
           ad_type: string | null
           adset_name: string | null
@@ -88,6 +88,135 @@ export type Database = {
           },
         ]
       }
+      ads: {
+        Row: {
+          ad_id: string | null
+          ad_name: string
+          ad_set_id: string
+          age: string | null
+          amount_spent: number | null
+          cost_per_3s_play: number | null
+          cost_per_thruplay: number | null
+          cpc: number | null
+          cpe: number | null
+          cpm: number | null
+          created_at: string
+          ctr: number | null
+          date_start: string | null
+          date_stop: string | null
+          engagement_rate: number | null
+          frequency: number | null
+          gender: string | null
+          id: string
+          impressions: number | null
+          instagram_follows: number | null
+          instagram_profile_visits: number | null
+          link_clicks: number | null
+          platform: Database["public"]["Enums"]["platform_type"]
+          post_comments: number | null
+          post_reactions: number | null
+          post_saves: number | null
+          post_shares: number | null
+          reach: number | null
+          report_id: string
+          thruplay_rate: number | null
+          thruplays: number | null
+          updated_at: string
+          video_3s_plays: number | null
+          video_avg_play_time: number | null
+          view_rate_3s: number | null
+        }
+        Insert: {
+          ad_id?: string | null
+          ad_name: string
+          ad_set_id: string
+          age?: string | null
+          amount_spent?: number | null
+          cost_per_3s_play?: number | null
+          cost_per_thruplay?: number | null
+          cpc?: number | null
+          cpe?: number | null
+          cpm?: number | null
+          created_at?: string
+          ctr?: number | null
+          date_start?: string | null
+          date_stop?: string | null
+          engagement_rate?: number | null
+          frequency?: number | null
+          gender?: string | null
+          id?: string
+          impressions?: number | null
+          instagram_follows?: number | null
+          instagram_profile_visits?: number | null
+          link_clicks?: number | null
+          platform: Database["public"]["Enums"]["platform_type"]
+          post_comments?: number | null
+          post_reactions?: number | null
+          post_saves?: number | null
+          post_shares?: number | null
+          reach?: number | null
+          report_id: string
+          thruplay_rate?: number | null
+          thruplays?: number | null
+          updated_at?: string
+          video_3s_plays?: number | null
+          video_avg_play_time?: number | null
+          view_rate_3s?: number | null
+        }
+        Update: {
+          ad_id?: string | null
+          ad_name?: string
+          ad_set_id?: string
+          age?: string | null
+          amount_spent?: number | null
+          cost_per_3s_play?: number | null
+          cost_per_thruplay?: number | null
+          cpc?: number | null
+          cpe?: number | null
+          cpm?: number | null
+          created_at?: string
+          ctr?: number | null
+          date_start?: string | null
+          date_stop?: string | null
+          engagement_rate?: number | null
+          frequency?: number | null
+          gender?: string | null
+          id?: string
+          impressions?: number | null
+          instagram_follows?: number | null
+          instagram_profile_visits?: number | null
+          link_clicks?: number | null
+          platform?: Database["public"]["Enums"]["platform_type"]
+          post_comments?: number | null
+          post_reactions?: number | null
+          post_saves?: number | null
+          post_shares?: number | null
+          reach?: number | null
+          report_id?: string
+          thruplay_rate?: number | null
+          thruplays?: number | null
+          updated_at?: string
+          video_3s_plays?: number | null
+          video_avg_play_time?: number | null
+          view_rate_3s?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ads_ad_set_id_fkey"
+            columns: ["ad_set_id"]
+            isOneToOne: false
+            referencedRelation: "ad_sets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ads_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_log: {
         Row: {
           action_type: string
@@ -123,7 +252,7 @@ export type Database = {
           },
         ]
       }
-      campaign_planning: {
+      campaign_meta: {
         Row: {
           actual_value: number | null
           created_at: string

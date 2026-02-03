@@ -1,10 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,16 +18,16 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { Plus } from "lucide-react";
 import { ImageUpload } from "@/components/ui/image-upload";
 
-interface EditAdCreativeDialogProps {
-  adCreative: any;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+interface CreateAdSetDialogProps {
+  reportId: string;
   onSuccess: () => void;
 }
 
-export const EditAdCreativeDialog = ({ adCreative, open, onOpenChange, onSuccess }: EditAdCreativeDialogProps) => {
+export const CreateAdSetDialog = ({ reportId, onSuccess }: CreateAdSetDialogProps) => {
+  const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
@@ -45,27 +46,6 @@ export const EditAdCreativeDialog = ({ adCreative, open, onOpenChange, onSuccess
     frequency: "",
   });
 
-  useEffect(() => {
-    if (adCreative) {
-      setFormData({
-        name: adCreative.name || "",
-        platform: adCreative.platform || "instagram",
-        ad_type: adCreative.ad_type || "",
-        url: adCreative.url || "",
-        thumbnail_url: adCreative.thumbnail_url || "",
-        campaign_name: adCreative.campaign_name || "",
-        adset_name: adCreative.adset_name || "",
-        spend: adCreative.spend?.toString() || "",
-        impressions: adCreative.impressions?.toString() || "",
-        clicks: adCreative.clicks?.toString() || "",
-        conversions: adCreative.conversions?.toString() || "",
-        ctr: adCreative.ctr?.toString() || "",
-        roas: adCreative.roas?.toString() || "",
-        frequency: adCreative.frequency?.toString() || "",
-      });
-    }
-  }, [adCreative]);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name || !formData.platform) {
@@ -75,7 +55,8 @@ export const EditAdCreativeDialog = ({ adCreative, open, onOpenChange, onSuccess
 
     setLoading(true);
     try {
-      const { error } = await supabase.from("ad_creatives").update({
+      const { error } = await supabase.from("ad_sets").insert({
+        report_id: reportId,
         name: formData.name,
         platform: formData.platform,
         ad_type: formData.ad_type || null,
@@ -90,25 +71,51 @@ export const EditAdCreativeDialog = ({ adCreative, open, onOpenChange, onSuccess
         ctr: formData.ctr ? parseFloat(formData.ctr) : 0,
         roas: formData.roas ? parseFloat(formData.roas) : 0,
         frequency: formData.frequency ? parseFloat(formData.frequency) : 0,
-      }).eq("id", adCreative.id);
+      });
 
       if (error) throw error;
 
-      toast.success("Ad creative updated successfully");
-      onOpenChange(false);
+      toast.success("Ad set created successfully");
+      setOpen(false);
+      resetForm();
       onSuccess();
     } catch (error) {
-      toast.error("Failed to update ad creative");
+      toast.error("Failed to create ad set");
     } finally {
       setLoading(false);
     }
   };
 
+  const resetForm = () => {
+    setFormData({
+      name: "",
+      platform: "instagram",
+      ad_type: "",
+      url: "",
+      thumbnail_url: "",
+      campaign_name: "",
+      adset_name: "",
+      spend: "",
+      impressions: "",
+      clicks: "",
+      conversions: "",
+      ctr: "",
+      roas: "",
+      frequency: "",
+    });
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button className="rounded-[35px]">
+          <Plus className="w-4 h-4 mr-2" />
+          Add Ad Set
+        </Button>
+      </DialogTrigger>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Edit Ad Creative</DialogTitle>
+          <DialogTitle>Add Ad Set</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Basic Info */}
@@ -121,7 +128,7 @@ export const EditAdCreativeDialog = ({ adCreative, open, onOpenChange, onSuccess
                   id="name"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="Ad creative name"
+                  placeholder="Ad set name"
                 />
               </div>
               <div className="space-y-2">
@@ -289,11 +296,11 @@ export const EditAdCreativeDialog = ({ adCreative, open, onOpenChange, onSuccess
           </div>
 
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="rounded-[35px]">
+            <Button type="button" variant="outline" onClick={() => setOpen(false)} className="rounded-[35px]">
               Cancel
             </Button>
             <Button type="submit" disabled={loading} className="rounded-[35px]">
-              {loading ? "Saving..." : "Save Changes"}
+              {loading ? "Creating..." : "Create Ad Set"}
             </Button>
           </div>
         </form>
