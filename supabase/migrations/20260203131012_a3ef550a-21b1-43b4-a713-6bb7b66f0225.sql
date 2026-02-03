@@ -1,0 +1,42 @@
+-- Remove columns from ad_sets that are not needed
+ALTER TABLE ad_sets 
+  DROP COLUMN IF EXISTS thumbnail_url,
+  DROP COLUMN IF EXISTS url,
+  DROP COLUMN IF EXISTS ad_type,
+  DROP COLUMN IF EXISTS adset_name,
+  DROP COLUMN IF EXISTS conversions,
+  DROP COLUMN IF EXISTS roas,
+  DROP COLUMN IF EXISTS published_date,
+  DROP COLUMN IF EXISTS name,
+  DROP COLUMN IF EXISTS spend,
+  DROP COLUMN IF EXISTS clicks;
+
+-- Add columns to match ads table structure + campaign_id
+ALTER TABLE ad_sets
+  ADD COLUMN IF NOT EXISTS campaign_id text,
+  ADD COLUMN IF NOT EXISTS ad_id text,
+  ADD COLUMN IF NOT EXISTS ad_name text,
+  ADD COLUMN IF NOT EXISTS date_start date,
+  ADD COLUMN IF NOT EXISTS date_stop date,
+  ADD COLUMN IF NOT EXISTS age text,
+  ADD COLUMN IF NOT EXISTS gender text,
+  ADD COLUMN IF NOT EXISTS amount_spent numeric DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS reach integer DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS cpm numeric DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS thruplays integer DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS thruplay_rate numeric DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS cost_per_thruplay numeric DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS video_3s_plays integer DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS view_rate_3s numeric DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS cost_per_3s_play numeric DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS video_avg_play_time numeric DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS engagement_rate numeric DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS cpe numeric DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS post_reactions integer DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS post_comments integer DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS post_shares integer DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS post_saves integer DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS instagram_profile_visits integer DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS instagram_follows integer DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS link_clicks integer DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS cpc numeric DEFAULT 0;
