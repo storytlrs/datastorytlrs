@@ -212,11 +212,12 @@ export const EditableDataTable = ({
 
   return (
     <div className="rounded-[35px] border border-foreground overflow-hidden">
-      <Table>
+      <div className="overflow-x-auto">
+        <Table className="min-w-max">
         <TableHeader>
           <TableRow>
             {columns.map((col) => (
-              <TableHead key={col.key} style={{ width: col.width }}>
+              <TableHead key={col.key} style={{ width: col.width, minWidth: col.width }} className="whitespace-nowrap">
                 {col.label}
               </TableHead>
             ))}
@@ -234,7 +235,9 @@ export const EditableDataTable = ({
               data.map((row) => (
               <TableRow key={row.id}>
                 {columns.map((col) => (
-                  <TableCell key={col.key} style={{ maxWidth: col.maxWidth }}>{renderCell(row, col)}</TableCell>
+                  <TableCell key={col.key} style={{ minWidth: col.width, maxWidth: col.maxWidth }} className="whitespace-nowrap">
+                    {renderCell(row, col)}
+                  </TableCell>
                 ))}
                 {canEdit && (onDelete || onEdit) && (
                   <TableCell>
@@ -269,7 +272,8 @@ export const EditableDataTable = ({
             ))
           )}
         </TableBody>
-      </Table>
+        </Table>
+      </div>
     </div>
   );
 };
