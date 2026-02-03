@@ -581,8 +581,8 @@ export const AdsOverviewTab = ({ reportId }: AdsOverviewTabProps) => {
         )}
       </div>
 
-      {/* Campaign KPIs - always show when campaigns exist */}
-      {campaignKPIs && (
+      {/* Campaign KPIs - show only when campaign is selected but NOT ad set or ad */}
+      {campaignKPIs && !selectedAdSetId && !selectedAdId && (
         <div className="space-y-8">
           <div className="border-b pb-2">
             <h2 className="font-bold text-xl uppercase tracking-wide">Campaign</h2>
@@ -628,8 +628,8 @@ export const AdsOverviewTab = ({ reportId }: AdsOverviewTabProps) => {
         </div>
       )}
 
-      {/* Ad Set KPIs - show when ad set is selected */}
-      {adSetKPIs && (
+      {/* Ad Set KPIs - show only when ad set is selected but NOT ad */}
+      {adSetKPIs && !selectedAdId && (
         <div className="space-y-8">
           <div className="border-b pb-2">
             <h2 className="font-bold text-xl uppercase tracking-wide">Ad Set</h2>
@@ -675,7 +675,7 @@ export const AdsOverviewTab = ({ reportId }: AdsOverviewTabProps) => {
         </div>
       )}
 
-      {/* Ads KPIs - show when ad is selected */}
+      {/* Ads KPIs - show only when ad is selected */}
       {adsKPIs && (
         <div className="space-y-8">
           <div className="border-b pb-2">
