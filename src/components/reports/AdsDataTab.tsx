@@ -495,8 +495,8 @@ export const AdsDataTab = ({ reportId, onImportSuccess }: AdsDataTabProps) => {
       </div>
 
       <div className="space-y-8">
-        {/* Campaign Meta Table - always show if campaigns exist and campaign is selected OR no selection */}
-        {displayCampaigns.length > 0 && (
+        {/* Campaign Meta Table - show only when campaign is selected but NOT ad set or ad */}
+        {displayCampaigns.length > 0 && !selectedAdSetId && !selectedAdId && (
           <div>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold">Campaigns</h3>
@@ -518,8 +518,8 @@ export const AdsDataTab = ({ reportId, onImportSuccess }: AdsDataTabProps) => {
           </div>
         )}
 
-        {/* Ad Sets Table - show only when ad set is selected */}
-        {selectedAdSetId && displayAdSets.length > 0 && (
+        {/* Ad Sets Table - show only when ad set is selected but NOT ad */}
+        {selectedAdSetId && !selectedAdId && displayAdSets.length > 0 && (
           <div>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold">Ad Sets</h3>
