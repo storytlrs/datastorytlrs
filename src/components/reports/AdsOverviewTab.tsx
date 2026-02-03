@@ -493,7 +493,7 @@ export const AdsOverviewTab = ({ reportId }: AdsOverviewTabProps) => {
       {adSetKPIs && (
         <div className="space-y-8">
           <div className="border-b pb-2">
-            <h2 className="font-bold text-xl uppercase tracking-wide">Ad Sets ({adSetKPIs.effectiveness.count})</h2>
+            <h2 className="font-bold text-xl uppercase tracking-wide">Ad Sets</h2>
           </div>
           
           {/* Awareness Section */}
@@ -540,7 +540,7 @@ export const AdsOverviewTab = ({ reportId }: AdsOverviewTabProps) => {
       {adsKPIs && (
         <div className="space-y-8">
           <div className="border-b pb-2">
-            <h2 className="font-bold text-xl uppercase tracking-wide">Ads ({adsKPIs.effectiveness.count})</h2>
+            <h2 className="font-bold text-xl uppercase tracking-wide">Ads</h2>
           </div>
           
           {/* Awareness Section */}
