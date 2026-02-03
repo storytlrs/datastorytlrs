@@ -171,7 +171,7 @@ export const AlwaysOnDataTab = ({ reportId, onImportSuccess }: AlwaysOnDataTabPr
           </div>
           {canEdit && (
             <div className="flex justify-end">
-              <CreatePlanningItemDialog reportId={reportId} itemType="content" onSuccess={fetchPlanning} />
+              <CreatePlanningItemDialog reportId={reportId} onSuccess={fetchPlanning} />
             </div>
           )}
           <EditableDataTable

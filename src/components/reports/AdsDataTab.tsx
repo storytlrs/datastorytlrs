@@ -97,35 +97,11 @@ export const AdsDataTab = ({ reportId, onImportSuccess }: AdsDataTabProps) => {
   };
 
   const planningColumns: ColumnDef[] = [
-    { key: "item_name", label: "Item", type: "text", width: "200px", editable: false },
-    { 
-      key: "item_type", 
-      label: "Type", 
-      type: "select", 
-      width: "120px",
-      editable: false,
-      options: [
-        { value: "budget", label: "Budget" },
-        { value: "ad", label: "Ad" },
-        { value: "objective", label: "Objective" },
-      ]
-    },
-    { key: "planned_value", label: "Planned", type: "number", width: "120px", editable: false },
-    { key: "actual_value", label: "Actual", type: "number", width: "120px", editable: false },
-    { key: "unit", label: "Unit", type: "text", width: "100px", editable: false },
-    { 
-      key: "currency", 
-      label: "Currency", 
-      type: "select", 
-      width: "100px",
-      editable: false,
-      options: [
-        { value: "CZK", label: "Kč CZK" },
-        { value: "EUR", label: "€ EUR" },
-        { value: "USD", label: "$ USD" },
-      ]
-    },
-    { key: "notes", label: "Notes", type: "text", width: "200px", editable: false },
+    { key: "internal_id", label: "Internal ID", type: "text", width: "120px", editable: false },
+    { key: "account_name", label: "Account Name", type: "text", width: "150px", editable: false },
+    { key: "account_id", label: "Account ID", type: "text", width: "120px", editable: false },
+    { key: "adset_id", label: "Ad Set ID", type: "text", width: "120px", editable: false },
+    { key: "adset_name", label: "Ad Set Name", type: "text", width: "180px", editable: false },
   ];
 
   const adCreativesColumns: ColumnDef[] = [
@@ -163,14 +139,14 @@ export const AdsDataTab = ({ reportId, onImportSuccess }: AdsDataTabProps) => {
 
         <TabsContent value="planning" className="space-y-4">
           <div className="mb-4">
-            <h3 className="text-lg font-semibold">Campaign Planning</h3>
+            <h3 className="text-lg font-semibold">Campaign Meta</h3>
             <p className="text-sm text-muted-foreground">
-              Budget allocation, objectives, and planned vs actual performance
+              Campaign metadata including account and ad set information
             </p>
           </div>
           {canEdit && (
             <div className="flex justify-end">
-              <CreatePlanningItemDialog reportId={reportId} itemType="ad" onSuccess={fetchPlanning} />
+              <CreatePlanningItemDialog reportId={reportId} onSuccess={fetchPlanning} />
             </div>
           )}
           <EditableDataTable

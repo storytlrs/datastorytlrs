@@ -254,42 +254,36 @@ export type Database = {
       }
       campaign_meta: {
         Row: {
-          actual_value: number | null
+          account_id: string | null
+          account_name: string | null
+          adset_id: string | null
+          adset_name: string | null
           created_at: string
-          currency: string | null
           id: string
-          item_name: string
-          item_type: string
-          notes: string | null
-          planned_value: number | null
+          internal_id: string | null
           report_id: string
-          unit: string | null
           updated_at: string
         }
         Insert: {
-          actual_value?: number | null
+          account_id?: string | null
+          account_name?: string | null
+          adset_id?: string | null
+          adset_name?: string | null
           created_at?: string
-          currency?: string | null
           id?: string
-          item_name: string
-          item_type: string
-          notes?: string | null
-          planned_value?: number | null
+          internal_id?: string | null
           report_id: string
-          unit?: string | null
           updated_at?: string
         }
         Update: {
-          actual_value?: number | null
+          account_id?: string | null
+          account_name?: string | null
+          adset_id?: string | null
+          adset_name?: string | null
           created_at?: string
-          currency?: string | null
           id?: string
-          item_name?: string
-          item_type?: string
-          notes?: string | null
-          planned_value?: number | null
+          internal_id?: string | null
           report_id?: string
-          unit?: string | null
           updated_at?: string
         }
         Relationships: [
