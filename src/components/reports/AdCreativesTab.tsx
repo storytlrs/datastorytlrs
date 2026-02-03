@@ -68,12 +68,31 @@ export const AdCreativesTab = ({ reportId }: AdCreativesTabProps) => {
     setLoading(true);
     const { data, error } = await supabase
       .from("ad_sets")
-      .select("*")
+      .select("id, ad_name, platform, campaign_name, amount_spent, impressions, link_clicks, ctr, frequency, date_start")
       .eq("report_id", reportId)
-      .order("spend", { ascending: false });
+      .order("amount_spent", { ascending: false });
 
-    if (!error) {
-      setAdCreatives(data || []);
+    if (!error && data) {
+      // Map database rows to AdCreative interface
+      const mappedData: AdCreative[] = data.map((row) => ({
+        id: row.id,
+        name: row.ad_name || "Unnamed Ad",
+        platform: row.platform,
+        ad_type: null,
+        thumbnail_url: null,
+        url: null,
+        campaign_name: row.campaign_name,
+        adset_name: null,
+        spend: row.amount_spent,
+        impressions: row.impressions,
+        clicks: row.link_clicks,
+        conversions: null,
+        ctr: row.ctr,
+        roas: null,
+        frequency: row.frequency,
+        published_date: row.date_start,
+      }));
+      setAdCreatives(mappedData);
     }
     setLoading(false);
   };
@@ -109,11 +128,7 @@ export const AdCreativesTab = ({ reportId }: AdCreativesTabProps) => {
       
       if (thumbnailUrl) {
         setFetchedPreviews(prev => ({ ...prev, [itemId]: thumbnailUrl }));
-        supabase
-          .from("ad_sets")
-          .update({ thumbnail_url: thumbnailUrl })
-          .eq("id", itemId)
-          .then(() => {});
+        // Note: ad_sets table doesn't have thumbnail_url column, so we only cache in state
       } else {
         setFetchedPreviews(prev => ({ ...prev, [itemId]: null }));
       }
