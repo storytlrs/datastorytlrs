@@ -6,8 +6,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { EditableDataTable, ColumnDef } from "./EditableDataTable";
 import { toast } from "sonner";
 import { useUserRole } from "@/hooks/useUserRole";
-import { CreateAdCreativeDialog } from "./CreateAdCreativeDialog";
-import { EditAdCreativeDialog } from "./EditAdCreativeDialog";
+import { CreateAdSetDialog } from "./CreateAdSetDialog";
+import { EditAdSetDialog } from "./EditAdSetDialog";
 import { CreatePlanningItemDialog } from "./CreatePlanningItemDialog";
 import { EditPlanningItemDialog } from "./EditPlanningItemDialog";
 import { formatCurrencySimple } from "@/lib/currencyUtils";
@@ -42,7 +42,7 @@ export const AdsDataTab = ({ reportId, onImportSuccess }: AdsDataTabProps) => {
 
   const fetchPlanning = async () => {
     const { data, error } = await supabase
-      .from("campaign_planning")
+      .from("campaign_meta")
       .select("*")
       .eq("report_id", reportId)
       .order("created_at", { ascending: false });
@@ -56,19 +56,19 @@ export const AdsDataTab = ({ reportId, onImportSuccess }: AdsDataTabProps) => {
 
   const fetchAdCreatives = async () => {
     const { data, error } = await supabase
-      .from("ad_creatives")
+      .from("ad_sets")
       .select("*")
       .eq("report_id", reportId)
       .order("created_at", { ascending: false });
 
     if (error) {
-      toast.error("Failed to load ad creatives");
+      toast.error("Failed to load ad sets");
       return;
     }
     setAdCreatives(data || []);
   };
 
-  const handleUpdate = async (table: "campaign_planning" | "ad_creatives", id: string, field: string, value: any) => {
+  const handleUpdate = async (table: "campaign_meta" | "ad_sets", id: string, field: string, value: any) => {
     const { error } = await supabase
       .from(table)
       .update({ [field]: value })
@@ -76,17 +76,17 @@ export const AdsDataTab = ({ reportId, onImportSuccess }: AdsDataTabProps) => {
 
     if (error) throw error;
 
-    if (table === "campaign_planning") await fetchPlanning();
-    if (table === "ad_creatives") await fetchAdCreatives();
+    if (table === "campaign_meta") await fetchPlanning();
+    if (table === "ad_sets") await fetchAdCreatives();
   };
 
-  const handleDelete = async (table: "campaign_planning" | "ad_creatives", id: string) => {
+  const handleDelete = async (table: "campaign_meta" | "ad_sets", id: string) => {
     const { error } = await supabase.from(table).delete().eq("id", id);
 
     if (error) throw error;
 
-    if (table === "campaign_planning") await fetchPlanning();
-    if (table === "ad_creatives") await fetchAdCreatives();
+    if (table === "campaign_meta") await fetchPlanning();
+    if (table === "ad_sets") await fetchAdCreatives();
   };
 
   const formatNumber = (num: number | null) => {
@@ -177,8 +177,8 @@ export const AdsDataTab = ({ reportId, onImportSuccess }: AdsDataTabProps) => {
             columns={planningColumns}
             data={planning}
             canEdit={canEdit}
-            onUpdate={(id, field, value) => handleUpdate("campaign_planning", id, field, value)}
-            onDelete={canEdit ? (id) => handleDelete("campaign_planning", id) : undefined}
+            onUpdate={(id, field, value) => handleUpdate("campaign_meta", id, field, value)}
+            onDelete={canEdit ? (id) => handleDelete("campaign_meta", id) : undefined}
             onEdit={canEdit ? (item) => setEditingPlanning(item) : undefined}
             loading={loading}
           />
@@ -201,21 +201,21 @@ export const AdsDataTab = ({ reportId, onImportSuccess }: AdsDataTabProps) => {
           </div>
           {canEdit && (
             <div className="flex justify-end">
-              <CreateAdCreativeDialog reportId={reportId} onSuccess={fetchAdCreatives} />
+              <CreateAdSetDialog reportId={reportId} onSuccess={fetchAdCreatives} />
             </div>
           )}
           <EditableDataTable
             columns={adCreativesColumns}
             data={adCreatives}
             canEdit={canEdit}
-            onUpdate={(id, field, value) => handleUpdate("ad_creatives", id, field, value)}
-            onDelete={canEdit ? (id) => handleDelete("ad_creatives", id) : undefined}
+            onUpdate={(id, field, value) => handleUpdate("ad_sets", id, field, value)}
+            onDelete={canEdit ? (id) => handleDelete("ad_sets", id) : undefined}
             onEdit={canEdit ? (item) => setEditingAdCreative(item) : undefined}
             loading={loading}
           />
           {editingAdCreative && (
-            <EditAdCreativeDialog
-              adCreative={editingAdCreative}
+            <EditAdSetDialog
+              adSet={editingAdCreative}
               open={!!editingAdCreative}
               onOpenChange={(open) => !open && setEditingAdCreative(null)}
               onSuccess={fetchAdCreatives}

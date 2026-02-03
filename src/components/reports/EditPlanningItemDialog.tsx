@@ -80,7 +80,7 @@ export const EditPlanningItemDialog = ({ item, open, onOpenChange, onSuccess }: 
 
     setLoading(true);
     try {
-      const { error } = await supabase.from("campaign_planning").update({
+      const { error } = await supabase.from("campaign_meta").update({
         item_name: formData.item_name,
         item_type: formData.item_type,
         planned_value: formData.planned_value ? parseFloat(formData.planned_value) : null,

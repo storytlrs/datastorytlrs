@@ -67,7 +67,7 @@ export const AdCreativesTab = ({ reportId }: AdCreativesTabProps) => {
   const fetchAdCreatives = async () => {
     setLoading(true);
     const { data, error } = await supabase
-      .from("ad_creatives")
+      .from("ad_sets")
       .select("*")
       .eq("report_id", reportId)
       .order("spend", { ascending: false });
@@ -110,7 +110,7 @@ export const AdCreativesTab = ({ reportId }: AdCreativesTabProps) => {
       if (thumbnailUrl) {
         setFetchedPreviews(prev => ({ ...prev, [itemId]: thumbnailUrl }));
         supabase
-          .from("ad_creatives")
+          .from("ad_sets")
           .update({ thumbnail_url: thumbnailUrl })
           .eq("id", itemId)
           .then(() => {});

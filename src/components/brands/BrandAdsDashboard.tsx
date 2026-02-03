@@ -78,7 +78,7 @@ const BrandAdsDashboard = ({ spaceId, filters }: BrandAdsDashboardProps) => {
       }
 
       let adsQuery = supabase
-        .from("ad_creatives")
+        .from("ad_sets")
         .select("id, name, platform, spend, impressions, clicks, conversions, ctr, roas, frequency, thumbnail_url, url, published_date")
         .in("report_id", reportIds);
 

@@ -73,7 +73,7 @@ export const CreatePlanningItemDialog = ({ reportId, itemType, onSuccess }: Crea
 
     setLoading(true);
     try {
-      const { error } = await supabase.from("campaign_planning").insert({
+      const { error } = await supabase.from("campaign_meta").insert({
         report_id: reportId,
         item_name: formData.item_name,
         item_type: formData.item_type,
