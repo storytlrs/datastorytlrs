@@ -174,7 +174,7 @@ export const AdsDataTab = ({ reportId, onImportSuccess }: AdsDataTabProps) => {
       <div className="space-y-8">
         {/* Ad Sets Table */}
         <div>
-          <h3 className="text-lg font-semibold mb-4">Ad Sets ({filteredAdSets.length})</h3>
+          <h3 className="text-lg font-semibold mb-4">Ad Sets</h3>
           <EditableDataTable
             columns={adSetsColumns}
             data={filteredAdSets}
@@ -188,7 +188,7 @@ export const AdsDataTab = ({ reportId, onImportSuccess }: AdsDataTabProps) => {
 
         {/* Ads Table */}
         <div>
-          <h3 className="text-lg font-semibold mb-4">Ads ({filteredAds.length})</h3>
+          <h3 className="text-lg font-semibold mb-4">Ads</h3>
           <EditableDataTable
             columns={adsColumns}
             data={filteredAds}
