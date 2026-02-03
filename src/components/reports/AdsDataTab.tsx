@@ -1,7 +1,9 @@
 import { useState, useEffect, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { supabase } from "@/integrations/supabase/client";
 import { EditableDataTable, ColumnDef } from "./EditableDataTable";
 import { ColumnSelector } from "./ColumnSelector";
@@ -10,8 +12,11 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { CreateAdSetDialog } from "./CreateAdSetDialog";
 import { EditAdSetDialog } from "./EditAdSetDialog";
 import { EditAdDialog } from "./EditAdDialog";
+import { EditPlanningItemDialog } from "./EditPlanningItemDialog";
 import { CreatePlanningItemDialog } from "./CreatePlanningItemDialog";
 import { formatCurrencySimple } from "@/lib/currencyUtils";
+import { Check, ChevronDown, X } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface AdsDataTabProps {
   reportId: string;
@@ -20,14 +25,30 @@ interface AdsDataTabProps {
 
 export const AdsDataTab = ({ reportId, onImportSuccess }: AdsDataTabProps) => {
   const { canEdit } = useUserRole();
+  const [campaignMeta, setCampaignMeta] = useState<any[]>([]);
   const [adSets, setAdSets] = useState<any[]>([]);
   const [ads, setAds] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedCampaign, setSelectedCampaign] = useState<string>("all");
+  
+  // Hierarchical selection state
+  const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(null);
+  const [selectedAdSetId, setSelectedAdSetId] = useState<string | null>(null);
+  const [selectedAdId, setSelectedAdId] = useState<string | null>(null);
+  
+  // Search/popover state
+  const [campaignOpen, setCampaignOpen] = useState(false);
+  const [adSetOpen, setAdSetOpen] = useState(false);
+  const [adOpen, setAdOpen] = useState(false);
+  
+  // Edit dialogs
+  const [editingCampaign, setEditingCampaign] = useState<any>(null);
   const [editingAdSet, setEditingAdSet] = useState<any>(null);
   const [editingAd, setEditingAd] = useState<any>(null);
 
   // Column visibility state
+  const [visibleCampaignColumns, setVisibleCampaignColumns] = useState<string[]>([
+    "campaign_name", "platform", "amount_spent", "impressions", "reach", "thruplays", "ctr", "frequency"
+  ]);
   const [visibleAdSetColumns, setVisibleAdSetColumns] = useState<string[]>([
     "ad_name", "platform", "amount_spent", "impressions", "reach", "thruplays", "ctr", "frequency"
   ]);
@@ -42,10 +63,24 @@ export const AdsDataTab = ({ reportId, onImportSuccess }: AdsDataTabProps) => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      await Promise.all([fetchAdSets(), fetchAds()]);
+      await Promise.all([fetchCampaignMeta(), fetchAdSets(), fetchAds()]);
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchCampaignMeta = async () => {
+    const { data, error } = await supabase
+      .from("campaign_meta")
+      .select("*")
+      .eq("report_id", reportId)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      toast.error("Failed to load campaign meta");
+      return;
+    }
+    setCampaignMeta(data || []);
   };
 
   const fetchAdSets = async () => {
@@ -76,36 +111,53 @@ export const AdsDataTab = ({ reportId, onImportSuccess }: AdsDataTabProps) => {
     setAds(data || []);
   };
 
-  // Get unique campaigns for filter
+  // Get unique campaigns from campaign_meta
   const campaigns = useMemo(() => {
-    const uniqueCampaigns = new Map<string, string>();
-    adSets.forEach((adSet) => {
-      if (adSet.campaign_id && adSet.campaign_name) {
-        uniqueCampaigns.set(adSet.campaign_id, adSet.campaign_name);
-      }
-    });
-    return Array.from(uniqueCampaigns, ([id, name]) => ({ id, name }));
-  }, [adSets]);
+    return campaignMeta.map(cm => ({
+      id: cm.campaign_id || cm.id,
+      name: cm.campaign_name || cm.account_name || "Unnamed Campaign",
+      data: cm
+    }));
+  }, [campaignMeta]);
 
-  // Get account name from first ad set
-  const accountName = useMemo(() => {
-    const firstWithAccount = adSets.find((adSet) => adSet.campaign_name);
-    return firstWithAccount?.campaign_name?.split(" - ")?.[0] || "Account";
-  }, [adSets]);
-
-  // Filter data based on selected campaign
+  // Get ad sets filtered by selected campaign
   const filteredAdSets = useMemo(() => {
-    if (selectedCampaign === "all") return adSets;
-    return adSets.filter((adSet) => adSet.campaign_id === selectedCampaign);
-  }, [adSets, selectedCampaign]);
+    if (!selectedCampaignId) return adSets;
+    return adSets.filter(adSet => adSet.campaign_id === selectedCampaignId);
+  }, [adSets, selectedCampaignId]);
 
+  // Get ads filtered by selected ad set
   const filteredAds = useMemo(() => {
-    if (selectedCampaign === "all") return ads;
-    const adSetIds = new Set(filteredAdSets.map((adSet) => adSet.id));
-    return ads.filter((ad) => adSetIds.has(ad.ad_set_id));
-  }, [ads, filteredAdSets, selectedCampaign]);
+    if (!selectedAdSetId) {
+      if (!selectedCampaignId) return ads;
+      const adSetIds = new Set(filteredAdSets.map(as => as.id));
+      return ads.filter(ad => adSetIds.has(ad.ad_set_id));
+    }
+    return ads.filter(ad => ad.ad_set_id === selectedAdSetId);
+  }, [ads, selectedAdSetId, selectedCampaignId, filteredAdSets]);
 
-  const handleUpdate = async (table: "ad_sets" | "ads", id: string, field: string, value: any) => {
+  // Selected items
+  const selectedCampaign = campaigns.find(c => c.id === selectedCampaignId);
+  const selectedAdSet = adSets.find(as => as.id === selectedAdSetId);
+  const selectedAd = ads.find(a => a.id === selectedAdId);
+
+  // Clear selections
+  const clearCampaign = () => {
+    setSelectedCampaignId(null);
+    setSelectedAdSetId(null);
+    setSelectedAdId(null);
+  };
+
+  const clearAdSet = () => {
+    setSelectedAdSetId(null);
+    setSelectedAdId(null);
+  };
+
+  const clearAd = () => {
+    setSelectedAdId(null);
+  };
+
+  const handleUpdate = async (table: "campaign_meta" | "ad_sets" | "ads", id: string, field: string, value: any) => {
     const { error } = await supabase
       .from(table)
       .update({ [field]: value })
@@ -113,17 +165,28 @@ export const AdsDataTab = ({ reportId, onImportSuccess }: AdsDataTabProps) => {
 
     if (error) throw error;
 
+    if (table === "campaign_meta") await fetchCampaignMeta();
     if (table === "ad_sets") await fetchAdSets();
     if (table === "ads") await fetchAds();
   };
 
-  const handleDelete = async (table: "ad_sets" | "ads", id: string) => {
+  const handleDelete = async (table: "campaign_meta" | "ad_sets" | "ads", id: string) => {
     const { error } = await supabase.from(table).delete().eq("id", id);
 
     if (error) throw error;
 
-    if (table === "ad_sets") await fetchAdSets();
-    if (table === "ads") await fetchAds();
+    if (table === "campaign_meta") {
+      await fetchCampaignMeta();
+      if (selectedCampaignId === id) clearCampaign();
+    }
+    if (table === "ad_sets") {
+      await fetchAdSets();
+      if (selectedAdSetId === id) clearAdSet();
+    }
+    if (table === "ads") {
+      await fetchAds();
+      if (selectedAdId === id) clearAd();
+    }
   };
 
   const formatNumber = (num: number | null | undefined) => {
@@ -133,7 +196,27 @@ export const AdsDataTab = ({ reportId, onImportSuccess }: AdsDataTabProps) => {
     return num.toString();
   };
 
-  // All available columns for Ad Sets
+  // Campaign Meta columns
+  const allCampaignColumns: ColumnDef[] = [
+    { key: "campaign_name", label: "Campaign Name", type: "text", width: "200px", editable: false },
+    { key: "account_name", label: "Account", type: "text", width: "150px", editable: false },
+    { key: "platform", label: "Platform", type: "text", width: "100px", editable: false },
+    { key: "date_start", label: "Start Date", type: "date", width: "120px", editable: false },
+    { key: "date_stop", label: "End Date", type: "date", width: "120px", editable: false },
+    { key: "amount_spent", label: "Spend", type: "number", width: "100px", editable: false, format: (val: number) => formatCurrencySimple(val, "CZK") },
+    { key: "impressions", label: "Impressions", type: "number", width: "100px", editable: false, format: formatNumber },
+    { key: "reach", label: "Reach", type: "number", width: "100px", editable: false, format: formatNumber },
+    { key: "thruplays", label: "ThruPlays", type: "number", width: "100px", editable: false, format: formatNumber },
+    { key: "video_3s_plays", label: "3s Views", type: "number", width: "100px", editable: false, format: formatNumber },
+    { key: "ctr", label: "CTR %", type: "number", width: "80px", editable: false, format: (val: number) => val ? `${val.toFixed(2)}%` : "-" },
+    { key: "cpm", label: "CPM", type: "number", width: "80px", editable: false, format: (val: number) => formatCurrencySimple(val, "CZK") },
+    { key: "cpc", label: "CPC", type: "number", width: "80px", editable: false, format: (val: number) => formatCurrencySimple(val, "CZK") },
+    { key: "frequency", label: "Frequency", type: "number", width: "90px", editable: false, format: (val: number) => val ? val.toFixed(2) : "-" },
+    { key: "link_clicks", label: "Link Clicks", type: "number", width: "100px", editable: false, format: formatNumber },
+    { key: "engagement_rate", label: "ER %", type: "number", width: "80px", editable: false, format: (val: number) => val ? `${val.toFixed(2)}%` : "-" },
+  ];
+
+  // Ad Sets columns
   const allAdSetsColumns: ColumnDef[] = [
     { key: "ad_name", label: "Ad Set Name", type: "text", width: "200px", editable: false },
     { key: "campaign_name", label: "Campaign", type: "text", width: "180px", editable: false },
@@ -153,7 +236,7 @@ export const AdsDataTab = ({ reportId, onImportSuccess }: AdsDataTabProps) => {
     { key: "post_shares", label: "Shares", type: "number", width: "100px", editable: false, format: formatNumber },
   ];
 
-  // All available columns for Ads
+  // Ads columns
   const allAdsColumns: ColumnDef[] = [
     { key: "ad_name", label: "Ad Name", type: "text", width: "200px", editable: false },
     { key: "platform", label: "Platform", type: "text", width: "100px", editable: false },
@@ -173,6 +256,11 @@ export const AdsDataTab = ({ reportId, onImportSuccess }: AdsDataTabProps) => {
   ];
 
   // Filter columns based on visibility
+  const visibleCampaignColumnDefs = useMemo(() => 
+    allCampaignColumns.filter(col => visibleCampaignColumns.includes(col.key)),
+    [visibleCampaignColumns]
+  );
+
   const visibleAdSetColumnDefs = useMemo(() => 
     allAdSetsColumns.filter(col => visibleAdSetColumns.includes(col.key)),
     [visibleAdSetColumns]
@@ -182,6 +270,14 @@ export const AdsDataTab = ({ reportId, onImportSuccess }: AdsDataTabProps) => {
     allAdsColumns.filter(col => visibleAdsColumns.includes(col.key)),
     [visibleAdsColumns]
   );
+
+  const toggleCampaignColumn = (columnKey: string) => {
+    setVisibleCampaignColumns(prev => 
+      prev.includes(columnKey) 
+        ? prev.filter(k => k !== columnKey)
+        : [...prev, columnKey]
+    );
+  };
 
   const toggleAdSetColumn = (columnKey: string) => {
     setVisibleAdSetColumns(prev => 
@@ -199,81 +295,291 @@ export const AdsDataTab = ({ reportId, onImportSuccess }: AdsDataTabProps) => {
     );
   };
 
+  // Get data for display based on selection level
+  const displayCampaigns = selectedCampaignId 
+    ? campaignMeta.filter(cm => (cm.campaign_id || cm.id) === selectedCampaignId)
+    : campaignMeta;
+
+  const displayAdSets = selectedAdSetId
+    ? adSets.filter(as => as.id === selectedAdSetId)
+    : filteredAdSets;
+
+  const displayAds = selectedAdId
+    ? ads.filter(a => a.id === selectedAdId)
+    : filteredAds;
+
   return (
     <Card className="p-8 rounded-[35px] border-foreground">
       <div className="flex items-start justify-between mb-6">
         <div>
-          <h2 className="text-2xl font-bold mb-2">{accountName}</h2>
+          <h2 className="text-2xl font-bold mb-2">Campaign Data</h2>
           <p className="text-muted-foreground">
-            Campaign performance data {canEdit ? "(Click rows to edit)" : "(Read-only)"}
+            Hierarchical campaign data {canEdit ? "(Click rows to edit)" : "(Read-only)"}
           </p>
         </div>
-        <div className="flex items-center gap-4">
-          <Select value={selectedCampaign} onValueChange={setSelectedCampaign}>
-            <SelectTrigger className="w-[280px]">
-              <SelectValue placeholder="Filter by campaign" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Campaigns</SelectItem>
-              {campaigns.map((campaign) => (
-                <SelectItem key={campaign.id} value={campaign.id}>
-                  {campaign.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {canEdit && (
-            <div className="flex items-center gap-2">
-              <CreatePlanningItemDialog reportId={reportId} onSuccess={fetchData} />
-              <CreateAdSetDialog reportId={reportId} onSuccess={fetchAdSets} />
-            </div>
-          )}
-        </div>
+        {canEdit && (
+          <div className="flex items-center gap-2">
+            <CreatePlanningItemDialog reportId={reportId} onSuccess={fetchData} />
+            <CreateAdSetDialog reportId={reportId} onSuccess={fetchAdSets} />
+          </div>
+        )}
+      </div>
+
+      {/* Hierarchical Filters */}
+      <div className="flex flex-wrap items-center gap-3 mb-6">
+        {/* Campaign Selector */}
+        <Popover open={campaignOpen} onOpenChange={setCampaignOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              role="combobox"
+              aria-expanded={campaignOpen}
+              className={cn(
+                "min-w-[200px] justify-between rounded-[35px] border-foreground",
+                selectedCampaignId && "border-accent-orange bg-accent-orange text-foreground"
+              )}
+            >
+              {selectedCampaign?.name || "Select Campaign..."}
+              <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-[300px] p-0" align="start">
+            <Command>
+              <CommandInput placeholder="Search campaigns..." />
+              <CommandList>
+                <CommandEmpty>No campaigns found.</CommandEmpty>
+                <CommandGroup>
+                  {campaigns.map((campaign) => (
+                    <CommandItem
+                      key={campaign.id}
+                      value={campaign.name}
+                      onSelect={() => {
+                        setSelectedCampaignId(campaign.id);
+                        setSelectedAdSetId(null);
+                        setSelectedAdId(null);
+                        setCampaignOpen(false);
+                      }}
+                    >
+                      <Check
+                        className={cn(
+                          "mr-2 h-4 w-4",
+                          selectedCampaignId === campaign.id ? "opacity-100" : "opacity-0"
+                        )}
+                      />
+                      {campaign.name}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </CommandList>
+            </Command>
+          </PopoverContent>
+        </Popover>
+        {selectedCampaignId && (
+          <Button variant="ghost" size="icon" onClick={clearCampaign} className="h-9 w-9">
+            <X className="h-4 w-4" />
+          </Button>
+        )}
+
+        {/* Ad Set Selector - only show when campaign is selected */}
+        {selectedCampaignId && filteredAdSets.length > 0 && (
+          <>
+            <span className="text-muted-foreground">→</span>
+            <Popover open={adSetOpen} onOpenChange={setAdSetOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={adSetOpen}
+                  className={cn(
+                    "min-w-[200px] justify-between rounded-[35px] border-foreground",
+                    selectedAdSetId && "border-accent-orange bg-accent-orange text-foreground"
+                  )}
+                >
+                  {selectedAdSet?.ad_name || "Select Ad Set..."}
+                  <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[300px] p-0" align="start">
+                <Command>
+                  <CommandInput placeholder="Search ad sets..." />
+                  <CommandList>
+                    <CommandEmpty>No ad sets found.</CommandEmpty>
+                    <CommandGroup>
+                      {filteredAdSets.map((adSet) => (
+                        <CommandItem
+                          key={adSet.id}
+                          value={adSet.ad_name || adSet.id}
+                          onSelect={() => {
+                            setSelectedAdSetId(adSet.id);
+                            setSelectedAdId(null);
+                            setAdSetOpen(false);
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              selectedAdSetId === adSet.id ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          {adSet.ad_name || "Unnamed Ad Set"}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+            {selectedAdSetId && (
+              <Button variant="ghost" size="icon" onClick={clearAdSet} className="h-9 w-9">
+                <X className="h-4 w-4" />
+              </Button>
+            )}
+          </>
+        )}
+
+        {/* Ad Selector - only show when ad set is selected */}
+        {selectedAdSetId && filteredAds.length > 0 && (
+          <>
+            <span className="text-muted-foreground">→</span>
+            <Popover open={adOpen} onOpenChange={setAdOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={adOpen}
+                  className={cn(
+                    "min-w-[200px] justify-between rounded-[35px] border-foreground",
+                    selectedAdId && "border-accent-orange bg-accent-orange text-foreground"
+                  )}
+                >
+                  {selectedAd?.ad_name || "Select Ad..."}
+                  <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[300px] p-0" align="start">
+                <Command>
+                  <CommandInput placeholder="Search ads..." />
+                  <CommandList>
+                    <CommandEmpty>No ads found.</CommandEmpty>
+                    <CommandGroup>
+                      {filteredAds.map((ad) => (
+                        <CommandItem
+                          key={ad.id}
+                          value={ad.ad_name || ad.id}
+                          onSelect={() => {
+                            setSelectedAdId(ad.id);
+                            setAdOpen(false);
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              selectedAdId === ad.id ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          {ad.ad_name || "Unnamed Ad"}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+            {selectedAdId && (
+              <Button variant="ghost" size="icon" onClick={clearAd} className="h-9 w-9">
+                <X className="h-4 w-4" />
+              </Button>
+            )}
+          </>
+        )}
       </div>
 
       <div className="space-y-8">
-        {/* Ad Sets Table */}
-        <div>
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold">Ad Sets</h3>
-            <ColumnSelector
-              allColumns={allAdSetsColumns}
-              visibleColumns={visibleAdSetColumns}
-              onColumnToggle={toggleAdSetColumn}
+        {/* Campaign Meta Table */}
+        {displayCampaigns.length > 0 && (
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">Campaigns</h3>
+              <ColumnSelector
+                allColumns={allCampaignColumns}
+                visibleColumns={visibleCampaignColumns}
+                onColumnToggle={toggleCampaignColumn}
+              />
+            </div>
+            <EditableDataTable
+              columns={visibleCampaignColumnDefs}
+              data={displayCampaigns}
+              canEdit={canEdit}
+              onUpdate={(id, field, value) => handleUpdate("campaign_meta", id, field, value)}
+              onDelete={canEdit ? (id) => handleDelete("campaign_meta", id) : undefined}
+              onEdit={canEdit ? (item) => setEditingCampaign(item) : undefined}
+              loading={loading}
             />
           </div>
-          <EditableDataTable
-            columns={visibleAdSetColumnDefs}
-            data={filteredAdSets}
-            canEdit={canEdit}
-            onUpdate={(id, field, value) => handleUpdate("ad_sets", id, field, value)}
-            onDelete={canEdit ? (id) => handleDelete("ad_sets", id) : undefined}
-            onEdit={canEdit ? (item) => setEditingAdSet(item) : undefined}
-            loading={loading}
-          />
-        </div>
+        )}
+
+        {/* Ad Sets Table */}
+        {displayAdSets.length > 0 && (
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">Ad Sets</h3>
+              <ColumnSelector
+                allColumns={allAdSetsColumns}
+                visibleColumns={visibleAdSetColumns}
+                onColumnToggle={toggleAdSetColumn}
+              />
+            </div>
+            <EditableDataTable
+              columns={visibleAdSetColumnDefs}
+              data={displayAdSets}
+              canEdit={canEdit}
+              onUpdate={(id, field, value) => handleUpdate("ad_sets", id, field, value)}
+              onDelete={canEdit ? (id) => handleDelete("ad_sets", id) : undefined}
+              onEdit={canEdit ? (item) => setEditingAdSet(item) : undefined}
+              loading={loading}
+            />
+          </div>
+        )}
 
         {/* Ads Table */}
-        <div>
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold">Ads</h3>
-            <ColumnSelector
-              allColumns={allAdsColumns}
-              visibleColumns={visibleAdsColumns}
-              onColumnToggle={toggleAdsColumn}
+        {displayAds.length > 0 && (
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">Ads</h3>
+              <ColumnSelector
+                allColumns={allAdsColumns}
+                visibleColumns={visibleAdsColumns}
+                onColumnToggle={toggleAdsColumn}
+              />
+            </div>
+            <EditableDataTable
+              columns={visibleAdsColumnDefs}
+              data={displayAds}
+              canEdit={canEdit}
+              onUpdate={(id, field, value) => handleUpdate("ads", id, field, value)}
+              onDelete={canEdit ? (id) => handleDelete("ads", id) : undefined}
+              onEdit={canEdit ? (item) => setEditingAd(item) : undefined}
+              loading={loading}
             />
           </div>
-          <EditableDataTable
-            columns={visibleAdsColumnDefs}
-            data={filteredAds}
-            canEdit={canEdit}
-            onUpdate={(id, field, value) => handleUpdate("ads", id, field, value)}
-            onDelete={canEdit ? (id) => handleDelete("ads", id) : undefined}
-            onEdit={canEdit ? (item) => setEditingAd(item) : undefined}
-            loading={loading}
-          />
-        </div>
+        )}
+
+        {/* Empty state */}
+        {displayCampaigns.length === 0 && displayAdSets.length === 0 && displayAds.length === 0 && !loading && (
+          <div className="text-center py-12 text-muted-foreground">
+            <p>No campaign data found. Use "Import from Meta" to fetch data.</p>
+          </div>
+        )}
       </div>
+
+      {editingCampaign && (
+        <EditPlanningItemDialog
+          item={editingCampaign}
+          open={!!editingCampaign}
+          onOpenChange={(open) => !open && setEditingCampaign(null)}
+          onSuccess={fetchCampaignMeta}
+        />
+      )}
 
       {editingAdSet && (
         <EditAdSetDialog
