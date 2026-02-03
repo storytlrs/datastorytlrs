@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Settings, Send, ArrowLeft, ClipboardList } from "lucide-react";
 import { toast } from "sonner";
 import { OverviewTab } from "@/components/reports/OverviewTab";
+import { AdsOverviewTab } from "@/components/reports/AdsOverviewTab";
 import { CreatorsTab } from "@/components/reports/CreatorsTab";
 import { ContentTab } from "@/components/reports/ContentTab";
 import { DataTab } from "@/components/reports/DataTab";
@@ -278,7 +279,11 @@ const ReportDetail = () => {
 
           {/* Common tab content */}
           <TabsContent value="overview">
-            <OverviewTab reportId={reportId!} />
+            {isAds ? (
+              <AdsOverviewTab reportId={reportId!} />
+            ) : (
+              <OverviewTab reportId={reportId!} />
+            )}
           </TabsContent>
 
           <TabsContent value="insights">
