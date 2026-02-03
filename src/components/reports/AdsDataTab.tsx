@@ -3,6 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { EditableDataTable, ColumnDef } from "./EditableDataTable";
+import { ColumnSelector } from "./ColumnSelector";
 import { toast } from "sonner";
 import { useUserRole } from "@/hooks/useUserRole";
 import { CreateAdSetDialog } from "./CreateAdSetDialog";
@@ -21,6 +22,14 @@ export const AdsDataTab = ({ reportId, onImportSuccess }: AdsDataTabProps) => {
   const [loading, setLoading] = useState(true);
   const [selectedCampaign, setSelectedCampaign] = useState<string>("all");
   const [editingAdSet, setEditingAdSet] = useState<any>(null);
+
+  // Column visibility state
+  const [visibleAdSetColumns, setVisibleAdSetColumns] = useState<string[]>([
+    "ad_name", "platform", "amount_spent", "impressions", "reach", "thruplays", "ctr", "frequency"
+  ]);
+  const [visibleAdsColumns, setVisibleAdsColumns] = useState<string[]>([
+    "ad_name", "platform", "amount_spent", "impressions", "reach", "thruplays", "ctr", "frequency"
+  ]);
 
   useEffect(() => {
     fetchData();
@@ -120,27 +129,71 @@ export const AdsDataTab = ({ reportId, onImportSuccess }: AdsDataTabProps) => {
     return num.toString();
   };
 
-  const adSetsColumns: ColumnDef[] = [
+  // All available columns for Ad Sets
+  const allAdSetsColumns: ColumnDef[] = [
     { key: "ad_name", label: "Ad Set Name", type: "text", width: "200px", editable: false },
+    { key: "campaign_name", label: "Campaign", type: "text", width: "180px", editable: false },
     { key: "platform", label: "Platform", type: "text", width: "100px", editable: false },
     { key: "amount_spent", label: "Spend", type: "number", width: "100px", editable: false, format: (val: number) => formatCurrencySimple(val, "CZK") },
     { key: "impressions", label: "Impressions", type: "number", width: "100px", editable: false, format: formatNumber },
     { key: "reach", label: "Reach", type: "number", width: "100px", editable: false, format: formatNumber },
     { key: "thruplays", label: "ThruPlays", type: "number", width: "100px", editable: false, format: formatNumber },
+    { key: "video_3s_plays", label: "3s Views", type: "number", width: "100px", editable: false, format: formatNumber },
     { key: "ctr", label: "CTR %", type: "number", width: "80px", editable: false, format: (val: number) => val ? `${val.toFixed(2)}%` : "-" },
+    { key: "cpm", label: "CPM", type: "number", width: "80px", editable: false, format: (val: number) => formatCurrencySimple(val, "CZK") },
+    { key: "cpc", label: "CPC", type: "number", width: "80px", editable: false, format: (val: number) => formatCurrencySimple(val, "CZK") },
     { key: "frequency", label: "Frequency", type: "number", width: "90px", editable: false, format: (val: number) => val ? val.toFixed(2) : "-" },
+    { key: "link_clicks", label: "Link Clicks", type: "number", width: "100px", editable: false, format: formatNumber },
+    { key: "post_reactions", label: "Reactions", type: "number", width: "100px", editable: false, format: formatNumber },
+    { key: "post_comments", label: "Comments", type: "number", width: "100px", editable: false, format: formatNumber },
+    { key: "post_shares", label: "Shares", type: "number", width: "100px", editable: false, format: formatNumber },
   ];
 
-  const adsColumns: ColumnDef[] = [
+  // All available columns for Ads
+  const allAdsColumns: ColumnDef[] = [
     { key: "ad_name", label: "Ad Name", type: "text", width: "200px", editable: false },
     { key: "platform", label: "Platform", type: "text", width: "100px", editable: false },
     { key: "amount_spent", label: "Spend", type: "number", width: "100px", editable: false, format: (val: number) => formatCurrencySimple(val, "CZK") },
     { key: "impressions", label: "Impressions", type: "number", width: "100px", editable: false, format: formatNumber },
     { key: "reach", label: "Reach", type: "number", width: "100px", editable: false, format: formatNumber },
     { key: "thruplays", label: "ThruPlays", type: "number", width: "100px", editable: false, format: formatNumber },
+    { key: "video_3s_plays", label: "3s Views", type: "number", width: "100px", editable: false, format: formatNumber },
     { key: "ctr", label: "CTR %", type: "number", width: "80px", editable: false, format: (val: number) => val ? `${val.toFixed(2)}%` : "-" },
+    { key: "cpm", label: "CPM", type: "number", width: "80px", editable: false, format: (val: number) => formatCurrencySimple(val, "CZK") },
+    { key: "cpc", label: "CPC", type: "number", width: "80px", editable: false, format: (val: number) => formatCurrencySimple(val, "CZK") },
     { key: "frequency", label: "Frequency", type: "number", width: "90px", editable: false, format: (val: number) => val ? val.toFixed(2) : "-" },
+    { key: "link_clicks", label: "Link Clicks", type: "number", width: "100px", editable: false, format: formatNumber },
+    { key: "post_reactions", label: "Reactions", type: "number", width: "100px", editable: false, format: formatNumber },
+    { key: "post_comments", label: "Comments", type: "number", width: "100px", editable: false, format: formatNumber },
+    { key: "post_shares", label: "Shares", type: "number", width: "100px", editable: false, format: formatNumber },
   ];
+
+  // Filter columns based on visibility
+  const visibleAdSetColumnDefs = useMemo(() => 
+    allAdSetsColumns.filter(col => visibleAdSetColumns.includes(col.key)),
+    [visibleAdSetColumns]
+  );
+
+  const visibleAdsColumnDefs = useMemo(() => 
+    allAdsColumns.filter(col => visibleAdsColumns.includes(col.key)),
+    [visibleAdsColumns]
+  );
+
+  const toggleAdSetColumn = (columnKey: string) => {
+    setVisibleAdSetColumns(prev => 
+      prev.includes(columnKey) 
+        ? prev.filter(k => k !== columnKey)
+        : [...prev, columnKey]
+    );
+  };
+
+  const toggleAdsColumn = (columnKey: string) => {
+    setVisibleAdsColumns(prev => 
+      prev.includes(columnKey) 
+        ? prev.filter(k => k !== columnKey)
+        : [...prev, columnKey]
+    );
+  };
 
   return (
     <Card className="p-8 rounded-[35px] border-foreground">
@@ -174,9 +227,16 @@ export const AdsDataTab = ({ reportId, onImportSuccess }: AdsDataTabProps) => {
       <div className="space-y-8">
         {/* Ad Sets Table */}
         <div>
-          <h3 className="text-lg font-semibold mb-4">Ad Sets</h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold">Ad Sets</h3>
+            <ColumnSelector
+              allColumns={allAdSetsColumns}
+              visibleColumns={visibleAdSetColumns}
+              onColumnToggle={toggleAdSetColumn}
+            />
+          </div>
           <EditableDataTable
-            columns={adSetsColumns}
+            columns={visibleAdSetColumnDefs}
             data={filteredAdSets}
             canEdit={canEdit}
             onUpdate={(id, field, value) => handleUpdate("ad_sets", id, field, value)}
@@ -188,9 +248,16 @@ export const AdsDataTab = ({ reportId, onImportSuccess }: AdsDataTabProps) => {
 
         {/* Ads Table */}
         <div>
-          <h3 className="text-lg font-semibold mb-4">Ads</h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold">Ads</h3>
+            <ColumnSelector
+              allColumns={allAdsColumns}
+              visibleColumns={visibleAdsColumns}
+              onColumnToggle={toggleAdsColumn}
+            />
+          </div>
           <EditableDataTable
-            columns={adsColumns}
+            columns={visibleAdsColumnDefs}
             data={filteredAds}
             canEdit={canEdit}
             onUpdate={(id, field, value) => handleUpdate("ads", id, field, value)}
