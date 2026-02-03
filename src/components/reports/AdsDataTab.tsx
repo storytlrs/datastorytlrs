@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { EditableDataTable, ColumnDef } from "./EditableDataTable";
@@ -9,6 +10,7 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { CreateAdSetDialog } from "./CreateAdSetDialog";
 import { EditAdSetDialog } from "./EditAdSetDialog";
 import { EditAdDialog } from "./EditAdDialog";
+import { CreatePlanningItemDialog } from "./CreatePlanningItemDialog";
 import { formatCurrencySimple } from "@/lib/currencyUtils";
 
 interface AdsDataTabProps {
@@ -221,7 +223,10 @@ export const AdsDataTab = ({ reportId, onImportSuccess }: AdsDataTabProps) => {
             </SelectContent>
           </Select>
           {canEdit && (
-            <CreateAdSetDialog reportId={reportId} onSuccess={fetchAdSets} />
+            <div className="flex items-center gap-2">
+              <CreatePlanningItemDialog reportId={reportId} onSuccess={fetchData} />
+              <CreateAdSetDialog reportId={reportId} onSuccess={fetchAdSets} />
+            </div>
           )}
         </div>
       </div>
