@@ -97,7 +97,6 @@ export const AdsDataTab = ({ reportId, onImportSuccess }: AdsDataTabProps) => {
   };
 
   const planningColumns: ColumnDef[] = [
-    { key: "internal_id", label: "Internal ID", type: "text", width: "120px", editable: false },
     { key: "account_name", label: "Account Name", type: "text", width: "150px", editable: false },
     { key: "account_id", label: "Account ID", type: "text", width: "120px", editable: false },
     { key: "adset_id", label: "Ad Set ID", type: "text", width: "120px", editable: false },

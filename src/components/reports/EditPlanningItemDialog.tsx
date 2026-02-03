@@ -21,7 +21,6 @@ interface EditPlanningItemDialogProps {
 export const EditPlanningItemDialog = ({ item, open, onOpenChange, onSuccess }: EditPlanningItemDialogProps) => {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
-    internal_id: "",
     account_name: "",
     account_id: "",
     adset_id: "",
@@ -31,7 +30,6 @@ export const EditPlanningItemDialog = ({ item, open, onOpenChange, onSuccess }: 
   useEffect(() => {
     if (item) {
       setFormData({
-        internal_id: item.internal_id || "",
         account_name: item.account_name || "",
         account_id: item.account_id || "",
         adset_id: item.adset_id || "",
@@ -46,7 +44,6 @@ export const EditPlanningItemDialog = ({ item, open, onOpenChange, onSuccess }: 
     setLoading(true);
     try {
       const { error } = await supabase.from("campaign_meta").update({
-        internal_id: formData.internal_id || null,
         account_name: formData.account_name || null,
         account_id: formData.account_id || null,
         adset_id: formData.adset_id || null,
@@ -72,16 +69,6 @@ export const EditPlanningItemDialog = ({ item, open, onOpenChange, onSuccess }: 
           <DialogTitle>Edit Campaign Meta</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="internal_id">Internal ID</Label>
-            <Input
-              id="internal_id"
-              value={formData.internal_id}
-              onChange={(e) => setFormData({ ...formData, internal_id: e.target.value })}
-              placeholder="e.g., CAMP-001"
-            />
-          </div>
-
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="account_name">Account Name</Label>
