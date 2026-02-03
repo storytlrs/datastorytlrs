@@ -150,16 +150,13 @@ Deno.serve(async (req) => {
         // Get action values
         const actions = insight.actions || [];
 
-        // ThruPlay: prefer explicit `thruplay` if present, otherwise fall back to `video_view`
-        const thruplayActionType = actions.some((a) => a.action_type === "thruplay")
-          ? "thruplay"
-          : "video_view";
-        const thruplays = getActionValue(actions, thruplayActionType);
-
-        // 3-second video plays: best-effort. Some responses only provide `video_view`.
-        const video3sPlays = insight.video_play_actions?.[0]?.value
+        // ThruPlays come from video_play_actions field (this is the completed video views)
+        const thruplays = insight.video_play_actions?.[0]?.value
           ? parseInt(insight.video_play_actions[0].value)
-          : getActionValue(actions, "video_view");
+          : 0;
+
+        // 3-second video plays come from actions with action_type "video_view"
+        const video3sPlays = getActionValue(actions, "video_view");
 
         const postReactions = getActionValue(actions, "post_reaction");
         const postComments = getActionValue(actions, "comment");
@@ -206,7 +203,7 @@ Deno.serve(async (req) => {
           frequency: insight.frequency ? parseFloat(insight.frequency) : 0,
           thruplays: thruplays,
           thruplay_rate: thruplayRate,
-          cost_per_thruplay: getCostValue(insight.cost_per_thruplay, thruplayActionType),
+          cost_per_thruplay: getCostValue(insight.cost_per_thruplay, "video_view"),
           video_3s_plays: video3sPlays,
           view_rate_3s: viewRate3s,
           cost_per_3s_play: costPer3sPlay,
@@ -264,14 +261,13 @@ Deno.serve(async (req) => {
             
             const actions = insight.actions || [];
 
-            const thruplayActionType = actions.some((a) => a.action_type === "thruplay")
-              ? "thruplay"
-              : "video_view";
-            const thruplays = getActionValue(actions, thruplayActionType);
-
-            const video3sPlays = insight.video_play_actions?.[0]?.value
+            // ThruPlays come from video_play_actions field (this is the completed video views)
+            const thruplays = insight.video_play_actions?.[0]?.value
               ? parseInt(insight.video_play_actions[0].value)
-              : getActionValue(actions, "video_view");
+              : 0;
+
+            // 3-second video plays come from actions with action_type "video_view"
+            const video3sPlays = getActionValue(actions, "video_view");
 
             const postReactions = getActionValue(actions, "post_reaction");
             const postComments = getActionValue(actions, "comment");
@@ -303,7 +299,7 @@ Deno.serve(async (req) => {
               frequency: insight.frequency ? parseFloat(insight.frequency) : 0,
               thruplays: thruplays,
               thruplay_rate: thruplayRate,
-              cost_per_thruplay: getCostValue(insight.cost_per_thruplay, thruplayActionType),
+              cost_per_thruplay: getCostValue(insight.cost_per_thruplay, "video_view"),
               video_3s_plays: video3sPlays,
               view_rate_3s: viewRate3s,
               cost_per_3s_play: costPer3sPlay,
