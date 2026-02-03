@@ -12,6 +12,7 @@ interface MetaInsightAction {
 }
 
 interface MetaVideoAction {
+  action_type?: string;
   value: string;
 }
 
@@ -39,7 +40,7 @@ interface MetaInsight {
   instagram_profile_visits?: string;
   cost_per_thruplay?: MetaCostAction[];
   video_avg_time_watched_actions?: MetaVideoAction[];
-  video_play_actions?: MetaVideoAction[];
+  video_thruplay_watched_actions?: MetaVideoAction[];
   actions?: MetaInsightAction[];
 }
 
@@ -108,7 +109,7 @@ Deno.serve(async (req) => {
 
     // Fetch adset insights if adsetId provided
     if (adsetId) {
-      const adsetUrl = `https://graph.facebook.com/v21.0/${adsetId}/insights?fields=account_name,account_id,campaign_id,campaign_name,adset_name,adset_id,date_start,date_stop,spend,reach,impressions,frequency,cpm,ctr,cpc,instagram_profile_visits,cost_per_thruplay,video_avg_time_watched_actions,video_play_actions,actions&date_preset=maximum&action_breakdowns=action_type&access_token=${metaAccessToken}`;
+      const adsetUrl = `https://graph.facebook.com/v21.0/${adsetId}/insights?fields=account_name,account_id,campaign_id,campaign_name,adset_name,adset_id,date_start,date_stop,spend,reach,impressions,frequency,cpm,ctr,cpc,instagram_profile_visits,cost_per_thruplay,video_avg_time_watched_actions,video_thruplay_watched_actions,actions&date_preset=maximum&action_breakdowns=action_type&access_token=${metaAccessToken}`;
       
       console.log(`Fetching adset insights: ${adsetId}`);
       const adsetResponse = await fetch(adsetUrl);
@@ -150,10 +151,11 @@ Deno.serve(async (req) => {
         // Get action values
         const actions = insight.actions || [];
 
-        // ThruPlays come from video_play_actions field (this is the completed video views)
-        const thruplays = insight.video_play_actions?.[0]?.value
-          ? parseInt(insight.video_play_actions[0].value)
-          : 0;
+        // ThruPlays come from video_thruplay_watched_actions field with action_type "video_view"
+        const thruplayAction = insight.video_thruplay_watched_actions?.find(
+          (a) => a.action_type === "video_view"
+        );
+        const thruplays = thruplayAction ? parseInt(thruplayAction.value) : 0;
 
         // 3-second video plays come from actions with action_type "video_view"
         const video3sPlays = getActionValue(actions, "video_view");
@@ -235,7 +237,7 @@ Deno.serve(async (req) => {
 
     // Fetch individual ad insights if adId provided
     if (adId) {
-      const adUrl = `https://graph.facebook.com/v21.0/${adId}/insights?fields=account_name,account_id,campaign_id,campaign_name,adset_name,adset_id,ad_name,ad_id,date_start,date_stop,spend,reach,impressions,frequency,cpm,ctr,cpc,instagram_profile_visits,cost_per_thruplay,video_avg_time_watched_actions,video_play_actions,actions&date_preset=maximum&action_breakdowns=action_type&access_token=${metaAccessToken}`;
+      const adUrl = `https://graph.facebook.com/v21.0/${adId}/insights?fields=account_name,account_id,campaign_id,campaign_name,adset_name,adset_id,ad_name,ad_id,date_start,date_stop,spend,reach,impressions,frequency,cpm,ctr,cpc,instagram_profile_visits,cost_per_thruplay,video_avg_time_watched_actions,video_thruplay_watched_actions,actions&date_preset=maximum&action_breakdowns=action_type&access_token=${metaAccessToken}`;
       
       console.log(`Fetching ad insights: ${adId}`);
       const adResponse = await fetch(adUrl);
@@ -261,10 +263,11 @@ Deno.serve(async (req) => {
             
             const actions = insight.actions || [];
 
-            // ThruPlays come from video_play_actions field (this is the completed video views)
-            const thruplays = insight.video_play_actions?.[0]?.value
-              ? parseInt(insight.video_play_actions[0].value)
-              : 0;
+            // ThruPlays come from video_thruplay_watched_actions field with action_type "video_view"
+            const thruplayAction = insight.video_thruplay_watched_actions?.find(
+              (a) => a.action_type === "video_view"
+            );
+            const thruplays = thruplayAction ? parseInt(thruplayAction.value) : 0;
 
             // 3-second video plays come from actions with action_type "video_view"
             const video3sPlays = getActionValue(actions, "video_view");
