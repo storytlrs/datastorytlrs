@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { useUserRole } from "@/hooks/useUserRole";
 import { CreateAdSetDialog } from "./CreateAdSetDialog";
 import { EditAdSetDialog } from "./EditAdSetDialog";
+import { EditAdDialog } from "./EditAdDialog";
 import { formatCurrencySimple } from "@/lib/currencyUtils";
 
 interface AdsDataTabProps {
@@ -22,6 +23,7 @@ export const AdsDataTab = ({ reportId, onImportSuccess }: AdsDataTabProps) => {
   const [loading, setLoading] = useState(true);
   const [selectedCampaign, setSelectedCampaign] = useState<string>("all");
   const [editingAdSet, setEditingAdSet] = useState<any>(null);
+  const [editingAd, setEditingAd] = useState<any>(null);
 
   // Column visibility state
   const [visibleAdSetColumns, setVisibleAdSetColumns] = useState<string[]>([
@@ -262,6 +264,7 @@ export const AdsDataTab = ({ reportId, onImportSuccess }: AdsDataTabProps) => {
             canEdit={canEdit}
             onUpdate={(id, field, value) => handleUpdate("ads", id, field, value)}
             onDelete={canEdit ? (id) => handleDelete("ads", id) : undefined}
+            onEdit={canEdit ? (item) => setEditingAd(item) : undefined}
             loading={loading}
           />
         </div>
@@ -273,6 +276,15 @@ export const AdsDataTab = ({ reportId, onImportSuccess }: AdsDataTabProps) => {
           open={!!editingAdSet}
           onOpenChange={(open) => !open && setEditingAdSet(null)}
           onSuccess={fetchAdSets}
+        />
+      )}
+
+      {editingAd && (
+        <EditAdDialog
+          ad={editingAd}
+          open={!!editingAd}
+          onOpenChange={(open) => !open && setEditingAd(null)}
+          onSuccess={fetchAds}
         />
       )}
     </Card>
