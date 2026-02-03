@@ -307,32 +307,128 @@ export type Database = {
         Row: {
           account_id: string | null
           account_name: string | null
+          ad_id: string | null
+          ad_name: string | null
           adset_id: string | null
           adset_name: string | null
+          age: string | null
+          amount_spent: number | null
+          campaign_id: string | null
+          campaign_name: string | null
+          cost_per_3s_play: number | null
+          cost_per_thruplay: number | null
+          cpc: number | null
+          cpe: number | null
+          cpm: number | null
           created_at: string
+          ctr: number | null
+          date_start: string | null
+          date_stop: string | null
+          engagement_rate: number | null
+          frequency: number | null
+          gender: string | null
           id: string
+          impressions: number | null
+          instagram_follows: number | null
+          instagram_profile_visits: number | null
+          link_clicks: number | null
+          platform: Database["public"]["Enums"]["platform_type"] | null
+          post_comments: number | null
+          post_reactions: number | null
+          post_saves: number | null
+          post_shares: number | null
+          reach: number | null
           report_id: string
+          thruplay_rate: number | null
+          thruplays: number | null
           updated_at: string
+          video_3s_plays: number | null
+          video_avg_play_time: number | null
+          view_rate_3s: number | null
         }
         Insert: {
           account_id?: string | null
           account_name?: string | null
+          ad_id?: string | null
+          ad_name?: string | null
           adset_id?: string | null
           adset_name?: string | null
+          age?: string | null
+          amount_spent?: number | null
+          campaign_id?: string | null
+          campaign_name?: string | null
+          cost_per_3s_play?: number | null
+          cost_per_thruplay?: number | null
+          cpc?: number | null
+          cpe?: number | null
+          cpm?: number | null
           created_at?: string
+          ctr?: number | null
+          date_start?: string | null
+          date_stop?: string | null
+          engagement_rate?: number | null
+          frequency?: number | null
+          gender?: string | null
           id?: string
+          impressions?: number | null
+          instagram_follows?: number | null
+          instagram_profile_visits?: number | null
+          link_clicks?: number | null
+          platform?: Database["public"]["Enums"]["platform_type"] | null
+          post_comments?: number | null
+          post_reactions?: number | null
+          post_saves?: number | null
+          post_shares?: number | null
+          reach?: number | null
           report_id: string
+          thruplay_rate?: number | null
+          thruplays?: number | null
           updated_at?: string
+          video_3s_plays?: number | null
+          video_avg_play_time?: number | null
+          view_rate_3s?: number | null
         }
         Update: {
           account_id?: string | null
           account_name?: string | null
+          ad_id?: string | null
+          ad_name?: string | null
           adset_id?: string | null
           adset_name?: string | null
+          age?: string | null
+          amount_spent?: number | null
+          campaign_id?: string | null
+          campaign_name?: string | null
+          cost_per_3s_play?: number | null
+          cost_per_thruplay?: number | null
+          cpc?: number | null
+          cpe?: number | null
+          cpm?: number | null
           created_at?: string
+          ctr?: number | null
+          date_start?: string | null
+          date_stop?: string | null
+          engagement_rate?: number | null
+          frequency?: number | null
+          gender?: string | null
           id?: string
+          impressions?: number | null
+          instagram_follows?: number | null
+          instagram_profile_visits?: number | null
+          link_clicks?: number | null
+          platform?: Database["public"]["Enums"]["platform_type"] | null
+          post_comments?: number | null
+          post_reactions?: number | null
+          post_saves?: number | null
+          post_shares?: number | null
+          reach?: number | null
           report_id?: string
+          thruplay_rate?: number | null
+          thruplays?: number | null
           updated_at?: string
+          video_3s_plays?: number | null
+          video_avg_play_time?: number | null
+          view_rate_3s?: number | null
         }
         Relationships: [
           {
