@@ -15,6 +15,11 @@ interface MetaVideoAction {
   value: string;
 }
 
+interface MetaCostAction {
+  action_type?: string;
+  value: string;
+}
+
 interface MetaInsight {
   account_name?: string;
   account_id?: string;
@@ -32,9 +37,8 @@ interface MetaInsight {
   ctr?: string;
   cpc?: string;
   instagram_profile_visits?: string;
-  cost_per_thruplay?: Array<{ action_type: string; value: string }>;
+  cost_per_thruplay?: MetaCostAction[];
   video_avg_time_watched_actions?: MetaVideoAction[];
-  video_p3s_views_actions?: MetaVideoAction[];
   video_play_actions?: MetaVideoAction[];
   actions?: MetaInsightAction[];
 }
@@ -95,9 +99,16 @@ Deno.serve(async (req) => {
       return action ? parseInt(action.value) : 0;
     };
 
+    const getCostValue = (costs: MetaCostAction[] | undefined, type: string): number => {
+      if (!costs || costs.length === 0) return 0;
+      const row = costs.find((c) => c.action_type === type) ?? costs[0];
+      const parsed = parseFloat(row?.value ?? "0");
+      return Number.isFinite(parsed) ? parsed : 0;
+    };
+
     // Fetch adset insights if adsetId provided
     if (adsetId) {
-      const adsetUrl = `https://graph.facebook.com/v21.0/${adsetId}/insights?fields=account_name,account_id,campaign_id,campaign_name,adset_name,adset_id,date_start,date_stop,spend,reach,impressions,frequency,cpm,ctr,cpc,instagram_profile_visits,cost_per_thruplay,video_avg_time_watched_actions,video_p3s_views_actions,actions&date_preset=maximum&action_breakdowns=action_type&access_token=${metaAccessToken}`;
+      const adsetUrl = `https://graph.facebook.com/v21.0/${adsetId}/insights?fields=account_name,account_id,campaign_id,campaign_name,adset_name,adset_id,date_start,date_stop,spend,reach,impressions,frequency,cpm,ctr,cpc,instagram_profile_visits,cost_per_thruplay,video_avg_time_watched_actions,video_play_actions,actions&date_preset=maximum&action_breakdowns=action_type&access_token=${metaAccessToken}`;
       
       console.log(`Fetching adset insights: ${adsetId}`);
       const adsetResponse = await fetch(adsetUrl);
@@ -138,18 +149,23 @@ Deno.serve(async (req) => {
         
         // Get action values
         const actions = insight.actions || [];
-        const thruplays = getActionValue(actions, "video_view");
-        // video_p3s_views_actions is the dedicated field for 3-second video plays
-        const video3sPlays = insight.video_p3s_views_actions?.[0]?.value 
-          ? parseInt(insight.video_p3s_views_actions[0].value) 
-          : 0;
+
+        // ThruPlay: prefer explicit `thruplay` if present, otherwise fall back to `video_view`
+        const thruplayActionType = actions.some((a) => a.action_type === "thruplay")
+          ? "thruplay"
+          : "video_view";
+        const thruplays = getActionValue(actions, thruplayActionType);
+
+        // 3-second video plays: best-effort. Some responses only provide `video_view`.
+        const video3sPlays = insight.video_play_actions?.[0]?.value
+          ? parseInt(insight.video_play_actions[0].value)
+          : getActionValue(actions, "video_view");
+
         const postReactions = getActionValue(actions, "post_reaction");
         const postComments = getActionValue(actions, "comment");
         const postShares = getActionValue(actions, "post");
         const postSaves = getActionValue(actions, "onsite_conversion.post_save");
         const linkClicks = getActionValue(actions, "link_click");
-        
-        console.log("API Response insight:", JSON.stringify(insight, null, 2));
 
         // ThruPlay rate = ThruPlays / Impressions
         const thruplayRate = impressions > 0 ? (thruplays / impressions) * 100 : 0;
@@ -190,8 +206,7 @@ Deno.serve(async (req) => {
           frequency: insight.frequency ? parseFloat(insight.frequency) : 0,
           thruplays: thruplays,
           thruplay_rate: thruplayRate,
-          cost_per_thruplay: insight.cost_per_thruplay?.[0]?.value 
-            ? parseFloat(insight.cost_per_thruplay[0].value) : 0,
+          cost_per_thruplay: getCostValue(insight.cost_per_thruplay, thruplayActionType),
           video_3s_plays: video3sPlays,
           view_rate_3s: viewRate3s,
           cost_per_3s_play: costPer3sPlay,
@@ -223,7 +238,7 @@ Deno.serve(async (req) => {
 
     // Fetch individual ad insights if adId provided
     if (adId) {
-      const adUrl = `https://graph.facebook.com/v21.0/${adId}/insights?fields=account_name,account_id,campaign_id,campaign_name,adset_name,adset_id,ad_name,ad_id,date_start,date_stop,spend,reach,impressions,frequency,cpm,ctr,cpc,instagram_profile_visits,cost_per_thruplay,video_avg_time_watched_actions,video_p3s_views_actions,actions&date_preset=maximum&action_breakdowns=action_type&access_token=${metaAccessToken}`;
+      const adUrl = `https://graph.facebook.com/v21.0/${adId}/insights?fields=account_name,account_id,campaign_id,campaign_name,adset_name,adset_id,ad_name,ad_id,date_start,date_stop,spend,reach,impressions,frequency,cpm,ctr,cpc,instagram_profile_visits,cost_per_thruplay,video_avg_time_watched_actions,video_play_actions,actions&date_preset=maximum&action_breakdowns=action_type&access_token=${metaAccessToken}`;
       
       console.log(`Fetching ad insights: ${adId}`);
       const adResponse = await fetch(adUrl);
@@ -248,11 +263,16 @@ Deno.serve(async (req) => {
             const spend = insight.spend ? parseFloat(insight.spend) : 0;
             
             const actions = insight.actions || [];
-            const thruplays = getActionValue(actions, "video_view");
-            // video_p3s_views_actions is the dedicated field for 3-second video plays
-            const video3sPlays = insight.video_p3s_views_actions?.[0]?.value 
-              ? parseInt(insight.video_p3s_views_actions[0].value) 
-              : 0;
+
+            const thruplayActionType = actions.some((a) => a.action_type === "thruplay")
+              ? "thruplay"
+              : "video_view";
+            const thruplays = getActionValue(actions, thruplayActionType);
+
+            const video3sPlays = insight.video_play_actions?.[0]?.value
+              ? parseInt(insight.video_play_actions[0].value)
+              : getActionValue(actions, "video_view");
+
             const postReactions = getActionValue(actions, "post_reaction");
             const postComments = getActionValue(actions, "comment");
             const postShares = getActionValue(actions, "post");
@@ -283,8 +303,7 @@ Deno.serve(async (req) => {
               frequency: insight.frequency ? parseFloat(insight.frequency) : 0,
               thruplays: thruplays,
               thruplay_rate: thruplayRate,
-              cost_per_thruplay: insight.cost_per_thruplay?.[0]?.value 
-                ? parseFloat(insight.cost_per_thruplay[0].value) : 0,
+              cost_per_thruplay: getCostValue(insight.cost_per_thruplay, thruplayActionType),
               video_3s_plays: video3sPlays,
               view_rate_3s: viewRate3s,
               cost_per_3s_play: costPer3sPlay,
