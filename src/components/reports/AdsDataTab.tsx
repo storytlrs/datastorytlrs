@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { EditableDataTable, ColumnDef } from "./EditableDataTable";
@@ -10,9 +9,7 @@ import { CreateAdSetDialog } from "./CreateAdSetDialog";
 import { EditAdSetDialog } from "./EditAdSetDialog";
 import { CreatePlanningItemDialog } from "./CreatePlanningItemDialog";
 import { EditPlanningItemDialog } from "./EditPlanningItemDialog";
-import { ImportMetaAdsDialog } from "./ImportMetaAdsDialog";
 import { formatCurrencySimple } from "@/lib/currencyUtils";
-import { Upload } from "lucide-react";
 
 interface AdsDataTabProps {
   reportId: string;
@@ -134,9 +131,6 @@ export const AdsDataTab = ({ reportId, onImportSuccess }: AdsDataTabProps) => {
             Manage planning and ad performance data {canEdit ? "(Click rows to edit)" : "(Read-only)"}
           </p>
         </div>
-        {isAdmin && (
-          <ImportMetaAdsDialog reportId={reportId} onSuccess={handleImportSuccess} />
-        )}
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
