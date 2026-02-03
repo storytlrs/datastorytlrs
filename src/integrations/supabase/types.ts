@@ -260,7 +260,6 @@ export type Database = {
           adset_name: string | null
           created_at: string
           id: string
-          internal_id: string | null
           report_id: string
           updated_at: string
         }
@@ -271,7 +270,6 @@ export type Database = {
           adset_name?: string | null
           created_at?: string
           id?: string
-          internal_id?: string | null
           report_id: string
           updated_at?: string
         }
@@ -282,7 +280,6 @@ export type Database = {
           adset_name?: string | null
           created_at?: string
           id?: string
-          internal_id?: string | null
           report_id?: string
           updated_at?: string
         }

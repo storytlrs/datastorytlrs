@@ -22,7 +22,6 @@ export const CreatePlanningItemDialog = ({ reportId, onSuccess }: CreatePlanning
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
-    internal_id: "",
     account_name: "",
     account_id: "",
     adset_id: "",
@@ -36,7 +35,6 @@ export const CreatePlanningItemDialog = ({ reportId, onSuccess }: CreatePlanning
     try {
       const { error } = await supabase.from("campaign_meta").insert({
         report_id: reportId,
-        internal_id: formData.internal_id || null,
         account_name: formData.account_name || null,
         account_id: formData.account_id || null,
         adset_id: formData.adset_id || null,
@@ -58,7 +56,6 @@ export const CreatePlanningItemDialog = ({ reportId, onSuccess }: CreatePlanning
 
   const resetForm = () => {
     setFormData({
-      internal_id: "",
       account_name: "",
       account_id: "",
       adset_id: "",
@@ -79,16 +76,6 @@ export const CreatePlanningItemDialog = ({ reportId, onSuccess }: CreatePlanning
           <DialogTitle>Add Campaign Meta</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="internal_id">Internal ID</Label>
-            <Input
-              id="internal_id"
-              value={formData.internal_id}
-              onChange={(e) => setFormData({ ...formData, internal_id: e.target.value })}
-              placeholder="e.g., CAMP-001"
-            />
-          </div>
-
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="account_name">Account Name</Label>
