@@ -7,60 +7,57 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus } from "lucide-react";
+import { Plus, Loader2 } from "lucide-react";
 
 interface CreatePlanningItemDialogProps {
   reportId: string;
+  spaceId?: string;
   onSuccess: () => void;
 }
 
-export const CreatePlanningItemDialog = ({ reportId, onSuccess }: CreatePlanningItemDialogProps) => {
+// Hardcoded for now - specific adset and ad IDs
+const ADSET_ID = "120240321291840120";
+const AD_ID = "120240321291850120";
+
+export const CreatePlanningItemDialog = ({ reportId, spaceId, onSuccess }: CreatePlanningItemDialogProps) => {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState({
-    account_name: "",
-    account_id: "",
-    adset_id: "",
-    adset_name: "",
-  });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
+  const handleImportFromMeta = async () => {
     setLoading(true);
     try {
-      const { error } = await supabase.from("campaign_meta").insert({
-        report_id: reportId,
-        account_name: formData.account_name || null,
-        account_id: formData.account_id || null,
-        adset_id: formData.adset_id || null,
-        adset_name: formData.adset_name || null,
+      const { data, error } = await supabase.functions.invoke("import-meta-adset", {
+        body: {
+          reportId,
+          adsetId: ADSET_ID,
+          adId: AD_ID,
+          platform: "facebook",
+        },
       });
 
-      if (error) throw error;
+      if (error) {
+        throw new Error(error.message);
+      }
 
-      toast.success("Campaign meta created successfully");
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+
+      const imported = data?.imported;
+      toast.success(
+        `Successfully imported: ${imported?.campaignMeta || 0} campaign meta, ${imported?.adSets || 0} ad sets`
+      );
+      
       setOpen(false);
-      resetForm();
       onSuccess();
     } catch (error) {
-      toast.error("Failed to create campaign meta");
+      console.error("Import error:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to import Meta data");
     } finally {
       setLoading(false);
     }
-  };
-
-  const resetForm = () => {
-    setFormData({
-      account_name: "",
-      account_id: "",
-      adset_id: "",
-      adset_name: "",
-    });
   };
 
   return (
@@ -71,62 +68,43 @@ export const CreatePlanningItemDialog = ({ reportId, onSuccess }: CreatePlanning
           Add Campaign Meta
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Add Campaign Meta</DialogTitle>
+          <DialogTitle>Import Campaign Meta from Meta API</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="account_name">Account Name</Label>
-              <Input
-                id="account_name"
-                value={formData.account_name}
-                onChange={(e) => setFormData({ ...formData, account_name: e.target.value })}
-                placeholder="e.g., Brand CZ"
-              />
+        <div className="space-y-4 py-4">
+          <p className="text-sm text-muted-foreground">
+            This will import campaign metadata and ad set data from Meta API for:
+          </p>
+          <div className="bg-muted p-4 rounded-lg space-y-2">
+            <div className="flex justify-between">
+              <span className="text-sm font-medium">Ad Set ID:</span>
+              <span className="text-sm font-mono">{ADSET_ID}</span>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="account_id">Account ID</Label>
-              <Input
-                id="account_id"
-                value={formData.account_id}
-                onChange={(e) => setFormData({ ...formData, account_id: e.target.value })}
-                placeholder="e.g., 123456789"
-              />
+            <div className="flex justify-between">
+              <span className="text-sm font-medium">Ad ID:</span>
+              <span className="text-sm font-mono">{AD_ID}</span>
             </div>
           </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="adset_id">Ad Set ID</Label>
-              <Input
-                id="adset_id"
-                value={formData.adset_id}
-                onChange={(e) => setFormData({ ...formData, adset_id: e.target.value })}
-                placeholder="e.g., 987654321"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="adset_name">Ad Set Name</Label>
-              <Input
-                id="adset_name"
-                value={formData.adset_name}
-                onChange={(e) => setFormData({ ...formData, adset_name: e.target.value })}
-                placeholder="e.g., Awareness Campaign"
-              />
-            </div>
-          </div>
-
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)} className="rounded-[35px]">
-              Cancel
-            </Button>
-            <Button type="submit" disabled={loading} className="rounded-[35px]">
-              {loading ? "Creating..." : "Create"}
-            </Button>
-          </div>
-        </form>
+          <p className="text-xs text-muted-foreground">
+            Data will be fetched with date_preset=maximum and all metrics will be calculated automatically.
+          </p>
+        </div>
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="outline" onClick={() => setOpen(false)} className="rounded-[35px]">
+            Cancel
+          </Button>
+          <Button onClick={handleImportFromMeta} disabled={loading} className="rounded-[35px]">
+            {loading ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Importing...
+              </>
+            ) : (
+              "Import from Meta"
+            )}
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );
