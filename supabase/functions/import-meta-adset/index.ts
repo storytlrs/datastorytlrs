@@ -109,8 +109,8 @@ Deno.serve(async (req) => {
       );
     }
 
-    let importedCampaignMeta = 0;
     let importedAdSets = 0;
+    let importedAds = 0;
 
     // Helper to extract action value
     const getActionValue = (actions: MetaInsightAction[] | undefined, type: string): number => {
@@ -144,25 +144,6 @@ Deno.serve(async (req) => {
 
       const insight: MetaInsight = adsetData.data?.[0];
       if (insight) {
-        // Insert into campaign_meta
-        const campaignMetaData = {
-          report_id: reportId,
-          account_name: insight.account_name || null,
-          account_id: insight.account_id || null,
-          adset_id: insight.adset_id || null,
-          adset_name: insight.adset_name || null,
-        };
-
-        const { error: campaignMetaError } = await supabase
-          .from("campaign_meta")
-          .insert(campaignMetaData);
-
-        if (!campaignMetaError) {
-          importedCampaignMeta++;
-        } else {
-          console.error("Campaign meta insert error:", campaignMetaError);
-        }
-
         // Calculate derived metrics
         const impressions = insight.impressions ? parseInt(insight.impressions) : 0;
         const spend = insight.spend ? parseFloat(insight.spend) : 0;
@@ -345,6 +326,8 @@ Deno.serve(async (req) => {
 
             if (adsError) {
               console.error("Ads upsert error:", adsError);
+            } else {
+              importedAds++;
             }
           }
         }
@@ -355,8 +338,8 @@ Deno.serve(async (req) => {
       JSON.stringify({
         success: true,
         imported: {
-          campaignMeta: importedCampaignMeta,
           adSets: importedAdSets,
+          ads: importedAds,
         },
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
