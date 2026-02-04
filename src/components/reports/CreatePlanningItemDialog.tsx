@@ -89,7 +89,7 @@ export const CreatePlanningItemDialog = ({ reportId, spaceId, onSuccess }: Creat
 
       const imported = data?.imported;
       toast.success(
-        `Successfully imported: ${imported?.campaignMeta || 0} campaign meta, ${imported?.adSets || 0} ad sets`
+        `Successfully imported: ${imported?.adSets || 0} ad sets, ${imported?.ads || 0} ads`
       );
       
       setOpen(false);
