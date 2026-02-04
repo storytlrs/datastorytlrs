@@ -9,7 +9,6 @@ import { EditableDataTable, ColumnDef } from "./EditableDataTable";
 import { ColumnSelector } from "./ColumnSelector";
 import { toast } from "sonner";
 import { useUserRole } from "@/hooks/useUserRole";
-import { CreateAdSetDialog } from "./CreateAdSetDialog";
 import { EditAdSetDialog } from "./EditAdSetDialog";
 import { EditAdDialog } from "./EditAdDialog";
 import { EditPlanningItemDialog } from "./EditPlanningItemDialog";
@@ -320,7 +319,6 @@ export const AdsDataTab = ({ reportId, onImportSuccess }: AdsDataTabProps) => {
         {canEdit && (
           <div className="flex items-center gap-2">
             <CreatePlanningItemDialog reportId={reportId} onSuccess={fetchData} />
-            <CreateAdSetDialog reportId={reportId} onSuccess={fetchAdSets} />
           </div>
         )}
       </div>
