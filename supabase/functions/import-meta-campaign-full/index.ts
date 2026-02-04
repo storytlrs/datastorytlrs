@@ -161,11 +161,76 @@ Deno.serve(async (req) => {
       };
     };
 
+    let importedCampaignMeta = 0;
     let importedAdSets = 0;
     let importedAds = 0;
     const errors: string[] = [];
 
-    // Step 1: Get all ad sets from campaign
+    // Step 1: Get campaign insights first
+    console.log(`Fetching campaign insights for: ${campaignId}`);
+    const campaignInsightsUrl = `https://graph.facebook.com/v21.0/${campaignId}/insights?fields=account_name,account_id,campaign_id,campaign_name,date_start,date_stop,spend,reach,impressions,frequency,cpm,ctr,cpc,instagram_profile_visits,cost_per_thruplay,video_avg_time_watched_actions,video_thruplay_watched_actions,actions&date_preset=maximum&action_breakdowns=action_type&access_token=${metaAccessToken}`;
+    
+    const campaignInsightsResponse = await fetch(campaignInsightsUrl);
+    const campaignInsightsData = await campaignInsightsResponse.json();
+
+    if (campaignInsightsData.error) {
+      return new Response(
+        JSON.stringify({ error: `Meta API error: ${campaignInsightsData.error.message}` }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Insert campaign into campaign_meta
+    const campaignInsight: MetaInsight = campaignInsightsData.data?.[0];
+    if (campaignInsight) {
+      const campaignMetrics = calculateMetrics(campaignInsight);
+      
+      const campaignMetaData = {
+        report_id: reportId,
+        platform: platform as "facebook" | "instagram",
+        account_name: campaignInsight.account_name || null,
+        account_id: campaignInsight.account_id || null,
+        campaign_id: campaignInsight.campaign_id || campaignId,
+        campaign_name: campaignInsight.campaign_name || null,
+        impressions: campaignMetrics.impressions,
+        reach: campaignInsight.reach ? parseInt(campaignInsight.reach) : 0,
+        amount_spent: campaignMetrics.spend,
+        cpm: campaignInsight.cpm ? parseFloat(campaignInsight.cpm) : 0,
+        cpc: campaignInsight.cpc ? parseFloat(campaignInsight.cpc) : 0,
+        ctr: campaignInsight.ctr ? parseFloat(campaignInsight.ctr) : 0,
+        frequency: campaignInsight.frequency ? parseFloat(campaignInsight.frequency) : 0,
+        thruplays: campaignMetrics.thruplays,
+        thruplay_rate: campaignMetrics.thruplayRate,
+        cost_per_thruplay: getCostValue(campaignInsight.cost_per_thruplay, "video_view"),
+        video_3s_plays: campaignMetrics.video3sPlays,
+        view_rate_3s: campaignMetrics.viewRate3s,
+        cost_per_3s_play: campaignMetrics.costPer3sPlay,
+        video_avg_play_time: campaignMetrics.videoAvgPlayTime,
+        engagement_rate: campaignMetrics.engagementRate,
+        cpe: campaignMetrics.cpe,
+        post_reactions: campaignMetrics.postReactions,
+        post_comments: campaignMetrics.postComments,
+        post_shares: campaignMetrics.postShares,
+        post_saves: campaignMetrics.postSaves,
+        link_clicks: campaignMetrics.linkClicks,
+        instagram_profile_visits: campaignInsight.instagram_profile_visits
+          ? parseInt(campaignInsight.instagram_profile_visits) : 0,
+        date_start: campaignInsight.date_start || null,
+        date_stop: campaignInsight.date_stop || null,
+      };
+
+      const { error: campaignMetaError } = await supabase
+        .from("campaign_meta")
+        .insert(campaignMetaData);
+
+      if (campaignMetaError) {
+        errors.push(`Campaign meta: ${campaignMetaError.message}`);
+      } else {
+        importedCampaignMeta++;
+      }
+    }
+
+    // Step 2: Get all ad sets from campaign
     console.log(`Fetching ad sets for campaign: ${campaignId}`);
     const adSetsUrl = `https://graph.facebook.com/v21.0/${campaignId}/adsets?fields=id,name&access_token=${metaAccessToken}`;
     const adSetsResponse = await fetch(adSetsUrl);
@@ -332,6 +397,7 @@ Deno.serve(async (req) => {
       JSON.stringify({
         success: true,
         imported: {
+          campaignMeta: importedCampaignMeta,
           adSets: importedAdSets,
           ads: importedAds,
           totalAdSetsFound: adSets.length,
