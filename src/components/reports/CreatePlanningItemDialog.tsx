@@ -7,6 +7,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -18,15 +20,18 @@ interface CreatePlanningItemDialogProps {
   onSuccess: () => void;
 }
 
-// Hardcoded IDs
-const CAMPAIGN_ID = "120239465204160120";
-const ADSET_ID = "120240321291840120";
-const AD_ID = "120240321291850120";
+// Default IDs
+const DEFAULT_CAMPAIGN_ID = "120239465204160120";
+const DEFAULT_ADSET_ID = "120239465204180120";
+const DEFAULT_AD_ID = "120239465204170120";
 
 export const CreatePlanningItemDialog = ({ reportId, spaceId, onSuccess }: CreatePlanningItemDialogProps) => {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<"campaign" | "adset">("campaign");
+  const [campaignId, setCampaignId] = useState(DEFAULT_CAMPAIGN_ID);
+  const [adsetId, setAdsetId] = useState(DEFAULT_ADSET_ID);
+  const [adId, setAdId] = useState(DEFAULT_AD_ID);
 
   const handleImportCampaign = async () => {
     setLoading(true);
@@ -34,7 +39,7 @@ export const CreatePlanningItemDialog = ({ reportId, spaceId, onSuccess }: Creat
       const { data, error } = await supabase.functions.invoke("import-meta-campaign", {
         body: {
           reportId,
-          campaignId: CAMPAIGN_ID,
+          campaignId,
           platform: "facebook",
         },
       });
@@ -49,7 +54,7 @@ export const CreatePlanningItemDialog = ({ reportId, spaceId, onSuccess }: Creat
 
       const imported = data?.imported;
       toast.success(
-        `Successfully imported campaign: ${imported?.campaignName || CAMPAIGN_ID} (${imported?.impressions || 0} impressions)`
+        `Successfully imported campaign: ${imported?.campaignName || campaignId} (${imported?.impressions || 0} impressions)`
       );
       
       setOpen(false);
@@ -68,8 +73,8 @@ export const CreatePlanningItemDialog = ({ reportId, spaceId, onSuccess }: Creat
       const { data, error } = await supabase.functions.invoke("import-meta-adset", {
         body: {
           reportId,
-          adsetId: ADSET_ID,
-          adId: AD_ID,
+          adsetId,
+          adId,
           platform: "facebook",
         },
       });
@@ -128,10 +133,16 @@ export const CreatePlanningItemDialog = ({ reportId, spaceId, onSuccess }: Creat
             <p className="text-sm text-muted-foreground">
               Import campaign-level data into Campaign Meta table:
             </p>
-            <div className="bg-muted p-4 rounded-lg space-y-2">
-              <div className="flex justify-between">
-                <span className="text-sm font-medium">Campaign ID:</span>
-                <span className="text-sm font-mono">{CAMPAIGN_ID}</span>
+            <div className="space-y-3">
+              <div className="space-y-2">
+                <Label htmlFor="campaignId">Campaign ID</Label>
+                <Input
+                  id="campaignId"
+                  value={campaignId}
+                  onChange={(e) => setCampaignId(e.target.value)}
+                  placeholder="e.g., 120239465204160120"
+                  className="font-mono text-sm"
+                />
               </div>
             </div>
             <p className="text-xs text-muted-foreground">
@@ -143,14 +154,26 @@ export const CreatePlanningItemDialog = ({ reportId, spaceId, onSuccess }: Creat
             <p className="text-sm text-muted-foreground">
               Import ad set and ad level data:
             </p>
-            <div className="bg-muted p-4 rounded-lg space-y-2">
-              <div className="flex justify-between">
-                <span className="text-sm font-medium">Ad Set ID:</span>
-                <span className="text-sm font-mono">{ADSET_ID}</span>
+            <div className="space-y-3">
+              <div className="space-y-2">
+                <Label htmlFor="adsetId">Ad Set ID</Label>
+                <Input
+                  id="adsetId"
+                  value={adsetId}
+                  onChange={(e) => setAdsetId(e.target.value)}
+                  placeholder="e.g., 120239465204180120"
+                  className="font-mono text-sm"
+                />
               </div>
-              <div className="flex justify-between">
-                <span className="text-sm font-medium">Ad ID:</span>
-                <span className="text-sm font-mono">{AD_ID}</span>
+              <div className="space-y-2">
+                <Label htmlFor="adId">Ad ID</Label>
+                <Input
+                  id="adId"
+                  value={adId}
+                  onChange={(e) => setAdId(e.target.value)}
+                  placeholder="e.g., 120239465204170120"
+                  className="font-mono text-sm"
+                />
               </div>
             </div>
             <p className="text-xs text-muted-foreground">
