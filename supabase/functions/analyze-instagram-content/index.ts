@@ -15,17 +15,26 @@ interface ContentRow {
   sentiment: string | null;
 }
 
-interface FirecrawlResponse {
-  success: boolean;
-  data?: {
-    markdown?: string;
-    html?: string;
-    metadata?: {
-      title?: string;
-      ogImage?: string;
-    };
+interface ApifyRunResponse {
+  data: {
+    id: string;
+    status: string;
+    defaultDatasetId: string;
   };
-  error?: string;
+}
+
+interface ApifyPostData {
+  caption?: string;
+  displayUrl?: string;
+  commentsCount?: number;
+  likesCount?: number;
+  latestComments?: Array<{
+    text: string;
+    ownerUsername?: string;
+  }>;
+  type?: string;
+  alt?: string;
+  timestamp?: string;
 }
 
 interface AIResponse {
@@ -36,64 +45,103 @@ interface AIResponse {
   }>;
 }
 
-// Extract Instagram post ID from URL
-const extractPostId = (url: string): string | null => {
-  const patterns = [
-    /instagram\.com\/p\/([A-Za-z0-9_-]+)/,
-    /instagram\.com\/reel\/([A-Za-z0-9_-]+)/,
-    /instagram\.com\/tv\/([A-Za-z0-9_-]+)/,
-  ];
+// Scrape Instagram post using Apify Instagram Scraper
+const scrapeInstagramPost = async (url: string, apiKey: string): Promise<{
+  caption: string;
+  thumbnail: string | null;
+  comments: string[];
+  likesCount: number;
+  commentsCount: number;
+}> => {
+  console.log(`Scraping Instagram post with Apify: ${url}`);
   
-  for (const pattern of patterns) {
-    const match = url.match(pattern);
-    if (match) return match[1];
-  }
-  return null;
-};
-
-// Scrape Instagram post using Firecrawl
-const scrapeInstagramPost = async (url: string, apiKey: string): Promise<{ content: string; thumbnail: string | null }> => {
-  console.log(`Scraping Instagram post: ${url}`);
-  
-  const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      url,
-      formats: ['markdown', 'html'],
-      onlyMainContent: false,
-      waitFor: 3000, // Wait for dynamic content
-    }),
-  });
-
-  const data: FirecrawlResponse = await response.json();
-  
-  if (!response.ok || !data.success) {
-    console.error('Firecrawl error:', data.error);
-    throw new Error(data.error || 'Failed to scrape Instagram post');
-  }
-
-  // Try to extract og:image from HTML for thumbnail
-  let thumbnail: string | null = null;
-  if (data.data?.html) {
-    const ogImageMatch = data.data.html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i) ||
-                        data.data.html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:image["']/i);
-    if (ogImageMatch) {
-      thumbnail = ogImageMatch[1].replace(/&amp;/g, '&');
+  // Use the official apify/instagram-scraper actor with directUrls
+  const startResponse = await fetch(
+    `https://api.apify.com/v2/acts/apify~instagram-scraper/runs?token=${apiKey}`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        directUrls: [url],
+        resultsType: 'posts',
+        resultsLimit: 1,
+        addParentData: false,
+      }),
     }
+  );
+
+  if (!startResponse.ok) {
+    const errorText = await startResponse.text();
+    console.error('Apify start error:', errorText);
+    throw new Error(`Failed to start Apify scraper: ${startResponse.status} - ${errorText}`);
   }
 
-  // Also check metadata
-  if (!thumbnail && data.data?.metadata?.ogImage) {
-    thumbnail = data.data.metadata.ogImage;
+  const runData: ApifyRunResponse = await startResponse.json();
+  const runId = runData.data.id;
+  console.log(`Apify run started: ${runId}`);
+
+  // Wait for the run to complete (poll every 3 seconds, max 90 seconds)
+  let attempts = 0;
+  const maxAttempts = 30;
+  let status = runData.data.status;
+  let datasetId = runData.data.defaultDatasetId;
+  
+  while (status !== 'SUCCEEDED' && status !== 'FAILED' && status !== 'ABORTED' && attempts < maxAttempts) {
+    await new Promise(resolve => setTimeout(resolve, 3000));
+    
+    const statusResponse = await fetch(
+      `https://api.apify.com/v2/actor-runs/${runId}?token=${apiKey}`
+    );
+    
+    if (statusResponse.ok) {
+      const statusData = await statusResponse.json();
+      status = statusData.data.status;
+      datasetId = statusData.data.defaultDatasetId;
+      console.log(`Run status: ${status} (attempt ${attempts + 1}/${maxAttempts})`);
+    }
+    attempts++;
   }
+
+  if (status !== 'SUCCEEDED') {
+    throw new Error(`Apify run did not succeed: ${status}`);
+  }
+
+  // Get the results from the dataset
+  console.log(`Fetching results from dataset: ${datasetId}`);
+  const resultsResponse = await fetch(
+    `https://api.apify.com/v2/datasets/${datasetId}/items?token=${apiKey}`
+  );
+
+  if (!resultsResponse.ok) {
+    const errorText = await resultsResponse.text();
+    console.error('Failed to fetch results:', errorText);
+    throw new Error('Failed to fetch Apify results');
+  }
+
+  const results: ApifyPostData[] = await resultsResponse.json();
+  console.log(`Got ${results.length} results from Apify`);
+  
+  if (!results || results.length === 0) {
+    throw new Error('No data returned from Apify');
+  }
+
+  const post = results[0];
+  console.log('Post data:', JSON.stringify(post, null, 2).substring(0, 500));
+  
+  // Extract comments text
+  const comments = post.latestComments?.map(c => {
+    const username = c.ownerUsername || 'anonymous';
+    return `@${username}: ${c.text}`;
+  }) || [];
 
   return {
-    content: data.data?.markdown || '',
-    thumbnail,
+    caption: post.caption || post.alt || '',
+    thumbnail: post.displayUrl || null,
+    comments,
+    likesCount: post.likesCount || 0,
+    commentsCount: post.commentsCount || 0,
   };
 };
 
@@ -127,41 +175,6 @@ const analyzeWithAI = async (
 
   const data: AIResponse = await response.json();
   return data.choices?.[0]?.message?.content || '';
-};
-
-// Extract comments from scraped content
-const extractComments = (markdown: string): string[] => {
-  const comments: string[] = [];
-  
-  // Instagram markdown typically has comments in a specific format
-  // This is a heuristic approach - may need adjustment based on Firecrawl output
-  const lines = markdown.split('\n');
-  let inCommentsSection = false;
-  
-  for (const line of lines) {
-    const trimmed = line.trim();
-    
-    // Look for comment patterns (username followed by text)
-    if (trimmed.match(/^@?[a-zA-Z0-9._]+\s+.+/) || 
-        trimmed.match(/^\*\*[a-zA-Z0-9._]+\*\*\s+.+/)) {
-      comments.push(trimmed);
-    }
-    
-    // Also capture lines that look like comment content
-    if (inCommentsSection && trimmed.length > 10 && trimmed.length < 500) {
-      if (!trimmed.startsWith('http') && !trimmed.startsWith('#')) {
-        comments.push(trimmed);
-      }
-    }
-    
-    // Detect comments section
-    if (trimmed.toLowerCase().includes('comment') || trimmed.toLowerCase().includes('komentář')) {
-      inCommentsSection = true;
-    }
-  }
-  
-  // Limit to top 1000 comments
-  return comments.slice(0, 1000);
 };
 
 serve(async (req) => {
@@ -234,10 +247,10 @@ serve(async (req) => {
     }
 
     // Get API keys
-    const firecrawlApiKey = Deno.env.get('FIRECRAWL_API_KEY');
-    if (!firecrawlApiKey) {
+    const apifyApiKey = Deno.env.get('APIFY_API_KEY');
+    if (!apifyApiKey) {
       return new Response(
-        JSON.stringify({ success: false, error: 'Firecrawl not configured' }),
+        JSON.stringify({ success: false, error: 'Apify API key not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -250,43 +263,35 @@ serve(async (req) => {
       );
     }
 
-    // Step 1: Scrape the Instagram post
-    console.log('Step 1: Scraping Instagram post...');
-    const { content: scrapedContent, thumbnail } = await scrapeInstagramPost(content.url, firecrawlApiKey);
+    // Step 1: Scrape the Instagram post with Apify
+    console.log('Step 1: Scraping Instagram post with Apify...');
+    const { caption, thumbnail, comments, likesCount, commentsCount } = await scrapeInstagramPost(
+      content.url,
+      apifyApiKey
+    );
     
-    if (!scrapedContent) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Failed to scrape content from Instagram' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    console.log(`Scraped: caption=${caption.length} chars, thumbnail=${thumbnail ? 'found' : 'not found'}, comments=${comments.length}`);
 
-    console.log(`Scraped ${scrapedContent.length} characters, thumbnail: ${thumbnail ? 'found' : 'not found'}`);
-
-    // Step 2: Extract comments
-    console.log('Step 2: Extracting comments...');
-    const comments = extractComments(scrapedContent);
-    console.log(`Extracted ${comments.length} comments`);
-
-    // Step 3: Analyze content summary
-    console.log('Step 3: Analyzing content...');
+    // Step 2: Analyze content summary
+    console.log('Step 2: Analyzing content...');
+    const contentText = `Caption: ${caption}\n\nLikes: ${likesCount}\nComments count: ${commentsCount}`;
+    
     const contentSummary = await analyzeWithAI(
-      scrapedContent,
+      contentText,
       lovableApiKey,
       `Jsi expert na analýzu sociálních sítí. Analyzuj Instagram příspěvek a vytvoř stručné shrnutí v češtině.`,
       `Analyzuj tento Instagram příspěvek a vytvoř stručné shrnutí (max 300 slov):
       
       1. O čem příspěvek je
       2. Hlavní sdělení/message
-      3. Vizuální prvky (pokud jsou zmíněny)
+      3. Engagement (likes, komentáře)
       4. Call-to-action (pokud existuje)
       
-      Obsah příspěvku:
-      ${scrapedContent.substring(0, 5000)}`
+      ${contentText}`
     );
 
-    // Step 4: Analyze sentiment of comments
-    console.log('Step 4: Analyzing sentiment...');
+    // Step 3: Analyze sentiment of comments
+    console.log('Step 3: Analyzing sentiment...');
     let sentimentSummary = '';
     let overallSentiment: 'positive' | 'negative' | 'neutral' = 'neutral';
     
@@ -323,8 +328,8 @@ serve(async (req) => {
       sentimentSummary = 'Nebyly nalezeny žádné komentáře k analýze.';
     }
 
-    // Step 5: Update content record
-    console.log('Step 5: Updating content record...');
+    // Step 4: Update content record
+    console.log('Step 4: Updating content record...');
     const updateData: Partial<ContentRow> = {
       content_summary: contentSummary,
       sentiment_summary: sentimentSummary,
