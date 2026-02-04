@@ -28,10 +28,55 @@ const DEFAULT_AD_ID = "120239465204170120";
 export const CreatePlanningItemDialog = ({ reportId, spaceId, onSuccess }: CreatePlanningItemDialogProps) => {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<"campaign" | "adset">("campaign");
+  const [activeTab, setActiveTab] = useState<"full" | "campaign" | "adset">("full");
   const [campaignId, setCampaignId] = useState(DEFAULT_CAMPAIGN_ID);
   const [adsetId, setAdsetId] = useState(DEFAULT_ADSET_ID);
   const [adId, setAdId] = useState(DEFAULT_AD_ID);
+
+  const handleImportFullCampaign = async () => {
+    if (!campaignId.trim()) {
+      toast.error("Please enter a Campaign ID");
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("import-meta-campaign-full", {
+        body: {
+          reportId,
+          campaignId,
+          platform: "facebook",
+        },
+      });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+
+      const imported = data?.imported;
+      const errorCount = data?.errors?.length || 0;
+      
+      toast.success(
+        `Imported ${imported?.adSets || 0} ad sets and ${imported?.ads || 0} ads from campaign${errorCount > 0 ? ` (${errorCount} errors)` : ''}`
+      );
+      
+      if (data?.errors?.length > 0) {
+        console.warn("Import errors:", data.errors);
+      }
+      
+      setOpen(false);
+      onSuccess();
+    } catch (error) {
+      console.error("Import error:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to import campaign data");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleImportCampaign = async () => {
     setLoading(true);
@@ -103,10 +148,21 @@ export const CreatePlanningItemDialog = ({ reportId, spaceId, onSuccess }: Creat
   };
 
   const handleImport = () => {
-    if (activeTab === "campaign") {
+    if (activeTab === "full") {
+      handleImportFullCampaign();
+    } else if (activeTab === "campaign") {
       handleImportCampaign();
     } else {
       handleImportAdSet();
+    }
+  };
+
+  const getImportButtonText = () => {
+    if (loading) return "Importing...";
+    switch (activeTab) {
+      case "full": return "Import All";
+      case "campaign": return "Import Campaign";
+      case "adset": return "Import Ad Set";
     }
   };
 
@@ -123,11 +179,33 @@ export const CreatePlanningItemDialog = ({ reportId, spaceId, onSuccess }: Creat
           <DialogTitle>Import Data from Meta API</DialogTitle>
         </DialogHeader>
         
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "campaign" | "adset")}>
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "full" | "campaign" | "adset")}>
           <TabsList className="w-full">
-            <TabsTrigger value="campaign" className="flex-1">Campaign</TabsTrigger>
-            <TabsTrigger value="adset" className="flex-1">Ad Set & Ad</TabsTrigger>
+            <TabsTrigger value="full" className="flex-1">Full Campaign</TabsTrigger>
+            <TabsTrigger value="campaign" className="flex-1">Campaign Meta</TabsTrigger>
+            <TabsTrigger value="adset" className="flex-1">Single Ad Set</TabsTrigger>
           </TabsList>
+          
+          <TabsContent value="full" className="space-y-4 py-4">
+            <p className="text-sm text-muted-foreground">
+              Automatically import all ad sets and ads from a campaign:
+            </p>
+            <div className="space-y-3">
+              <div className="space-y-2">
+                <Label htmlFor="fullCampaignId">Campaign ID</Label>
+                <Input
+                  id="fullCampaignId"
+                  value={campaignId}
+                  onChange={(e) => setCampaignId(e.target.value)}
+                  placeholder="e.g., 120239465204160120"
+                  className="font-mono text-sm"
+                />
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              This will fetch all ad sets from the campaign, then all ads from each ad set, and import their metrics automatically.
+            </p>
+          </TabsContent>
           
           <TabsContent value="campaign" className="space-y-4 py-4">
             <p className="text-sm text-muted-foreground">
@@ -193,7 +271,7 @@ export const CreatePlanningItemDialog = ({ reportId, spaceId, onSuccess }: Creat
                 Importing...
               </>
             ) : (
-              `Import ${activeTab === "campaign" ? "Campaign" : "Ad Set"}`
+              getImportButtonText()
             )}
           </Button>
         </div>
