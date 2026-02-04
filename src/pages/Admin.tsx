@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UserList } from "@/components/admin/UserList";
 import { BrandsTab } from "@/components/admin/BrandsTab";
+import { PromptsTab } from "@/components/admin/PromptsTab";
 
 /**
  * Admin Panel - Access controlled by ProtectedRoute wrapper in App.tsx
@@ -23,6 +24,7 @@ const Admin = () => {
           <TabsList className="mb-6">
             <TabsTrigger value="users">Users</TabsTrigger>
             <TabsTrigger value="brands">Brands</TabsTrigger>
+            <TabsTrigger value="prompts">Prompty</TabsTrigger>
           </TabsList>
 
           <TabsContent value="users">
@@ -31,6 +33,10 @@ const Admin = () => {
 
           <TabsContent value="brands">
             <BrandsTab />
+          </TabsContent>
+
+          <TabsContent value="prompts">
+            <PromptsTab />
           </TabsContent>
         </Tabs>
       </div>
