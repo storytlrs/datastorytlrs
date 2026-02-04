@@ -183,30 +183,34 @@ serve(async (req) => {
   }
 
   try {
-    // Verify authentication
+    // Support both user auth and service role (for database triggers)
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Authentication required' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    let supabaseClient;
+    
+    if (authHeader?.startsWith('Bearer ')) {
+      // Try user authentication first
+      const userClient = createClient(
+        Deno.env.get('SUPABASE_URL')!,
+        Deno.env.get('SUPABASE_ANON_KEY')!,
+        { global: { headers: { Authorization: authHeader } } }
+      );
+
+      const { data: { user }, error: authError } = await userClient.auth.getUser();
+      
+      if (!authError && user) {
+        console.log(`Authenticated user: ${user.id}`);
+        supabaseClient = userClient;
+      }
+    }
+    
+    // Fallback to service role for database triggers
+    if (!supabaseClient) {
+      console.log('Using service role client (triggered from database)');
+      supabaseClient = createClient(
+        Deno.env.get('SUPABASE_URL')!,
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
       );
     }
-
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_ANON_KEY')!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
-    if (authError || !user) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Invalid token' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    console.log(`Authenticated user: ${user.id}`);
 
     const { content_id } = await req.json();
     
