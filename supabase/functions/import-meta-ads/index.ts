@@ -88,11 +88,44 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { reportId, adAccountId, platform = "facebook", datePreset = "last_30d" } = await req.json();
+    const { reportId, adAccountId: providedAdAccountId, platform = "facebook", datePreset = "last_30d" } = await req.json();
 
-    if (!reportId || !adAccountId) {
+    if (!reportId) {
       return new Response(
-        JSON.stringify({ error: "reportId and adAccountId are required" }),
+        JSON.stringify({ error: "reportId is required" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Get report to find space_id
+    const { data: reportData, error: reportError } = await supabase
+      .from("reports")
+      .select("space_id")
+      .eq("id", reportId)
+      .single();
+
+    if (reportError || !reportData) {
+      return new Response(
+        JSON.stringify({ error: "Report not found" }),
+        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Get meta_id from spaces table if adAccountId not provided
+    let adAccountId = providedAdAccountId;
+    if (!adAccountId) {
+      const { data: spaceData } = await supabase
+        .from("spaces")
+        .select("meta_id")
+        .eq("id", reportData.space_id)
+        .single();
+
+      adAccountId = spaceData?.meta_id;
+    }
+
+    if (!adAccountId) {
+      return new Response(
+        JSON.stringify({ error: "No Meta Ad Account ID configured for this brand. Please set meta_id in brand settings." }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }

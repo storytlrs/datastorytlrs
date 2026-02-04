@@ -6,11 +6,13 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useUserRole } from "@/hooks/useUserRole";
 
 interface Brand {
   id: string;
   name: string;
   description: string | null;
+  meta_id?: string | null;
 }
 
 interface EditBrandDialogProps {
@@ -23,12 +25,15 @@ interface EditBrandDialogProps {
 const EditBrandDialog = ({ open, onOpenChange, brand, onSuccess }: EditBrandDialogProps) => {
   const [name, setName] = useState(brand.name);
   const [description, setDescription] = useState(brand.description || "");
+  const [metaId, setMetaId] = useState(brand.meta_id || "");
   const [saving, setSaving] = useState(false);
+  const { isAdmin } = useUserRole();
 
   useEffect(() => {
     if (open) {
       setName(brand.name);
       setDescription(brand.description || "");
+      setMetaId(brand.meta_id || "");
     }
   }, [open, brand]);
 
@@ -42,9 +47,19 @@ const EditBrandDialog = ({ open, onOpenChange, brand, onSuccess }: EditBrandDial
 
     setSaving(true);
     try {
+      const updateData: { name: string; description: string | null; meta_id?: string | null } = {
+        name: name.trim(),
+        description: description.trim() || null,
+      };
+      
+      // Only admins can update meta_id
+      if (isAdmin) {
+        updateData.meta_id = metaId.trim() || null;
+      }
+
       const { error } = await supabase
         .from("spaces")
-        .update({ name: name.trim(), description: description.trim() || null })
+        .update(updateData)
         .eq("id", brand.id);
 
       if (error) throw error;
@@ -86,6 +101,21 @@ const EditBrandDialog = ({ open, onOpenChange, brand, onSuccess }: EditBrandDial
               className="rounded-[20px]"
             />
           </div>
+          {isAdmin && (
+            <div className="space-y-2">
+              <Label htmlFor="metaId">Meta Ad Account ID</Label>
+              <Input
+                id="metaId"
+                value={metaId}
+                onChange={(e) => setMetaId(e.target.value)}
+                placeholder="act_123456789"
+                className="rounded-[35px]"
+              />
+              <p className="text-xs text-muted-foreground">
+                Used for Meta Marketing API imports (e.g., act_123456789)
+              </p>
+            </div>
+          )}
           <div className="flex justify-end gap-2">
             <Button
               type="button"
