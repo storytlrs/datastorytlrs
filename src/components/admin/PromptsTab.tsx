@@ -16,6 +16,7 @@ interface AIPrompt {
   key: string;
   name: string;
   description: string | null;
+  category: string | null;
   prompt_text: string;
   updated_at: string;
 }
@@ -133,6 +134,11 @@ export const PromptsTab = () => {
                   <button className="w-full flex items-center justify-between p-4 hover:bg-muted/50 transition-colors text-left">
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
+                        {prompt.category && (
+                          <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full">
+                            {prompt.category}
+                          </span>
+                        )}
                         <h3 className="font-medium">{prompt.name}</h3>
                         {hasChanges(prompt) && (
                           <span className="text-xs bg-accent-orange text-foreground px-2 py-0.5 rounded-full">
