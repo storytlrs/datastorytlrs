@@ -73,13 +73,32 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { reportId, adsetId, adId, platform = "facebook" } = await req.json();
+    const { reportId, adsetId, adId, platform = "facebook", adAccountId: providedAdAccountId } = await req.json();
 
     if (!reportId) {
       return new Response(
         JSON.stringify({ error: "reportId is required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    // Get report to find space_id for meta_id lookup
+    const { data: reportData } = await supabase
+      .from("reports")
+      .select("space_id")
+      .eq("id", reportId)
+      .single();
+
+    // Get meta_id from spaces table if needed
+    let adAccountId = providedAdAccountId;
+    if (!adAccountId && reportData?.space_id) {
+      const { data: spaceData } = await supabase
+        .from("spaces")
+        .select("meta_id")
+        .eq("id", reportData.space_id)
+        .single();
+
+      adAccountId = spaceData?.meta_id;
     }
 
     const metaAccessToken = Deno.env.get("META_ACCESS_TOKEN");

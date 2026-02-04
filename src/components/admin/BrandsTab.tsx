@@ -25,6 +25,7 @@ interface Brand {
   name: string;
   description: string | null;
   profile_image_url: string | null;
+  meta_id: string | null;
   created_at: string;
 }
 
