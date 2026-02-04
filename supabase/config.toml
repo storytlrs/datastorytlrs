@@ -26,3 +26,6 @@ verify_jwt = false
 
 [functions.import-meta-campaign-full]
 verify_jwt = true
+
+[functions.analyze-instagram-content]
+verify_jwt = false

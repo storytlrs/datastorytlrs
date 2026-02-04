@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Eye, Heart, MessageCircle, Share2, ImageIcon, X, ArrowUpDown, Loader2, RefreshCw } from "lucide-react";
+import { Eye, Heart, MessageCircle, Share2, ImageIcon, X, ArrowUpDown, Loader2, RefreshCw, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -43,6 +43,9 @@ interface ContentItem {
   published_date: string | null;
   creator_id: string;
   creators: { id: string; handle: string } | null;
+  content_summary: string | null;
+  sentiment_summary: string | null;
+  sentiment: string | null;
 }
 
 export const ContentTab = ({ reportId }: ContentTabProps) => {
@@ -67,7 +70,7 @@ export const ContentTab = ({ reportId }: ContentTabProps) => {
     setLoading(true);
     const { data, error } = await supabase
       .from("content")
-      .select("id, report_id, platform, content_type, thumbnail_url, url, views, impressions, likes, comments, shares, saves, published_date, creator_id, creators(id, handle)")
+      .select("id, report_id, platform, content_type, thumbnail_url, url, views, impressions, likes, comments, shares, saves, published_date, creator_id, creators(id, handle), content_summary, sentiment_summary, sentiment")
       .eq("report_id", reportId)
       .order("published_date", { ascending: false });
 
@@ -288,6 +291,55 @@ export const ContentTab = ({ reportId }: ContentTabProps) => {
   };
 
   const [refreshingItems, setRefreshingItems] = useState<Set<string>>(new Set());
+  const [analyzingItems, setAnalyzingItems] = useState<Set<string>>(new Set());
+
+  const analyzeInstagramContent = async (item: ContentItem) => {
+    if (!item.url || !item.url.includes('instagram.com')) {
+      toast.error('Pouze Instagram příspěvky jsou podporovány');
+      return;
+    }
+    
+    setAnalyzingItems(prev => new Set(prev).add(item.id));
+    
+    try {
+      const response = await supabase.functions.invoke('analyze-instagram-content', {
+        body: { content_id: item.id }
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message);
+      }
+
+      const data = response.data;
+      
+      if (!data?.success) {
+        throw new Error(data?.error || 'Analýza selhala');
+      }
+
+      // Update local state with the new data
+      setContent(prev => prev.map(c => 
+        c.id === item.id 
+          ? { 
+              ...c, 
+              content_summary: data.data.content_summary,
+              sentiment_summary: data.data.sentiment_summary,
+              sentiment: data.data.sentiment,
+              thumbnail_url: data.data.thumbnail || c.thumbnail_url,
+            } 
+          : c
+      ));
+      
+      toast.success(`Analýza dokončena (${data.data.comments_analyzed} komentářů)`);
+    } catch (err) {
+      console.error('Analysis failed:', err);
+      toast.error(err instanceof Error ? err.message : 'Analýza selhala');
+    } finally {
+      setAnalyzingItems(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(item.id);
+        return newSet;
+      });
+    }
 
   const refreshThumbnail = async (item: ContentItem) => {
     if (!item.url) return;
@@ -598,6 +650,44 @@ export const ContentTab = ({ reportId }: ContentTabProps) => {
                       <span>{formatNumber(item.shares)}</span>
                     </div>
                   </div>
+
+                  {/* Sentiment indicator */}
+                  {item.sentiment && (
+                    <div className="flex items-center gap-1">
+                      <Badge className={cn(
+                        "text-[10px] px-1.5 py-0.5",
+                        item.sentiment === 'positive' && "bg-accent-green text-accent-green-foreground",
+                        item.sentiment === 'negative' && "bg-destructive text-destructive-foreground",
+                        item.sentiment === 'neutral' && "bg-muted text-muted-foreground"
+                      )}>
+                        {item.sentiment === 'positive' ? '😊 Pozitivní' : 
+                         item.sentiment === 'negative' ? '😟 Negativní' : '😐 Neutrální'}
+                      </Badge>
+                    </div>
+                  )}
+
+                  {/* AI Analysis button for Instagram */}
+                  {item.platform === 'instagram' && item.url && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full text-xs h-7 rounded-[35px]"
+                      onClick={() => analyzeInstagramContent(item)}
+                      disabled={analyzingItems.has(item.id)}
+                    >
+                      {analyzingItems.has(item.id) ? (
+                        <>
+                          <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                          Analyzuji...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-3 h-3 mr-1" />
+                          {item.content_summary ? 'Znovu analyzovat' : 'AI Analýza'}
+                        </>
+                      )}
+                    </Button>
+                  )}
                 </div>
               </Card>
             );
