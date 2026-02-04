@@ -340,6 +340,7 @@ export const ContentTab = ({ reportId }: ContentTabProps) => {
         return newSet;
       });
     }
+  };
 
   const refreshThumbnail = async (item: ContentItem) => {
     if (!item.url) return;
