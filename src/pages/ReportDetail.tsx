@@ -15,6 +15,7 @@ import { AdCreativesTab } from "@/components/reports/AdCreativesTab";
 import { AdsDataTab } from "@/components/reports/AdsDataTab";
 import { AlwaysOnDataTab } from "@/components/reports/AlwaysOnDataTab";
 import { AIInsightsTab } from "@/components/reports/AIInsightsTab";
+import { AdsAIInsightsTab } from "@/components/reports/AdsAIInsightsTab";
 import { EditReportDialog } from "@/components/reports/EditReportDialog";
 import { useUserRole } from "@/hooks/useUserRole";
 import { ReportContributors, Contributor } from "@/components/reports/ReportContributors";
@@ -287,7 +288,11 @@ const ReportDetail = () => {
           </TabsContent>
 
           <TabsContent value="insights">
-            <AIInsightsTab reportId={reportId!} />
+            {isAds ? (
+              <AdsAIInsightsTab reportId={reportId!} />
+            ) : (
+              <AIInsightsTab reportId={reportId!} />
+            )}
           </TabsContent>
 
           {/* Influencer-specific content */}
