@@ -281,7 +281,7 @@ const ReportDetail = () => {
           {/* Common tab content */}
           <TabsContent value="overview">
             {isAds ? (
-              <AdsOverviewTab reportId={reportId!} />
+              <AdsOverviewTab reportId={reportId!} spaceId={report.space_id} />
             ) : (
               <OverviewTab reportId={reportId!} />
             )}
@@ -317,11 +317,11 @@ const ReportDetail = () => {
           {isAds && (
             <>
               <TabsContent value="ad-creatives">
-                <AdCreativesTab reportId={reportId!} />
+                <AdCreativesTab reportId={reportId!} spaceId={report.space_id} />
               </TabsContent>
 
               <TabsContent value="data">
-                <AdsDataTab reportId={reportId!} onImportSuccess={fetchReport} />
+                <AdsDataTab reportId={reportId!} spaceId={report.space_id} onImportSuccess={fetchReport} />
               </TabsContent>
             </>
           )}
@@ -334,7 +334,7 @@ const ReportDetail = () => {
               </TabsContent>
 
               <TabsContent value="data">
-                <AlwaysOnDataTab reportId={reportId!} onImportSuccess={fetchReport} />
+                <AlwaysOnDataTab reportId={reportId!} spaceId={report.space_id} onImportSuccess={fetchReport} />
               </TabsContent>
             </>
           )}

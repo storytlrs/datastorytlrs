@@ -30,6 +30,7 @@ import { formatCurrency as formatCurrencyUtil } from "@/lib/currencyUtils";
 
 interface AdsOverviewTabProps {
   reportId: string;
+  spaceId: string;
 }
 
 interface CampaignMeta {
@@ -58,10 +59,9 @@ interface CampaignMeta {
 
 interface AdSet {
   id: string;
-  campaign_id: string | null;
-  campaign_name: string | null;
-  ad_name: string | null;
-  platform: string;
+  brand_campaign_id: string;
+  adset_name: string | null;
+  status: string | null;
   amount_spent: number | null;
   reach: number | null;
   impressions: number | null;
@@ -71,7 +71,7 @@ interface AdSet {
   cpm: number | null;
   cpc: number | null;
   frequency: number | null;
-  link_clicks: number | null;
+  clicks: number | null;
   post_reactions: number | null;
   post_comments: number | null;
   post_shares: number | null;
@@ -82,9 +82,9 @@ interface AdSet {
 
 interface Ad {
   id: string;
-  ad_set_id: string;
+  brand_ad_set_id: string;
   ad_name: string;
-  platform: string;
+  status: string | null;
   amount_spent: number | null;
   reach: number | null;
   impressions: number | null;
@@ -94,7 +94,7 @@ interface Ad {
   cpm: number | null;
   cpc: number | null;
   frequency: number | null;
-  link_clicks: number | null;
+  clicks: number | null;
   post_reactions: number | null;
   post_comments: number | null;
   post_shares: number | null;
@@ -139,7 +139,7 @@ const calculateKPIs = (data: any[]) => {
   const total3sViews = data.reduce((sum, item) => sum + (item.video_3s_plays || 0), 0);
   const avgFrequency = totalReach > 0 ? totalImpressions / totalReach : 0;
   
-  const totalLinkClicks = data.reduce((sum, item) => sum + (item.link_clicks || 0), 0);
+  const totalLinkClicks = data.reduce((sum, item) => sum + (item.clicks || item.link_clicks || 0), 0);
   const totalReactions = data.reduce((sum, item) => sum + (item.post_reactions || 0), 0);
   const totalComments = data.reduce((sum, item) => sum + (item.post_comments || 0), 0);
   const totalShares = data.reduce((sum, item) => sum + (item.post_shares || 0), 0);
@@ -179,7 +179,7 @@ const calculateKPIs = (data: any[]) => {
   };
 };
 
-export const AdsOverviewTab = ({ reportId }: AdsOverviewTabProps) => {
+export const AdsOverviewTab = ({ reportId, spaceId }: AdsOverviewTabProps) => {
   const [campaignMeta, setCampaignMeta] = useState<CampaignMeta[]>([]);
   const [adSets, setAdSets] = useState<AdSet[]>([]);
   const [ads, setAds] = useState<Ad[]>([]);
@@ -206,24 +206,24 @@ export const AdsOverviewTab = ({ reportId }: AdsOverviewTabProps) => {
       setLoading(true);
       
       const [campaignMetaRes, adSetsRes, adsRes] = await Promise.all([
-        supabase.from("campaign_meta").select("*").eq("report_id", reportId),
-        supabase.from("ad_sets").select("*").eq("report_id", reportId),
-        supabase.from("ads").select("*").eq("report_id", reportId),
+        supabase.from("brand_campaigns" as any).select("*").eq("space_id", spaceId),
+        supabase.from("brand_ad_sets" as any).select("*").eq("space_id", spaceId),
+        supabase.from("brand_ads" as any).select("*").eq("space_id", spaceId),
       ]);
       
-      setCampaignMeta(campaignMetaRes.data || []);
-      setAdSets(adSetsRes.data || []);
-      setAds(adsRes.data || []);
+      setCampaignMeta((campaignMetaRes.data || []) as any);
+      setAdSets((adSetsRes.data || []) as any);
+      setAds((adsRes.data || []) as any);
       setLoading(false);
     };
     fetchData();
-  }, [reportId]);
+  }, [spaceId]);
 
   // Get campaigns for selector
   const campaigns = useMemo(() => {
     return campaignMeta.map(cm => ({
-      id: cm.campaign_id || cm.id,
-      name: cm.campaign_name || cm.account_name || "Unnamed Campaign",
+      id: cm.id,
+      name: cm.campaign_name || "Unnamed Campaign",
       data: cm
     }));
   }, [campaignMeta]);
@@ -267,7 +267,7 @@ export const AdsOverviewTab = ({ reportId }: AdsOverviewTabProps) => {
   const filteredCampaignMeta = useMemo(() => {
     let filtered = campaignMeta;
     if (selectedCampaignId) {
-      filtered = filtered.filter(cm => (cm.campaign_id || cm.id) === selectedCampaignId);
+      filtered = filtered.filter(cm => cm.id === selectedCampaignId);
     }
     if (dateRange.start) {
       filtered = filtered.filter(item => !item.date_start || new Date(item.date_start) >= dateRange.start!);
@@ -474,7 +474,7 @@ export const AdsOverviewTab = ({ reportId }: AdsOverviewTabProps) => {
                     selectedAdSetId && "border-accent-orange bg-accent-orange text-foreground"
                   )}
                 >
-                  {selectedAdSet?.ad_name || "Select Ad Set..."}
+                  {selectedAdSet?.adset_name || "Select Ad Set..."}
                   <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
               </PopoverTrigger>
@@ -487,7 +487,7 @@ export const AdsOverviewTab = ({ reportId }: AdsOverviewTabProps) => {
                       {filteredAdSets.map((adSet) => (
                         <CommandItem
                           key={adSet.id}
-                          value={adSet.ad_name || adSet.id}
+                          value={adSet.adset_name || adSet.id}
                           onSelect={() => {
                             setSelectedAdSetId(adSet.id);
                             setSelectedAdId(null);
@@ -500,7 +500,7 @@ export const AdsOverviewTab = ({ reportId }: AdsOverviewTabProps) => {
                               selectedAdSetId === adSet.id ? "opacity-100" : "opacity-0"
                             )}
                           />
-                          {adSet.ad_name || "Unnamed Ad Set"}
+                          {adSet.adset_name || "Unnamed Ad Set"}
                         </CommandItem>
                       ))}
                     </CommandGroup>

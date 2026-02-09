@@ -63,36 +63,11 @@ const BrandAdsDashboard = ({ spaceId, filters }: BrandAdsDashboardProps) => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      // For now, fetch ad_creatives from ads reports
-      // Later this will be replaced with brand_ads table with automatic imports
-      let reportsQuery = supabase
-        .from("reports")
-        .select("id")
-        .eq("space_id", spaceId)
-        .eq("type", "ads");
-
-      if (filters.dateRange.start) {
-        reportsQuery = reportsQuery.gte("start_date", filters.dateRange.start.toISOString().split("T")[0]);
-      }
-      if (filters.dateRange.end) {
-        reportsQuery = reportsQuery.lte("end_date", filters.dateRange.end.toISOString().split("T")[0]);
-      }
-
-      const { data: reportsData, error: reportsError } = await reportsQuery;
-      if (reportsError) throw reportsError;
-
-      const reportIds = reportsData?.map(r => r.id) || [];
-
-      if (reportIds.length === 0) {
-        setAdCreatives([]);
-        setLoading(false);
-        return;
-      }
 
       let adsQuery = supabase
-        .from("ad_sets")
-        .select("id, ad_name, platform, amount_spent, impressions, link_clicks, ctr, frequency, date_start")
-        .in("report_id", reportIds);
+        .from("brand_ad_sets" as any)
+        .select("id, adset_name, amount_spent, impressions, clicks, ctr, frequency, date_start")
+        .eq("space_id", spaceId);
 
       if (filters.platform !== "all") {
         adsQuery = adsQuery.eq("platform", filters.platform as "instagram" | "tiktok" | "youtube" | "facebook" | "twitter");
@@ -101,14 +76,13 @@ const BrandAdsDashboard = ({ spaceId, filters }: BrandAdsDashboardProps) => {
       const { data: adsData, error: adsError } = await adsQuery;
       if (adsError) throw adsError;
 
-      // Map database rows to AdCreative interface
-      const mappedData: AdCreative[] = (adsData || []).map((row: AdSetRow) => ({
+      const mappedData: AdCreative[] = ((adsData || []) as any[]).map((row: any) => ({
         id: row.id,
-        name: row.ad_name || "Unnamed Ad",
-        platform: row.platform,
+        name: row.adset_name || "Unnamed Ad",
+        platform: "facebook",
         spend: row.amount_spent,
         impressions: row.impressions,
-        clicks: row.link_clicks,
+        clicks: row.clicks,
         conversions: null,
         ctr: row.ctr,
         roas: null,

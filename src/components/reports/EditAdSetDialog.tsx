@@ -75,7 +75,7 @@ export const EditAdSetDialog = ({ adSet, open, onOpenChange, onSuccess }: EditAd
 
     setLoading(true);
     try {
-      const { error } = await supabase.from("ad_sets").update({
+      const { error } = await supabase.from("brand_ad_sets").update({
         name: formData.name,
         platform: formData.platform,
         ad_type: formData.ad_type || null,
