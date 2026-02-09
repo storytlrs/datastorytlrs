@@ -36,7 +36,7 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Fetch report
+    // Fetch report with space info
     const { data: report, error: reportError } = await supabase
       .from("reports")
       .select("*, spaces(name)")
@@ -45,112 +45,64 @@ serve(async (req) => {
 
     if (reportError || !report) throw new Error("Report not found");
 
-    // Fetch all ads data in parallel
-    const [campaignMetaRes, adSetsRes, adsRes] = await Promise.all([
-      supabase.from("campaign_meta").select("*").eq("report_id", report_id),
-      supabase.from("ad_sets").select("*").eq("report_id", report_id),
-      supabase.from("ads").select("*").eq("report_id", report_id),
+    const spaceId = report.space_id;
+
+    // Fetch all brand-level ads data in parallel
+    const [campaignsRes, adSetsRes, adsRes] = await Promise.all([
+      supabase.from("brand_campaigns").select("*").eq("space_id", spaceId),
+      supabase.from("brand_ad_sets").select("*").eq("space_id", spaceId),
+      supabase.from("brand_ads").select("*").eq("space_id", spaceId),
     ]);
 
-    const campaignMeta = campaignMetaRes.data || [];
+    const campaigns = campaignsRes.data || [];
     const adSets = adSetsRes.data || [];
     const ads = adsRes.data || [];
 
-    // Calculate aggregated metrics
-    const allData = [...campaignMeta];
-    // If no campaign_meta, use ad_sets as fallback
-    const metricsSource = allData.length > 0 ? allData : adSets;
+    // Calculate aggregated metrics from campaigns (highest level)
+    const metricsSource = campaigns.length > 0 ? campaigns : adSets;
 
     const totalSpend = metricsSource.reduce((s, d) => s + (d.amount_spent || 0), 0);
     const totalReach = metricsSource.reduce((s, d) => s + (d.reach || 0), 0);
     const totalImpressions = metricsSource.reduce((s, d) => s + (d.impressions || 0), 0);
-    const totalThruplays = metricsSource.reduce((s, d) => s + (d.thruplays || 0), 0);
-    const total3sViews = metricsSource.reduce((s, d) => s + (d.video_3s_plays || 0), 0);
-    const totalLinkClicks = metricsSource.reduce((s, d) => s + (d.link_clicks || 0), 0);
-    const totalReactions = metricsSource.reduce((s, d) => s + (d.post_reactions || 0), 0);
-    const totalComments = metricsSource.reduce((s, d) => s + (d.post_comments || 0), 0);
-    const totalShares = metricsSource.reduce((s, d) => s + (d.post_shares || 0), 0);
-    const totalSaves = metricsSource.reduce((s, d) => s + (d.post_saves || 0), 0);
+    const totalClicks = metricsSource.reduce((s, d) => s + (d.clicks || 0), 0);
+
+    // For detailed metrics, use ad-level data if available
+    const detailSource = ads.length > 0 ? ads : adSets;
+    const totalThruplays = detailSource.reduce((s, d) => s + (d.thruplays || 0), 0);
+    const total3sViews = detailSource.reduce((s, d) => s + (d.video_3s_plays || 0), 0);
+    const totalReactions = detailSource.reduce((s, d) => s + (d.post_reactions || 0), 0);
+    const totalComments = detailSource.reduce((s, d) => s + (d.post_comments || 0), 0);
+    const totalShares = detailSource.reduce((s, d) => s + (d.post_shares || 0), 0);
+    const totalSaves = detailSource.reduce((s, d) => s + (d.post_saves || 0), 0);
+    const totalLinkClicks = detailSource.reduce((s, d) => s + (d.link_clicks || 0), 0);
     const totalInteractions = totalReactions + totalComments + totalShares + totalSaves;
 
     const avgFrequency = totalReach > 0 ? totalImpressions / totalReach : 0;
-    const ctr = totalImpressions > 0 ? (totalLinkClicks / totalImpressions) * 100 : 0;
+    const ctr = totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0;
     const engagementRate = totalImpressions > 0 ? (totalInteractions / totalImpressions) * 100 : 0;
     const thruplayRate = totalImpressions > 0 ? (totalThruplays / totalImpressions) * 100 : 0;
     const viewRate3s = totalImpressions > 0 ? (total3sViews / totalImpressions) * 100 : 0;
     const cpm = totalImpressions > 0 ? (totalSpend / totalImpressions) * 1000 : 0;
-    const cpc = totalLinkClicks > 0 ? totalSpend / totalLinkClicks : 0;
+    const cpc = totalClicks > 0 ? totalSpend / totalClicks : 0;
     const costPerThruplay = totalThruplays > 0 ? totalSpend / totalThruplays : 0;
     const costPer3sView = total3sViews > 0 ? totalSpend / total3sViews : 0;
     const cpe = totalInteractions > 0 ? totalSpend / totalInteractions : 0;
-
-    // Benchmarks from other ads reports in same space
-    const { data: spaceReports } = await supabase
-      .from("reports")
-      .select("id")
-      .eq("space_id", report.space_id)
-      .eq("type", "ads")
-      .neq("id", report_id);
-
-    let benchmarkCPM = 0;
-    let benchmarkCPC = 0;
-    let benchmarkCTR = 0;
-    let benchmarkER = 0;
-    let benchmarkCount = 0;
-
-    if (spaceReports && spaceReports.length > 0) {
-      for (const sr of spaceReports) {
-        const { data: srData } = await supabase
-          .from("campaign_meta")
-          .select("amount_spent, impressions, link_clicks, post_reactions, post_comments, post_shares, post_saves")
-          .eq("report_id", sr.id);
-
-        if (srData && srData.length > 0) {
-          const imp = srData.reduce((s: number, d: any) => s + (d.impressions || 0), 0);
-          const spend = srData.reduce((s: number, d: any) => s + (d.amount_spent || 0), 0);
-          const clicks = srData.reduce((s: number, d: any) => s + (d.link_clicks || 0), 0);
-          const inter = srData.reduce((s: number, d: any) => s + (d.post_reactions || 0) + (d.post_comments || 0) + (d.post_shares || 0) + (d.post_saves || 0), 0);
-
-          if (imp > 0) {
-            benchmarkCPM += (spend / imp) * 1000;
-            benchmarkCTR += (clicks / imp) * 100;
-            benchmarkER += (inter / imp) * 100;
-          }
-          if (clicks > 0) benchmarkCPC += spend / clicks;
-          benchmarkCount++;
-        }
-      }
-      if (benchmarkCount > 0) {
-        benchmarkCPM /= benchmarkCount;
-        benchmarkCPC /= benchmarkCount;
-        benchmarkCTR /= benchmarkCount;
-        benchmarkER /= benchmarkCount;
-      }
-    }
-
-    if (benchmarkCount === 0) {
-      benchmarkCPM = cpm;
-      benchmarkCPC = cpc;
-      benchmarkCTR = ctr;
-      benchmarkER = engagementRate;
-    }
 
     // Top ad sets by spend
     const topAdSets = [...adSets]
       .sort((a, b) => (b.amount_spent || 0) - (a.amount_spent || 0))
       .slice(0, 5)
       .map((as) => ({
-        name: as.ad_name || "Unnamed",
-        platform: as.platform,
+        name: as.adset_name || "Unnamed",
         spend: as.amount_spent || 0,
         impressions: as.impressions || 0,
-        clicks: as.link_clicks || 0,
+        clicks: as.clicks || 0,
         ctr: as.ctr || 0,
       }));
 
     // Campaign list summary
-    const campaignSummary = campaignMeta
-      .map((cm) => `${cm.campaign_name || "Unnamed"}: Spend ${cm.amount_spent}, Impr ${cm.impressions}, Clicks ${cm.link_clicks}`)
+    const campaignSummary = campaigns
+      .map((cm) => `${cm.campaign_name || "Unnamed"}: Spend ${cm.amount_spent}, Impr ${cm.impressions}, Clicks ${cm.clicks}`)
       .join("\n");
 
     const systemPrompt = `Jsi analytik digitálního marketingu specializující se na reklamní kampaně (Meta Ads, Facebook Ads, Instagram Ads). Na základě dat z kampaně a kontextu od uživatele vytvoř strukturovaný report v češtině.
@@ -174,7 +126,7 @@ Data kampaně:
 - CPC: ${cpc.toFixed(2)} CZK
 - Cost per ThruPlay: ${costPerThruplay.toFixed(2)} CZK
 - CPE: ${cpe.toFixed(2)} CZK
-- Počet kampaní: ${campaignMeta.length}
+- Počet kampaní: ${campaigns.length}
 - Počet ad setů: ${adSets.length}
 - Počet reklam: ${ads.length}
 
@@ -278,14 +230,8 @@ Kontext od uživatele:
         cpe,
         currency: "CZK",
       },
-      benchmarks: {
-        cpm: benchmarkCPM,
-        cpc: benchmarkCPC,
-        ctr: benchmarkCTR,
-        engagementRate: benchmarkER,
-      },
       top_ad_sets: topAdSets,
-      campaign_count: campaignMeta.length,
+      campaign_count: campaigns.length,
       ad_set_count: adSets.length,
       ad_count: ads.length,
       awareness_summary: aiContent.awareness_summary,

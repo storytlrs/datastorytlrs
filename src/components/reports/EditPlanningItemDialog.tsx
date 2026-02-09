@@ -30,10 +30,10 @@ export const EditPlanningItemDialog = ({ item, open, onOpenChange, onSuccess }: 
   useEffect(() => {
     if (item) {
       setFormData({
-        account_name: item.account_name || "",
-        account_id: item.account_id || "",
-        adset_id: item.adset_id || "",
-        adset_name: item.adset_name || "",
+        campaign_name: item.campaign_name || "",
+        campaign_id: item.campaign_id || "",
+        objective: item.objective || "",
+        status: item.status || "",
       });
     }
   }, [item]);
@@ -44,10 +44,10 @@ export const EditPlanningItemDialog = ({ item, open, onOpenChange, onSuccess }: 
     setLoading(true);
     try {
       const { error } = await supabase.from("brand_campaigns").update({
-        account_name: formData.account_name || null,
-        account_id: formData.account_id || null,
-        adset_id: formData.adset_id || null,
-        adset_name: formData.adset_name || null,
+        campaign_name: formData.campaign_name || null,
+        campaign_id: formData.campaign_id,
+        objective: formData.objective || null,
+        status: formData.status || null,
       }).eq("id", item.id);
 
       if (error) throw error;
