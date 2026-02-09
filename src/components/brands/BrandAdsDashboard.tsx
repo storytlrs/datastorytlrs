@@ -8,7 +8,6 @@ import { KPICard } from "@/components/reports/KPICard";
 import { TopContentGrid, TopContentItem } from "./TopContentGrid";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { formatCurrency } from "@/lib/currencyUtils";
-import { format, parseISO, startOfMonth } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -49,6 +48,7 @@ interface AdCreative {
   thumbnail_url: string | null;
   url: string | null;
   published_date: string | null;
+  brand_campaign_id: string | null;
 }
 
 type MetricKey = "spend" | "impressions" | "clicks" | "ctr" | "roas";
@@ -115,6 +115,7 @@ const BrandAdsDashboard = ({ spaceId, filters }: BrandAdsDashboardProps) => {
         thumbnail_url: null,
         url: null,
         published_date: row.date_start,
+        brand_campaign_id: row.brand_campaign_id,
       }));
 
       setAdCreatives(mappedData);
@@ -167,59 +168,55 @@ const BrandAdsDashboard = ({ spaceId, filters }: BrandAdsDashboardProps) => {
     };
   }, [adCreatives]);
 
-  // Monthly chart data
+  // Campaign-based chart data
   const chartData = useMemo(() => {
-    const monthlyData: Record<string, {
-      monthKey: string;
-      month: string;
+    const campaignData: Record<string, {
+      campaignId: string;
+      name: string;
       spend: number;
       impressions: number;
       clicks: number;
-      totalImpressions: number;
       totalRoas: number;
       roasCount: number;
     }> = {};
 
     adCreatives.forEach(a => {
-      if (!a.published_date) return;
-      const date = parseISO(a.published_date);
-      const monthKey = format(startOfMonth(date), "yyyy-MM");
-      const monthLabel = format(date, "MMM yyyy");
+      const cId = a.brand_campaign_id || "unknown";
+      const campaign = campaigns.find(c => c.id === cId);
+      const campaignName = campaign?.campaign_name || campaign?.campaign_id || "Unknown";
 
-      if (!monthlyData[monthKey]) {
-        monthlyData[monthKey] = {
-          monthKey,
-          month: monthLabel,
+      if (!campaignData[cId]) {
+        campaignData[cId] = {
+          campaignId: cId,
+          name: campaignName,
           spend: 0,
           impressions: 0,
           clicks: 0,
-          totalImpressions: 0,
           totalRoas: 0,
           roasCount: 0,
         };
       }
 
-      monthlyData[monthKey].spend += a.spend || 0;
-      monthlyData[monthKey].impressions += a.impressions || 0;
-      monthlyData[monthKey].clicks += a.clicks || 0;
-      monthlyData[monthKey].totalImpressions += a.impressions || 0;
+      campaignData[cId].spend += a.spend || 0;
+      campaignData[cId].impressions += a.impressions || 0;
+      campaignData[cId].clicks += a.clicks || 0;
       if (a.roas) {
-        monthlyData[monthKey].totalRoas += a.roas;
-        monthlyData[monthKey].roasCount += 1;
+        campaignData[cId].totalRoas += a.roas;
+        campaignData[cId].roasCount += 1;
       }
     });
 
-    return Object.values(monthlyData)
-      .sort((a, b) => a.monthKey.localeCompare(b.monthKey))
+    return Object.values(campaignData)
+      .sort((a, b) => a.name.localeCompare(b.name))
       .map(d => ({
-        month: d.month,
+        name: d.name,
         spend: d.spend,
         impressions: d.impressions,
         clicks: d.clicks,
-        ctr: d.totalImpressions > 0 ? (d.clicks / d.totalImpressions) * 100 : 0,
+        ctr: d.impressions > 0 ? (d.clicks / d.impressions) * 100 : 0,
         roas: d.roasCount > 0 ? d.totalRoas / d.roasCount : 0,
       }));
-  }, [adCreatives]);
+  }, [adCreatives, campaigns]);
 
   // Top 5 ad creatives by composite score
   const topContent: TopContentItem[] = useMemo(() => {
@@ -466,7 +463,7 @@ const BrandAdsDashboard = ({ spaceId, filters }: BrandAdsDashboardProps) => {
       {/* Bar Chart */}
       <Card className="p-6 rounded-[35px] border-foreground">
         <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-          <h3 className="text-lg font-semibold">Monthly Performance</h3>
+          <h3 className="text-lg font-semibold">Campaign Performance</h3>
           <div className="flex flex-wrap gap-2">
             {(Object.keys(metricLabels) as MetricKey[]).map((key) => (
               <Button
@@ -491,7 +488,7 @@ const BrandAdsDashboard = ({ spaceId, filters }: BrandAdsDashboardProps) => {
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-              <XAxis dataKey="month" stroke="hsl(var(--foreground))" />
+              <XAxis dataKey="name" stroke="hsl(var(--foreground))" tick={{ fontSize: 12 }} interval={0} angle={-20} textAnchor="end" height={60} />
               <YAxis
                 stroke="hsl(var(--foreground))"
                 tickFormatter={(value) => formatChartValue(value, selectedMetric)}
