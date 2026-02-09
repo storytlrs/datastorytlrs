@@ -108,6 +108,13 @@ const BrandAdsDashboard = ({ spaceId, filters }: BrandAdsDashboardProps) => {
     }
   };
 
+  // Reset all filters when space changes
+  useEffect(() => {
+    setSelectedCampaignIds([]);
+    setSelectedAdSetIds([]);
+    setSelectedAdIds([]);
+  }, [spaceId]);
+
   // Reset child filters when parent changes
   useEffect(() => {
     setSelectedAdSetIds([]);
