@@ -26,6 +26,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { CalendarIcon, Upload, FileSpreadsheet, X, Check, ChevronsUpDown } from "lucide-react";
+import { CampaignSelectorStep } from "./CampaignSelectorStep";
 import {
   Command,
   CommandEmpty,
@@ -81,7 +82,10 @@ const CreateReportDialog = ({
   const [projectsLoading, setProjectsLoading] = useState(false);
   const [projectOpen, setProjectOpen] = useState(false);
 
-  // Step 2 state (file upload)
+  // Campaign selection state (for ads/always_on)
+  const [selectedCampaignIds, setSelectedCampaignIds] = useState<string[]>([]);
+
+  // Step 2/3 state (file upload)
   const [file, setFile] = useState<File | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const [parsedFile, setParsedFile] = useState<ParsedFile | null>(null);
@@ -120,6 +124,7 @@ const CreateReportDialog = ({
       setReportType("influencer");
       setStartDate(undefined);
       setEndDate(undefined);
+      setSelectedCampaignIds([]);
       setFile(null);
       setParsedFile(null);
       setMappings({});
@@ -167,28 +172,44 @@ const CreateReportDialog = ({
     setMappings({});
   };
 
+  const needsCampaignStep = reportType === "ads" || reportType === "always_on";
+
   const canProceedStep1 = () => {
     return campaignName.trim() && startDate && endDate;
   };
 
   const handleNext = () => {
     if (step === 1 && canProceedStep1()) {
-      setStep(2);
+      if (needsCampaignStep) {
+        setStep(2); // Campaign selection
+      } else {
+        setStep(3); // Skip to upload
+      }
+    } else if (step === 2) {
+      setStep(3); // From campaign selection to upload
     }
   };
 
   const handleBack = () => {
-    if (step === 4) {
+    if (step === 6) {
+      setStep(5);
+    } else if (step === 5) {
+      setStep(4);
+    } else if (step === 4) {
       setStep(3);
     } else if (step === 3) {
-      setStep(2);
-    } else if (step > 1) {
-      setStep(step - 1);
+      if (needsCampaignStep) {
+        setStep(2);
+      } else {
+        setStep(1);
+      }
+    } else if (step === 2) {
+      setStep(1);
     }
   };
 
   const handleSkipUpload = () => {
-    setStep(5); // Go to review without file
+    setStep(6); // Go to review without file
   };
 
   const handleAnalyzeFile = async () => {
@@ -206,7 +227,7 @@ const CreateReportDialog = ({
       });
       setMappings(initialMappings);
 
-      setStep(3); // Go to mapping step
+      setStep(4); // Go to mapping step
     } catch (error: any) {
       toast.error(error.message || "Failed to analyze file");
     } finally {
@@ -222,7 +243,7 @@ const CreateReportDialog = ({
   }, []);
 
   const handleMappingNext = () => {
-    setStep(4); // Go to import review
+    setStep(5); // Go to import review
   };
 
   const handleCreateReport = async () => {
@@ -249,6 +270,20 @@ const CreateReportDialog = ({
         .single();
 
       if (reportError) throw reportError;
+
+      // Save campaign links if any selected
+      if (selectedCampaignIds.length > 0) {
+        const campaignLinks = selectedCampaignIds.map((cid) => ({
+          report_id: report.id,
+          brand_campaign_id: cid,
+        }));
+        const { error: linkError } = await supabase
+          .from("report_campaigns")
+          .insert(campaignLinks);
+        if (linkError) {
+          console.error("Error linking campaigns:", linkError);
+        }
+      }
 
       // Log the create action
       await logReportAction(report.id, "create", {
@@ -520,7 +555,7 @@ const CreateReportDialog = ({
     </div>
   );
 
-  const renderStep5 = () => (
+  const renderReviewStep = () => (
     <div className="space-y-6">
       <div className="space-y-4 p-6 bg-muted rounded-[35px]">
         <h3 className="font-bold text-lg">Review Report Details</h3>
@@ -561,6 +596,13 @@ const CreateReportDialog = ({
           </div>
         </div>
 
+        {selectedCampaignIds.length > 0 && (
+          <div>
+            <p className="text-sm text-muted-foreground">Linked Campaigns</p>
+            <p className="font-medium">{selectedCampaignIds.length} campaign{selectedCampaignIds.length > 1 ? "s" : ""}</p>
+          </div>
+        )}
+
         {parsedFile && (
           <div>
             <p className="text-sm text-muted-foreground">Data File</p>
@@ -574,36 +616,19 @@ const CreateReportDialog = ({
     </div>
   );
 
-  const renderStepIndicator = () => {
-    const totalSteps = parsedFile ? 5 : 5;
-    const displayStep = step > 2 ? (step === 5 ? 3 : step - 1) : step;
-    
-    return (
-      <div className="flex items-center justify-center gap-2 mb-6">
-        {[1, 2, 3].map((stepNum) => (
-          <div
-            key={stepNum}
-            className={cn(
-              "w-2 h-2 rounded-full transition-colors",
-              displayStep === stepNum ? "bg-primary" : "bg-muted-foreground/30"
-            )}
-          />
-        ))}
-      </div>
-    );
-  };
-
   const getStepTitle = () => {
     switch (step) {
       case 1:
         return "Report Details";
       case 2:
-        return "Upload Data (Optional)";
+        return "Select Campaigns";
       case 3:
-        return "Map Columns";
+        return "Upload Data (Optional)";
       case 4:
-        return "Review Import";
+        return "Map Columns";
       case 5:
+        return "Review Import";
+      case 6:
         return "Create Report";
       default:
         return "";
@@ -614,44 +639,46 @@ const CreateReportDialog = ({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className={cn(
         "rounded-[35px]",
-        step === 3 || step === 4 ? "sm:max-w-[900px] max-h-[90vh] overflow-y-auto" : "sm:max-w-[600px]"
+        step === 4 || step === 5 ? "sm:max-w-[900px] max-h-[90vh] overflow-y-auto" : "sm:max-w-[600px]"
       )}>
         <DialogHeader>
           <DialogTitle>{getStepTitle()}</DialogTitle>
-          <p className="text-sm text-muted-foreground">
-            Step {step <= 2 ? step : step === 5 ? 3 : step - 1} of {parsedFile ? 4 : 3}
-          </p>
         </DialogHeader>
-
-        {renderStepIndicator()}
 
         <div className="py-4">
           {step === 1 && renderStep1()}
-          {step === 2 && renderStep2()}
-          {step === 3 && parsedFile && (
+          {step === 2 && (
+            <CampaignSelectorStep
+              spaceId={spaceId}
+              selectedCampaignIds={selectedCampaignIds}
+              onSelectionChange={setSelectedCampaignIds}
+            />
+          )}
+          {step === 3 && renderStep2()}
+          {step === 4 && parsedFile && (
             <ColumnMappingStep
               parsedFile={parsedFile}
               mappings={mappings}
               onMappingChange={handleMappingChange}
               onNext={handleMappingNext}
-              onBack={() => setStep(2)}
+              onBack={() => setStep(3)}
               onCancel={() => handleOpenChange(false)}
             />
           )}
-          {step === 4 && parsedFile && (
+          {step === 5 && parsedFile && (
             <ImportReviewStep
               parsedFile={parsedFile}
               mappings={mappings}
-              onImport={() => setStep(5)}
-              onBack={() => setStep(3)}
+              onImport={() => setStep(6)}
+              onBack={() => setStep(4)}
               onCancel={() => handleOpenChange(false)}
               isLoading={false}
             />
           )}
-          {step === 5 && renderStep5()}
+          {step === 6 && renderReviewStep()}
         </div>
 
-        {(step === 1 || step === 2 || step === 5) && (
+        {(step === 1 || step === 2 || step === 3 || step === 6) && (
           <div className="flex justify-between gap-3">
             {step > 1 && (
               <Button
@@ -679,6 +706,27 @@ const CreateReportDialog = ({
                 <>
                   <Button
                     variant="outline"
+                    onClick={() => {
+                      setSelectedCampaignIds([]);
+                      setStep(3);
+                    }}
+                    className="rounded-[35px]"
+                  >
+                    Skip
+                  </Button>
+                  <Button
+                    onClick={handleNext}
+                    className="rounded-[35px]"
+                  >
+                    Next
+                  </Button>
+                </>
+              )}
+
+              {step === 3 && (
+                <>
+                  <Button
+                    variant="outline"
                     onClick={handleSkipUpload}
                     className="rounded-[35px]"
                   >
@@ -694,7 +742,7 @@ const CreateReportDialog = ({
                 </>
               )}
 
-              {step === 5 && (
+              {step === 6 && (
                 <Button
                   onClick={handleCreateReport}
                   disabled={loading}
