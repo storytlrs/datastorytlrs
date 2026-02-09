@@ -384,6 +384,89 @@ const BrandAdsDashboard = ({ spaceId, filters }: BrandAdsDashboardProps) => {
 
   return (
     <div className="space-y-8">
+      {/* Campaign Filter */}
+      {campaigns.length > 0 && (
+        <div className="space-y-2">
+          <div className="flex flex-wrap items-center gap-3">
+            <Popover open={campaignFilterOpen} onOpenChange={setCampaignFilterOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  className={cn(
+                    "rounded-[35px] justify-between min-w-[200px] hover:border-foreground hover:bg-foreground hover:text-background",
+                    selectedCampaignIds.length > 0
+                      ? "border-accent-orange bg-accent-orange text-foreground"
+                      : "border-foreground bg-card text-foreground"
+                  )}
+                >
+                  {selectedCampaignIds.length > 0
+                    ? `${selectedCampaignIds.length} campaign${selectedCampaignIds.length > 1 ? "s" : ""} selected`
+                    : "All campaigns"}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[300px] p-0" align="start">
+                <Command>
+                  <CommandInput placeholder="Search campaigns..." />
+                  <CommandList>
+                    <CommandEmpty>No campaigns found.</CommandEmpty>
+                    <CommandGroup>
+                      {campaigns.map((campaign) => (
+                        <CommandItem
+                          key={campaign.id}
+                          value={campaign.campaign_name || campaign.campaign_id}
+                          onSelect={() => toggleCampaign(campaign.id)}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              selectedCampaignIds.includes(campaign.id) ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          {campaign.campaign_name || campaign.campaign_id}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+
+            {selectedCampaignIds.length > 0 && (
+              <Button
+                variant="ghost"
+                onClick={clearCampaigns}
+                className="rounded-[35px] text-sm"
+              >
+                Clear
+              </Button>
+            )}
+          </div>
+
+          {selectedCampaignIds.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {selectedCampaignIds.map((id) => {
+                const campaign = campaigns.find((c) => c.id === id);
+                return (
+                  <Badge
+                    key={id}
+                    variant="secondary"
+                    className="rounded-full px-3 py-1 flex items-center gap-1"
+                  >
+                    {campaign?.campaign_name || campaign?.campaign_id || id}
+                    <X
+                      className="h-3 w-3 cursor-pointer"
+                      onClick={() => removeCampaign(id)}
+                    />
+                  </Badge>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Bar Chart */}
       <Card className="p-6 rounded-[35px] border-foreground">
         <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
