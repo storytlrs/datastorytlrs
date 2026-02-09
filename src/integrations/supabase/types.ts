@@ -870,6 +870,42 @@ export type Database = {
           },
         ]
       }
+      report_campaigns: {
+        Row: {
+          brand_campaign_id: string
+          created_at: string
+          id: string
+          report_id: string
+        }
+        Insert: {
+          brand_campaign_id: string
+          created_at?: string
+          id?: string
+          report_id: string
+        }
+        Update: {
+          brand_campaign_id?: string
+          created_at?: string
+          id?: string
+          report_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "report_campaigns_brand_campaign_id_fkey"
+            columns: ["brand_campaign_id"]
+            isOneToOne: false
+            referencedRelation: "brand_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "report_campaigns_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reports: {
         Row: {
           ai_insights: string | null
