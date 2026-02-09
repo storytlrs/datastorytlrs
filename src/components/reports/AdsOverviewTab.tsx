@@ -232,7 +232,7 @@ export const AdsOverviewTab = ({ reportId, spaceId }: AdsOverviewTabProps) => {
   const filteredAdSets = useMemo(() => {
     let filtered = adSets;
     if (selectedCampaignId) {
-      filtered = adSets.filter(adSet => adSet.campaign_id === selectedCampaignId);
+      filtered = adSets.filter(adSet => adSet.brand_campaign_id === selectedCampaignId);
     }
     // Apply date filter
     if (dateRange.start) {
@@ -248,10 +248,10 @@ export const AdsOverviewTab = ({ reportId, spaceId }: AdsOverviewTabProps) => {
   const filteredAds = useMemo(() => {
     let filtered = ads;
     if (selectedAdSetId) {
-      filtered = ads.filter(ad => ad.ad_set_id === selectedAdSetId);
+      filtered = ads.filter(ad => ad.brand_ad_set_id === selectedAdSetId);
     } else if (selectedCampaignId) {
       const adSetIds = new Set(filteredAdSets.map(as => as.id));
-      filtered = ads.filter(ad => adSetIds.has(ad.ad_set_id));
+      filtered = ads.filter(ad => adSetIds.has(ad.brand_ad_set_id));
     }
     // Apply date filter
     if (dateRange.start) {
