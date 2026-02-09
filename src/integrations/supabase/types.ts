@@ -336,6 +336,302 @@ export type Database = {
           },
         ]
       }
+      brand_ad_sets: {
+        Row: {
+          adset_id: string
+          adset_name: string | null
+          amount_spent: number | null
+          brand_campaign_id: string
+          clicks: number | null
+          cost_per_3s_play: number | null
+          cost_per_thruplay: number | null
+          cpc: number | null
+          cpe: number | null
+          cpm: number | null
+          created_at: string
+          ctr: number | null
+          date_start: string | null
+          date_stop: string | null
+          engagement_rate: number | null
+          frequency: number | null
+          id: string
+          impressions: number | null
+          reach: number | null
+          space_id: string
+          status: string | null
+          thruplay_rate: number | null
+          thruplays: number | null
+          updated_at: string
+          video_3s_plays: number | null
+          view_rate_3s: number | null
+        }
+        Insert: {
+          adset_id: string
+          adset_name?: string | null
+          amount_spent?: number | null
+          brand_campaign_id: string
+          clicks?: number | null
+          cost_per_3s_play?: number | null
+          cost_per_thruplay?: number | null
+          cpc?: number | null
+          cpe?: number | null
+          cpm?: number | null
+          created_at?: string
+          ctr?: number | null
+          date_start?: string | null
+          date_stop?: string | null
+          engagement_rate?: number | null
+          frequency?: number | null
+          id?: string
+          impressions?: number | null
+          reach?: number | null
+          space_id: string
+          status?: string | null
+          thruplay_rate?: number | null
+          thruplays?: number | null
+          updated_at?: string
+          video_3s_plays?: number | null
+          view_rate_3s?: number | null
+        }
+        Update: {
+          adset_id?: string
+          adset_name?: string | null
+          amount_spent?: number | null
+          brand_campaign_id?: string
+          clicks?: number | null
+          cost_per_3s_play?: number | null
+          cost_per_thruplay?: number | null
+          cpc?: number | null
+          cpe?: number | null
+          cpm?: number | null
+          created_at?: string
+          ctr?: number | null
+          date_start?: string | null
+          date_stop?: string | null
+          engagement_rate?: number | null
+          frequency?: number | null
+          id?: string
+          impressions?: number | null
+          reach?: number | null
+          space_id?: string
+          status?: string | null
+          thruplay_rate?: number | null
+          thruplays?: number | null
+          updated_at?: string
+          video_3s_plays?: number | null
+          view_rate_3s?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brand_ad_sets_brand_campaign_id_fkey"
+            columns: ["brand_campaign_id"]
+            isOneToOne: false
+            referencedRelation: "brand_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "brand_ad_sets_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "spaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      brand_ads: {
+        Row: {
+          ad_id: string
+          ad_name: string | null
+          amount_spent: number | null
+          brand_ad_set_id: string
+          clicks: number | null
+          cost_per_3s_play: number | null
+          cost_per_thruplay: number | null
+          cpc: number | null
+          cpe: number | null
+          cpm: number | null
+          created_at: string
+          ctr: number | null
+          date_start: string | null
+          date_stop: string | null
+          engagement_rate: number | null
+          frequency: number | null
+          id: string
+          impressions: number | null
+          link_clicks: number | null
+          post_comments: number | null
+          post_reactions: number | null
+          post_saves: number | null
+          post_shares: number | null
+          reach: number | null
+          space_id: string
+          status: string | null
+          thruplay_rate: number | null
+          thruplays: number | null
+          updated_at: string
+          video_3s_plays: number | null
+          view_rate_3s: number | null
+        }
+        Insert: {
+          ad_id: string
+          ad_name?: string | null
+          amount_spent?: number | null
+          brand_ad_set_id: string
+          clicks?: number | null
+          cost_per_3s_play?: number | null
+          cost_per_thruplay?: number | null
+          cpc?: number | null
+          cpe?: number | null
+          cpm?: number | null
+          created_at?: string
+          ctr?: number | null
+          date_start?: string | null
+          date_stop?: string | null
+          engagement_rate?: number | null
+          frequency?: number | null
+          id?: string
+          impressions?: number | null
+          link_clicks?: number | null
+          post_comments?: number | null
+          post_reactions?: number | null
+          post_saves?: number | null
+          post_shares?: number | null
+          reach?: number | null
+          space_id: string
+          status?: string | null
+          thruplay_rate?: number | null
+          thruplays?: number | null
+          updated_at?: string
+          video_3s_plays?: number | null
+          view_rate_3s?: number | null
+        }
+        Update: {
+          ad_id?: string
+          ad_name?: string | null
+          amount_spent?: number | null
+          brand_ad_set_id?: string
+          clicks?: number | null
+          cost_per_3s_play?: number | null
+          cost_per_thruplay?: number | null
+          cpc?: number | null
+          cpe?: number | null
+          cpm?: number | null
+          created_at?: string
+          ctr?: number | null
+          date_start?: string | null
+          date_stop?: string | null
+          engagement_rate?: number | null
+          frequency?: number | null
+          id?: string
+          impressions?: number | null
+          link_clicks?: number | null
+          post_comments?: number | null
+          post_reactions?: number | null
+          post_saves?: number | null
+          post_shares?: number | null
+          reach?: number | null
+          space_id?: string
+          status?: string | null
+          thruplay_rate?: number | null
+          thruplays?: number | null
+          updated_at?: string
+          video_3s_plays?: number | null
+          view_rate_3s?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brand_ads_brand_ad_set_id_fkey"
+            columns: ["brand_ad_set_id"]
+            isOneToOne: false
+            referencedRelation: "brand_ad_sets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "brand_ads_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "spaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      brand_campaigns: {
+        Row: {
+          amount_spent: number | null
+          campaign_id: string
+          campaign_name: string | null
+          clicks: number | null
+          cpc: number | null
+          cpm: number | null
+          created_at: string
+          ctr: number | null
+          daily_budget: number | null
+          date_start: string | null
+          date_stop: string | null
+          frequency: number | null
+          id: string
+          impressions: number | null
+          lifetime_budget: number | null
+          objective: string | null
+          reach: number | null
+          space_id: string
+          status: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount_spent?: number | null
+          campaign_id: string
+          campaign_name?: string | null
+          clicks?: number | null
+          cpc?: number | null
+          cpm?: number | null
+          created_at?: string
+          ctr?: number | null
+          daily_budget?: number | null
+          date_start?: string | null
+          date_stop?: string | null
+          frequency?: number | null
+          id?: string
+          impressions?: number | null
+          lifetime_budget?: number | null
+          objective?: string | null
+          reach?: number | null
+          space_id: string
+          status?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount_spent?: number | null
+          campaign_id?: string
+          campaign_name?: string | null
+          clicks?: number | null
+          cpc?: number | null
+          cpm?: number | null
+          created_at?: string
+          ctr?: number | null
+          daily_budget?: number | null
+          date_start?: string | null
+          date_stop?: string | null
+          frequency?: number | null
+          id?: string
+          impressions?: number | null
+          lifetime_budget?: number | null
+          objective?: string | null
+          reach?: number | null
+          space_id?: string
+          status?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brand_campaigns_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "spaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campaign_meta: {
         Row: {
           account_id: string | null
