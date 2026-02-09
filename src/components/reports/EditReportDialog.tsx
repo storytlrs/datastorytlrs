@@ -60,7 +60,7 @@ export const EditReportDialog = ({ open, onOpenChange, report, onSuccess }: Edit
   const [type, setType] = useState(report.type === "social" ? "always_on" : report.type);
   const [selectedCampaignIds, setSelectedCampaignIds] = useState<string[]>([]);
 
-  const showCampaignSelector = (type === "ads" || type === "always_on") && startDate && endDate;
+  const showCampaignSelector = type === "ads" || type === "always_on";
 
   useEffect(() => {
     if (open) {
