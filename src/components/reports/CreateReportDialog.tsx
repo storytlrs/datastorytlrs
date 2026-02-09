@@ -173,7 +173,7 @@ const CreateReportDialog = ({
   };
 
   const needsCampaignStep = reportType === "ads" || reportType === "always_on";
-  const showCampaignSelector = needsCampaignStep && startDate && endDate;
+  const showCampaignSelector = needsCampaignStep;
 
   const canProceedStep1 = () => {
     return campaignName.trim() && startDate && endDate;
