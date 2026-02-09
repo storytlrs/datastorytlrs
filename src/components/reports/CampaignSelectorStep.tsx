@@ -1,12 +1,23 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Search } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Check, ChevronsUpDown, X } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 
 interface BrandCampaign {
   id: string;
@@ -16,8 +27,6 @@ interface BrandCampaign {
   status: string | null;
   date_start: string | null;
   date_stop: string | null;
-  amount_spent: number | null;
-  impressions: number | null;
 }
 
 interface CampaignSelectorStepProps {
@@ -37,17 +46,16 @@ export const CampaignSelectorStep = ({
 }: CampaignSelectorStepProps) => {
   const [campaigns, setCampaigns] = useState<BrandCampaign[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     const fetchCampaigns = async () => {
       setLoading(true);
       let query = supabase
         .from("brand_campaigns")
-        .select("id, campaign_id, campaign_name, objective, status, date_start, date_stop, amount_spent, impressions")
+        .select("id, campaign_id, campaign_name, objective, status, date_start, date_stop")
         .eq("space_id", spaceId);
 
-      // Filter by date overlap: campaign overlaps with [startDate, endDate]
       if (startDate) {
         query = query.or(`date_stop.gte.${format(startDate, "yyyy-MM-dd")},date_stop.is.null`);
       }
@@ -55,11 +63,10 @@ export const CampaignSelectorStep = ({
         query = query.or(`date_start.lte.${format(endDate, "yyyy-MM-dd")},date_start.is.null`);
       }
 
-      const { data, error } = await query.order("date_start", { ascending: false, nullsFirst: false });
+      const { data, error } = await query.order("campaign_name", { ascending: true, nullsFirst: false });
 
       if (!error && data) {
         setCampaigns(data);
-        // Clear selections that are no longer in filtered results
         const validIds = new Set(data.map((c) => c.id));
         const filtered = selectedCampaignIds.filter((id) => validIds.has(id));
         if (filtered.length !== selectedCampaignIds.length) {
@@ -80,99 +87,105 @@ export const CampaignSelectorStep = ({
     }
   };
 
-  const filtered = campaigns.filter((c) => {
-    const q = search.toLowerCase();
-    return (
-      (c.campaign_name?.toLowerCase().includes(q) ?? false) ||
-      c.campaign_id.toLowerCase().includes(q) ||
-      (c.objective?.toLowerCase().includes(q) ?? false)
-    );
-  });
+  const removeCampaign = (id: string) => {
+    onSelectionChange(selectedCampaignIds.filter((cid) => cid !== id));
+  };
+
+  const selectedCampaigns = campaigns.filter((c) => selectedCampaignIds.includes(c.id));
+
+  const getDisplayName = (campaign: BrandCampaign) =>
+    campaign.campaign_name || campaign.campaign_id;
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12 text-muted-foreground">
-        Loading campaigns...
-      </div>
+      <p className="text-sm text-muted-foreground py-2">Loading campaigns...</p>
     );
   }
 
   if (campaigns.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-2">
-        <p className="font-medium">No campaigns found for this brand</p>
-        <p className="text-sm">You can skip this step and add campaigns later.</p>
-      </div>
+      <p className="text-sm text-muted-foreground py-2">No campaigns found for this date range.</p>
     );
   }
 
   return (
-    <div className="space-y-4">
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Search campaigns..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-9 rounded-[35px]"
-        />
-      </div>
+    <div className="space-y-2">
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            role="combobox"
+            aria-expanded={open}
+            className="w-full justify-between rounded-[35px] border-foreground"
+          >
+            {selectedCampaignIds.length > 0
+              ? `${selectedCampaignIds.length} campaign${selectedCampaignIds.length > 1 ? "s" : ""} selected`
+              : "Select campaigns..."}
+            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+          <Command>
+            <CommandInput placeholder="Search campaigns..." />
+            <CommandList>
+              <CommandEmpty>No campaigns found.</CommandEmpty>
+              <CommandGroup>
+                {campaigns.map((campaign) => {
+                  const isSelected = selectedCampaignIds.includes(campaign.id);
+                  return (
+                    <CommandItem
+                      key={campaign.id}
+                      value={getDisplayName(campaign)}
+                      onSelect={() => toggleCampaign(campaign.id)}
+                      className={cn(
+                        isSelected && "bg-foreground text-background"
+                      )}
+                    >
+                      <Check
+                        className={cn(
+                          "mr-2 h-4 w-4",
+                          isSelected ? "opacity-100" : "opacity-0"
+                        )}
+                      />
+                      <div className="flex flex-col min-w-0">
+                        <span className="truncate">{getDisplayName(campaign)}</span>
+                        {campaign.date_start && campaign.date_stop && (
+                          <span className={cn(
+                            "text-xs",
+                            isSelected ? "text-background/70" : "text-muted-foreground"
+                          )}>
+                            {format(new Date(campaign.date_start), "d.M.yyyy")} – {format(new Date(campaign.date_stop), "d.M.yyyy")}
+                          </span>
+                        )}
+                      </div>
+                    </CommandItem>
+                  );
+                })}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
 
-      {selectedCampaignIds.length > 0 && (
-        <p className="text-sm text-muted-foreground">
-          {selectedCampaignIds.length} campaign{selectedCampaignIds.length > 1 ? "s" : ""} selected
-        </p>
-      )}
-
-      <div className="max-h-[350px] overflow-y-auto space-y-2 pr-1">
-        {filtered.map((campaign) => {
-          const isSelected = selectedCampaignIds.includes(campaign.id);
-          return (
-            <div
+      {selectedCampaigns.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {selectedCampaigns.map((campaign) => (
+            <Badge
               key={campaign.id}
-              onClick={() => toggleCampaign(campaign.id)}
-              className={cn(
-                "flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-colors",
-                isSelected
-                  ? "border-primary bg-primary/5"
-                  : "border-border hover:border-foreground/40"
-              )}
+              variant="secondary"
+              className="gap-1 pr-1"
             >
-              <Checkbox
-                checked={isSelected}
-                onCheckedChange={() => toggleCampaign(campaign.id)}
-                className="mt-0.5"
-              />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <p className="font-medium truncate">
-                    {campaign.campaign_name || campaign.campaign_id}
-                  </p>
-                  {campaign.status && (
-                    <Badge variant="outline" className="text-xs shrink-0">
-                      {campaign.status}
-                    </Badge>
-                  )}
-                </div>
-                <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
-                  {campaign.objective && <span>{campaign.objective}</span>}
-                  {campaign.date_start && campaign.date_stop && (
-                    <span>
-                      {format(new Date(campaign.date_start), "d.M.yyyy")} – {format(new Date(campaign.date_stop), "d.M.yyyy")}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-          );
-        })}
-
-        {filtered.length === 0 && (
-          <p className="text-sm text-muted-foreground text-center py-4">
-            No campaigns match your search
-          </p>
-        )}
-      </div>
+              <span className="truncate max-w-[200px]">{getDisplayName(campaign)}</span>
+              <button
+                onClick={() => removeCampaign(campaign.id)}
+                className="ml-0.5 rounded-full hover:bg-foreground/10 p-0.5"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          ))}
+        </div>
+      )}
     </div>
   );
 };
