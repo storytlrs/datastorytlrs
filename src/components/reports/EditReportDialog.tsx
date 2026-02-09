@@ -13,6 +13,7 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useUserRole } from "@/hooks/useUserRole";
+import { CampaignSelectorStep } from "./CampaignSelectorStep";
 
 interface Project {
   id: string;
@@ -57,7 +58,9 @@ export const EditReportDialog = ({ open, onOpenChange, report, onSuccess }: Edit
     report.end_date ? new Date(report.end_date) : undefined
   );
   const [type, setType] = useState(report.type === "social" ? "always_on" : report.type);
-  
+  const [selectedCampaignIds, setSelectedCampaignIds] = useState<string[]>([]);
+
+  const showCampaignSelector = (type === "ads" || type === "always_on") && startDate && endDate;
 
   useEffect(() => {
     if (open) {
@@ -66,13 +69,25 @@ export const EditReportDialog = ({ open, onOpenChange, report, onSuccess }: Edit
       setStartDate(report.start_date ? new Date(report.start_date) : undefined);
       setEndDate(report.end_date ? new Date(report.end_date) : undefined);
       setType(report.type === "social" ? "always_on" : report.type);
-      
-      
+
       if (isAdmin) {
         fetchProjects();
       }
+
+      // Fetch existing campaign links
+      fetchLinkedCampaigns();
     }
   }, [open, report, isAdmin]);
+
+  const fetchLinkedCampaigns = async () => {
+    const { data } = await supabase
+      .from("report_campaigns")
+      .select("brand_campaign_id")
+      .eq("report_id", report.id);
+    if (data) {
+      setSelectedCampaignIds(data.map((r) => r.brand_campaign_id));
+    }
+  };
 
   const fetchProjects = async () => {
     const { data, error } = await supabase
@@ -108,7 +123,19 @@ export const EditReportDialog = ({ open, onOpenChange, report, onSuccess }: Edit
 
       if (error) throw error;
 
-      // Log the update action
+      // Sync campaign links
+      if (type === "ads" || type === "always_on") {
+        await supabase.from("report_campaigns").delete().eq("report_id", report.id);
+        if (selectedCampaignIds.length > 0) {
+          await supabase.from("report_campaigns").insert(
+            selectedCampaignIds.map((cid) => ({
+              report_id: report.id,
+              brand_campaign_id: cid,
+            }))
+          );
+        }
+      }
+
       await logReportAction(report.id, "update", {
         name: name.trim(),
         type,
@@ -243,6 +270,19 @@ export const EditReportDialog = ({ open, onOpenChange, report, onSuccess }: Edit
               </Popover>
             </div>
           </div>
+
+          {showCampaignSelector && (
+            <div className="space-y-2">
+              <Label>Campaigns</Label>
+              <CampaignSelectorStep
+                spaceId={report.space_id}
+                selectedCampaignIds={selectedCampaignIds}
+                onSelectionChange={setSelectedCampaignIds}
+                startDate={startDate}
+                endDate={endDate}
+              />
+            </div>
+          )}
         </div>
 
         <DialogFooter>
