@@ -249,7 +249,25 @@ const EditableListSection = ({
 export type { AdsStructuredInsights };
 
 export const AdsAIInsightsContent = forwardRef<HTMLDivElement, AdsAIInsightsContentProps>(
-  ({ insights, awarenessParagraph, engagementParagraph, effectivenessParagraph, canEdit = false, onSaveInsights }, ref) => {
+  ({ insights: rawInsights, awarenessParagraph, engagementParagraph, effectivenessParagraph, canEdit = false, onSaveInsights }, ref) => {
+    // Provide safe defaults for all nested objects
+    const insights: AdsStructuredInsights = {
+      executive_summary: rawInsights.executive_summary || "",
+      campaign_context: rawInsights.campaign_context || { mainGoal: "", actions: "", highlights: "" },
+      awareness_metrics: { reach: 0, impressions: 0, thruplays: 0, video3sPlays: 0, frequency: 0, ...rawInsights.awareness_metrics },
+      engagement_metrics: { linkClicks: 0, interactions: 0, reactions: 0, comments: 0, shares: 0, saves: 0, ctr: 0, engagementRate: 0, thruplayRate: 0, viewRate3s: 0, ...rawInsights.engagement_metrics },
+      effectiveness_metrics: { spend: 0, cpm: 0, cpc: 0, costPerThruplay: 0, costPer3sView: 0, cpe: 0, currency: "CZK", ...rawInsights.effectiveness_metrics },
+      benchmarks: { cpm: 0, cpc: 0, ctr: 0, engagementRate: 0, ...rawInsights.benchmarks },
+      top_ad_sets: rawInsights.top_ad_sets || [],
+      campaign_count: rawInsights.campaign_count || 0,
+      ad_set_count: rawInsights.ad_set_count || 0,
+      ad_count: rawInsights.ad_count || 0,
+      awareness_summary: rawInsights.awareness_summary,
+      engagement_summary: rawInsights.engagement_summary,
+      effectiveness_summary: rawInsights.effectiveness_summary,
+      recommendations: rawInsights.recommendations || { works: [], doesnt_work: [], suggestions: [] },
+    };
+
     const [editingSections, setEditingSections] = useState<Set<string>>(new Set());
 
     const [executiveSummary, setExecutiveSummary] = useState(insights.executive_summary);
