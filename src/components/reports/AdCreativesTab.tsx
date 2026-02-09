@@ -63,14 +63,30 @@ export const AdCreativesTab = ({ reportId, spaceId }: AdCreativesTabProps) => {
 
   useEffect(() => {
     fetchAdCreatives();
-  }, [reportId]);
+  }, [reportId, spaceId]);
 
   const fetchAdCreatives = async () => {
     setLoading(true);
+
+    // Fetch linked campaign IDs for this report
+    const { data: links } = await supabase
+      .from("report_campaigns")
+      .select("brand_campaign_id")
+      .eq("report_id", reportId);
+
+    const linkedIds = links?.map((l) => l.brand_campaign_id) || [];
+
+    if (linkedIds.length === 0) {
+      setAdCreatives([]);
+      setLoading(false);
+      return;
+    }
+
     const { data, error } = await supabase
       .from("brand_ad_sets" as any)
       .select("id, adset_name, amount_spent, impressions, clicks, ctr, frequency, date_start")
       .eq("space_id", spaceId)
+      .in("brand_campaign_id", linkedIds)
       .order("amount_spent", { ascending: false });
 
     if (!error && data) {

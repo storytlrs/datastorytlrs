@@ -58,24 +58,45 @@ export const AdsDataTab = ({ reportId, spaceId, onImportSuccess }: AdsDataTabPro
 
   useEffect(() => {
     fetchData();
-  }, [reportId]);
+  }, [reportId, spaceId]);
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      await Promise.all([fetchCampaignMeta(), fetchAdSets(), fetchAds()]);
+      // First fetch linked campaign IDs for this report
+      const { data: links } = await supabase
+        .from("report_campaigns")
+        .select("brand_campaign_id")
+        .eq("report_id", reportId);
+
+      const linkedIds = links?.map((l) => l.brand_campaign_id) || [];
+
+      await Promise.all([
+        fetchCampaignMeta(linkedIds),
+        fetchAdSets(linkedIds),
+        fetchAds(linkedIds),
+      ]);
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchCampaignMeta = async () => {
-    const { data, error } = await supabase
+  const fetchCampaignMeta = async (linkedIds: string[]) => {
+    let query = supabase
       .from("brand_campaigns" as any)
       .select("*")
       .eq("space_id", spaceId)
       .order("created_at", { ascending: false });
 
+    if (linkedIds.length > 0) {
+      query = query.in("id", linkedIds);
+    } else {
+      // No campaigns linked — show nothing
+      setCampaignMeta([]);
+      return;
+    }
+
+    const { data, error } = await query;
     if (error) {
       toast.error("Failed to load campaigns");
       return;
@@ -83,11 +104,17 @@ export const AdsDataTab = ({ reportId, spaceId, onImportSuccess }: AdsDataTabPro
     setCampaignMeta(data || []);
   };
 
-  const fetchAdSets = async () => {
+  const fetchAdSets = async (linkedCampaignIds: string[]) => {
+    if (linkedCampaignIds.length === 0) {
+      setAdSets([]);
+      return;
+    }
+
     const { data, error } = await supabase
       .from("brand_ad_sets" as any)
       .select("*")
       .eq("space_id", spaceId)
+      .in("brand_campaign_id", linkedCampaignIds)
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -97,11 +124,30 @@ export const AdsDataTab = ({ reportId, spaceId, onImportSuccess }: AdsDataTabPro
     setAdSets(data || []);
   };
 
-  const fetchAds = async () => {
+  const fetchAds = async (linkedCampaignIds: string[]) => {
+    if (linkedCampaignIds.length === 0) {
+      setAds([]);
+      return;
+    }
+
+    // Fetch ad set IDs belonging to linked campaigns
+    const { data: adSetData } = await supabase
+      .from("brand_ad_sets" as any)
+      .select("id")
+      .eq("space_id", spaceId)
+      .in("brand_campaign_id", linkedCampaignIds);
+
+    const adSetIds = adSetData?.map((as: any) => as.id) || [];
+    if (adSetIds.length === 0) {
+      setAds([]);
+      return;
+    }
+
     const { data, error } = await supabase
       .from("brand_ads" as any)
       .select("*")
       .eq("space_id", spaceId)
+      .in("brand_ad_set_id", adSetIds)
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -164,10 +210,7 @@ export const AdsDataTab = ({ reportId, spaceId, onImportSuccess }: AdsDataTabPro
       .eq("id", id);
 
     if (error) throw error;
-
-    if (table === "brand_campaigns") await fetchCampaignMeta();
-    if (table === "brand_ad_sets") await fetchAdSets();
-    if (table === "brand_ads") await fetchAds();
+    await fetchData();
   };
 
   const handleDelete = async (table: string, id: string) => {
@@ -175,18 +218,11 @@ export const AdsDataTab = ({ reportId, spaceId, onImportSuccess }: AdsDataTabPro
 
     if (error) throw error;
 
-    if (table === "brand_campaigns") {
-      await fetchCampaignMeta();
-      if (selectedCampaignId === id) clearCampaign();
-    }
-    if (table === "brand_ad_sets") {
-      await fetchAdSets();
-      if (selectedAdSetId === id) clearAdSet();
-    }
-    if (table === "brand_ads") {
-      await fetchAds();
-      if (selectedAdId === id) clearAd();
-    }
+    if (table === "brand_campaigns" && selectedCampaignId === id) clearCampaign();
+    if (table === "brand_ad_sets" && selectedAdSetId === id) clearAdSet();
+    if (table === "brand_ads" && selectedAdId === id) clearAd();
+
+    await fetchData();
   };
 
   const formatNumber = (num: number | null | undefined) => {
@@ -576,7 +612,7 @@ export const AdsDataTab = ({ reportId, spaceId, onImportSuccess }: AdsDataTabPro
           item={editingCampaign}
           open={!!editingCampaign}
           onOpenChange={(open) => !open && setEditingCampaign(null)}
-          onSuccess={fetchCampaignMeta}
+          onSuccess={fetchData}
         />
       )}
 
@@ -585,7 +621,7 @@ export const AdsDataTab = ({ reportId, spaceId, onImportSuccess }: AdsDataTabPro
           adSet={editingAdSet}
           open={!!editingAdSet}
           onOpenChange={(open) => !open && setEditingAdSet(null)}
-          onSuccess={fetchAdSets}
+          onSuccess={fetchData}
         />
       )}
 
@@ -594,7 +630,7 @@ export const AdsDataTab = ({ reportId, spaceId, onImportSuccess }: AdsDataTabPro
           ad={editingAd}
           open={!!editingAd}
           onOpenChange={(open) => !open && setEditingAd(null)}
-          onSuccess={fetchAds}
+          onSuccess={fetchData}
         />
       )}
     </Card>

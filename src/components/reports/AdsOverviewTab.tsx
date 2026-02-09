@@ -205,20 +205,42 @@ export const AdsOverviewTab = ({ reportId, spaceId }: AdsOverviewTabProps) => {
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
-      
-      const [campaignMetaRes, adSetsRes, adsRes] = await Promise.all([
-        supabase.from("brand_campaigns" as any).select("*").eq("space_id", spaceId),
-        supabase.from("brand_ad_sets" as any).select("*").eq("space_id", spaceId),
-        supabase.from("brand_ads" as any).select("*").eq("space_id", spaceId),
+
+      // Fetch linked campaign IDs for this report
+      const { data: links } = await supabase
+        .from("report_campaigns")
+        .select("brand_campaign_id")
+        .eq("report_id", reportId);
+
+      const linkedIds = links?.map((l) => l.brand_campaign_id) || [];
+
+      if (linkedIds.length === 0) {
+        setCampaignMeta([]);
+        setAdSets([]);
+        setAds([]);
+        setLoading(false);
+        return;
+      }
+
+      const [campaignMetaRes, adSetsRes] = await Promise.all([
+        supabase.from("brand_campaigns" as any).select("*").eq("space_id", spaceId).in("id", linkedIds),
+        supabase.from("brand_ad_sets" as any).select("*").eq("space_id", spaceId).in("brand_campaign_id", linkedIds),
       ]);
-      
+
+      const adSetIds = (adSetsRes.data || []).map((as: any) => as.id);
+      let adsData: any[] = [];
+      if (adSetIds.length > 0) {
+        const adsRes = await supabase.from("brand_ads" as any).select("*").eq("space_id", spaceId).in("brand_ad_set_id", adSetIds);
+        adsData = (adsRes.data || []) as any;
+      }
+
       setCampaignMeta((campaignMetaRes.data || []) as any);
       setAdSets((adSetsRes.data || []) as any);
-      setAds((adsRes.data || []) as any);
+      setAds(adsData);
       setLoading(false);
     };
     fetchData();
-  }, [spaceId]);
+  }, [reportId, spaceId]);
 
   // Get campaigns for selector
   const campaigns = useMemo(() => {
