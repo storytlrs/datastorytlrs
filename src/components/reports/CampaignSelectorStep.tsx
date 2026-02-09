@@ -24,12 +24,16 @@ interface CampaignSelectorStepProps {
   spaceId: string;
   selectedCampaignIds: string[];
   onSelectionChange: (ids: string[]) => void;
+  startDate?: Date;
+  endDate?: Date;
 }
 
 export const CampaignSelectorStep = ({
   spaceId,
   selectedCampaignIds,
   onSelectionChange,
+  startDate,
+  endDate,
 }: CampaignSelectorStepProps) => {
   const [campaigns, setCampaigns] = useState<BrandCampaign[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,20 +42,35 @@ export const CampaignSelectorStep = ({
   useEffect(() => {
     const fetchCampaigns = async () => {
       setLoading(true);
-      const { data, error } = await supabase
+      let query = supabase
         .from("brand_campaigns")
         .select("id, campaign_id, campaign_name, objective, status, date_start, date_stop, amount_spent, impressions")
-        .eq("space_id", spaceId)
-        .order("date_start", { ascending: false, nullsFirst: false });
+        .eq("space_id", spaceId);
+
+      // Filter by date overlap: campaign overlaps with [startDate, endDate]
+      if (startDate) {
+        query = query.or(`date_stop.gte.${format(startDate, "yyyy-MM-dd")},date_stop.is.null`);
+      }
+      if (endDate) {
+        query = query.or(`date_start.lte.${format(endDate, "yyyy-MM-dd")},date_start.is.null`);
+      }
+
+      const { data, error } = await query.order("date_start", { ascending: false, nullsFirst: false });
 
       if (!error && data) {
         setCampaigns(data);
+        // Clear selections that are no longer in filtered results
+        const validIds = new Set(data.map((c) => c.id));
+        const filtered = selectedCampaignIds.filter((id) => validIds.has(id));
+        if (filtered.length !== selectedCampaignIds.length) {
+          onSelectionChange(filtered);
+        }
       }
       setLoading(false);
     };
 
     fetchCampaigns();
-  }, [spaceId]);
+  }, [spaceId, startDate, endDate]);
 
   const toggleCampaign = (id: string) => {
     if (selectedCampaignIds.includes(id)) {
