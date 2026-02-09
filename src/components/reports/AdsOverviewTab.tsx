@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { KPICard } from "./KPICard";
 import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
@@ -192,7 +193,7 @@ export const AdsOverviewTab = ({ reportId, spaceId }: AdsOverviewTabProps) => {
   });
   
   // Hierarchical selection state
-  const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(null);
+  const [selectedCampaignIds, setSelectedCampaignIds] = useState<string[]>([]);
   const [selectedAdSetId, setSelectedAdSetId] = useState<string | null>(null);
   const [selectedAdId, setSelectedAdId] = useState<string | null>(null);
   
@@ -228,13 +229,13 @@ export const AdsOverviewTab = ({ reportId, spaceId }: AdsOverviewTabProps) => {
     }));
   }, [campaignMeta]);
 
-  // Get ad sets filtered by selected campaign
+  // Get ad sets filtered by selected campaigns
   const filteredAdSets = useMemo(() => {
     let filtered = adSets;
-    if (selectedCampaignId) {
-      filtered = adSets.filter(adSet => adSet.brand_campaign_id === selectedCampaignId);
+    if (selectedCampaignIds.length > 0) {
+      const idSet = new Set(selectedCampaignIds);
+      filtered = adSets.filter(adSet => idSet.has(adSet.brand_campaign_id));
     }
-    // Apply date filter
     if (dateRange.start) {
       filtered = filtered.filter(item => !item.date_start || new Date(item.date_start) >= dateRange.start!);
     }
@@ -242,18 +243,17 @@ export const AdsOverviewTab = ({ reportId, spaceId }: AdsOverviewTabProps) => {
       filtered = filtered.filter(item => !item.date_stop || new Date(item.date_stop) <= dateRange.end!);
     }
     return filtered;
-  }, [adSets, selectedCampaignId, dateRange]);
+  }, [adSets, selectedCampaignIds, dateRange]);
 
   // Get ads filtered by selected ad set
   const filteredAds = useMemo(() => {
     let filtered = ads;
     if (selectedAdSetId) {
       filtered = ads.filter(ad => ad.brand_ad_set_id === selectedAdSetId);
-    } else if (selectedCampaignId) {
+    } else if (selectedCampaignIds.length > 0) {
       const adSetIds = new Set(filteredAdSets.map(as => as.id));
       filtered = ads.filter(ad => adSetIds.has(ad.brand_ad_set_id));
     }
-    // Apply date filter
     if (dateRange.start) {
       filtered = filtered.filter(item => !item.date_start || new Date(item.date_start) >= dateRange.start!);
     }
@@ -261,13 +261,14 @@ export const AdsOverviewTab = ({ reportId, spaceId }: AdsOverviewTabProps) => {
       filtered = filtered.filter(item => !item.date_stop || new Date(item.date_stop) <= dateRange.end!);
     }
     return filtered;
-  }, [ads, selectedAdSetId, selectedCampaignId, filteredAdSets, dateRange]);
+  }, [ads, selectedAdSetId, selectedCampaignIds, filteredAdSets, dateRange]);
 
   // Filter campaign meta by date
   const filteredCampaignMeta = useMemo(() => {
     let filtered = campaignMeta;
-    if (selectedCampaignId) {
-      filtered = filtered.filter(cm => cm.id === selectedCampaignId);
+    if (selectedCampaignIds.length > 0) {
+      const idSet = new Set(selectedCampaignIds);
+      filtered = filtered.filter(cm => idSet.has(cm.id));
     }
     if (dateRange.start) {
       filtered = filtered.filter(item => !item.date_start || new Date(item.date_start) >= dateRange.start!);
@@ -276,16 +277,28 @@ export const AdsOverviewTab = ({ reportId, spaceId }: AdsOverviewTabProps) => {
       filtered = filtered.filter(item => !item.date_stop || new Date(item.date_stop) <= dateRange.end!);
     }
     return filtered;
-  }, [campaignMeta, selectedCampaignId, dateRange]);
+  }, [campaignMeta, selectedCampaignIds, dateRange]);
 
-  // Selected items for display
-  const selectedCampaign = campaigns.find(c => c.id === selectedCampaignId);
   const selectedAdSet = adSets.find(as => as.id === selectedAdSetId);
   const selectedAd = ads.find(a => a.id === selectedAdId);
 
+  const toggleCampaign = (id: string) => {
+    setSelectedCampaignIds(prev =>
+      prev.includes(id) ? prev.filter(cid => cid !== id) : [...prev, id]
+    );
+    setSelectedAdSetId(null);
+    setSelectedAdId(null);
+  };
+
+  const removeCampaign = (id: string) => {
+    setSelectedCampaignIds(prev => prev.filter(cid => cid !== id));
+    setSelectedAdSetId(null);
+    setSelectedAdId(null);
+  };
+
   // Clear selections
-  const clearCampaign = () => {
-    setSelectedCampaignId(null);
+  const clearCampaigns = () => {
+    setSelectedCampaignIds([]);
     setSelectedAdSetId(null);
     setSelectedAdId(null);
   };
@@ -301,7 +314,7 @@ export const AdsOverviewTab = ({ reportId, spaceId }: AdsOverviewTabProps) => {
 
   const clearFilters = () => {
     setDateRange({ start: null, end: null });
-    clearCampaign();
+    clearCampaigns();
   };
 
   // Calculate KPIs based on selection level
@@ -326,7 +339,7 @@ export const AdsOverviewTab = ({ reportId, spaceId }: AdsOverviewTabProps) => {
 
   const formatCurrency = (num: number): string => formatCurrencyUtil(num, "CZK");
 
-  const hasFilters = dateRange.start || dateRange.end || selectedCampaignId;
+  const hasFilters = dateRange.start || dateRange.end || selectedCampaignIds.length > 0;
 
   if (loading) {
     return (
@@ -406,7 +419,7 @@ export const AdsOverviewTab = ({ reportId, spaceId }: AdsOverviewTabProps) => {
           </PopoverContent>
         </Popover>
 
-        {/* Campaign Selector */}
+        {/* Campaign Multi-Select */}
         <Popover open={campaignOpen} onOpenChange={setCampaignOpen}>
           <PopoverTrigger asChild>
             <Button
@@ -415,10 +428,12 @@ export const AdsOverviewTab = ({ reportId, spaceId }: AdsOverviewTabProps) => {
               aria-expanded={campaignOpen}
               className={cn(
                 "min-w-[200px] justify-between rounded-[35px] border-foreground",
-                selectedCampaignId && "border-accent-orange bg-accent-orange text-foreground"
+                selectedCampaignIds.length > 0 && "border-accent-orange bg-accent-orange text-foreground"
               )}
             >
-              {selectedCampaign?.name || "Select Campaign..."}
+              {selectedCampaignIds.length > 0
+                ? `${selectedCampaignIds.length} campaign${selectedCampaignIds.length > 1 ? "s" : ""}`
+                : "Select Campaigns..."}
               <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
             </Button>
           </PopoverTrigger>
@@ -428,39 +443,38 @@ export const AdsOverviewTab = ({ reportId, spaceId }: AdsOverviewTabProps) => {
               <CommandList>
                 <CommandEmpty>No campaigns found.</CommandEmpty>
                 <CommandGroup>
-                  {campaigns.map((campaign) => (
-                    <CommandItem
-                      key={campaign.id}
-                      value={campaign.name}
-                      onSelect={() => {
-                        setSelectedCampaignId(campaign.id);
-                        setSelectedAdSetId(null);
-                        setSelectedAdId(null);
-                        setCampaignOpen(false);
-                      }}
-                    >
-                      <Check
-                        className={cn(
-                          "mr-2 h-4 w-4",
-                          selectedCampaignId === campaign.id ? "opacity-100" : "opacity-0"
-                        )}
-                      />
-                      {campaign.name}
-                    </CommandItem>
-                  ))}
+                  {campaigns.map((campaign) => {
+                    const isSelected = selectedCampaignIds.includes(campaign.id);
+                    return (
+                      <CommandItem
+                        key={campaign.id}
+                        value={campaign.name}
+                        onSelect={() => toggleCampaign(campaign.id)}
+                        className={cn(isSelected && "bg-foreground text-background")}
+                      >
+                        <Check
+                          className={cn(
+                            "mr-2 h-4 w-4",
+                            isSelected ? "opacity-100" : "opacity-0"
+                          )}
+                        />
+                        {campaign.name}
+                      </CommandItem>
+                    );
+                  })}
                 </CommandGroup>
               </CommandList>
             </Command>
           </PopoverContent>
         </Popover>
-        {selectedCampaignId && (
-          <Button variant="ghost" size="icon" onClick={clearCampaign} className="h-9 w-9">
+        {selectedCampaignIds.length > 0 && (
+          <Button variant="ghost" size="icon" onClick={clearCampaigns} className="h-9 w-9">
             <X className="h-4 w-4" />
           </Button>
         )}
 
         {/* Ad Set Selector - only show when campaign is selected */}
-        {selectedCampaignId && filteredAdSets.length > 0 && (
+        {selectedCampaignIds.length === 1 && filteredAdSets.length > 0 && (
           <>
             <span className="text-muted-foreground">→</span>
             <Popover open={adSetOpen} onOpenChange={setAdSetOpen}>
@@ -580,6 +594,26 @@ export const AdsOverviewTab = ({ reportId, spaceId }: AdsOverviewTabProps) => {
           </Button>
         )}
       </div>
+
+      {/* Selected campaign badges */}
+      {selectedCampaignIds.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {selectedCampaignIds.map((id) => {
+            const campaign = campaigns.find(c => c.id === id);
+            return (
+              <Badge key={id} variant="secondary" className="gap-1 pr-1">
+                <span className="truncate max-w-[200px]">{campaign?.name || "Unknown"}</span>
+                <button
+                  onClick={() => removeCampaign(id)}
+                  className="ml-0.5 rounded-full hover:bg-foreground/10 p-0.5"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
+            );
+          })}
+        </div>
+      )}
 
       {/* Campaign KPIs - show only when campaign is selected but NOT ad set or ad */}
       {campaignKPIs && !selectedAdSetId && !selectedAdId && (
