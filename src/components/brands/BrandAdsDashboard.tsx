@@ -354,13 +354,11 @@ const BrandAdsDashboard = ({ spaceId, filters }: BrandAdsDashboardProps) => {
                   <Badge
                     key={id}
                     variant="secondary"
-                    className="rounded-full px-3 py-1 flex items-center gap-1"
+                    className="rounded-full px-3 py-1 flex items-center gap-1 cursor-pointer"
+                    onClick={() => removeCampaign(id)}
                   >
+                    <Check className="h-3 w-3" />
                     {campaign?.campaign_name || campaign?.campaign_id || id}
-                    <X
-                      className="h-3 w-3 cursor-pointer"
-                      onClick={() => removeCampaign(id)}
-                    />
                   </Badge>
                 );
               })}
@@ -452,13 +450,11 @@ const BrandAdsDashboard = ({ spaceId, filters }: BrandAdsDashboardProps) => {
                   <Badge
                     key={id}
                     variant="secondary"
-                    className="rounded-full px-3 py-1 flex items-center gap-1"
+                    className="rounded-full px-3 py-1 flex items-center gap-1 cursor-pointer"
+                    onClick={() => removeCampaign(id)}
                   >
+                    <Check className="h-3 w-3" />
                     {campaign?.campaign_name || campaign?.campaign_id || id}
-                    <X
-                      className="h-3 w-3 cursor-pointer"
-                      onClick={() => removeCampaign(id)}
-                    />
                   </Badge>
                 );
               })}
