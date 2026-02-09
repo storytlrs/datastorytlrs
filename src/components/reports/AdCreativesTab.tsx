@@ -99,9 +99,14 @@ export const AdCreativesTab = ({ reportId, spaceId }: AdCreativesTabProps) => {
 
   // Fetch previews for items that need them
   useEffect(() => {
+    const isValidUrl = (str: string) => {
+      try { new URL(str); return true; } catch { return false; }
+    };
+
     const itemsNeedingPreview = adCreatives.filter(item => 
       !item.thumbnail_url && 
       item.url && 
+      isValidUrl(item.url) &&
       !fetchedPreviewsRef.current.has(item.id) &&
       !loadingPreviewsRef.current.has(item.id)
     );
