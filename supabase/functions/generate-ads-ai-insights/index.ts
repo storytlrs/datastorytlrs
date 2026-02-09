@@ -47,16 +47,39 @@ serve(async (req) => {
 
     const spaceId = report.space_id;
 
-    // Fetch all brand-level ads data in parallel
-    const [campaignsRes, adSetsRes, adsRes] = await Promise.all([
-      supabase.from("brand_campaigns").select("*").eq("space_id", spaceId),
-      supabase.from("brand_ad_sets").select("*").eq("space_id", spaceId),
-      supabase.from("brand_ads").select("*").eq("space_id", spaceId),
-    ]);
+    // Fetch linked campaign IDs for this report
+    const { data: links } = await supabase
+      .from("report_campaigns")
+      .select("brand_campaign_id")
+      .eq("report_id", report_id);
 
-    const campaigns = campaignsRes.data || [];
-    const adSets = adSetsRes.data || [];
-    const ads = adsRes.data || [];
+    const linkedCampaignIds = (links || []).map((l: any) => l.brand_campaign_id);
+
+    if (linkedCampaignIds.length === 0) {
+      throw new Error("No campaigns linked to this report. Please select campaigns first.");
+    }
+
+    // Fetch only linked campaigns
+    const { data: campaigns = [] } = await supabase
+      .from("brand_campaigns")
+      .select("*")
+      .in("id", linkedCampaignIds);
+
+    // Fetch ad sets belonging to linked campaigns
+    const { data: adSets = [] } = await supabase
+      .from("brand_ad_sets")
+      .select("*")
+      .eq("space_id", spaceId)
+      .in("brand_campaign_id", linkedCampaignIds);
+
+    const adSetIds = (adSets || []).map((as: any) => as.id);
+
+    // Fetch ads belonging to those ad sets
+    const { data: ads = [] } = await supabase
+      .from("brand_ads")
+      .select("*")
+      .eq("space_id", spaceId)
+      .in("brand_ad_set_id", adSetIds.length > 0 ? adSetIds : ["__none__"]);
 
     // Calculate aggregated metrics from campaigns (highest level)
     const metricsSource = campaigns.length > 0 ? campaigns : adSets;
