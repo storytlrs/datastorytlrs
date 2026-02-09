@@ -15,10 +15,11 @@ import { Upload } from "lucide-react";
 
 interface AlwaysOnDataTabProps {
   reportId: string;
+  spaceId: string;
   onImportSuccess?: () => void;
 }
 
-export const AlwaysOnDataTab = ({ reportId, onImportSuccess }: AlwaysOnDataTabProps) => {
+export const AlwaysOnDataTab = ({ reportId, spaceId, onImportSuccess }: AlwaysOnDataTabProps) => {
   const { canEdit } = useUserRole();
   const [activeTab, setActiveTab] = useState("planning");
   const [planning, setPlanning] = useState<any[]>([]);
@@ -42,7 +43,7 @@ export const AlwaysOnDataTab = ({ reportId, onImportSuccess }: AlwaysOnDataTabPr
 
   const fetchPlanning = async () => {
     const { data, error } = await supabase
-      .from("campaign_meta")
+      .from("kpi_targets")
       .select("*")
       .eq("report_id", reportId)
       .order("created_at", { ascending: false });
@@ -68,24 +69,24 @@ export const AlwaysOnDataTab = ({ reportId, onImportSuccess }: AlwaysOnDataTabPr
     setContent(data || []);
   };
 
-  const handleUpdate = async (table: "campaign_meta" | "content", id: string, field: string, value: any) => {
+  const handleUpdate = async (table: string, id: string, field: string, value: any) => {
     const { error } = await supabase
-      .from(table)
+      .from(table as any)
       .update({ [field]: value })
       .eq("id", id);
 
     if (error) throw error;
 
-    if (table === "campaign_meta") await fetchPlanning();
+    if (table === "kpi_targets") await fetchPlanning();
     if (table === "content") await fetchContent();
   };
 
-  const handleDelete = async (table: "campaign_meta" | "content", id: string) => {
-    const { error } = await supabase.from(table).delete().eq("id", id);
+  const handleDelete = async (table: string, id: string) => {
+    const { error } = await supabase.from(table as any).delete().eq("id", id);
 
     if (error) throw error;
 
-    if (table === "campaign_meta") await fetchPlanning();
+    if (table === "kpi_targets") await fetchPlanning();
     if (table === "content") await fetchContent();
   };
 
@@ -178,8 +179,8 @@ export const AlwaysOnDataTab = ({ reportId, onImportSuccess }: AlwaysOnDataTabPr
             columns={planningColumns}
             data={planning}
             canEdit={canEdit}
-            onUpdate={(id, field, value) => handleUpdate("campaign_meta", id, field, value)}
-            onDelete={canEdit ? (id) => handleDelete("campaign_meta", id) : undefined}
+            onUpdate={(id, field, value) => handleUpdate("kpi_targets", id, field, value)}
+            onDelete={canEdit ? (id) => handleDelete("kpi_targets", id) : undefined}
             onEdit={canEdit ? (item) => setEditingPlanning(item) : undefined}
             loading={loading}
           />

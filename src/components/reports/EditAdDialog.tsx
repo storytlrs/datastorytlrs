@@ -76,7 +76,7 @@ export const EditAdDialog = ({ ad, open, onOpenChange, onSuccess }: EditAdDialog
 
     setLoading(true);
     try {
-      const { error } = await supabase.from("ads").update({
+      const { error } = await supabase.from("brand_ads").update({
         ad_name: formData.ad_name,
         platform: formData.platform,
         amount_spent: formData.amount_spent ? parseFloat(formData.amount_spent) : 0,

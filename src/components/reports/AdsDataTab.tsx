@@ -19,10 +19,11 @@ import { cn } from "@/lib/utils";
 
 interface AdsDataTabProps {
   reportId: string;
+  spaceId: string;
   onImportSuccess?: () => void;
 }
 
-export const AdsDataTab = ({ reportId, onImportSuccess }: AdsDataTabProps) => {
+export const AdsDataTab = ({ reportId, spaceId, onImportSuccess }: AdsDataTabProps) => {
   const { canEdit } = useUserRole();
   const [campaignMeta, setCampaignMeta] = useState<any[]>([]);
   const [adSets, setAdSets] = useState<any[]>([]);
@@ -70,13 +71,13 @@ export const AdsDataTab = ({ reportId, onImportSuccess }: AdsDataTabProps) => {
 
   const fetchCampaignMeta = async () => {
     const { data, error } = await supabase
-      .from("campaign_meta")
+      .from("brand_campaigns" as any)
       .select("*")
-      .eq("report_id", reportId)
+      .eq("space_id", spaceId)
       .order("created_at", { ascending: false });
 
     if (error) {
-      toast.error("Failed to load campaign meta");
+      toast.error("Failed to load campaigns");
       return;
     }
     setCampaignMeta(data || []);
@@ -84,9 +85,9 @@ export const AdsDataTab = ({ reportId, onImportSuccess }: AdsDataTabProps) => {
 
   const fetchAdSets = async () => {
     const { data, error } = await supabase
-      .from("ad_sets")
+      .from("brand_ad_sets" as any)
       .select("*")
-      .eq("report_id", reportId)
+      .eq("space_id", spaceId)
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -98,9 +99,9 @@ export const AdsDataTab = ({ reportId, onImportSuccess }: AdsDataTabProps) => {
 
   const fetchAds = async () => {
     const { data, error } = await supabase
-      .from("ads")
+      .from("brand_ads" as any)
       .select("*")
-      .eq("report_id", reportId)
+      .eq("space_id", spaceId)
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -110,11 +111,11 @@ export const AdsDataTab = ({ reportId, onImportSuccess }: AdsDataTabProps) => {
     setAds(data || []);
   };
 
-  // Get unique campaigns from campaign_meta
+  // Get unique campaigns from brand_campaigns
   const campaigns = useMemo(() => {
     return campaignMeta.map(cm => ({
-      id: cm.campaign_id || cm.id,
-      name: cm.campaign_name || cm.account_name || "Unnamed Campaign",
+      id: cm.id,
+      name: cm.campaign_name || "Unnamed Campaign",
       data: cm
     }));
   }, [campaignMeta]);
@@ -122,7 +123,7 @@ export const AdsDataTab = ({ reportId, onImportSuccess }: AdsDataTabProps) => {
   // Get ad sets filtered by selected campaign
   const filteredAdSets = useMemo(() => {
     if (!selectedCampaignId) return adSets;
-    return adSets.filter(adSet => adSet.campaign_id === selectedCampaignId);
+    return adSets.filter(adSet => adSet.brand_campaign_id === selectedCampaignId);
   }, [adSets, selectedCampaignId]);
 
   // Get ads filtered by selected ad set
@@ -130,9 +131,9 @@ export const AdsDataTab = ({ reportId, onImportSuccess }: AdsDataTabProps) => {
     if (!selectedAdSetId) {
       if (!selectedCampaignId) return ads;
       const adSetIds = new Set(filteredAdSets.map(as => as.id));
-      return ads.filter(ad => adSetIds.has(ad.ad_set_id));
+      return ads.filter(ad => adSetIds.has(ad.brand_ad_set_id));
     }
-    return ads.filter(ad => ad.ad_set_id === selectedAdSetId);
+    return ads.filter(ad => ad.brand_ad_set_id === selectedAdSetId);
   }, [ads, selectedAdSetId, selectedCampaignId, filteredAdSets]);
 
   // Selected items
@@ -156,33 +157,33 @@ export const AdsDataTab = ({ reportId, onImportSuccess }: AdsDataTabProps) => {
     setSelectedAdId(null);
   };
 
-  const handleUpdate = async (table: "campaign_meta" | "ad_sets" | "ads", id: string, field: string, value: any) => {
+  const handleUpdate = async (table: string, id: string, field: string, value: any) => {
     const { error } = await supabase
-      .from(table)
+      .from(table as any)
       .update({ [field]: value })
       .eq("id", id);
 
     if (error) throw error;
 
-    if (table === "campaign_meta") await fetchCampaignMeta();
-    if (table === "ad_sets") await fetchAdSets();
-    if (table === "ads") await fetchAds();
+    if (table === "brand_campaigns") await fetchCampaignMeta();
+    if (table === "brand_ad_sets") await fetchAdSets();
+    if (table === "brand_ads") await fetchAds();
   };
 
-  const handleDelete = async (table: "campaign_meta" | "ad_sets" | "ads", id: string) => {
-    const { error } = await supabase.from(table).delete().eq("id", id);
+  const handleDelete = async (table: string, id: string) => {
+    const { error } = await supabase.from(table as any).delete().eq("id", id);
 
     if (error) throw error;
 
-    if (table === "campaign_meta") {
+    if (table === "brand_campaigns") {
       await fetchCampaignMeta();
       if (selectedCampaignId === id) clearCampaign();
     }
-    if (table === "ad_sets") {
+    if (table === "brand_ad_sets") {
       await fetchAdSets();
       if (selectedAdSetId === id) clearAdSet();
     }
-    if (table === "ads") {
+    if (table === "brand_ads") {
       await fetchAds();
       if (selectedAdId === id) clearAd();
     }
@@ -296,7 +297,7 @@ export const AdsDataTab = ({ reportId, onImportSuccess }: AdsDataTabProps) => {
 
   // Get data for display based on selection level
   const displayCampaigns = selectedCampaignId 
-    ? campaignMeta.filter(cm => (cm.campaign_id || cm.id) === selectedCampaignId)
+    ? campaignMeta.filter(cm => cm.id === selectedCampaignId)
     : campaignMeta;
 
   const displayAdSets = selectedAdSetId
@@ -393,7 +394,7 @@ export const AdsDataTab = ({ reportId, onImportSuccess }: AdsDataTabProps) => {
                     selectedAdSetId && "border-accent-orange bg-accent-orange text-foreground"
                   )}
                 >
-                  {selectedAdSet?.ad_name || "Select Ad Set..."}
+                   {selectedAdSet?.adset_name || "Select Ad Set..."}
                   <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
               </PopoverTrigger>
@@ -406,7 +407,7 @@ export const AdsDataTab = ({ reportId, onImportSuccess }: AdsDataTabProps) => {
                       {filteredAdSets.map((adSet) => (
                         <CommandItem
                           key={adSet.id}
-                          value={adSet.ad_name || adSet.id}
+                          value={adSet.adset_name || adSet.id}
                           onSelect={() => {
                             setSelectedAdSetId(adSet.id);
                             setSelectedAdId(null);
@@ -419,7 +420,7 @@ export const AdsDataTab = ({ reportId, onImportSuccess }: AdsDataTabProps) => {
                               selectedAdSetId === adSet.id ? "opacity-100" : "opacity-0"
                             )}
                           />
-                          {adSet.ad_name || "Unnamed Ad Set"}
+                          {adSet.adset_name || "Unnamed Ad Set"}
                         </CommandItem>
                       ))}
                     </CommandGroup>
@@ -508,8 +509,8 @@ export const AdsDataTab = ({ reportId, onImportSuccess }: AdsDataTabProps) => {
               columns={visibleCampaignColumnDefs}
               data={displayCampaigns}
               canEdit={canEdit}
-              onUpdate={(id, field, value) => handleUpdate("campaign_meta", id, field, value)}
-              onDelete={canEdit ? (id) => handleDelete("campaign_meta", id) : undefined}
+              onUpdate={(id, field, value) => handleUpdate("brand_campaigns", id, field, value)}
+              onDelete={canEdit ? (id) => handleDelete("brand_campaigns", id) : undefined}
               onEdit={canEdit ? (item) => setEditingCampaign(item) : undefined}
               loading={loading}
             />
@@ -531,8 +532,8 @@ export const AdsDataTab = ({ reportId, onImportSuccess }: AdsDataTabProps) => {
               columns={visibleAdSetColumnDefs}
               data={displayAdSets}
               canEdit={canEdit}
-              onUpdate={(id, field, value) => handleUpdate("ad_sets", id, field, value)}
-              onDelete={canEdit ? (id) => handleDelete("ad_sets", id) : undefined}
+              onUpdate={(id, field, value) => handleUpdate("brand_ad_sets", id, field, value)}
+              onDelete={canEdit ? (id) => handleDelete("brand_ad_sets", id) : undefined}
               onEdit={canEdit ? (item) => setEditingAdSet(item) : undefined}
               loading={loading}
             />
@@ -554,8 +555,8 @@ export const AdsDataTab = ({ reportId, onImportSuccess }: AdsDataTabProps) => {
               columns={visibleAdsColumnDefs}
               data={displayAds}
               canEdit={canEdit}
-              onUpdate={(id, field, value) => handleUpdate("ads", id, field, value)}
-              onDelete={canEdit ? (id) => handleDelete("ads", id) : undefined}
+              onUpdate={(id, field, value) => handleUpdate("brand_ads", id, field, value)}
+              onDelete={canEdit ? (id) => handleDelete("brand_ads", id) : undefined}
               onEdit={canEdit ? (item) => setEditingAd(item) : undefined}
               loading={loading}
             />

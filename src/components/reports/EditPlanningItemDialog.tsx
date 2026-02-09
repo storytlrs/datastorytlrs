@@ -21,10 +21,10 @@ interface EditPlanningItemDialogProps {
 export const EditPlanningItemDialog = ({ item, open, onOpenChange, onSuccess }: EditPlanningItemDialogProps) => {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
-    account_name: "",
-    account_id: "",
-    adset_id: "",
-    adset_name: "",
+    campaign_name: "",
+    campaign_id: "",
+    objective: "",
+    status: "",
   });
 
   useEffect(() => {
@@ -43,7 +43,7 @@ export const EditPlanningItemDialog = ({ item, open, onOpenChange, onSuccess }: 
 
     setLoading(true);
     try {
-      const { error } = await supabase.from("campaign_meta").update({
+      const { error } = await supabase.from("brand_campaigns").update({
         account_name: formData.account_name || null,
         account_id: formData.account_id || null,
         adset_id: formData.adset_id || null,
@@ -71,42 +71,42 @@ export const EditPlanningItemDialog = ({ item, open, onOpenChange, onSuccess }: 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="account_name">Account Name</Label>
+              <Label htmlFor="campaign_name">Campaign Name</Label>
               <Input
-                id="account_name"
-                value={formData.account_name}
-                onChange={(e) => setFormData({ ...formData, account_name: e.target.value })}
-                placeholder="e.g., Brand CZ"
+                id="campaign_name"
+                value={formData.campaign_name}
+                onChange={(e) => setFormData({ ...formData, campaign_name: e.target.value })}
+                placeholder="e.g., Brand Awareness Q1"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="account_id">Account ID</Label>
+              <Label htmlFor="campaign_id">Campaign ID</Label>
               <Input
-                id="account_id"
-                value={formData.account_id}
-                onChange={(e) => setFormData({ ...formData, account_id: e.target.value })}
-                placeholder="e.g., 123456789"
+                id="campaign_id"
+                value={formData.campaign_id}
+                onChange={(e) => setFormData({ ...formData, campaign_id: e.target.value })}
+                placeholder="e.g., 120239465204160120"
               />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="adset_id">Ad Set ID</Label>
+              <Label htmlFor="objective">Objective</Label>
               <Input
-                id="adset_id"
-                value={formData.adset_id}
-                onChange={(e) => setFormData({ ...formData, adset_id: e.target.value })}
-                placeholder="e.g., 987654321"
+                id="objective"
+                value={formData.objective}
+                onChange={(e) => setFormData({ ...formData, objective: e.target.value })}
+                placeholder="e.g., OUTCOME_AWARENESS"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="adset_name">Ad Set Name</Label>
+              <Label htmlFor="status">Status</Label>
               <Input
-                id="adset_name"
-                value={formData.adset_name}
-                onChange={(e) => setFormData({ ...formData, adset_name: e.target.value })}
-                placeholder="e.g., Awareness Campaign"
+                id="status"
+                value={formData.status}
+                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                placeholder="e.g., ACTIVE"
               />
             </div>
           </div>

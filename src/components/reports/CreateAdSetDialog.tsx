@@ -55,7 +55,7 @@ export const CreateAdSetDialog = ({ reportId, onSuccess }: CreateAdSetDialogProp
 
     setLoading(true);
     try {
-      const { error } = await supabase.from("ad_sets").insert({
+      const { error } = await supabase.from("brand_ad_sets").insert({
         report_id: reportId,
         name: formData.name,
         platform: formData.platform,

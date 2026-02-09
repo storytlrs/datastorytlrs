@@ -26,6 +26,7 @@ import { KPICard } from "./KPICard";
 
 interface AdCreativesTabProps {
   reportId: string;
+  spaceId: string;
 }
 
 interface AdCreative {
@@ -47,7 +48,7 @@ interface AdCreative {
   published_date: string | null;
 }
 
-export const AdCreativesTab = ({ reportId }: AdCreativesTabProps) => {
+export const AdCreativesTab = ({ reportId, spaceId }: AdCreativesTabProps) => {
   const [adCreatives, setAdCreatives] = useState<AdCreative[]>([]);
   const [loading, setLoading] = useState(true);
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
@@ -67,25 +68,24 @@ export const AdCreativesTab = ({ reportId }: AdCreativesTabProps) => {
   const fetchAdCreatives = async () => {
     setLoading(true);
     const { data, error } = await supabase
-      .from("ad_sets")
-      .select("id, ad_name, platform, campaign_name, amount_spent, impressions, link_clicks, ctr, frequency, date_start")
-      .eq("report_id", reportId)
+      .from("brand_ad_sets" as any)
+      .select("id, adset_name, amount_spent, impressions, clicks, ctr, frequency, date_start")
+      .eq("space_id", spaceId)
       .order("amount_spent", { ascending: false });
 
     if (!error && data) {
-      // Map database rows to AdCreative interface
-      const mappedData: AdCreative[] = data.map((row) => ({
+      const mappedData: AdCreative[] = ((data || []) as any[]).map((row: any) => ({
         id: row.id,
-        name: row.ad_name || "Unnamed Ad",
-        platform: row.platform,
+        name: row.adset_name || "Unnamed Ad",
+        platform: "facebook",
         ad_type: null,
         thumbnail_url: null,
         url: null,
-        campaign_name: row.campaign_name,
+        campaign_name: null,
         adset_name: null,
         spend: row.amount_spent,
         impressions: row.impressions,
-        clicks: row.link_clicks,
+        clicks: row.clicks,
         conversions: null,
         ctr: row.ctr,
         roas: null,
