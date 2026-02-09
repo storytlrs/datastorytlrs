@@ -384,7 +384,7 @@ const BrandAdsDashboard = ({ spaceId, filters }: BrandAdsDashboardProps) => {
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis dataKey="name" stroke="hsl(var(--foreground))" tick={{ fontSize: 12 }} interval={0} angle={-20} textAnchor="end" height={60} />
+                  <XAxis dataKey="name" stroke="hsl(var(--foreground))" tick={{ fontSize: 11, width: 120 }} interval={0} angle={-35} textAnchor="end" height={100} />
                   <YAxis
                     stroke="hsl(var(--foreground))"
                     tickFormatter={(value) => formatChartValue(value, selectedMetric)}
