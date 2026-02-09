@@ -173,6 +173,7 @@ const CreateReportDialog = ({
   };
 
   const needsCampaignStep = reportType === "ads" || reportType === "always_on";
+  const showCampaignSelector = needsCampaignStep && startDate && endDate;
 
   const canProceedStep1 = () => {
     return campaignName.trim() && startDate && endDate;
@@ -180,36 +181,24 @@ const CreateReportDialog = ({
 
   const handleNext = () => {
     if (step === 1 && canProceedStep1()) {
-      if (needsCampaignStep) {
-        setStep(2); // Campaign selection
-      } else {
-        setStep(3); // Skip to upload
-      }
-    } else if (step === 2) {
-      setStep(3); // From campaign selection to upload
+      setStep(2); // Upload step (was step 3)
     }
   };
 
   const handleBack = () => {
-    if (step === 6) {
-      setStep(5);
-    } else if (step === 5) {
+    if (step === 5) {
       setStep(4);
     } else if (step === 4) {
       setStep(3);
     } else if (step === 3) {
-      if (needsCampaignStep) {
-        setStep(2);
-      } else {
-        setStep(1);
-      }
+      setStep(2);
     } else if (step === 2) {
       setStep(1);
     }
   };
 
   const handleSkipUpload = () => {
-    setStep(6); // Go to review without file
+    setStep(5); // Go to review without file
   };
 
   const handleAnalyzeFile = async () => {
@@ -227,7 +216,7 @@ const CreateReportDialog = ({
       });
       setMappings(initialMappings);
 
-      setStep(4); // Go to mapping step
+      setStep(3); // Go to mapping step
     } catch (error: any) {
       toast.error(error.message || "Failed to analyze file");
     } finally {
@@ -243,7 +232,7 @@ const CreateReportDialog = ({
   }, []);
 
   const handleMappingNext = () => {
-    setStep(5); // Go to import review
+    setStep(4); // Go to import review
   };
 
   const handleCreateReport = async () => {
@@ -492,6 +481,19 @@ const CreateReportDialog = ({
           </Popover>
         </div>
       </div>
+
+      {showCampaignSelector && (
+        <div className="space-y-2">
+          <Label>Link Campaigns (optional)</Label>
+          <CampaignSelectorStep
+            spaceId={spaceId}
+            selectedCampaignIds={selectedCampaignIds}
+            onSelectionChange={setSelectedCampaignIds}
+            startDate={startDate}
+            endDate={endDate}
+          />
+        </div>
+      )}
     </div>
   );
 
@@ -621,14 +623,12 @@ const CreateReportDialog = ({
       case 1:
         return "Report Details";
       case 2:
-        return "Select Campaigns";
-      case 3:
         return "Upload Data (Optional)";
-      case 4:
+      case 3:
         return "Map Columns";
-      case 5:
+      case 4:
         return "Review Import";
-      case 6:
+      case 5:
         return "Create Report";
       default:
         return "";
@@ -639,7 +639,7 @@ const CreateReportDialog = ({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className={cn(
         "rounded-[35px]",
-        step === 4 || step === 5 ? "sm:max-w-[900px] max-h-[90vh] overflow-y-auto" : "sm:max-w-[600px]"
+        step === 3 || step === 4 ? "sm:max-w-[900px] max-h-[90vh] overflow-y-auto" : "sm:max-w-[600px]"
       )}>
         <DialogHeader>
           <DialogTitle>{getStepTitle()}</DialogTitle>
@@ -647,38 +647,31 @@ const CreateReportDialog = ({
 
         <div className="py-4">
           {step === 1 && renderStep1()}
-          {step === 2 && (
-            <CampaignSelectorStep
-              spaceId={spaceId}
-              selectedCampaignIds={selectedCampaignIds}
-              onSelectionChange={setSelectedCampaignIds}
-            />
-          )}
-          {step === 3 && renderStep2()}
-          {step === 4 && parsedFile && (
+          {step === 2 && renderStep2()}
+          {step === 3 && parsedFile && (
             <ColumnMappingStep
               parsedFile={parsedFile}
               mappings={mappings}
               onMappingChange={handleMappingChange}
               onNext={handleMappingNext}
-              onBack={() => setStep(3)}
+              onBack={() => setStep(2)}
               onCancel={() => handleOpenChange(false)}
             />
           )}
-          {step === 5 && parsedFile && (
+          {step === 4 && parsedFile && (
             <ImportReviewStep
               parsedFile={parsedFile}
               mappings={mappings}
-              onImport={() => setStep(6)}
-              onBack={() => setStep(4)}
+              onImport={() => setStep(5)}
+              onBack={() => setStep(3)}
               onCancel={() => handleOpenChange(false)}
               isLoading={false}
             />
           )}
-          {step === 6 && renderReviewStep()}
+          {step === 5 && renderReviewStep()}
         </div>
 
-        {(step === 1 || step === 2 || step === 3 || step === 6) && (
+        {(step === 1 || step === 2 || step === 5) && (
           <div className="flex justify-between gap-3">
             {step > 1 && (
               <Button
@@ -706,27 +699,6 @@ const CreateReportDialog = ({
                 <>
                   <Button
                     variant="outline"
-                    onClick={() => {
-                      setSelectedCampaignIds([]);
-                      setStep(3);
-                    }}
-                    className="rounded-[35px]"
-                  >
-                    Skip
-                  </Button>
-                  <Button
-                    onClick={handleNext}
-                    className="rounded-[35px]"
-                  >
-                    Next
-                  </Button>
-                </>
-              )}
-
-              {step === 3 && (
-                <>
-                  <Button
-                    variant="outline"
                     onClick={handleSkipUpload}
                     className="rounded-[35px]"
                   >
@@ -742,7 +714,7 @@ const CreateReportDialog = ({
                 </>
               )}
 
-              {step === 6 && (
+              {step === 5 && (
                 <Button
                   onClick={handleCreateReport}
                   disabled={loading}
