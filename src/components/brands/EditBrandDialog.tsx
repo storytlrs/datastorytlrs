@@ -13,6 +13,7 @@ interface Brand {
   name: string;
   description: string | null;
   meta_id?: string | null;
+  tiktok_id?: string | null;
 }
 
 interface EditBrandDialogProps {
@@ -26,6 +27,7 @@ const EditBrandDialog = ({ open, onOpenChange, brand, onSuccess }: EditBrandDial
   const [name, setName] = useState(brand.name);
   const [description, setDescription] = useState(brand.description || "");
   const [metaId, setMetaId] = useState(brand.meta_id || "");
+  const [tiktokId, setTiktokId] = useState(brand.tiktok_id || "");
   const [saving, setSaving] = useState(false);
   const { isAdmin } = useUserRole();
 
@@ -34,6 +36,7 @@ const EditBrandDialog = ({ open, onOpenChange, brand, onSuccess }: EditBrandDial
       setName(brand.name);
       setDescription(brand.description || "");
       setMetaId(brand.meta_id || "");
+      setTiktokId(brand.tiktok_id || "");
     }
   }, [open, brand]);
 
@@ -47,14 +50,15 @@ const EditBrandDialog = ({ open, onOpenChange, brand, onSuccess }: EditBrandDial
 
     setSaving(true);
     try {
-      const updateData: { name: string; description: string | null; meta_id?: string | null } = {
+      const updateData: { name: string; description: string | null; meta_id?: string | null; tiktok_id?: string | null } = {
         name: name.trim(),
         description: description.trim() || null,
       };
       
-      // Only admins can update meta_id
+      // Only admins can update meta_id and tiktok_id
       if (isAdmin) {
         updateData.meta_id = metaId.trim() || null;
+        updateData.tiktok_id = tiktokId.trim() || null;
       }
 
       const { error } = await supabase
@@ -102,19 +106,34 @@ const EditBrandDialog = ({ open, onOpenChange, brand, onSuccess }: EditBrandDial
             />
           </div>
           {isAdmin && (
-            <div className="space-y-2">
-              <Label htmlFor="metaId">Meta Ad Account ID</Label>
-              <Input
-                id="metaId"
-                value={metaId}
-                onChange={(e) => setMetaId(e.target.value)}
-                placeholder="act_123456789"
-                className="rounded-[35px]"
-              />
-              <p className="text-xs text-muted-foreground">
-                Used for Meta Marketing API imports (e.g., act_123456789)
-              </p>
-            </div>
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="metaId">Meta Ad Account ID</Label>
+                <Input
+                  id="metaId"
+                  value={metaId}
+                  onChange={(e) => setMetaId(e.target.value)}
+                  placeholder="act_123456789"
+                  className="rounded-[35px]"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Used for Meta Marketing API imports (e.g., act_123456789)
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="tiktokId">TikTok Advertiser ID</Label>
+                <Input
+                  id="tiktokId"
+                  value={tiktokId}
+                  onChange={(e) => setTiktokId(e.target.value)}
+                  placeholder="7123456789012345678"
+                  className="rounded-[35px]"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Used for TikTok Marketing API imports
+                </p>
+              </div>
+            </>
           )}
           <div className="flex justify-end gap-2">
             <Button
