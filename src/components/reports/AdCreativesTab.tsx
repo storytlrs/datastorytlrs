@@ -84,7 +84,7 @@ export const AdCreativesTab = ({ reportId, spaceId }: AdCreativesTabProps) => {
 
     const { data, error } = await supabase
       .from("brand_ad_sets" as any)
-      .select("id, adset_name, amount_spent, impressions, clicks, ctr, frequency, date_start")
+      .select("id, adset_name, amount_spent, impressions, clicks, ctr, frequency, date_start, thumbnail_url")
       .eq("space_id", spaceId)
       .in("brand_campaign_id", linkedIds)
       .order("amount_spent", { ascending: false });
@@ -95,7 +95,7 @@ export const AdCreativesTab = ({ reportId, spaceId }: AdCreativesTabProps) => {
         name: row.adset_name || "Unnamed Ad",
         platform: "facebook",
         ad_type: null,
-        thumbnail_url: null,
+        thumbnail_url: row.thumbnail_url || null,
         url: null,
         campaign_name: null,
         adset_name: null,
