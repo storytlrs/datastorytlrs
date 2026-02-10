@@ -107,6 +107,7 @@ export type Database = {
           status: string | null
           thruplay_rate: number | null
           thruplays: number | null
+          thumbnail_url: string | null
           updated_at: string
           video_3s_plays: number | null
           view_rate_3s: number | null
@@ -135,6 +136,7 @@ export type Database = {
           status?: string | null
           thruplay_rate?: number | null
           thruplays?: number | null
+          thumbnail_url?: string | null
           updated_at?: string
           video_3s_plays?: number | null
           view_rate_3s?: number | null
@@ -163,6 +165,7 @@ export type Database = {
           status?: string | null
           thruplay_rate?: number | null
           thruplays?: number | null
+          thumbnail_url?: string | null
           updated_at?: string
           video_3s_plays?: number | null
           view_rate_3s?: number | null
@@ -214,6 +217,7 @@ export type Database = {
           status: string | null
           thruplay_rate: number | null
           thruplays: number | null
+          thumbnail_url: string | null
           updated_at: string
           video_3s_plays: number | null
           view_rate_3s: number | null
@@ -247,6 +251,7 @@ export type Database = {
           status?: string | null
           thruplay_rate?: number | null
           thruplays?: number | null
+          thumbnail_url?: string | null
           updated_at?: string
           video_3s_plays?: number | null
           view_rate_3s?: number | null
@@ -280,6 +285,7 @@ export type Database = {
           status?: string | null
           thruplay_rate?: number | null
           thruplays?: number | null
+          thumbnail_url?: string | null
           updated_at?: string
           video_3s_plays?: number | null
           view_rate_3s?: number | null

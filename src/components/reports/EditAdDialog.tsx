@@ -8,15 +8,9 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { ImageUpload } from "@/components/ui/image-upload";
 
 interface EditAdDialogProps {
   ad: any;
@@ -29,7 +23,7 @@ export const EditAdDialog = ({ ad, open, onOpenChange, onSuccess }: EditAdDialog
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     ad_name: "",
-    platform: "instagram" as const,
+    thumbnail_url: "",
     amount_spent: "",
     reach: "",
     impressions: "",
@@ -49,7 +43,7 @@ export const EditAdDialog = ({ ad, open, onOpenChange, onSuccess }: EditAdDialog
     if (ad) {
       setFormData({
         ad_name: ad.ad_name || "",
-        platform: ad.platform || "instagram",
+        thumbnail_url: ad.thumbnail_url || "",
         amount_spent: ad.amount_spent?.toString() || "",
         reach: ad.reach?.toString() || "",
         impressions: ad.impressions?.toString() || "",
@@ -78,7 +72,7 @@ export const EditAdDialog = ({ ad, open, onOpenChange, onSuccess }: EditAdDialog
     try {
       const { error } = await supabase.from("brand_ads").update({
         ad_name: formData.ad_name,
-        platform: formData.platform,
+        thumbnail_url: formData.thumbnail_url || null,
         amount_spent: formData.amount_spent ? parseFloat(formData.amount_spent) : 0,
         reach: formData.reach ? parseInt(formData.reach) : 0,
         impressions: formData.impressions ? parseInt(formData.impressions) : 0,
@@ -113,41 +107,29 @@ export const EditAdDialog = ({ ad, open, onOpenChange, onSuccess }: EditAdDialog
           <DialogTitle>Edit Ad</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Basic Info */}
           <div className="space-y-4">
             <h3 className="font-semibold">Basic Information</h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="ad_name">Ad Name *</Label>
-                <Input
-                  id="ad_name"
-                  value={formData.ad_name}
-                  onChange={(e) => setFormData({ ...formData, ad_name: e.target.value })}
-                  placeholder="Ad name"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="platform">Platform</Label>
-                <Select
-                  value={formData.platform}
-                  onValueChange={(value: any) => setFormData({ ...formData, platform: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="instagram">Instagram</SelectItem>
-                    <SelectItem value="facebook">Facebook</SelectItem>
-                    <SelectItem value="tiktok">TikTok</SelectItem>
-                    <SelectItem value="youtube">YouTube</SelectItem>
-                    <SelectItem value="twitter">Twitter</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="ad_name">Ad Name *</Label>
+              <Input
+                id="ad_name"
+                value={formData.ad_name}
+                onChange={(e) => setFormData({ ...formData, ad_name: e.target.value })}
+                placeholder="Ad name"
+              />
             </div>
           </div>
 
-          {/* Metrics */}
+          <div className="space-y-4">
+            <h3 className="font-semibold">Thumbnail</h3>
+            <ImageUpload
+              value={formData.thumbnail_url}
+              onChange={(url) => setFormData({ ...formData, thumbnail_url: url || "" })}
+              bucket="content-thumbnails"
+              folder="ads"
+            />
+          </div>
+
           <div className="space-y-4">
             <h3 className="font-semibold">Performance Metrics</h3>
             <div className="grid grid-cols-3 gap-4">
@@ -249,7 +231,6 @@ export const EditAdDialog = ({ ad, open, onOpenChange, onSuccess }: EditAdDialog
             </div>
           </div>
 
-          {/* Engagement */}
           <div className="space-y-4">
             <h3 className="font-semibold">Engagement</h3>
             <div className="grid grid-cols-4 gap-4">
