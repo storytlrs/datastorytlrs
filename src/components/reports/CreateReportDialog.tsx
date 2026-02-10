@@ -61,6 +61,12 @@ const reportTypeOptions = [
   { value: "always_on", label: "Always-on content" },
 ];
 
+const periodOptions = [
+  { value: "monthly", label: "Měsíční" },
+  { value: "quarterly", label: "Kvartální" },
+  { value: "yearly", label: "Roční" },
+];
+
 const CreateReportDialog = ({
   open,
   onOpenChange,
@@ -76,6 +82,7 @@ const CreateReportDialog = ({
   const [projectId, setProjectId] = useState<string>("");
   const [campaignName, setCampaignName] = useState("");
   const [reportType, setReportType] = useState<"influencer" | "ads" | "always_on">("influencer");
+  const [period, setPeriod] = useState<"monthly" | "quarterly" | "yearly">("monthly");
   const [startDate, setStartDate] = useState<Date>();
   const [endDate, setEndDate] = useState<Date>();
   const [projects, setProjects] = useState<Project[]>([]);
@@ -122,6 +129,7 @@ const CreateReportDialog = ({
       setProjectId("");
       setCampaignName("");
       setReportType("influencer");
+      setPeriod("monthly");
       setStartDate(undefined);
       setEndDate(undefined);
       setSelectedCampaignIds([]);
@@ -243,6 +251,7 @@ const CreateReportDialog = ({
         name: campaignName,
         space_id: spaceId,
         type: reportType,
+        period,
         status: "draft",
         start_date: startDate ? format(startDate, "yyyy-MM-dd") : null,
         end_date: endDate ? format(endDate, "yyyy-MM-dd") : null,
@@ -410,20 +419,38 @@ const CreateReportDialog = ({
         />
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="reportType">Report Type *</Label>
-        <Select value={reportType} onValueChange={(value) => setReportType(value as "influencer" | "ads" | "always_on")}>
-          <SelectTrigger id="reportType" className="rounded-[35px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent className="bg-background border-foreground">
-            {reportTypeOptions.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="reportType">Report Type *</Label>
+          <Select value={reportType} onValueChange={(value) => setReportType(value as "influencer" | "ads" | "always_on")}>
+            <SelectTrigger id="reportType" className="rounded-[35px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="bg-background border-foreground">
+              {reportTypeOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="period">Period *</Label>
+          <Select value={period} onValueChange={(value) => setPeriod(value as "monthly" | "quarterly" | "yearly")}>
+            <SelectTrigger id="period" className="rounded-[35px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="bg-background border-foreground">
+              {periodOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4">

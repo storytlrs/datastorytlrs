@@ -916,6 +916,7 @@ export type Database = {
           end_date: string | null
           id: string
           name: string
+          period: string | null
           project_id: string | null
           sentiment_webhook_url: string | null
           space_id: string
@@ -933,6 +934,7 @@ export type Database = {
           end_date?: string | null
           id?: string
           name: string
+          period?: string | null
           project_id?: string | null
           sentiment_webhook_url?: string | null
           space_id: string
@@ -950,6 +952,7 @@ export type Database = {
           end_date?: string | null
           id?: string
           name?: string
+          period?: string | null
           project_id?: string | null
           sentiment_webhook_url?: string | null
           space_id?: string
