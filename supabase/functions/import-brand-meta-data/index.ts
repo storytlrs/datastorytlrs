@@ -66,14 +66,13 @@ interface MetaCreative {
 
 const getBestAdImage = (creative?: MetaCreative): string | null => {
   if (!creative) return null;
-  const url =
+  return (
     creative.object_story_spec?.video_data?.image_url ||
     creative.image_url ||
     creative.asset_feed_spec?.videos?.[0]?.thumbnail_url ||
     creative.thumbnail_url ||
-    null;
-  if (!url) return null;
-  return url.replace(/p64x64/g, "p1080x1080");
+    null
+  );
 };
 
 const getActionValue = (actions: MetaInsightAction[] | undefined, type: string): number => {
