@@ -62,7 +62,7 @@ export const AdsDataTab = ({ reportId, spaceId, onImportSuccess }: AdsDataTabPro
     setFetchingThumbnails(true);
     try {
       const response = await supabase.functions.invoke("import-brand-meta-data", {
-        body: { spaceId },
+        body: { spaceId, thumbnailsOnly: true },
       });
       if (response.error) throw response.error;
       const result = response.data;
