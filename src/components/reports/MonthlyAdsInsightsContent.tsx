@@ -219,7 +219,7 @@ const EditableNumberField = ({
 };
 
 const PostCard = ({ post }: { post: { name: string; spend: number; impressions: number; clicks: number; ctr: number; thumbnail_url?: string } }) => (
-  <Card className="overflow-hidden rounded-[35px] border-foreground hover:shadow-lg transition-shadow w-[200px] flex-shrink-0">
+  <Card className="overflow-hidden rounded-[35px] border-foreground hover:shadow-lg transition-shadow">
     <div className="relative aspect-[9/12.8] bg-muted overflow-hidden">
       {post.thumbnail_url ? (
         <img
@@ -484,7 +484,13 @@ export const MonthlyAdsInsightsContent = forwardRef<HTMLDivElement, MonthlyAdsIn
           {insights.facebook_top_posts.length > 0 && (
             <>
               <h3 className="font-bold text-lg mb-3">TOP příspěvky</h3>
-              <div className="flex flex-wrap justify-center gap-6">
+              <div className={`grid gap-6 ${
+                insights.facebook_top_posts.length === 1 ? "grid-cols-1 max-w-[250px] mx-auto" :
+                insights.facebook_top_posts.length === 2 ? "grid-cols-2 max-w-[520px] mx-auto" :
+                insights.facebook_top_posts.length === 3 ? "grid-cols-3 max-w-[780px] mx-auto" :
+                insights.facebook_top_posts.length === 4 ? "grid-cols-2 md:grid-cols-4" :
+                "grid-cols-2 md:grid-cols-3 lg:grid-cols-5"
+              }`}>
                 {insights.facebook_top_posts.map((post, i) => <PostCard key={i} post={post} />)}
               </div>
             </>
@@ -505,7 +511,13 @@ export const MonthlyAdsInsightsContent = forwardRef<HTMLDivElement, MonthlyAdsIn
           {insights.instagram_top_posts.length > 0 && (
             <>
               <h3 className="font-bold text-lg mb-3">TOP příspěvky</h3>
-              <div className="flex flex-wrap justify-center gap-6">
+              <div className={`grid gap-6 ${
+                insights.instagram_top_posts.length === 1 ? "grid-cols-1 max-w-[250px] mx-auto" :
+                insights.instagram_top_posts.length === 2 ? "grid-cols-2 max-w-[520px] mx-auto" :
+                insights.instagram_top_posts.length === 3 ? "grid-cols-3 max-w-[780px] mx-auto" :
+                insights.instagram_top_posts.length === 4 ? "grid-cols-2 md:grid-cols-4" :
+                "grid-cols-2 md:grid-cols-3 lg:grid-cols-5"
+              }`}>
                 {insights.instagram_top_posts.map((post, i) => <PostCard key={i} post={post} />)}
               </div>
             </>
