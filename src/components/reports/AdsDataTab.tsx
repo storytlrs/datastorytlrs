@@ -3,6 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Loader2 } from "lucide-react";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { supabase } from "@/integrations/supabase/client";
 import { EditableDataTable, ColumnDef } from "./EditableDataTable";
@@ -44,6 +45,7 @@ export const AdsDataTab = ({ reportId, spaceId, onImportSuccess }: AdsDataTabPro
   const [editingCampaign, setEditingCampaign] = useState<any>(null);
   const [editingAdSet, setEditingAdSet] = useState<any>(null);
   const [editingAd, setEditingAd] = useState<any>(null);
+  const [fetchingThumbnails, setFetchingThumbnails] = useState(false);
 
   // Column visibility state
   const [visibleCampaignColumns, setVisibleCampaignColumns] = useState<string[]>([
@@ -55,6 +57,32 @@ export const AdsDataTab = ({ reportId, spaceId, onImportSuccess }: AdsDataTabPro
   const [visibleAdsColumns, setVisibleAdsColumns] = useState<string[]>([
     "thumbnail_url", "ad_name", "platform", "amount_spent", "impressions", "reach", "thruplays", "ctr", "frequency"
   ]);
+
+  const handleFetchThumbnails = async () => {
+    setFetchingThumbnails(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const response = await supabase.functions.invoke("fetch-adset-thumbnails", {
+        body: { spaceId },
+      });
+      if (response.error) throw response.error;
+      const result = response.data;
+      if (result?.updated > 0) {
+        toast.success(`Updated ${result.updated} ad set thumbnails`);
+        fetchData();
+      } else {
+        toast.info("No thumbnails found to update");
+      }
+      if (result?.errors?.length > 0) {
+        console.warn("Thumbnail fetch errors:", result.errors);
+      }
+    } catch (error) {
+      console.error("Fetch thumbnails error:", error);
+      toast.error("Failed to fetch thumbnails");
+    } finally {
+      setFetchingThumbnails(false);
+    }
+  };
 
   useEffect(() => {
     fetchData();
@@ -357,6 +385,15 @@ export const AdsDataTab = ({ reportId, spaceId, onImportSuccess }: AdsDataTabPro
         </div>
         {canEdit && (
           <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-[35px]"
+              disabled={fetchingThumbnails}
+              onClick={handleFetchThumbnails}
+            >
+              {fetchingThumbnails ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Fetching...</> : "Fetch Thumbnails"}
+            </Button>
             <CreatePlanningItemDialog reportId={reportId} onSuccess={fetchData} />
           </div>
         )}
