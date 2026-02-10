@@ -236,8 +236,8 @@ const BrandAdsDashboard = ({ spaceId, filters }: BrandAdsDashboardProps) => {
         const storedPreviewUrl = "thumbnail_url" in a ? (a as BrandAd).thumbnail_url || null : null;
         return {
           id: a.id,
-          thumbnailUrl: null,
-          previewIframeUrl: storedPreviewUrl,
+          thumbnailUrl: storedPreviewUrl,
+          previewIframeUrl: null,
           contentType: "ad",
           platform: "facebook",
           views: a.impressions || 0,
