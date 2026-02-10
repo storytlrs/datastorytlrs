@@ -11,6 +11,7 @@ import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
 import { AIInsightsInputDialog, CampaignContext } from "./AIInsightsInputDialog";
 import { AdsAIInsightsContent, AdsStructuredInsights } from "./AdsAIInsightsContent";
+import { MonthlyAdsInsightsContent, MonthlyStructuredInsights } from "./MonthlyAdsInsightsContent";
 
 interface AdsAIInsightsTabProps {
   reportId: string;
@@ -28,7 +29,8 @@ export const AdsAIInsightsTab = ({ reportId }: AdsAIInsightsTabProps) => {
   const [isPdfMode, setIsPdfMode] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [isInputDialogOpen, setIsInputDialogOpen] = useState(false);
-  const [structuredData, setStructuredData] = useState<AdsStructuredInsights | null>(null);
+  const [structuredData, setStructuredData] = useState<any | null>(null);
+  const [reportPeriod, setReportPeriod] = useState<string>("campaign");
   const [awarenessParagraph, setAwarenessParagraph] = useState("");
   const [engagementParagraph, setEngagementParagraph] = useState("");
   const [effectivenessParagraph, setEffectivenessParagraph] = useState("");
@@ -42,20 +44,25 @@ export const AdsAIInsightsTab = ({ reportId }: AdsAIInsightsTabProps) => {
     try {
       const { data, error } = await supabase
         .from("reports")
-        .select("ai_insights, ai_insights_structured, ai_insights_context")
+        .select("ai_insights, ai_insights_structured, ai_insights_context, period")
         .eq("id", reportId)
         .single();
 
       if (error) throw error;
 
       setAiInsights(data.ai_insights || "");
+      setReportPeriod(data.period || "campaign");
 
       if (data.ai_insights_structured) {
-        const structured = data.ai_insights_structured as unknown as AdsStructuredInsights;
+        const structured = data.ai_insights_structured as any;
         setStructuredData(structured);
-        setAwarenessParagraph(structured.awareness_summary || "");
-        setEngagementParagraph(structured.engagement_summary || "");
-        setEffectivenessParagraph(structured.effectiveness_summary || "");
+
+        // For default reports, set paragraph states
+        if (structured.report_period !== "monthly") {
+          setAwarenessParagraph(structured.awareness_summary || "");
+          setEngagementParagraph(structured.engagement_summary || "");
+          setEffectivenessParagraph(structured.effectiveness_summary || "");
+        }
       }
     } catch (error) {
       console.error("Error fetching report data:", error);
@@ -86,10 +93,13 @@ export const AdsAIInsightsTab = ({ reportId }: AdsAIInsightsTabProps) => {
       }
 
       setStructuredData(data.structured_data);
-      setAwarenessParagraph(data.awareness_summary || "");
-      setEngagementParagraph(data.engagement_summary || "");
-      setEffectivenessParagraph(data.effectiveness_summary || "");
       setAiInsights(data.structured_data?.executive_summary || "");
+
+      if (data.structured_data?.report_period !== "monthly") {
+        setAwarenessParagraph(data.awareness_summary || "");
+        setEngagementParagraph(data.engagement_summary || "");
+        setEffectivenessParagraph(data.effectiveness_summary || "");
+      }
 
       toast.success("AI Insights vygenerovány úspěšně!");
       setIsInputDialogOpen(false);
@@ -121,11 +131,7 @@ export const AdsAIInsightsTab = ({ reportId }: AdsAIInsightsTabProps) => {
       if (!pdfRef.current) throw new Error("PDF container not ready");
 
       const canvas = await html2canvas(pdfRef.current, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: "#E9E9E9",
-        width: 1100,
+        scale: 2, useCORS: true, logging: false, backgroundColor: "#E9E9E9", width: 1100,
       });
 
       const pxToMm = 25.4 / (96 * 2);
@@ -134,8 +140,7 @@ export const AdsAIInsightsTab = ({ reportId }: AdsAIInsightsTabProps) => {
 
       const pdf = new jsPDF({
         orientation: pdfWidth > pdfHeight ? "landscape" : "portrait",
-        unit: "mm",
-        format: [pdfWidth, pdfHeight],
+        unit: "mm", format: [pdfWidth, pdfHeight],
       });
 
       const imgData = canvas.toDataURL("image/jpeg", 0.95);
@@ -170,7 +175,7 @@ export const AdsAIInsightsTab = ({ reportId }: AdsAIInsightsTabProps) => {
     }
   };
 
-  const handleSaveStructuredInsights = async (updates: Partial<AdsStructuredInsights>) => {
+  const handleSaveStructuredInsights = async (updates: Record<string, any>) => {
     try {
       const updatedData = { ...structuredData, ...updates };
       const { error } = await supabase
@@ -179,7 +184,7 @@ export const AdsAIInsightsTab = ({ reportId }: AdsAIInsightsTabProps) => {
         .eq("id", reportId);
 
       if (error) throw error;
-      setStructuredData(updatedData as AdsStructuredInsights);
+      setStructuredData(updatedData);
       toast.success("Changes saved");
     } catch (error) {
       console.error("Error saving:", error);
@@ -195,55 +200,62 @@ export const AdsAIInsightsTab = ({ reportId }: AdsAIInsightsTabProps) => {
     );
   }
 
+  const isMonthly = structuredData?.report_period === "monthly" || (reportPeriod === "monthly" && structuredData);
+
   // Structured view
   if (structuredData && !isEditing) {
     return (
       <>
         <div className="space-y-6">
           <div className="flex items-center justify-end gap-2">
-            <Button
-              onClick={handleExportPDF}
-              disabled={isExporting}
-              variant="outline"
-              className="rounded-[35px] border-foreground"
-            >
+            <Button onClick={handleExportPDF} disabled={isExporting} variant="outline" className="rounded-[35px] border-foreground">
               {isExporting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
               Export PDF
             </Button>
             {canEdit && (
-              <Button
-                onClick={handleRegenerate}
-                disabled={isGenerating}
-                variant="outline"
-                className="rounded-[35px] border-foreground"
-                title="Regenerovat AI Insights s existujícím kontextem"
-              >
+              <Button onClick={handleRegenerate} disabled={isGenerating} variant="outline" className="rounded-[35px] border-foreground" title="Regenerovat AI Insights s existujícím kontextem">
                 {isGenerating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
                 Regenerate
               </Button>
             )}
           </div>
 
-          <AdsAIInsightsContent
-            ref={contentRef}
-            insights={structuredData}
-            awarenessParagraph={awarenessParagraph}
-            engagementParagraph={engagementParagraph}
-            effectivenessParagraph={effectivenessParagraph}
-            canEdit={canEdit}
-            onSaveInsights={handleSaveStructuredInsights}
-          />
+          {isMonthly ? (
+            <MonthlyAdsInsightsContent
+              ref={contentRef}
+              insights={structuredData as MonthlyStructuredInsights}
+              canEdit={canEdit}
+              onSaveInsights={handleSaveStructuredInsights}
+            />
+          ) : (
+            <AdsAIInsightsContent
+              ref={contentRef}
+              insights={structuredData as AdsStructuredInsights}
+              awarenessParagraph={awarenessParagraph}
+              engagementParagraph={engagementParagraph}
+              effectivenessParagraph={effectivenessParagraph}
+              canEdit={canEdit}
+              onSaveInsights={handleSaveStructuredInsights}
+            />
+          )}
         </div>
 
         {isPdfMode && structuredData && (
           <div style={{ position: "fixed", left: "-10000px", top: 0 }}>
-            <AdsAIInsightsContent
-              ref={pdfRef}
-              insights={structuredData}
-              awarenessParagraph={awarenessParagraph}
-              engagementParagraph={engagementParagraph}
-              effectivenessParagraph={effectivenessParagraph}
-            />
+            {isMonthly ? (
+              <MonthlyAdsInsightsContent
+                ref={pdfRef}
+                insights={structuredData as MonthlyStructuredInsights}
+              />
+            ) : (
+              <AdsAIInsightsContent
+                ref={pdfRef}
+                insights={structuredData as AdsStructuredInsights}
+                awarenessParagraph={awarenessParagraph}
+                engagementParagraph={engagementParagraph}
+                effectivenessParagraph={effectivenessParagraph}
+              />
+            )}
           </div>
         )}
       </>
