@@ -38,3 +38,6 @@ verify_jwt = true
 
 [functions.import-tiktok-ads]
 verify_jwt = true
+
+[functions.import-tiktok-demographics]
+verify_jwt = true
