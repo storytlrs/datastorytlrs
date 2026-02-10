@@ -1,0 +1,1 @@
+ALTER TABLE public.brand_ad_sets DROP COLUMN thumbnail_url;
