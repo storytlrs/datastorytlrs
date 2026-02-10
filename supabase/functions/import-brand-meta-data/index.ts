@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 interface MetaInsightAction {
@@ -150,7 +150,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { spaceId } = await req.json();
+    const { spaceId, thumbnailsOnly } = await req.json();
     if (!spaceId) {
       return new Response(
         JSON.stringify({ error: "spaceId is required" }),
@@ -181,6 +181,57 @@ Deno.serve(async (req) => {
       );
     }
 
+    // ── THUMBNAILS-ONLY FAST PATH ──
+    if (thumbnailsOnly) {
+      console.log("Thumbnails-only mode: fetching creative images for existing ads");
+      const { data: existingAds, error: adsErr } = await supabase
+        .from("brand_ads")
+        .select("id, ad_id")
+        .eq("space_id", spaceId);
+
+      if (adsErr) {
+        return new Response(JSON.stringify({ error: adsErr.message }), {
+          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      let updated = 0;
+      const errors: string[] = [];
+
+      // Process in batches of 50 to stay within timeout
+      for (const ad of (existingAds || [])) {
+        try {
+          const adUrl = `https://graph.facebook.com/v21.0/${ad.ad_id}?fields=creative{id,image_url,thumbnail_url,asset_feed_spec,object_story_spec}&access_token=${metaAccessToken}`;
+          const res = await fetch(adUrl);
+          const data = await res.json();
+
+          if (data.error) {
+            errors.push(`Ad ${ad.ad_id}: ${data.error.message}`);
+            continue;
+          }
+
+          const imageUrl = getBestAdImage(data.creative as MetaCreative);
+          if (imageUrl) {
+            const { error: upErr } = await supabase
+              .from("brand_ads")
+              .update({ thumbnail_url: imageUrl })
+              .eq("id", ad.id);
+            if (upErr) errors.push(`Update ${ad.ad_id}: ${upErr.message}`);
+            else updated++;
+          }
+        } catch (e) {
+          errors.push(`Ad ${ad.ad_id}: ${e instanceof Error ? e.message : "Unknown"}`);
+        }
+      }
+
+      return new Response(JSON.stringify({
+        success: true,
+        imported: { ads: updated, totalAds: existingAds?.length || 0 },
+        errors: errors.length > 0 ? errors : undefined,
+      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    // ── FULL IMPORT PATH ──
     let importedCampaigns = 0;
     let importedAdSets = 0;
     let importedAds = 0;
