@@ -224,7 +224,7 @@ Deno.serve(async (req) => {
         importedCampaigns++;
 
         // Step 2: Get ad sets for this campaign
-        const adSetsUrl = `https://graph.facebook.com/v21.0/${campaign.id}/adsets?fields=id,name,status&limit=500&access_token=${metaAccessToken}`;
+        const adSetsUrl = `https://graph.facebook.com/v21.0/${campaign.id}/adsets?fields=id,name,status,ads.limit(1){creative{id,image_url,thumbnail_url}}&limit=500&access_token=${metaAccessToken}`;
         const adSetsRes = await fetch(adSetsUrl);
         const adSetsData = await adSetsRes.json();
 
@@ -244,12 +244,16 @@ Deno.serve(async (req) => {
             const asInsight: MetaInsight | undefined = asInsightsData.data?.[0];
             const asMetrics = asInsight ? calculateMetrics(asInsight) : null;
 
+            const adSetCreative = adSet.ads?.data?.[0]?.creative;
+            const adSetThumb = adSetCreative?.image_url || adSetCreative?.thumbnail_url || null;
+
             const adSetRecord = {
               space_id: spaceId,
               brand_campaign_id: upsertedCampaign.id,
               adset_id: adSet.id,
               adset_name: adSet.name,
               status: adSet.status,
+              thumbnail_url: adSetThumb,
               amount_spent: asMetrics?.spend || 0,
               reach: asInsight?.reach ? parseInt(asInsight.reach) : 0,
               impressions: asMetrics?.impressions || 0,
@@ -283,7 +287,7 @@ Deno.serve(async (req) => {
             importedAdSets++;
 
             // Step 3: Get ads for this ad set
-            const adsUrl = `https://graph.facebook.com/v21.0/${adSet.id}/ads?fields=id,name,status&limit=500&access_token=${metaAccessToken}`;
+            const adsUrl = `https://graph.facebook.com/v21.0/${adSet.id}/ads?fields=id,name,status,creative{id,image_url,thumbnail_url}&limit=500&access_token=${metaAccessToken}`;
             const adsRes = await fetch(adsUrl);
             const adsData = await adsRes.json();
 
@@ -301,12 +305,16 @@ Deno.serve(async (req) => {
                 const adInsight: MetaInsight | undefined = adInsightsData.data?.[0];
                 const adMetrics = adInsight ? calculateMetrics(adInsight) : null;
 
+                const adCreative = ad.creative;
+                const adThumb = adCreative?.image_url || adCreative?.thumbnail_url || null;
+
                 const adRecord = {
                   space_id: spaceId,
                   brand_ad_set_id: upsertedAdSet.id,
                   ad_id: ad.id,
                   ad_name: ad.name,
                   status: ad.status,
+                  thumbnail_url: adThumb,
                   amount_spent: adMetrics?.spend || 0,
                   reach: adInsight?.reach ? parseInt(adInsight.reach) : 0,
                   impressions: adMetrics?.impressions || 0,
