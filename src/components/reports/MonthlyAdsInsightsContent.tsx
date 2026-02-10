@@ -484,7 +484,7 @@ export const MonthlyAdsInsightsContent = forwardRef<HTMLDivElement, MonthlyAdsIn
           {insights.facebook_top_posts.length > 0 && (
             <>
               <h3 className="font-bold text-lg mb-3">TOP příspěvky</h3>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                 {insights.facebook_top_posts.map((post, i) => <PostCard key={i} post={post} />)}
               </div>
             </>
@@ -505,7 +505,7 @@ export const MonthlyAdsInsightsContent = forwardRef<HTMLDivElement, MonthlyAdsIn
           {insights.instagram_top_posts.length > 0 && (
             <>
               <h3 className="font-bold text-lg mb-3">TOP příspěvky</h3>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                 {insights.instagram_top_posts.map((post, i) => <PostCard key={i} post={post} />)}
               </div>
             </>
