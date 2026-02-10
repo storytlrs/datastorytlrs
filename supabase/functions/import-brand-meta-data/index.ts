@@ -311,7 +311,7 @@ Deno.serve(async (req) => {
                   const body = previewData.data?.[0]?.body;
                   if (body) {
                     const srcMatch = body.match(/src="([^"]+)"/);
-                    previewUrl = srcMatch ? srcMatch[1] : null;
+                    previewUrl = srcMatch ? srcMatch[1].replace(/&amp;/g, "&") : null;
                   }
                 } catch (prevErr) {
                   console.error(`Preview fetch failed for ad ${ad.id}:`, prevErr);
