@@ -35,3 +35,6 @@ verify_jwt = true
 
 [functions.fetch-ad-previews]
 verify_jwt = true
+
+[functions.import-tiktok-ads]
+verify_jwt = true

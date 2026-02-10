@@ -17,6 +17,7 @@ const brandSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(100),
   description: z.string().trim().max(500).optional(),
   meta_id: z.string().trim().max(100).optional(),
+  tiktok_id: z.string().trim().max(100).optional(),
 });
 
 interface CreateBrandDialogProps {
@@ -33,6 +34,7 @@ export const CreateBrandDialog = ({
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [metaId, setMetaId] = useState("");
+  const [tiktokId, setTiktokId] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -40,7 +42,7 @@ export const CreateBrandDialog = ({
     setLoading(true);
 
     try {
-      const validation = brandSchema.safeParse({ name, description, meta_id: metaId || undefined });
+      const validation = brandSchema.safeParse({ name, description, meta_id: metaId || undefined, tiktok_id: tiktokId || undefined });
 
       if (!validation.success) {
         toast.error(validation.error.errors[0].message);
@@ -57,6 +59,7 @@ export const CreateBrandDialog = ({
           name: validation.data.name,
           description: validation.data.description || null,
           meta_id: validation.data.meta_id || null,
+          tiktok_id: validation.data.tiktok_id || null,
         })
         .select()
         .single();
@@ -93,9 +96,28 @@ export const CreateBrandDialog = ({
           });
       }
 
+      // Trigger TikTok import if tiktok_id is set
+      if (brand.tiktok_id) {
+        toast.info("Importing data from TikTok Ads...");
+        supabase.functions
+          .invoke("import-tiktok-ads", {
+            body: { spaceId: brand.id },
+          })
+          .then(({ data, error }) => {
+            if (error) {
+              toast.error("TikTok import failed: " + error.message);
+            } else if (data?.success) {
+              toast.success(
+                `TikTok import complete: ${data.imported.campaigns} campaigns, ${data.imported.adSets} ad sets, ${data.imported.ads} ads`
+              );
+            }
+          });
+      }
+
       setName("");
       setDescription("");
       setMetaId("");
+      setTiktokId("");
       onOpenChange(false);
       onSuccess();
     } catch (error) {
@@ -146,6 +168,20 @@ export const CreateBrandDialog = ({
             />
             <p className="text-xs text-muted-foreground">
               If provided, campaign data will be automatically imported from Meta Ads.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="tiktok_id">TikTok Advertiser ID (Optional)</Label>
+            <Input
+              id="tiktok_id"
+              value={tiktokId}
+              onChange={(e) => setTiktokId(e.target.value)}
+              placeholder="e.g. 7123456789012345678"
+              className="rounded-[35px] border-foreground"
+            />
+            <p className="text-xs text-muted-foreground">
+              If provided, campaign data will be automatically imported from TikTok Ads.
             </p>
           </div>
 
