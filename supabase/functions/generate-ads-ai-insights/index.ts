@@ -46,6 +46,7 @@ serve(async (req) => {
     if (reportError || !report) throw new Error("Report not found");
 
     const spaceId = report.space_id;
+    const period = report.period || "campaign";
 
     // Fetch linked campaign IDs for this report
     const { data: links } = await supabase
@@ -81,23 +82,21 @@ serve(async (req) => {
       .eq("space_id", spaceId)
       .in("brand_ad_set_id", adSetIds.length > 0 ? adSetIds : ["__none__"]);
 
-    // Calculate aggregated metrics from campaigns (highest level)
+    // Calculate aggregated metrics
     const metricsSource = campaigns.length > 0 ? campaigns : adSets;
+    const totalSpend = metricsSource.reduce((s: number, d: any) => s + (d.amount_spent || 0), 0);
+    const totalReach = metricsSource.reduce((s: number, d: any) => s + (d.reach || 0), 0);
+    const totalImpressions = metricsSource.reduce((s: number, d: any) => s + (d.impressions || 0), 0);
+    const totalClicks = metricsSource.reduce((s: number, d: any) => s + (d.clicks || 0), 0);
 
-    const totalSpend = metricsSource.reduce((s, d) => s + (d.amount_spent || 0), 0);
-    const totalReach = metricsSource.reduce((s, d) => s + (d.reach || 0), 0);
-    const totalImpressions = metricsSource.reduce((s, d) => s + (d.impressions || 0), 0);
-    const totalClicks = metricsSource.reduce((s, d) => s + (d.clicks || 0), 0);
-
-    // For detailed metrics, use ad-level data if available
     const detailSource = ads.length > 0 ? ads : adSets;
-    const totalThruplays = detailSource.reduce((s, d) => s + (d.thruplays || 0), 0);
-    const total3sViews = detailSource.reduce((s, d) => s + (d.video_3s_plays || 0), 0);
-    const totalReactions = detailSource.reduce((s, d) => s + (d.post_reactions || 0), 0);
-    const totalComments = detailSource.reduce((s, d) => s + (d.post_comments || 0), 0);
-    const totalShares = detailSource.reduce((s, d) => s + (d.post_shares || 0), 0);
-    const totalSaves = detailSource.reduce((s, d) => s + (d.post_saves || 0), 0);
-    const totalLinkClicks = detailSource.reduce((s, d) => s + (d.link_clicks || 0), 0);
+    const totalThruplays = detailSource.reduce((s: number, d: any) => s + (d.thruplays || 0), 0);
+    const total3sViews = detailSource.reduce((s: number, d: any) => s + (d.video_3s_plays || 0), 0);
+    const totalReactions = detailSource.reduce((s: number, d: any) => s + (d.post_reactions || 0), 0);
+    const totalComments = detailSource.reduce((s: number, d: any) => s + (d.post_comments || 0), 0);
+    const totalShares = detailSource.reduce((s: number, d: any) => s + (d.post_shares || 0), 0);
+    const totalSaves = detailSource.reduce((s: number, d: any) => s + (d.post_saves || 0), 0);
+    const totalLinkClicks = detailSource.reduce((s: number, d: any) => s + (d.link_clicks || 0), 0);
     const totalInteractions = totalReactions + totalComments + totalShares + totalSaves;
 
     const avgFrequency = totalReach > 0 ? totalImpressions / totalReach : 0;
@@ -111,24 +110,228 @@ serve(async (req) => {
     const costPer3sView = total3sViews > 0 ? totalSpend / total3sViews : 0;
     const cpe = totalInteractions > 0 ? totalSpend / totalInteractions : 0;
 
-    // Top ad sets by spend
-    const topAdSets = [...adSets]
-      .sort((a, b) => (b.amount_spent || 0) - (a.amount_spent || 0))
-      .slice(0, 5)
-      .map((as) => ({
-        name: as.adset_name || "Unnamed",
-        spend: as.amount_spent || 0,
-        impressions: as.impressions || 0,
-        clicks: as.clicks || 0,
-        ctr: as.ctr || 0,
-      }));
+    // Route based on period
+    if (period === "monthly") {
+      return await handleMonthlyReport({
+        supabase, report_id, campaign_context, lovableApiKey,
+        campaigns, adSets, ads,
+        totalSpend, totalReach, totalImpressions, totalClicks,
+        totalThruplays, total3sViews, totalLinkClicks, totalInteractions,
+        totalReactions, totalComments, totalShares, totalSaves,
+        avgFrequency, ctr, engagementRate, thruplayRate, viewRate3s,
+        cpm, cpc, costPerThruplay, costPer3sView, cpe,
+      });
+    }
 
-    // Campaign list summary
-    const campaignSummary = campaigns
-      .map((cm) => `${cm.campaign_name || "Unnamed"}: Spend ${cm.amount_spent}, Impr ${cm.impressions}, Clicks ${cm.clicks}`)
-      .join("\n");
+    // Default: campaign/quarterly/yearly (original logic)
+    return await handleDefaultReport({
+      supabase, report_id, campaign_context, lovableApiKey,
+      campaigns, adSets, ads,
+      totalSpend, totalReach, totalImpressions, totalClicks,
+      totalThruplays, total3sViews, totalLinkClicks, totalInteractions,
+      totalReactions, totalComments, totalShares, totalSaves,
+      avgFrequency, ctr, engagementRate, thruplayRate, viewRate3s,
+      cpm, cpc, costPerThruplay, costPer3sView, cpe,
+    });
+  } catch (error) {
+    console.error("Error generating Ads AI insights:", error);
+    return new Response(
+      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+});
 
-    const systemPrompt = `Jsi analytik digitálního marketingu specializující se na reklamní kampaně (Meta Ads, Facebook Ads, Instagram Ads). Na základě dat z kampaně a kontextu od uživatele vytvoř strukturovaný report v češtině.
+// ── Monthly Report Handler ──
+async function handleMonthlyReport(ctx: any) {
+  const {
+    supabase, report_id, campaign_context, lovableApiKey,
+    campaigns, adSets, ads,
+    totalSpend, totalReach, totalImpressions, totalClicks,
+    totalThruplays, total3sViews, totalLinkClicks, totalInteractions,
+    totalReactions, totalComments, totalShares, totalSaves,
+    avgFrequency, ctr, engagementRate, cpm, cpc, cpe,
+  } = ctx;
+
+  // Try to separate ads by platform (ad_name contains platform hints)
+  const fbAds = ads.filter((a: any) => {
+    const name = (a.ad_name || "").toLowerCase();
+    return name.includes("facebook") || name.includes("fb");
+  });
+  const igAds = ads.filter((a: any) => {
+    const name = (a.ad_name || "").toLowerCase();
+    return name.includes("instagram") || name.includes("ig");
+  });
+
+  const calcPlatformMetrics = (platformAds: any[]) => {
+    const spend = platformAds.reduce((s: number, a: any) => s + (a.amount_spent || 0), 0);
+    const reach = platformAds.reduce((s: number, a: any) => s + (a.reach || 0), 0);
+    const impr = platformAds.reduce((s: number, a: any) => s + (a.impressions || 0), 0);
+    return { spend, reach, frequency: reach > 0 ? impr / reach : 0 };
+  };
+
+  const fbMetrics = calcPlatformMetrics(fbAds);
+  const igMetrics = calcPlatformMetrics(igAds);
+
+  const topBySpend = (arr: any[], count: number) =>
+    [...arr].sort((a, b) => (b.amount_spent || 0) - (a.amount_spent || 0)).slice(0, count).map((a: any) => ({
+      name: a.ad_name || "Unnamed",
+      spend: a.amount_spent || 0,
+      impressions: a.impressions || 0,
+      clicks: a.clicks || 0,
+      ctr: a.ctr || 0,
+      thumbnail_url: a.thumbnail_url || null,
+    }));
+
+  const fbTopPosts = topBySpend(fbAds, 5);
+  const igTopPosts = topBySpend(igAds, 5);
+
+  const campaignSummary = campaigns
+    .map((cm: any) => `${cm.campaign_name || "Unnamed"}: Spend ${cm.amount_spent}, Impr ${cm.impressions}, Clicks ${cm.clicks}`)
+    .join("\n");
+
+  const systemPrompt = `Jsi analytik digitálního marketingu. Na základě měsíčních dat z kampaně a kontextu od uživatele vytvoř měsíční report v češtině.
+
+Data kampaně:
+- Celkový spend: ${totalSpend.toFixed(2)} CZK
+- Reach: ${totalReach}, Impressions: ${totalImpressions}
+- ThruPlays: ${totalThruplays}, 3s Views: ${total3sViews}
+- Link Clicks: ${totalLinkClicks}, Interactions: ${totalInteractions}
+- Frequency: ${avgFrequency.toFixed(2)}, CTR: ${ctr.toFixed(2)}%
+- Engagement Rate: ${engagementRate.toFixed(2)}%
+- CPM: ${cpm.toFixed(2)} CZK, CPC: ${cpc.toFixed(2)} CZK, CPE: ${cpe.toFixed(2)} CZK
+- Kampaně: ${campaigns.length}, Ad sety: ${adSets.length}, Reklamy: ${ads.length}
+
+Kampaně: ${campaignSummary}
+
+Facebook: Spend ${fbMetrics.spend.toFixed(2)}, Reach ${fbMetrics.reach}, Freq ${fbMetrics.frequency.toFixed(2)}
+Instagram: Spend ${igMetrics.spend.toFixed(2)}, Reach ${igMetrics.reach}, Freq ${igMetrics.frequency.toFixed(2)}
+
+Kontext od uživatele:
+- Hlavní cíl: ${campaign_context.mainGoal}
+- Co udělali: ${campaign_context.actions}
+- Co se povedlo: ${campaign_context.highlights}`;
+
+  const userPrompt = `Vytvoř měsíční analytický report. Odpověz ve formátu JSON:
+
+{
+  "executive_summary": "Souhrnný odstavec o výsledcích měsíce (max 150 slov)",
+  "goal_fulfillment": "Hodnocení plnění cílů na základě kontextu a dat (max 120 slov)",
+  "metrics_over_time": "Popis vývoje klíčových metrik během měsíce (max 100 slov)",
+  "brand_awareness": "Analýza vlivu kampaní na brand awareness (max 100 slov)",
+  "learnings": {
+    "works": ["3-5 bodů co se povedlo"],
+    "threats_opportunities": ["2-4 body hrozby a příležitosti"],
+    "improvements": ["3-5 konkrétních doporučení co zlepšit"]
+  }
+}`;
+
+  console.log("Calling AI for monthly Ads insights...");
+
+  const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${lovableApiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: "google/gemini-2.5-flash",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      response_format: { type: "json_object" },
+    }),
+  });
+
+  if (!aiResponse.ok) {
+    if (aiResponse.status === 429) {
+      return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again later." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    if (aiResponse.status === 402) {
+      return new Response(JSON.stringify({ error: "Payment required. Please add credits." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    const errorText = await aiResponse.text();
+    console.error("AI gateway error:", aiResponse.status, errorText);
+    throw new Error("AI gateway error");
+  }
+
+  const aiData = await aiResponse.json();
+  const aiContent = JSON.parse(aiData.choices[0].message.content);
+
+  const structuredInsights = {
+    report_period: "monthly",
+    executive_summary: aiContent.executive_summary,
+    campaign_context,
+    goal_fulfillment: aiContent.goal_fulfillment,
+    key_metrics: {
+      spend: totalSpend,
+      reach: totalReach,
+      frequency: avgFrequency,
+      currency: "CZK",
+    },
+    metrics_over_time: aiContent.metrics_over_time,
+    community_management: {
+      answered_comments: null,
+      answered_dms: null,
+      response_rate_24h: null,
+    },
+    brand_awareness: aiContent.brand_awareness,
+    facebook_metrics: fbMetrics,
+    facebook_top_posts: fbTopPosts,
+    instagram_metrics: igMetrics,
+    instagram_top_posts: igTopPosts,
+    followers: { facebook: null, instagram: null, tiktok: null },
+    learnings: aiContent.learnings,
+  };
+
+  const { error: updateError } = await supabase
+    .from("reports")
+    .update({
+      ai_insights: aiContent.executive_summary,
+      ai_insights_structured: structuredInsights,
+      ai_insights_context: campaign_context,
+    })
+    .eq("id", report_id);
+
+  if (updateError) {
+    console.error("Error saving insights:", updateError);
+    throw new Error("Failed to save insights");
+  }
+
+  console.log("Monthly insights saved successfully");
+
+  return new Response(
+    JSON.stringify({ structured_data: structuredInsights }),
+    { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+  );
+}
+
+// ── Default (Campaign/Quarterly/Yearly) Report Handler ──
+async function handleDefaultReport(ctx: any) {
+  const {
+    supabase, report_id, campaign_context, lovableApiKey,
+    campaigns, adSets, ads,
+    totalSpend, totalReach, totalImpressions, totalClicks,
+    totalThruplays, total3sViews, totalLinkClicks, totalInteractions,
+    totalReactions, totalComments, totalShares, totalSaves,
+    avgFrequency, ctr, engagementRate, thruplayRate, viewRate3s,
+    cpm, cpc, costPerThruplay, costPer3sView, cpe,
+  } = ctx;
+
+  const topAdSets = [...adSets]
+    .sort((a: any, b: any) => (b.amount_spent || 0) - (a.amount_spent || 0))
+    .slice(0, 5)
+    .map((as: any) => ({
+      name: as.adset_name || "Unnamed",
+      spend: as.amount_spent || 0,
+      impressions: as.impressions || 0,
+      clicks: as.clicks || 0,
+      ctr: as.ctr || 0,
+    }));
+
+  const campaignSummary = campaigns
+    .map((cm: any) => `${cm.campaign_name || "Unnamed"}: Spend ${cm.amount_spent}, Impr ${cm.impressions}, Clicks ${cm.clicks}`)
+    .join("\n");
+
+  const systemPrompt = `Jsi analytik digitálního marketingu specializující se na reklamní kampaně (Meta Ads, Facebook Ads, Instagram Ads). Na základě dat z kampaně a kontextu od uživatele vytvoř strukturovaný report v češtině.
 
 Piš profesionálně, ale přístupně. Zaměř se na výkonnost reklam, efektivitu vynaložených prostředků a doporučení pro optimalizaci.
 
@@ -157,14 +360,14 @@ Kampaně:
 ${campaignSummary}
 
 Top 5 Ad Sets:
-${topAdSets.map((a) => `${a.name}: Spend ${a.spend}, Impr ${a.impressions}, Clicks ${a.clicks}, CTR ${a.ctr}%`).join("\n")}
+${topAdSets.map((a: any) => `${a.name}: Spend ${a.spend}, Impr ${a.impressions}, Clicks ${a.clicks}, CTR ${a.ctr}%`).join("\n")}
 
 Kontext od uživatele:
 - Hlavní cíl: ${campaign_context.mainGoal}
 - Co udělali: ${campaign_context.actions}
 - Co se povedlo: ${campaign_context.highlights}`;
 
-    const userPrompt = `Vytvoř analytický obsah pro Ads Campaign report. Odpověz ve formátu JSON s následující strukturou:
+  const userPrompt = `Vytvoř analytický obsah pro Ads Campaign report. Odpověz ve formátu JSON s následující strukturou:
 
 {
   "executive_summary": "Jeden odstavec shrnující zásadní informace o kampani (max 150 slov)",
@@ -178,127 +381,103 @@ Kontext od uživatele:
   }
 }`;
 
-    console.log("Calling Lovable AI for Ads insights...");
+  console.log("Calling Lovable AI for Ads insights...");
 
-    const aiResponse = await fetch(
-      "https://ai.gateway.lovable.dev/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${lovableApiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userPrompt },
-          ],
-          response_format: { type: "json_object" },
-        }),
-      }
-    );
+  const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${lovableApiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: "google/gemini-2.5-flash",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      response_format: { type: "json_object" },
+    }),
+  });
 
-    if (!aiResponse.ok) {
-      if (aiResponse.status === 429) {
-        return new Response(
-          JSON.stringify({ error: "Rate limit exceeded. Please try again later." }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      if (aiResponse.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "Payment required. Please add credits." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      const errorText = await aiResponse.text();
-      console.error("AI gateway error:", aiResponse.status, errorText);
-      throw new Error("AI gateway error");
+  if (!aiResponse.ok) {
+    if (aiResponse.status === 429) {
+      return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again later." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
+    if (aiResponse.status === 402) {
+      return new Response(JSON.stringify({ error: "Payment required. Please add credits." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    const errorText = await aiResponse.text();
+    console.error("AI gateway error:", aiResponse.status, errorText);
+    throw new Error("AI gateway error");
+  }
 
-    const aiData = await aiResponse.json();
-    const aiContent = JSON.parse(aiData.choices[0].message.content);
+  const aiData = await aiResponse.json();
+  const aiContent = JSON.parse(aiData.choices[0].message.content);
 
-    console.log("Ads AI content generated successfully");
+  console.log("Ads AI content generated successfully");
 
-    const structuredInsights = {
-      executive_summary: aiContent.executive_summary,
-      campaign_context,
-      awareness_metrics: {
-        reach: totalReach,
-        impressions: totalImpressions,
-        thruplays: totalThruplays,
-        video3sPlays: total3sViews,
-        frequency: avgFrequency,
-      },
-      engagement_metrics: {
-        linkClicks: totalLinkClicks,
-        interactions: totalInteractions,
-        reactions: totalReactions,
-        comments: totalComments,
-        shares: totalShares,
-        saves: totalSaves,
-        ctr,
-        engagementRate,
-        thruplayRate,
-        viewRate3s,
-      },
-      effectiveness_metrics: {
-        spend: totalSpend,
-        cpm,
-        cpc,
-        costPerThruplay,
-        costPer3sView,
-        cpe,
-        currency: "CZK",
-      },
-      top_ad_sets: topAdSets,
-      campaign_count: campaigns.length,
-      ad_set_count: adSets.length,
-      ad_count: ads.length,
+  const structuredInsights = {
+    report_period: "default",
+    executive_summary: aiContent.executive_summary,
+    campaign_context,
+    awareness_metrics: {
+      reach: totalReach,
+      impressions: totalImpressions,
+      thruplays: totalThruplays,
+      video3sPlays: total3sViews,
+      frequency: avgFrequency,
+    },
+    engagement_metrics: {
+      linkClicks: totalLinkClicks,
+      interactions: totalInteractions,
+      reactions: totalReactions,
+      comments: totalComments,
+      shares: totalShares,
+      saves: totalSaves,
+      ctr,
+      engagementRate,
+      thruplayRate,
+      viewRate3s,
+    },
+    effectiveness_metrics: {
+      spend: totalSpend,
+      cpm,
+      cpc,
+      costPerThruplay,
+      costPer3sView,
+      cpe,
+      currency: "CZK",
+    },
+    top_ad_sets: topAdSets,
+    campaign_count: campaigns.length,
+    ad_set_count: adSets.length,
+    ad_count: ads.length,
+    awareness_summary: aiContent.awareness_summary,
+    engagement_summary: aiContent.engagement_summary,
+    effectiveness_summary: aiContent.effectiveness_summary,
+    recommendations: aiContent.recommendations,
+  };
+
+  const { error: updateError } = await supabase
+    .from("reports")
+    .update({
+      ai_insights: aiContent.executive_summary,
+      ai_insights_structured: structuredInsights,
+      ai_insights_context: campaign_context,
+    })
+    .eq("id", report_id);
+
+  if (updateError) {
+    console.error("Error saving insights:", updateError);
+    throw new Error("Failed to save insights");
+  }
+
+  console.log("Ads insights saved successfully");
+
+  return new Response(
+    JSON.stringify({
+      structured_data: structuredInsights,
       awareness_summary: aiContent.awareness_summary,
       engagement_summary: aiContent.engagement_summary,
       effectiveness_summary: aiContent.effectiveness_summary,
-      recommendations: aiContent.recommendations,
-    };
-
-    // Save to database
-    const { error: updateError } = await supabase
-      .from("reports")
-      .update({
-        ai_insights: aiContent.executive_summary,
-        ai_insights_structured: structuredInsights,
-        ai_insights_context: campaign_context,
-      })
-      .eq("id", report_id);
-
-    if (updateError) {
-      console.error("Error saving insights:", updateError);
-      throw new Error("Failed to save insights");
-    }
-
-    console.log("Ads insights saved successfully");
-
-    return new Response(
-      JSON.stringify({
-        structured_data: structuredInsights,
-        awareness_summary: aiContent.awareness_summary,
-        engagement_summary: aiContent.engagement_summary,
-        effectiveness_summary: aiContent.effectiveness_summary,
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  } catch (error) {
-    console.error("Error generating Ads AI insights:", error);
-    return new Response(
-      JSON.stringify({
-        error: error instanceof Error ? error.message : "Unknown error",
-      }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
-    );
-  }
-});
+    }),
+    { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+  );
+}
