@@ -1,8 +1,8 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Eye, MousePointer, DollarSign, ImageIcon, X, ArrowUpDown, Loader2, RefreshCw, TrendingUp } from "lucide-react";
+import { Eye, MousePointer, DollarSign, ImageIcon, X, ArrowUpDown, Loader2, TrendingUp } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
@@ -31,6 +31,7 @@ interface AdCreativesTabProps {
 
 interface AdCreative {
   id: string;
+  ad_id: string;
   name: string;
   platform: string;
   ad_type: string | null;
@@ -56,10 +57,8 @@ export const AdCreativesTab = ({ reportId, spaceId }: AdCreativesTabProps) => {
   const [selectedPlatform, setSelectedPlatform] = useState<string>("all");
   const [selectedAdType, setSelectedAdType] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("spend");
-  const [fetchedPreviews, setFetchedPreviews] = useState<Record<string, string | null>>({});
-  
-  const loadingPreviewsRef = useRef<Set<string>>(new Set());
-  const fetchedPreviewsRef = useRef<Set<string>>(new Set());
+  const [adPreviews, setAdPreviews] = useState<Record<string, string | null>>({});
+  const [previewsLoading, setPreviewsLoading] = useState(false);
 
   useEffect(() => {
     fetchAdCreatives();
@@ -82,23 +81,41 @@ export const AdCreativesTab = ({ reportId, spaceId }: AdCreativesTabProps) => {
       return;
     }
 
-    const { data, error } = await supabase
+    // Get ad sets for linked campaigns
+    const { data: adSetsData } = await supabase
       .from("brand_ad_sets" as any)
-      .select("id, adset_name, amount_spent, impressions, clicks, ctr, frequency, date_start, thumbnail_url")
+      .select("id, adset_name, brand_campaign_id")
       .eq("space_id", spaceId)
-      .in("brand_campaign_id", linkedIds)
+      .in("brand_campaign_id", linkedIds);
+
+    const adSetIds = (adSetsData || []).map((a: any) => a.id);
+    const adSetMap = Object.fromEntries((adSetsData || []).map((a: any) => [a.id, a.adset_name]));
+
+    if (adSetIds.length === 0) {
+      setAdCreatives([]);
+      setLoading(false);
+      return;
+    }
+
+    // Get ads for those ad sets
+    const { data, error } = await supabase
+      .from("brand_ads")
+      .select("id, ad_id, ad_name, brand_ad_set_id, amount_spent, impressions, clicks, ctr, frequency, date_start, thumbnail_url")
+      .eq("space_id", spaceId)
+      .in("brand_ad_set_id", adSetIds)
       .order("amount_spent", { ascending: false });
 
     if (!error && data) {
-      const mappedData: AdCreative[] = ((data || []) as any[]).map((row: any) => ({
+      const mappedData: AdCreative[] = (data || []).map((row: any) => ({
         id: row.id,
-        name: row.adset_name || "Unnamed Ad",
+        ad_id: row.ad_id,
+        name: row.ad_name || "Unnamed Ad",
         platform: "facebook",
         ad_type: null,
         thumbnail_url: row.thumbnail_url || null,
         url: null,
         campaign_name: null,
-        adset_name: null,
+        adset_name: adSetMap[row.brand_ad_set_id] || null,
         spend: row.amount_spent,
         impressions: row.impressions,
         clicks: row.clicks,
@@ -113,62 +130,36 @@ export const AdCreativesTab = ({ reportId, spaceId }: AdCreativesTabProps) => {
     setLoading(false);
   };
 
-  // Fetch previews for items that need them
-  useEffect(() => {
-    const isValidUrl = (str: string) => {
-      try { new URL(str); return true; } catch { return false; }
-    };
-
-    const itemsNeedingPreview = adCreatives.filter(item => 
-      !item.thumbnail_url && 
-      item.url && 
-      isValidUrl(item.url) &&
-      !fetchedPreviewsRef.current.has(item.id) &&
-      !loadingPreviewsRef.current.has(item.id)
-    );
-
-    itemsNeedingPreview.forEach(item => {
-      fetchUrlPreview(item.id, item.url!);
-    });
-  }, [adCreatives]);
-
-  const fetchUrlPreview = async (itemId: string, url: string) => {
-    loadingPreviewsRef.current.add(itemId);
-    setFetchedPreviews(prev => ({ ...prev }));
-
+  // Fetch ad previews from Meta API
+  const fetchPreviews = useCallback(async (adIds: string[]) => {
+    if (adIds.length === 0) return;
+    setPreviewsLoading(true);
     try {
-      const response = await supabase.functions.invoke('fetch-url-preview', {
-        body: { url }
+      const response = await supabase.functions.invoke("fetch-ad-previews", {
+        body: { adIds },
       });
-
-      fetchedPreviewsRef.current.add(itemId);
-      loadingPreviewsRef.current.delete(itemId);
-
-      const data = response?.data;
-      const thumbnailUrl = data?.success && data?.thumbnail_url ? data.thumbnail_url : null;
-      
-      if (thumbnailUrl) {
-        setFetchedPreviews(prev => ({ ...prev, [itemId]: thumbnailUrl }));
-        // Note: ad_sets table doesn't have thumbnail_url column, so we only cache in state
-      } else {
-        setFetchedPreviews(prev => ({ ...prev, [itemId]: null }));
+      if (response.data?.previews) {
+        setAdPreviews(prev => ({ ...prev, ...response.data.previews }));
       }
     } catch (err) {
-      fetchedPreviewsRef.current.add(itemId);
-      loadingPreviewsRef.current.delete(itemId);
-      setFetchedPreviews(prev => ({ ...prev, [itemId]: null }));
+      console.error("Failed to fetch ad previews:", err);
+    } finally {
+      setPreviewsLoading(false);
     }
-  };
+  }, []);
 
-  const retryPreview = (itemId: string, url: string) => {
-    fetchedPreviewsRef.current.delete(itemId);
-    setFetchedPreviews(prev => {
-      const updated = { ...prev };
-      delete updated[itemId];
-      return updated;
-    });
-    fetchUrlPreview(itemId, url);
-  };
+  // Fetch previews when creatives load
+  useEffect(() => {
+    const adIds = adCreatives.map(c => c.ad_id).filter(Boolean);
+    if (adIds.length > 0) {
+      // Batch in chunks of 10
+      const chunks: string[][] = [];
+      for (let i = 0; i < adIds.length; i += 10) {
+        chunks.push(adIds.slice(i, i + 10));
+      }
+      chunks.forEach(chunk => fetchPreviews(chunk));
+    }
+  }, [adCreatives, fetchPreviews]);
 
   const formatNumber = (num: number | null) => {
     if (!num) return "0";
@@ -275,18 +266,8 @@ export const AdCreativesTab = ({ reportId, spaceId }: AdCreativesTabProps) => {
     setSelectedAdType("all");
   };
 
-  const getPreviewImage = (item: AdCreative): { src: string | null; isLoading: boolean; canRetry: boolean } => {
-    if (item.thumbnail_url) {
-      return { src: item.thumbnail_url, isLoading: false, canRetry: false };
-    }
-    if (fetchedPreviews[item.id] !== undefined) {
-      const failed = fetchedPreviews[item.id] === null;
-      return { src: fetchedPreviews[item.id], isLoading: false, canRetry: failed && !!item.url };
-    }
-    if (loadingPreviewsRef.current.has(item.id)) {
-      return { src: null, isLoading: true, canRetry: false };
-    }
-    return { src: null, isLoading: false, canRetry: false };
+  const getPreviewIframeUrl = (item: AdCreative): string | null => {
+    return adPreviews[item.ad_id] || null;
   };
 
   if (loading) {
@@ -436,38 +417,37 @@ export const AdCreativesTab = ({ reportId, spaceId }: AdCreativesTabProps) => {
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
             {filteredCreatives.map((item) => {
-              const preview = getPreviewImage(item);
+              const iframeUrl = getPreviewIframeUrl(item);
               
               return (
                 <Card 
                   key={item.id} 
                   className="overflow-hidden rounded-[35px] border-foreground hover:shadow-lg transition-shadow"
                 >
-                  <div className="relative aspect-[9/12.8] bg-muted">
-                    {preview.isLoading ? (
+                  <div className="relative aspect-[9/12.8] bg-muted overflow-hidden">
+                    {iframeUrl ? (
+                      <div className="w-full h-full relative">
+                        <iframe
+                          src={iframeUrl}
+                          className="absolute top-0 left-0 border-0"
+                          style={{
+                            width: "540px",
+                            height: "720px",
+                            transform: "scale(0.28)",
+                            transformOrigin: "top left",
+                          }}
+                          scrolling="no"
+                          allowFullScreen
+                        />
+                        <div className="absolute inset-0 pointer-events-none" />
+                      </div>
+                    ) : previewsLoading ? (
                       <div className="w-full h-full flex items-center justify-center">
                         <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" />
                       </div>
-                    ) : preview.src ? (
-                      <img
-                        src={preview.src}
-                        alt={item.name}
-                        className="w-full h-full object-cover"
-                      />
                     ) : (
                       <div className="w-full h-full flex flex-col items-center justify-center gap-2">
                         <ImageIcon className="w-8 h-8 text-muted-foreground/30" />
-                        {preview.canRetry && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-xs h-6 px-2"
-                            onClick={() => retryPreview(item.id, item.url!)}
-                          >
-                            <RefreshCw className="w-3 h-3 mr-1" />
-                            Retry
-                          </Button>
-                        )}
                       </div>
                     )}
                     <div className="absolute top-2 right-2">
