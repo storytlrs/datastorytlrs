@@ -419,8 +419,7 @@ const CreateReportDialog = ({
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
+      <div className="space-y-2">
           <Label htmlFor="reportType">Report Type *</Label>
           <Select value={reportType} onValueChange={(value) => setReportType(value as "influencer" | "ads" | "always_on")}>
             <SelectTrigger id="reportType" className="rounded-[35px]">
@@ -436,6 +435,7 @@ const CreateReportDialog = ({
           </Select>
         </div>
 
+      {(reportType === "ads" || reportType === "always_on") && (
         <div className="space-y-2">
           <Label htmlFor="period">Period *</Label>
           <Select value={period} onValueChange={(value) => setPeriod(value as "monthly" | "quarterly" | "yearly")}>
@@ -451,7 +451,7 @@ const CreateReportDialog = ({
             </SelectContent>
           </Select>
         </div>
-      </div>
+      )}
 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
