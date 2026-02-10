@@ -52,6 +52,30 @@ interface MetaCampaign {
   lifetime_budget?: string;
 }
 
+interface MetaCreative {
+  id?: string;
+  image_url?: string;
+  thumbnail_url?: string;
+  asset_feed_spec?: {
+    videos?: { thumbnail_url?: string }[];
+  };
+  object_story_spec?: {
+    video_data?: { image_url?: string };
+  };
+}
+
+const getBestAdImage = (creative?: MetaCreative): string | null => {
+  if (!creative) return null;
+  const url =
+    creative.object_story_spec?.video_data?.image_url ||
+    creative.image_url ||
+    creative.asset_feed_spec?.videos?.[0]?.thumbnail_url ||
+    creative.thumbnail_url ||
+    null;
+  if (!url) return null;
+  return url.replace(/p64x64/g, "p1080x1080");
+};
+
 const getActionValue = (actions: MetaInsightAction[] | undefined, type: string): number => {
   if (!actions) return 0;
   const action = actions.find((a) => a.action_type === type);
@@ -284,7 +308,7 @@ Deno.serve(async (req) => {
             importedAdSets++;
 
             // Step 3: Get ads for this ad set
-            const adsUrl = `https://graph.facebook.com/v21.0/${adSet.id}/ads?fields=id,name,status&limit=500&access_token=${metaAccessToken}`;
+            const adsUrl = `https://graph.facebook.com/v21.0/${adSet.id}/ads?fields=id,name,status,creative{id,image_url,thumbnail_url,asset_feed_spec,object_story_spec}&limit=500&access_token=${metaAccessToken}`;
             const adsRes = await fetch(adsUrl);
             const adsData = await adsRes.json();
 
@@ -302,20 +326,7 @@ Deno.serve(async (req) => {
                 const adInsight: MetaInsight | undefined = adInsightsData.data?.[0];
                 const adMetrics = adInsight ? calculateMetrics(adInsight) : null;
 
-                // Fetch ad preview iframe URL
-                let previewUrl: string | null = null;
-                try {
-                  const previewApiUrl = `https://graph.facebook.com/v21.0/${ad.id}/previews?ad_format=DESKTOP_FEED_STANDARD&access_token=${metaAccessToken}`;
-                  const previewRes = await fetch(previewApiUrl);
-                  const previewData = await previewRes.json();
-                  const body = previewData.data?.[0]?.body;
-                  if (body) {
-                    const srcMatch = body.match(/src="([^"]+)"/);
-                    previewUrl = srcMatch ? srcMatch[1].replace(/&amp;/g, "&") : null;
-                  }
-                } catch (prevErr) {
-                  console.error(`Preview fetch failed for ad ${ad.id}:`, prevErr);
-                }
+                const previewUrl = getBestAdImage(ad.creative as MetaCreative);
 
                 const adRecord = {
                   space_id: spaceId,
