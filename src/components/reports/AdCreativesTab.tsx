@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Eye, MousePointer, DollarSign, ImageIcon, X, ArrowUpDown, Loader2, TrendingUp, ExternalLink } from "lucide-react";
+import { Eye, MousePointer, DollarSign, ImageIcon, X, ArrowUpDown, Loader2, TrendingUp } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
@@ -393,20 +393,19 @@ export const AdCreativesTab = ({ reportId, spaceId }: AdCreativesTabProps) => {
                 >
                   <div className="relative aspect-[9/12.8] bg-muted overflow-hidden">
                     {iframeUrl ? (
-                      <a
-                        href={iframeUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="w-full h-full flex flex-col items-center justify-center gap-2 hover:bg-muted/80 transition-colors"
-                      >
-                        <ExternalLink className="w-8 h-8 text-muted-foreground" />
-                        <span className="text-xs text-muted-foreground">Open Preview</span>
-                      </a>
-                    ) : (
-                      <div className="w-full h-full flex flex-col items-center justify-center gap-2">
-                        <ImageIcon className="w-8 h-8 text-muted-foreground/30" />
-                      </div>
-                    )}
+                      <img
+                        src={iframeUrl}
+                        alt={item.name}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = 'none';
+                          (e.target as HTMLImageElement).parentElement!.querySelector('.placeholder')?.classList.remove('hidden');
+                        }}
+                      />
+                    ) : null}
+                    <div className={cn("w-full h-full flex flex-col items-center justify-center gap-2 placeholder", iframeUrl ? "hidden absolute inset-0" : "")}>
+                      <ImageIcon className="w-8 h-8 text-muted-foreground/30" />
+                    </div>
                     <div className="absolute top-2 right-2">
                       <Badge className="bg-card text-card-foreground border border-foreground capitalize text-[10px] px-1.5 py-0.5">
                         {item.platform}
