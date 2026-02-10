@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -57,8 +57,6 @@ export const AdCreativesTab = ({ reportId, spaceId }: AdCreativesTabProps) => {
   const [selectedPlatform, setSelectedPlatform] = useState<string>("all");
   const [selectedAdType, setSelectedAdType] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("spend");
-  const [adPreviews, setAdPreviews] = useState<Record<string, string | null>>({});
-  const [previewsLoading, setPreviewsLoading] = useState(false);
 
   useEffect(() => {
     fetchAdCreatives();
@@ -129,37 +127,6 @@ export const AdCreativesTab = ({ reportId, spaceId }: AdCreativesTabProps) => {
     }
     setLoading(false);
   };
-
-  // Fetch ad previews from Meta API
-  const fetchPreviews = useCallback(async (adIds: string[]) => {
-    if (adIds.length === 0) return;
-    setPreviewsLoading(true);
-    try {
-      const response = await supabase.functions.invoke("fetch-ad-previews", {
-        body: { adIds },
-      });
-      if (response.data?.previews) {
-        setAdPreviews(prev => ({ ...prev, ...response.data.previews }));
-      }
-    } catch (err) {
-      console.error("Failed to fetch ad previews:", err);
-    } finally {
-      setPreviewsLoading(false);
-    }
-  }, []);
-
-  // Fetch previews when creatives load
-  useEffect(() => {
-    const adIds = adCreatives.map(c => c.ad_id).filter(Boolean);
-    if (adIds.length > 0) {
-      // Batch in chunks of 10
-      const chunks: string[][] = [];
-      for (let i = 0; i < adIds.length; i += 10) {
-        chunks.push(adIds.slice(i, i + 10));
-      }
-      chunks.forEach(chunk => fetchPreviews(chunk));
-    }
-  }, [adCreatives, fetchPreviews]);
 
   const formatNumber = (num: number | null) => {
     if (!num) return "0";
@@ -267,7 +234,7 @@ export const AdCreativesTab = ({ reportId, spaceId }: AdCreativesTabProps) => {
   };
 
   const getPreviewIframeUrl = (item: AdCreative): string | null => {
-    return adPreviews[item.ad_id] || null;
+    return item.thumbnail_url || null;
   };
 
   if (loading) {
@@ -440,10 +407,6 @@ export const AdCreativesTab = ({ reportId, spaceId }: AdCreativesTabProps) => {
                           allowFullScreen
                         />
                         <div className="absolute inset-0 pointer-events-none" />
-                      </div>
-                    ) : previewsLoading ? (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" />
                       </div>
                     ) : (
                       <div className="w-full h-full flex flex-col items-center justify-center gap-2">
