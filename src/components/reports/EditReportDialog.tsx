@@ -29,6 +29,7 @@ interface Report {
   end_date: string | null;
   space_id: string;
   project_id?: string | null;
+  period?: string | null;
 }
 
 interface EditReportDialogProps {
@@ -42,6 +43,12 @@ const reportTypeOptions = [
   { value: "influencer", label: "Influencer campaign" },
   { value: "ads", label: "Ads campaign" },
   { value: "always_on", label: "Always-on content" },
+];
+
+const periodOptions = [
+  { value: "monthly", label: "Měsíční" },
+  { value: "quarterly", label: "Kvartální" },
+  { value: "yearly", label: "Roční" },
 ];
 
 export const EditReportDialog = ({ open, onOpenChange, report, onSuccess }: EditReportDialogProps) => {
@@ -58,6 +65,7 @@ export const EditReportDialog = ({ open, onOpenChange, report, onSuccess }: Edit
     report.end_date ? new Date(report.end_date) : undefined
   );
   const [type, setType] = useState(report.type === "social" ? "always_on" : report.type);
+  const [period, setPeriod] = useState(report.period || "monthly");
   const [selectedCampaignIds, setSelectedCampaignIds] = useState<string[]>([]);
 
   const showCampaignSelector = type === "ads" || type === "always_on";
@@ -69,6 +77,7 @@ export const EditReportDialog = ({ open, onOpenChange, report, onSuccess }: Edit
       setStartDate(report.start_date ? new Date(report.start_date) : undefined);
       setEndDate(report.end_date ? new Date(report.end_date) : undefined);
       setType(report.type === "social" ? "always_on" : report.type);
+      setPeriod(report.period || "monthly");
 
       if (isAdmin) {
         fetchProjects();
@@ -117,7 +126,7 @@ export const EditReportDialog = ({ open, onOpenChange, report, onSuccess }: Edit
           start_date: startDate ? format(startDate, "yyyy-MM-dd") : null,
           end_date: endDate ? format(endDate, "yyyy-MM-dd") : null,
           type: type as "influencer" | "ads" | "always_on",
-          
+          period,
         })
         .eq("id", report.id);
 
@@ -198,20 +207,38 @@ export const EditReportDialog = ({ open, onOpenChange, report, onSuccess }: Edit
             />
           </div>
 
-          <div className="space-y-2">
-            <Label>Report Type</Label>
-            <Select value={type} onValueChange={(value) => setType(value as "influencer" | "ads" | "always_on")}>
-              <SelectTrigger className="rounded-[35px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {reportTypeOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Report Type</Label>
+              <Select value={type} onValueChange={(value) => setType(value as "influencer" | "ads" | "always_on")}>
+                <SelectTrigger className="rounded-[35px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {reportTypeOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Period</Label>
+              <Select value={period} onValueChange={setPeriod}>
+                <SelectTrigger className="rounded-[35px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {periodOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
 
