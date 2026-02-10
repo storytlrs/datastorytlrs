@@ -224,7 +224,7 @@ Deno.serve(async (req) => {
         importedCampaigns++;
 
         // Step 2: Get ad sets for this campaign
-        const adSetsUrl = `https://graph.facebook.com/v21.0/${campaign.id}/adsets?fields=id,name,status,ads.limit(1){creative{id,image_url,thumbnail_url}}&limit=500&access_token=${metaAccessToken}`;
+        const adSetsUrl = `https://graph.facebook.com/v21.0/${campaign.id}/adsets?fields=id,name,status&limit=500&access_token=${metaAccessToken}`;
         const adSetsRes = await fetch(adSetsUrl);
         const adSetsData = await adSetsRes.json();
 
@@ -244,8 +244,6 @@ Deno.serve(async (req) => {
             const asInsight: MetaInsight | undefined = asInsightsData.data?.[0];
             const asMetrics = asInsight ? calculateMetrics(asInsight) : null;
 
-            const adSetCreative = adSet.ads?.data?.[0]?.creative;
-            const adSetThumb = adSetCreative?.image_url || adSetCreative?.thumbnail_url || null;
 
             const adSetRecord = {
               space_id: spaceId,
@@ -253,7 +251,6 @@ Deno.serve(async (req) => {
               adset_id: adSet.id,
               adset_name: adSet.name,
               status: adSet.status,
-              thumbnail_url: adSetThumb,
               amount_spent: asMetrics?.spend || 0,
               reach: asInsight?.reach ? parseInt(asInsight.reach) : 0,
               impressions: asMetrics?.impressions || 0,

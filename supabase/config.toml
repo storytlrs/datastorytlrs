@@ -32,3 +32,6 @@ verify_jwt = false
 
 [functions.import-brand-meta-data]
 verify_jwt = true
+
+[functions.fetch-ad-previews]
+verify_jwt = true
