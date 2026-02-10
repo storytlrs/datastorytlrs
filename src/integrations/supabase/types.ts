@@ -1067,6 +1067,317 @@ export type Database = {
         }
         Relationships: []
       }
+      tiktok_ad_groups: {
+        Row: {
+          adgroup_id: string
+          adgroup_name: string | null
+          amount_spent: number | null
+          clicks: number | null
+          comments: number | null
+          cost_per_3s_play: number | null
+          cost_per_thruplay: number | null
+          cpc: number | null
+          cpe: number | null
+          cpm: number | null
+          created_at: string
+          ctr: number | null
+          date_start: string | null
+          date_stop: string | null
+          engagement_rate: number | null
+          follows: number | null
+          frequency: number | null
+          id: string
+          impressions: number | null
+          likes: number | null
+          reach: number | null
+          shares: number | null
+          space_id: string
+          status: string | null
+          thruplay_rate: number | null
+          thruplays: number | null
+          tiktok_campaign_id: string
+          updated_at: string
+          video_3s_plays: number | null
+          view_rate_3s: number | null
+        }
+        Insert: {
+          adgroup_id: string
+          adgroup_name?: string | null
+          amount_spent?: number | null
+          clicks?: number | null
+          comments?: number | null
+          cost_per_3s_play?: number | null
+          cost_per_thruplay?: number | null
+          cpc?: number | null
+          cpe?: number | null
+          cpm?: number | null
+          created_at?: string
+          ctr?: number | null
+          date_start?: string | null
+          date_stop?: string | null
+          engagement_rate?: number | null
+          follows?: number | null
+          frequency?: number | null
+          id?: string
+          impressions?: number | null
+          likes?: number | null
+          reach?: number | null
+          shares?: number | null
+          space_id: string
+          status?: string | null
+          thruplay_rate?: number | null
+          thruplays?: number | null
+          tiktok_campaign_id: string
+          updated_at?: string
+          video_3s_plays?: number | null
+          view_rate_3s?: number | null
+        }
+        Update: {
+          adgroup_id?: string
+          adgroup_name?: string | null
+          amount_spent?: number | null
+          clicks?: number | null
+          comments?: number | null
+          cost_per_3s_play?: number | null
+          cost_per_thruplay?: number | null
+          cpc?: number | null
+          cpe?: number | null
+          cpm?: number | null
+          created_at?: string
+          ctr?: number | null
+          date_start?: string | null
+          date_stop?: string | null
+          engagement_rate?: number | null
+          follows?: number | null
+          frequency?: number | null
+          id?: string
+          impressions?: number | null
+          likes?: number | null
+          reach?: number | null
+          shares?: number | null
+          space_id?: string
+          status?: string | null
+          thruplay_rate?: number | null
+          thruplays?: number | null
+          tiktok_campaign_id?: string
+          updated_at?: string
+          video_3s_plays?: number | null
+          view_rate_3s?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tiktok_ad_groups_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "spaces"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tiktok_ad_groups_tiktok_campaign_id_fkey"
+            columns: ["tiktok_campaign_id"]
+            isOneToOne: false
+            referencedRelation: "tiktok_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tiktok_ads: {
+        Row: {
+          ad_id: string
+          ad_name: string | null
+          amount_spent: number | null
+          clicks: number | null
+          comments: number | null
+          cost_per_3s_play: number | null
+          cost_per_thruplay: number | null
+          cpc: number | null
+          cpe: number | null
+          cpm: number | null
+          created_at: string
+          ctr: number | null
+          date_start: string | null
+          date_stop: string | null
+          engagement_rate: number | null
+          follows: number | null
+          frequency: number | null
+          id: string
+          impressions: number | null
+          likes: number | null
+          link_clicks: number | null
+          reach: number | null
+          shares: number | null
+          space_id: string
+          status: string | null
+          thruplay_rate: number | null
+          thruplays: number | null
+          thumbnail_url: string | null
+          tiktok_ad_group_id: string
+          updated_at: string
+          video_3s_plays: number | null
+          view_rate_3s: number | null
+        }
+        Insert: {
+          ad_id: string
+          ad_name?: string | null
+          amount_spent?: number | null
+          clicks?: number | null
+          comments?: number | null
+          cost_per_3s_play?: number | null
+          cost_per_thruplay?: number | null
+          cpc?: number | null
+          cpe?: number | null
+          cpm?: number | null
+          created_at?: string
+          ctr?: number | null
+          date_start?: string | null
+          date_stop?: string | null
+          engagement_rate?: number | null
+          follows?: number | null
+          frequency?: number | null
+          id?: string
+          impressions?: number | null
+          likes?: number | null
+          link_clicks?: number | null
+          reach?: number | null
+          shares?: number | null
+          space_id: string
+          status?: string | null
+          thruplay_rate?: number | null
+          thruplays?: number | null
+          thumbnail_url?: string | null
+          tiktok_ad_group_id: string
+          updated_at?: string
+          video_3s_plays?: number | null
+          view_rate_3s?: number | null
+        }
+        Update: {
+          ad_id?: string
+          ad_name?: string | null
+          amount_spent?: number | null
+          clicks?: number | null
+          comments?: number | null
+          cost_per_3s_play?: number | null
+          cost_per_thruplay?: number | null
+          cpc?: number | null
+          cpe?: number | null
+          cpm?: number | null
+          created_at?: string
+          ctr?: number | null
+          date_start?: string | null
+          date_stop?: string | null
+          engagement_rate?: number | null
+          follows?: number | null
+          frequency?: number | null
+          id?: string
+          impressions?: number | null
+          likes?: number | null
+          link_clicks?: number | null
+          reach?: number | null
+          shares?: number | null
+          space_id?: string
+          status?: string | null
+          thruplay_rate?: number | null
+          thruplays?: number | null
+          thumbnail_url?: string | null
+          tiktok_ad_group_id?: string
+          updated_at?: string
+          video_3s_plays?: number | null
+          view_rate_3s?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tiktok_ads_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "spaces"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tiktok_ads_tiktok_ad_group_id_fkey"
+            columns: ["tiktok_ad_group_id"]
+            isOneToOne: false
+            referencedRelation: "tiktok_ad_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tiktok_campaigns: {
+        Row: {
+          amount_spent: number | null
+          campaign_id: string
+          campaign_name: string | null
+          clicks: number | null
+          cpc: number | null
+          cpm: number | null
+          created_at: string
+          ctr: number | null
+          daily_budget: number | null
+          date_start: string | null
+          date_stop: string | null
+          frequency: number | null
+          id: string
+          impressions: number | null
+          lifetime_budget: number | null
+          objective: string | null
+          reach: number | null
+          space_id: string
+          status: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount_spent?: number | null
+          campaign_id: string
+          campaign_name?: string | null
+          clicks?: number | null
+          cpc?: number | null
+          cpm?: number | null
+          created_at?: string
+          ctr?: number | null
+          daily_budget?: number | null
+          date_start?: string | null
+          date_stop?: string | null
+          frequency?: number | null
+          id?: string
+          impressions?: number | null
+          lifetime_budget?: number | null
+          objective?: string | null
+          reach?: number | null
+          space_id: string
+          status?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount_spent?: number | null
+          campaign_id?: string
+          campaign_name?: string | null
+          clicks?: number | null
+          cpc?: number | null
+          cpm?: number | null
+          created_at?: string
+          ctr?: number | null
+          daily_budget?: number | null
+          date_start?: string | null
+          date_stop?: string | null
+          frequency?: number | null
+          id?: string
+          impressions?: number | null
+          lifetime_budget?: number | null
+          objective?: string | null
+          reach?: number | null
+          space_id?: string
+          status?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tiktok_campaigns_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "spaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           id: string

@@ -30,8 +30,33 @@ interface TikTokAd {
   adgroup_id: string;
   campaign_id: string;
   status: string;
-  image_ids?: string[];
-  video_id?: string;
+}
+
+interface TikTokReportMetrics {
+  spend?: string;
+  impressions?: string;
+  reach?: string;
+  clicks?: string;
+  cpc?: string;
+  cpm?: string;
+  ctr?: string;
+  frequency?: string;
+  video_play_actions?: string;
+  video_watched_2s?: string;
+  video_watched_6s?: string;
+  video_views_p25?: string;
+  video_views_p50?: string;
+  video_views_p75?: string;
+  video_views_p100?: string;
+  likes?: string;
+  comments?: string;
+  shares?: string;
+  follows?: string;
+  profile_visits?: string;
+  average_video_play?: string;
+  average_video_play_per_user?: string;
+  engagement_rate?: string;
+  cost_per_1000_reached?: string;
 }
 
 interface TikTokReportRow {
@@ -40,32 +65,7 @@ interface TikTokReportRow {
     adgroup_id?: string;
     ad_id?: string;
   };
-  metrics: {
-    spend?: string;
-    impressions?: string;
-    reach?: string;
-    clicks?: string;
-    cpc?: string;
-    cpm?: string;
-    ctr?: string;
-    frequency?: string;
-    video_play_actions?: string;
-    video_watched_2s?: string;
-    video_watched_6s?: string;
-    video_views_p25?: string;
-    video_views_p50?: string;
-    video_views_p75?: string;
-    video_views_p100?: string;
-    likes?: string;
-    comments?: string;
-    shares?: string;
-    follows?: string;
-    profile_visits?: string;
-    average_video_play?: string;
-    average_video_play_per_user?: string;
-    engagement_rate?: string;
-    cost_per_1000_reached?: string;
-  };
+  metrics: TikTokReportMetrics;
 }
 
 const fetchTikTokApi = async (
@@ -114,6 +114,14 @@ const num = (v?: string): number => {
   const n = parseFloat(v);
   return Number.isFinite(n) ? n : 0;
 };
+
+const REPORT_METRICS = [
+  "spend", "impressions", "reach", "clicks", "cpc", "cpm", "ctr",
+  "frequency", "video_play_actions", "video_watched_2s",
+  "video_views_p25", "video_views_p75", "video_views_p100",
+  "likes", "comments", "shares", "follows", "profile_visits",
+  "average_video_play", "engagement_rate", "cost_per_1000_reached",
+];
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -175,7 +183,7 @@ Deno.serve(async (req) => {
     }
 
     let importedCampaigns = 0;
-    let importedAdSets = 0;
+    let importedAdGroups = 0;
     let importedAds = 0;
     const errors: string[] = [];
 
@@ -189,9 +197,9 @@ Deno.serve(async (req) => {
     const campaigns = campaignsData?.list || [];
     console.log(`Found ${campaigns.length} TikTok campaigns`);
 
-    // Step 2: Fetch reporting data at campaign level
+    // Step 2: Fetch campaign-level reporting
     const campaignIds = campaigns.map((c) => c.campaign_id);
-    let campaignReportMap: Record<string, TikTokReportRow["metrics"]> = {};
+    let campaignReportMap: Record<string, TikTokReportMetrics> = {};
 
     if (campaignIds.length > 0) {
       try {
@@ -200,13 +208,7 @@ Deno.serve(async (req) => {
           report_type: "BASIC",
           data_level: "AUCTION_CAMPAIGN",
           dimensions: ["campaign_id"],
-          metrics: [
-            "spend", "impressions", "reach", "clicks", "cpc", "cpm", "ctr",
-            "frequency", "video_play_actions", "video_watched_2s",
-            "video_views_p25", "video_views_p75", "video_views_p100",
-            "likes", "comments", "shares", "follows", "profile_visits",
-            "average_video_play", "engagement_rate", "cost_per_1000_reached",
-          ],
+          metrics: REPORT_METRICS,
           lifetime: true,
           page_size: 1000,
         })) as { list: TikTokReportRow[] };
@@ -221,7 +223,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Step 3: Upsert campaigns
+    // Step 3: Upsert campaigns & drill down
     for (const campaign of campaigns) {
       try {
         const m = campaignReportMap[campaign.campaign_id] || {};
@@ -244,7 +246,7 @@ Deno.serve(async (req) => {
         };
 
         const { data: upsertedCampaign, error: campError } = await supabase
-          .from("brand_campaigns")
+          .from("tiktok_campaigns")
           .upsert(campaignRecord, { onConflict: "space_id,campaign_id" })
           .select("id")
           .single();
@@ -255,7 +257,7 @@ Deno.serve(async (req) => {
         }
         importedCampaigns++;
 
-        // Fetch ad groups for this campaign
+        // Fetch ad groups
         const adGroupsData = (await fetchTikTokGet("/adgroup/get/", tiktokAccessToken, {
           advertiser_id: advertiserId,
           campaign_ids: JSON.stringify([campaign.campaign_id]),
@@ -264,24 +266,16 @@ Deno.serve(async (req) => {
 
         const adGroups = adGroupsData?.list || [];
 
-        // Fetch ad group level reporting
-        const adGroupIds = adGroups.map((ag) => ag.adgroup_id);
-        let adGroupReportMap: Record<string, TikTokReportRow["metrics"]> = {};
-
-        if (adGroupIds.length > 0) {
+        // Ad group level reporting
+        let adGroupReportMap: Record<string, TikTokReportMetrics> = {};
+        if (adGroups.length > 0) {
           try {
             const agReportData = (await fetchTikTokApi("/report/integrated/get/", tiktokAccessToken, {
               advertiser_id: advertiserId,
               report_type: "BASIC",
               data_level: "AUCTION_ADGROUP",
               dimensions: ["adgroup_id"],
-              metrics: [
-                "spend", "impressions", "reach", "clicks", "cpc", "cpm", "ctr",
-                "frequency", "video_play_actions", "video_watched_2s",
-                "video_views_p25", "video_views_p75", "video_views_p100",
-                "likes", "comments", "shares", "follows",
-                "average_video_play", "engagement_rate", "cost_per_1000_reached",
-              ],
+              metrics: REPORT_METRICS,
               filtering: [{ field_name: "campaign_id", filter_type: "IN", filter_value: JSON.stringify([campaign.campaign_id]) }],
               lifetime: true,
               page_size: 1000,
@@ -300,17 +294,17 @@ Deno.serve(async (req) => {
         for (const adGroup of adGroups) {
           try {
             const agm = adGroupReportMap[adGroup.adgroup_id] || {};
-            const totalEngagement = num(agm.likes) + num(agm.comments) + num(agm.shares) + num(agm.follows);
             const impressions = num(agm.impressions);
             const spend = num(agm.spend);
             const thruplays = num(agm.video_views_p100);
-            const video3sPlays = num(agm.video_play_actions);
+            const video3s = num(agm.video_play_actions);
+            const totalEng = num(agm.likes) + num(agm.comments) + num(agm.shares) + num(agm.follows);
 
-            const adSetRecord = {
+            const adGroupRecord = {
               space_id: spaceId,
-              brand_campaign_id: upsertedCampaign.id,
-              adset_id: adGroup.adgroup_id,
-              adset_name: adGroup.adgroup_name,
+              tiktok_campaign_id: upsertedCampaign.id,
+              adgroup_id: adGroup.adgroup_id,
+              adgroup_name: adGroup.adgroup_name,
               status: adGroup.status,
               amount_spent: spend,
               reach: num(agm.reach),
@@ -323,26 +317,30 @@ Deno.serve(async (req) => {
               thruplays,
               thruplay_rate: impressions > 0 ? (thruplays / impressions) * 100 : 0,
               cost_per_thruplay: thruplays > 0 ? spend / thruplays : 0,
-              video_3s_plays: video3sPlays,
-              view_rate_3s: impressions > 0 ? (video3sPlays / impressions) * 100 : 0,
-              cost_per_3s_play: video3sPlays > 0 ? spend / video3sPlays : 0,
+              video_3s_plays: video3s,
+              view_rate_3s: impressions > 0 ? (video3s / impressions) * 100 : 0,
+              cost_per_3s_play: video3s > 0 ? spend / video3s : 0,
               engagement_rate: num(agm.engagement_rate),
-              cpe: totalEngagement > 0 ? spend / totalEngagement : 0,
+              cpe: totalEng > 0 ? spend / totalEng : 0,
+              likes: num(agm.likes),
+              comments: num(agm.comments),
+              shares: num(agm.shares),
+              follows: num(agm.follows),
             };
 
-            const { data: upsertedAdSet, error: asError } = await supabase
-              .from("brand_ad_sets")
-              .upsert(adSetRecord, { onConflict: "space_id,adset_id" })
+            const { data: upsertedAdGroup, error: agError } = await supabase
+              .from("tiktok_ad_groups")
+              .upsert(adGroupRecord, { onConflict: "space_id,adgroup_id" })
               .select("id")
               .single();
 
-            if (asError) {
-              errors.push(`Ad Group ${adGroup.adgroup_id}: ${asError.message}`);
+            if (agError) {
+              errors.push(`Ad Group ${adGroup.adgroup_id}: ${agError.message}`);
               continue;
             }
-            importedAdSets++;
+            importedAdGroups++;
 
-            // Fetch ads for this ad group
+            // Fetch ads
             const adsData = (await fetchTikTokGet("/ad/get/", tiktokAccessToken, {
               advertiser_id: advertiserId,
               adgroup_ids: JSON.stringify([adGroup.adgroup_id]),
@@ -351,24 +349,16 @@ Deno.serve(async (req) => {
 
             const ads = adsData?.list || [];
 
-            // Fetch ad level reporting
-            const adIds = ads.map((a) => a.ad_id);
-            let adReportMap: Record<string, TikTokReportRow["metrics"]> = {};
-
-            if (adIds.length > 0) {
+            // Ad level reporting
+            let adReportMap: Record<string, TikTokReportMetrics> = {};
+            if (ads.length > 0) {
               try {
                 const adReportData = (await fetchTikTokApi("/report/integrated/get/", tiktokAccessToken, {
                   advertiser_id: advertiserId,
                   report_type: "BASIC",
                   data_level: "AUCTION_AD",
                   dimensions: ["ad_id"],
-                  metrics: [
-                    "spend", "impressions", "reach", "clicks", "cpc", "cpm", "ctr",
-                    "frequency", "video_play_actions", "video_watched_2s",
-                    "video_views_p25", "video_views_p75", "video_views_p100",
-                    "likes", "comments", "shares", "follows",
-                    "average_video_play", "engagement_rate", "cost_per_1000_reached",
-                  ],
+                  metrics: REPORT_METRICS,
                   filtering: [{ field_name: "adgroup_id", filter_type: "IN", filter_value: JSON.stringify([adGroup.adgroup_id]) }],
                   lifetime: true,
                   page_size: 1000,
@@ -391,15 +381,11 @@ Deno.serve(async (req) => {
                 const adSpend = num(am.spend);
                 const adThruplays = num(am.video_views_p100);
                 const adVideo3s = num(am.video_play_actions);
-                const adLikes = num(am.likes);
-                const adComments = num(am.comments);
-                const adShares = num(am.shares);
-                const adFollows = num(am.follows);
-                const adTotalEng = adLikes + adComments + adShares + adFollows;
+                const adTotalEng = num(am.likes) + num(am.comments) + num(am.shares) + num(am.follows);
 
                 const adRecord = {
                   space_id: spaceId,
-                  brand_ad_set_id: upsertedAdSet.id,
+                  tiktok_ad_group_id: upsertedAdGroup.id,
                   ad_id: ad.ad_id,
                   ad_name: ad.ad_name,
                   status: ad.status,
@@ -419,15 +405,15 @@ Deno.serve(async (req) => {
                   cost_per_3s_play: adVideo3s > 0 ? adSpend / adVideo3s : 0,
                   engagement_rate: num(am.engagement_rate),
                   cpe: adTotalEng > 0 ? adSpend / adTotalEng : 0,
-                  post_reactions: adLikes,
-                  post_comments: adComments,
-                  post_shares: adShares,
-                  post_saves: adFollows,
+                  likes: num(am.likes),
+                  comments: num(am.comments),
+                  shares: num(am.shares),
+                  follows: num(am.follows),
                   link_clicks: num(am.clicks),
                 };
 
                 const { error: adError } = await supabase
-                  .from("brand_ads")
+                  .from("tiktok_ads")
                   .upsert(adRecord, { onConflict: "space_id,ad_id" });
 
                 if (adError) {
@@ -453,7 +439,7 @@ Deno.serve(async (req) => {
         success: true,
         imported: {
           campaigns: importedCampaigns,
-          adSets: importedAdSets,
+          adGroups: importedAdGroups,
           ads: importedAds,
           totalCampaignsFound: campaigns.length,
         },
