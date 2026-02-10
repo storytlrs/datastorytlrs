@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 export interface TopContentItem {
   id: string;
   thumbnailUrl: string | null;
+  previewIframeUrl?: string | null;
   contentType: string;
   platform: string;
   views: number;
@@ -66,9 +67,25 @@ export const TopContentGrid = ({ items, title = "Top 5 Content", emptyMessage = 
               {index + 1}
             </div>
 
-            {/* Thumbnail */}
+            {/* Thumbnail or Preview */}
             <div className="relative aspect-[9/16] bg-muted overflow-hidden">
-              {item.thumbnailUrl ? (
+              {item.previewIframeUrl ? (
+                <div className="w-full h-full relative">
+                  <iframe
+                    src={item.previewIframeUrl}
+                    className="absolute top-0 left-0 border-0"
+                    style={{
+                      width: "540px",
+                      height: "720px",
+                      transform: "scale(0.35)",
+                      transformOrigin: "top left",
+                    }}
+                    scrolling="no"
+                    allowFullScreen
+                  />
+                  <div className="absolute inset-0 pointer-events-none" />
+                </div>
+              ) : item.thumbnailUrl ? (
                 <img
                   src={item.thumbnailUrl}
                   alt="Content thumbnail"

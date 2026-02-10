@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -37,7 +37,6 @@ interface BrandAdSet {
   ctr: number | null;
   frequency: number | null;
   date_start: string | null;
-  thumbnail_url: string | null;
 }
 
 interface BrandAd {
@@ -65,7 +64,7 @@ const BrandAdsDashboard = ({ spaceId, filters }: BrandAdsDashboardProps) => {
   const [campaigns, setCampaigns] = useState<BrandCampaign[]>([]);
   const [adSets, setAdSets] = useState<BrandAdSet[]>([]);
   const [ads, setAds] = useState<BrandAd[]>([]);
-
+  const [adPreviews, setAdPreviews] = useState<Record<string, string | null>>({});
   const [selectedCampaignIds, setSelectedCampaignIds] = useState<string[]>([]);
   const [selectedAdSetIds, setSelectedAdSetIds] = useState<string[]>([]);
   const [selectedAdIds, setSelectedAdIds] = useState<string[]>([]);
@@ -92,7 +91,7 @@ const BrandAdsDashboard = ({ spaceId, filters }: BrandAdsDashboardProps) => {
 
       const { data: adSetsData } = await supabase
         .from("brand_ad_sets" as any)
-        .select("id, adset_name, adset_id, brand_campaign_id, amount_spent, impressions, clicks, ctr, frequency, date_start, thumbnail_url")
+        .select("id, adset_name, adset_id, brand_campaign_id, amount_spent, impressions, clicks, ctr, frequency, date_start")
         .eq("space_id", spaceId);
 
       setAdSets((adSetsData || []) as unknown as BrandAdSet[]);
@@ -225,8 +224,8 @@ const BrandAdsDashboard = ({ spaceId, filters }: BrandAdsDashboardProps) => {
       }));
   }, [finalAds, finalAdSets, hasAdsData, adSets, campaigns]);
 
-  // Top 5 items
-  const topContent: TopContentItem[] = useMemo(() => {
+  // Top 5 items (without previews yet)
+  const topContentBase = useMemo(() => {
     const dataSource = hasAdsData ? finalAds : finalAdSets;
     if (dataSource.length === 0) return [];
     const maxCtr = Math.max(...dataSource.map(a => a.ctr || 0), 1);
@@ -235,9 +234,11 @@ const BrandAdsDashboard = ({ spaceId, filters }: BrandAdsDashboardProps) => {
     return dataSource
       .map(a => {
         const score = ((a.ctr || 0) / maxCtr) * 0.5 + ((a.clicks || 0) / maxClicks) * 0.5;
+        const adId = "ad_id" in a ? (a as BrandAd).ad_id : null;
         return {
           id: a.id,
-          thumbnailUrl: a.thumbnail_url || null,
+          adId,
+          thumbnailUrl: "thumbnail_url" in a ? (a as BrandAd).thumbnail_url || null : null,
           contentType: "ad",
           platform: "facebook",
           views: a.impressions || 0,
@@ -249,6 +250,42 @@ const BrandAdsDashboard = ({ spaceId, filters }: BrandAdsDashboardProps) => {
       .sort((a, b) => b.score - a.score)
       .slice(0, 5);
   }, [finalAds, finalAdSets, hasAdsData]);
+
+  // Fetch ad previews for top 5
+  const fetchAdPreviews = useCallback(async (adIds: string[]) => {
+    if (adIds.length === 0) return;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const response = await supabase.functions.invoke("fetch-ad-previews", {
+        body: { adIds },
+      });
+
+      if (response.data?.previews) {
+        setAdPreviews(prev => ({ ...prev, ...response.data.previews }));
+      }
+    } catch (err) {
+      console.error("Failed to fetch ad previews:", err);
+    }
+  }, []);
+
+  useEffect(() => {
+    const adIds = topContentBase
+      .filter(item => item.adId)
+      .map(item => item.adId!);
+    if (adIds.length > 0) {
+      fetchAdPreviews(adIds);
+    }
+  }, [topContentBase, fetchAdPreviews]);
+
+  // Final top content with preview URLs
+  const topContent: TopContentItem[] = useMemo(() => {
+    return topContentBase.map(item => ({
+      ...item,
+      previewIframeUrl: item.adId ? adPreviews[item.adId] || null : null,
+    }));
+  }, [topContentBase, adPreviews]);
 
   const metricLabels: Record<MetricKey, string> = {
     spend: "Spend",
