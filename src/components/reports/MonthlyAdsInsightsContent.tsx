@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { MetricTile } from "./MetricTile";
+import { formatCurrencySimple, formatCurrency } from "@/lib/currencyUtils";
 import {
   Target,
   Rocket,
@@ -19,11 +20,12 @@ import {
   Clock,
   Eye,
   TrendingUp,
+  MousePointer,
   ThumbsUp,
   AlertTriangle,
   Lightbulb,
 } from "lucide-react";
-import { formatCurrency } from "@/lib/currencyUtils";
+
 
 // Reuse from AdsAIInsightsContent
 export interface MonthlyStructuredInsights {
@@ -217,17 +219,43 @@ const EditableNumberField = ({
 };
 
 const PostCard = ({ post }: { post: { name: string; spend: number; impressions: number; clicks: number; ctr: number; thumbnail_url?: string } }) => (
-  <Card className="p-4 rounded-[15px] border-border bg-muted/30 flex gap-4">
-    {post.thumbnail_url && (
-      <img src={post.thumbnail_url} alt={post.name} className="w-20 h-20 object-cover rounded-[10px] flex-shrink-0" referrerPolicy="no-referrer" />
-    )}
-    <div className="flex-1 min-w-0">
-      <p className="font-semibold text-sm truncate">{post.name}</p>
-      <div className="grid grid-cols-2 gap-x-4 gap-y-1 mt-2 text-xs text-muted-foreground">
-        <span>Spend: {formatNumber(post.spend)}</span>
-        <span>Impr: {formatNumber(post.impressions)}</span>
-        <span>Clicks: {formatNumber(post.clicks)}</span>
-        <span>CTR: {post.ctr?.toFixed(2)}%</span>
+  <Card className="overflow-hidden rounded-[35px] border-foreground hover:shadow-lg transition-shadow">
+    <div className="relative aspect-[9/12.8] bg-muted overflow-hidden">
+      {post.thumbnail_url ? (
+        <img
+          src={post.thumbnail_url}
+          alt={post.name}
+          className="w-full h-full object-cover"
+          referrerPolicy="no-referrer"
+          onError={(e) => {
+            (e.target as HTMLImageElement).style.display = 'none';
+            (e.target as HTMLImageElement).parentElement!.querySelector('.placeholder')?.classList.remove('hidden');
+          }}
+        />
+      ) : null}
+      <div className={`w-full h-full flex flex-col items-center justify-center gap-2 placeholder ${post.thumbnail_url ? "hidden absolute inset-0" : ""}`}>
+        <Eye className="w-8 h-8 text-muted-foreground/30" />
+      </div>
+    </div>
+    <div className="p-3 space-y-2">
+      <span className="font-medium text-xs truncate block">{post.name}</span>
+      <div className="grid grid-cols-2 gap-1 text-xs">
+        <div className="flex items-center gap-1 text-muted-foreground">
+          <DollarSign className="w-3 h-3" />
+          <span>{formatCurrencySimple(post.spend || 0, "CZK")}</span>
+        </div>
+        <div className="flex items-center gap-1 text-muted-foreground">
+          <Eye className="w-3 h-3" />
+          <span>{formatNumber(post.impressions)}</span>
+        </div>
+        <div className="flex items-center gap-1 text-muted-foreground">
+          <MousePointer className="w-3 h-3" />
+          <span>{formatNumber(post.clicks)}</span>
+        </div>
+        <div className="flex items-center gap-1 text-muted-foreground">
+          <TrendingUp className="w-3 h-3" />
+          <span>{post.ctr?.toFixed(2) || 0}%</span>
+        </div>
       </div>
     </div>
   </Card>
@@ -456,7 +484,7 @@ export const MonthlyAdsInsightsContent = forwardRef<HTMLDivElement, MonthlyAdsIn
           {insights.facebook_top_posts.length > 0 && (
             <>
               <h3 className="font-bold text-lg mb-3">TOP příspěvky</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
                 {insights.facebook_top_posts.map((post, i) => <PostCard key={i} post={post} />)}
               </div>
             </>
@@ -477,7 +505,7 @@ export const MonthlyAdsInsightsContent = forwardRef<HTMLDivElement, MonthlyAdsIn
           {insights.instagram_top_posts.length > 0 && (
             <>
               <h3 className="font-bold text-lg mb-3">TOP příspěvky</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
                 {insights.instagram_top_posts.map((post, i) => <PostCard key={i} post={post} />)}
               </div>
             </>
