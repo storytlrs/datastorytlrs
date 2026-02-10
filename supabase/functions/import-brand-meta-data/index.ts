@@ -75,6 +75,17 @@ const getBestAdImage = (creative?: MetaCreative): string | null => {
   );
 };
 
+const getHiResCreativeThumbnail = async (creativeId: string, token: string): Promise<string | null> => {
+  try {
+    const url = `https://graph.facebook.com/v21.0/${creativeId}?fields=thumbnail_url&thumbnail_width=1080&thumbnail_height=1080&access_token=${token}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    return data.thumbnail_url || null;
+  } catch {
+    return null;
+  }
+};
+
 const getActionValue = (actions: MetaInsightAction[] | undefined, type: string): number => {
   if (!actions) return 0;
   const action = actions.find((a) => a.action_type === type);
@@ -209,7 +220,12 @@ Deno.serve(async (req) => {
             continue;
           }
 
-          const imageUrl = getBestAdImage(data.creative as MetaCreative);
+          let imageUrl = getBestAdImage(data.creative as MetaCreative);
+          // If low-res or no image, try hi-res creative thumbnail
+          if ((!imageUrl || imageUrl.includes("p64x64")) && data.creative?.id) {
+            const hiRes = await getHiResCreativeThumbnail(data.creative.id, metaAccessToken);
+            if (hiRes) imageUrl = hiRes;
+          }
           if (imageUrl) {
             const { error: upErr } = await supabase
               .from("brand_ads")
@@ -376,7 +392,11 @@ Deno.serve(async (req) => {
                 const adInsight: MetaInsight | undefined = adInsightsData.data?.[0];
                 const adMetrics = adInsight ? calculateMetrics(adInsight) : null;
 
-                const previewUrl = getBestAdImage(ad.creative as MetaCreative);
+                let previewUrl = getBestAdImage(ad.creative as MetaCreative);
+                if ((!previewUrl || previewUrl.includes("p64x64")) && ad.creative?.id) {
+                  const hiRes = await getHiResCreativeThumbnail(ad.creative.id, metaAccessToken);
+                  if (hiRes) previewUrl = hiRes;
+                }
 
                 const adRecord = {
                   space_id: spaceId,
