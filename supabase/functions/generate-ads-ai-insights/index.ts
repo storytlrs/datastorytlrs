@@ -190,39 +190,69 @@ async function handleMonthlyReport(ctx: any) {
     .map((cm: any) => `${cm.campaign_name || "Unnamed"}: Spend ${cm.amount_spent}, Impr ${cm.impressions}, Clicks ${cm.clicks}`)
     .join("\n");
 
-  const systemPrompt = `Jsi analytik digitálního marketingu. Na základě měsíčních dat z kampaně a kontextu od uživatele vytvoř měsíční report v češtině.
+  // Build detailed per-ad breakdown for AI context
+  const fbAdsDetail = fbAds.map((a: any) => 
+    `  - ${a.ad_name || "Unnamed"}: Spend ${(a.amount_spent || 0).toFixed(0)}, Reach ${a.reach || 0}, Impr ${a.impressions || 0}, Clicks ${a.clicks || 0}, CTR ${(a.ctr || 0).toFixed(2)}%, Reactions ${a.post_reactions || 0}, Comments ${a.post_comments || 0}, Shares ${a.post_shares || 0}, Saves ${a.post_saves || 0}, ThruPlays ${a.thruplays || 0}, 3s Views ${a.video_3s_plays || 0}`
+  ).join("\n");
 
-Data kampaně:
+  const igAdsDetail = igAds.map((a: any) =>
+    `  - ${a.ad_name || "Unnamed"}: Spend ${(a.amount_spent || 0).toFixed(0)}, Reach ${a.reach || 0}, Impr ${a.impressions || 0}, Clicks ${a.clicks || 0}, CTR ${(a.ctr || 0).toFixed(2)}%, Reactions ${a.post_reactions || 0}, Comments ${a.post_comments || 0}, Shares ${a.post_shares || 0}, Saves ${a.post_saves || 0}, ThruPlays ${a.thruplays || 0}, 3s Views ${a.video_3s_plays || 0}`
+  ).join("\n");
+
+  const systemPrompt = `Jsi zkušený analytik digitálního marketingu. Tvým úkolem je vytvořit kompletní měsíční report výkonu reklamních kampaní v češtině. Report musí být profesionální, datově podložený a obsahovat konkrétní čísla.
+
+CELKOVÁ DATA KAMPANĚ:
 - Celkový spend: ${totalSpend.toFixed(2)} CZK
-- Reach: ${totalReach}, Impressions: ${totalImpressions}
-- ThruPlays: ${totalThruplays}, 3s Views: ${total3sViews}
-- Link Clicks: ${totalLinkClicks}, Interactions: ${totalInteractions}
-- Frequency: ${avgFrequency.toFixed(2)}, CTR: ${ctr.toFixed(2)}%
+- Celkový reach: ${totalReach.toLocaleString()}
+- Celkové impressions: ${totalImpressions.toLocaleString()}
+- Průměrná frekvence: ${avgFrequency.toFixed(2)}
+- ThruPlays: ${totalThruplays.toLocaleString()}
+- 3s Video Views: ${total3sViews.toLocaleString()}
+- Link Clicks: ${totalLinkClicks.toLocaleString()}
+- Celkové interakce: ${totalInteractions.toLocaleString()} (Reactions: ${totalReactions}, Comments: ${totalComments}, Shares: ${totalShares}, Saves: ${totalSaves})
+- CTR: ${ctr.toFixed(2)}%
 - Engagement Rate: ${engagementRate.toFixed(2)}%
-- CPM: ${cpm.toFixed(2)} CZK, CPC: ${cpc.toFixed(2)} CZK, CPE: ${cpe.toFixed(2)} CZK
-- Kampaně: ${campaigns.length}, Ad sety: ${adSets.length}, Reklamy: ${ads.length}
+- CPM: ${cpm.toFixed(2)} CZK
+- CPC: ${cpc.toFixed(2)} CZK
+- CPE: ${cpe.toFixed(2)} CZK
+- Počet kampaní: ${campaigns.length}, Ad setů: ${adSets.length}, Reklam: ${ads.length}
 
-Kampaně: ${campaignSummary}
+KAMPANĚ:
+${campaignSummary}
 
-Facebook: Spend ${fbMetrics.spend.toFixed(2)}, Reach ${fbMetrics.reach}, Freq ${fbMetrics.frequency.toFixed(2)}
-Instagram: Spend ${igMetrics.spend.toFixed(2)}, Reach ${igMetrics.reach}, Freq ${igMetrics.frequency.toFixed(2)}
+FACEBOOK DATA (${fbAds.length} reklam):
+- Spend: ${fbMetrics.spend.toFixed(2)} CZK, Reach: ${fbMetrics.reach.toLocaleString()}, Frequency: ${fbMetrics.frequency.toFixed(2)}
+Jednotlivé reklamy:
+${fbAdsDetail || "  Žádné FB reklamy"}
 
-Kontext od uživatele:
-- Hlavní cíl: ${campaign_context.mainGoal}
-- Co udělali: ${campaign_context.actions}
-- Co se povedlo: ${campaign_context.highlights}`;
+INSTAGRAM DATA (${igAds.length} reklam):
+- Spend: ${igMetrics.spend.toFixed(2)} CZK, Reach: ${igMetrics.reach.toLocaleString()}, Frequency: ${igMetrics.frequency.toFixed(2)}
+Jednotlivé reklamy:
+${igAdsDetail || "  Žádné IG reklamy"}
 
-  const userPrompt = `Vytvoř měsíční analytický report. Odpověz ve formátu JSON:
+KONTEXT OD UŽIVATELE:
+- Hlavní cíl kampaně: ${campaign_context.mainGoal}
+- Co bylo realizováno: ${campaign_context.actions}
+- Co se povedlo / highlight: ${campaign_context.highlights}
+
+INSTRUKCE:
+1. Executive Summary: Stručný ale výstižný souhrn celého měsíce – klíčové výsledky, spend, reach, co se povedlo.
+2. Plnění cílů: Porovnej cíle uživatele (mainGoal) s reálnými daty. Splnilo se to? Jak moc? Buď konkrétní s čísly.
+3. Vývoj metrik v čase: Na základě dostupných dat popiš trendy a vývoj – které metriky rostly, které klesaly, co je stabilní. Zmiň konkrétní hodnoty.
+4. Vliv na brand awareness: Analyzuj dopad na povědomí o značce – reach, frequency, impressions, ThruPlays. Jaký je celkový dopad?
+5. Learnings: Rozděl do 3 kategorií – co se povedlo (works), hrozby a příležitosti (threats_opportunities), co zlepšit (improvements). Buď konkrétní a akční.`;
+
+  const userPrompt = `Vytvoř kompletní měsíční analytický report. Odpověz POUZE validním JSON objektem s touto přesnou strukturou:
 
 {
-  "executive_summary": "Souhrnný odstavec o výsledcích měsíce (max 150 slov)",
-  "goal_fulfillment": "Hodnocení plnění cílů na základě kontextu a dat (max 120 slov)",
-  "metrics_over_time": "Popis vývoje klíčových metrik během měsíce (max 100 slov)",
-  "brand_awareness": "Analýza vlivu kampaní na brand awareness (max 100 slov)",
+  "executive_summary": "Kompletní souhrn měsíce s konkrétními čísly – spend, reach, klíčové výsledky, celkové zhodnocení efektivity (max 200 slov)",
+  "goal_fulfillment": "Detailní porovnání stanovených cílů s dosaženými výsledky. Použij konkrétní data a procenta. Zhodnoť míru splnění (max 150 slov)",
+  "metrics_over_time": "Popis vývoje a trendů klíčových metrik (spend, reach, frequency, CTR, engagement) během měsíce. Zmiň co rostlo, co klesalo, co bylo stabilní (max 150 slov)",
+  "brand_awareness": "Analýza vlivu kampaní na brand awareness – kolik lidí bylo osloveno, jak často, jaký je dopad na povědomí o značce. Porovnej FB vs IG pokud jsou data (max 150 slov)",
   "learnings": {
-    "works": ["3-5 bodů co se povedlo"],
-    "threats_opportunities": ["2-4 body hrozby a příležitosti"],
-    "improvements": ["3-5 konkrétních doporučení co zlepšit"]
+    "works": ["3-5 konkrétních bodů co funguje dobře, s čísly kde to dává smysl"],
+    "threats_opportunities": ["2-4 body – identifikuj hrozby (vysoká frekvence, nízký CTR apod.) a příležitosti (dobře fungující formáty, segmenty)"],
+    "improvements": ["3-5 akčních doporučení co konkrétně zlepšit v dalším měsíci"]
   }
 }`;
 
