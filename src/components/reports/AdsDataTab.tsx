@@ -61,24 +61,23 @@ export const AdsDataTab = ({ reportId, spaceId, onImportSuccess }: AdsDataTabPro
   const handleFetchThumbnails = async () => {
     setFetchingThumbnails(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const response = await supabase.functions.invoke("fetch-adset-thumbnails", {
+      const response = await supabase.functions.invoke("import-brand-meta-data", {
         body: { spaceId },
       });
       if (response.error) throw response.error;
       const result = response.data;
-      if (result?.updated > 0) {
-        toast.success(`Updated ${result.updated} ad set thumbnails`);
+      if (result?.success) {
+        toast.success(`Imported ${result.imported?.ads || 0} ads with previews`);
         fetchData();
       } else {
-        toast.info("No thumbnails found to update");
+        toast.info("No data imported");
       }
       if (result?.errors?.length > 0) {
-        console.warn("Thumbnail fetch errors:", result.errors);
+        console.warn("Import errors:", result.errors);
       }
     } catch (error) {
       console.error("Fetch thumbnails error:", error);
-      toast.error("Failed to fetch thumbnails");
+      toast.error("Failed to fetch ad previews");
     } finally {
       setFetchingThumbnails(false);
     }
