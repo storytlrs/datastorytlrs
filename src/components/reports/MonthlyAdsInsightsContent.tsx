@@ -484,7 +484,7 @@ export const MonthlyAdsInsightsContent = forwardRef<HTMLDivElement, MonthlyAdsIn
           {insights.facebook_top_posts.length > 0 && (
             <>
               <h3 className="font-bold text-lg mb-3">TOP příspěvky</h3>
-              <div className={`grid gap-6 ${
+              <div className={`grid gap-10 ${
                 insights.facebook_top_posts.length === 1 ? "grid-cols-1 max-w-[250px] mx-auto" :
                 insights.facebook_top_posts.length === 2 ? "grid-cols-2 max-w-[520px] mx-auto" :
                 insights.facebook_top_posts.length === 3 ? "grid-cols-3 max-w-[780px] mx-auto" :
@@ -511,7 +511,7 @@ export const MonthlyAdsInsightsContent = forwardRef<HTMLDivElement, MonthlyAdsIn
           {insights.instagram_top_posts.length > 0 && (
             <>
               <h3 className="font-bold text-lg mb-3">TOP příspěvky</h3>
-              <div className={`grid gap-6 ${
+              <div className={`grid gap-10 ${
                 insights.instagram_top_posts.length === 1 ? "grid-cols-1 max-w-[250px] mx-auto" :
                 insights.instagram_top_posts.length === 2 ? "grid-cols-2 max-w-[520px] mx-auto" :
                 insights.instagram_top_posts.length === 3 ? "grid-cols-3 max-w-[780px] mx-auto" :
