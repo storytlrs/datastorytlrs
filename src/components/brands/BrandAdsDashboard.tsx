@@ -37,6 +37,7 @@ interface BrandAdSet {
   ctr: number | null;
   frequency: number | null;
   date_start: string | null;
+  thumbnail_url: string | null;
 }
 
 interface BrandAd {
@@ -55,6 +56,7 @@ interface BrandAd {
   post_shares: number | null;
   post_saves: number | null;
   date_start: string | null;
+  thumbnail_url: string | null;
 }
 
 type MetricKey = "spend" | "impressions" | "clicks" | "ctr" | "roas";
@@ -90,14 +92,14 @@ const BrandAdsDashboard = ({ spaceId, filters }: BrandAdsDashboardProps) => {
 
       const { data: adSetsData } = await supabase
         .from("brand_ad_sets" as any)
-        .select("id, adset_name, adset_id, brand_campaign_id, amount_spent, impressions, clicks, ctr, frequency, date_start")
+        .select("id, adset_name, adset_id, brand_campaign_id, amount_spent, impressions, clicks, ctr, frequency, date_start, thumbnail_url")
         .eq("space_id", spaceId);
 
       setAdSets((adSetsData || []) as unknown as BrandAdSet[]);
 
       const { data: adsData } = await supabase
         .from("brand_ads")
-        .select("id, ad_name, ad_id, brand_ad_set_id, amount_spent, impressions, clicks, ctr, frequency, link_clicks, post_reactions, post_comments, post_shares, post_saves, date_start")
+        .select("id, ad_name, ad_id, brand_ad_set_id, amount_spent, impressions, clicks, ctr, frequency, link_clicks, post_reactions, post_comments, post_shares, post_saves, date_start, thumbnail_url")
         .eq("space_id", spaceId);
 
       setAds((adsData || []) as BrandAd[]);
@@ -235,7 +237,7 @@ const BrandAdsDashboard = ({ spaceId, filters }: BrandAdsDashboardProps) => {
         const score = ((a.ctr || 0) / maxCtr) * 0.5 + ((a.clicks || 0) / maxClicks) * 0.5;
         return {
           id: a.id,
-          thumbnailUrl: null,
+          thumbnailUrl: a.thumbnail_url || null,
           contentType: "ad",
           platform: "facebook",
           views: a.impressions || 0,
