@@ -207,8 +207,7 @@ export const EditReportDialog = ({ open, onOpenChange, report, onSuccess }: Edit
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
+          <div className="space-y-2">
               <Label>Report Type</Label>
               <Select value={type} onValueChange={(value) => setType(value as "influencer" | "ads" | "always_on")}>
                 <SelectTrigger className="rounded-[35px]">
@@ -224,6 +223,7 @@ export const EditReportDialog = ({ open, onOpenChange, report, onSuccess }: Edit
               </Select>
             </div>
 
+          {(type === "ads" || type === "always_on") && (
             <div className="space-y-2">
               <Label>Period</Label>
               <Select value={period} onValueChange={setPeriod}>
@@ -239,7 +239,7 @@ export const EditReportDialog = ({ open, onOpenChange, report, onSuccess }: Edit
                 </SelectContent>
               </Select>
             </div>
-          </div>
+          )}
 
 
           <div className="grid grid-cols-2 gap-4">
