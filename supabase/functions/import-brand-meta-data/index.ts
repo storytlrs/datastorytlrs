@@ -284,7 +284,7 @@ Deno.serve(async (req) => {
             importedAdSets++;
 
             // Step 3: Get ads for this ad set
-            const adsUrl = `https://graph.facebook.com/v21.0/${adSet.id}/ads?fields=id,name,status,creative{id,image_url,thumbnail_url}&limit=500&access_token=${metaAccessToken}`;
+            const adsUrl = `https://graph.facebook.com/v21.0/${adSet.id}/ads?fields=id,name,status&limit=500&access_token=${metaAccessToken}`;
             const adsRes = await fetch(adsUrl);
             const adsData = await adsRes.json();
 
@@ -302,8 +302,20 @@ Deno.serve(async (req) => {
                 const adInsight: MetaInsight | undefined = adInsightsData.data?.[0];
                 const adMetrics = adInsight ? calculateMetrics(adInsight) : null;
 
-                const adCreative = ad.creative;
-                const adThumb = adCreative?.image_url || adCreative?.thumbnail_url || null;
+                // Fetch ad preview iframe URL
+                let previewUrl: string | null = null;
+                try {
+                  const previewApiUrl = `https://graph.facebook.com/v21.0/${ad.id}/previews?ad_format=DESKTOP_FEED_STANDARD&access_token=${metaAccessToken}`;
+                  const previewRes = await fetch(previewApiUrl);
+                  const previewData = await previewRes.json();
+                  const body = previewData.data?.[0]?.body;
+                  if (body) {
+                    const srcMatch = body.match(/src="([^"]+)"/);
+                    previewUrl = srcMatch ? srcMatch[1] : null;
+                  }
+                } catch (prevErr) {
+                  console.error(`Preview fetch failed for ad ${ad.id}:`, prevErr);
+                }
 
                 const adRecord = {
                   space_id: spaceId,
@@ -311,7 +323,7 @@ Deno.serve(async (req) => {
                   ad_id: ad.id,
                   ad_name: ad.name,
                   status: ad.status,
-                  thumbnail_url: adThumb,
+                  thumbnail_url: previewUrl,
                   amount_spent: adMetrics?.spend || 0,
                   reach: adInsight?.reach ? parseInt(adInsight.reach) : 0,
                   impressions: adMetrics?.impressions || 0,
