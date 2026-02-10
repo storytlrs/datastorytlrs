@@ -219,7 +219,7 @@ const EditableNumberField = ({
 };
 
 const PostCard = ({ post }: { post: { name: string; spend: number; impressions: number; clicks: number; ctr: number; thumbnail_url?: string } }) => (
-  <Card className="overflow-hidden rounded-[35px] border-foreground hover:shadow-lg transition-shadow">
+  <Card className="overflow-hidden rounded-[35px] border-foreground hover:shadow-lg transition-shadow w-[200px] flex-shrink-0">
     <div className="relative aspect-[9/12.8] bg-muted overflow-hidden">
       {post.thumbnail_url ? (
         <img
@@ -484,7 +484,7 @@ export const MonthlyAdsInsightsContent = forwardRef<HTMLDivElement, MonthlyAdsIn
           {insights.facebook_top_posts.length > 0 && (
             <>
               <h3 className="font-bold text-lg mb-3">TOP příspěvky</h3>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              <div className="flex flex-wrap justify-center gap-6">
                 {insights.facebook_top_posts.map((post, i) => <PostCard key={i} post={post} />)}
               </div>
             </>
@@ -505,7 +505,7 @@ export const MonthlyAdsInsightsContent = forwardRef<HTMLDivElement, MonthlyAdsIn
           {insights.instagram_top_posts.length > 0 && (
             <>
               <h3 className="font-bold text-lg mb-3">TOP příspěvky</h3>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              <div className="flex flex-wrap justify-center gap-6">
                 {insights.instagram_top_posts.map((post, i) => <PostCard key={i} post={post} />)}
               </div>
             </>
