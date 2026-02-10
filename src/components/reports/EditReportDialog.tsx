@@ -46,6 +46,7 @@ const reportTypeOptions = [
 ];
 
 const periodOptions = [
+  { value: "campaign", label: "Campaign" },
   { value: "monthly", label: "Měsíční" },
   { value: "quarterly", label: "Kvartální" },
   { value: "yearly", label: "Roční" },
