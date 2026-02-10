@@ -70,21 +70,12 @@ export const TopContentGrid = ({ items, title = "Top 5 Content", emptyMessage = 
             {/* Thumbnail or Preview */}
             <div className="relative aspect-[9/16] bg-muted overflow-hidden">
               {item.previewIframeUrl ? (
-                <div className="w-full h-full relative">
-                  <iframe
-                    src={item.previewIframeUrl}
-                    className="absolute top-0 left-0 border-0"
-                    style={{
-                      width: "540px",
-                      height: "720px",
-                      transform: "scale(0.35)",
-                      transformOrigin: "top left",
-                    }}
-                    scrolling="no"
-                    allowFullScreen
-                  />
-                  <div className="absolute inset-0 pointer-events-none" />
-                </div>
+                <img
+                  src={item.previewIframeUrl}
+                  alt="Ad preview"
+                  className="w-full h-full object-cover"
+                  referrerPolicy="no-referrer"
+                />
               ) : item.thumbnailUrl ? (
                 <img
                   src={item.thumbnailUrl}
