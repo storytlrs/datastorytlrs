@@ -50,10 +50,10 @@ export const AdsDataTab = ({ reportId, spaceId, onImportSuccess }: AdsDataTabPro
     "campaign_name", "platform", "amount_spent", "impressions", "reach", "thruplays", "ctr", "frequency"
   ]);
   const [visibleAdSetColumns, setVisibleAdSetColumns] = useState<string[]>([
-    "ad_name", "platform", "amount_spent", "impressions", "reach", "thruplays", "ctr", "frequency"
+    "thumbnail_url", "ad_name", "platform", "amount_spent", "impressions", "reach", "thruplays", "ctr", "frequency"
   ]);
   const [visibleAdsColumns, setVisibleAdsColumns] = useState<string[]>([
-    "ad_name", "platform", "amount_spent", "impressions", "reach", "thruplays", "ctr", "frequency"
+    "thumbnail_url", "ad_name", "platform", "amount_spent", "impressions", "reach", "thruplays", "ctr", "frequency"
   ]);
 
   useEffect(() => {
@@ -254,6 +254,7 @@ export const AdsDataTab = ({ reportId, spaceId, onImportSuccess }: AdsDataTabPro
 
   // Ad Sets columns
   const allAdSetsColumns: ColumnDef[] = [
+    { key: "thumbnail_url", label: "Thumbnail", type: "text", width: "80px", editable: false, format: (val: string) => val ? `<img>` : "-", render: (val: string) => val ? <img src={val} alt="" className="w-12 h-12 object-cover rounded-lg" referrerPolicy="no-referrer" /> : <span className="text-muted-foreground">-</span> },
     { key: "ad_name", label: "Ad Set Name", type: "text", width: "200px", editable: false },
     { key: "campaign_name", label: "Campaign", type: "text", width: "180px", editable: false },
     { key: "platform", label: "Platform", type: "text", width: "100px", editable: false },
@@ -274,6 +275,7 @@ export const AdsDataTab = ({ reportId, spaceId, onImportSuccess }: AdsDataTabPro
 
   // Ads columns
   const allAdsColumns: ColumnDef[] = [
+    { key: "thumbnail_url", label: "Thumbnail", type: "text", width: "80px", editable: false, format: (val: string) => val ? `<img>` : "-", render: (val: string) => val ? <img src={val} alt="" className="w-12 h-12 object-cover rounded-lg" referrerPolicy="no-referrer" /> : <span className="text-muted-foreground">-</span> },
     { key: "ad_name", label: "Ad Name", type: "text", width: "200px", editable: false },
     { key: "platform", label: "Platform", type: "text", width: "100px", editable: false },
     { key: "amount_spent", label: "Spend", type: "number", width: "100px", editable: false, format: (val: number) => formatCurrencySimple(val, "CZK") },

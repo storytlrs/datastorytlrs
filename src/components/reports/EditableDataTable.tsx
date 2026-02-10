@@ -22,6 +22,7 @@ export interface ColumnDef {
   truncate?: boolean;
   truncateLines?: number;
   format?: (value: any, row?: any) => string;
+  render?: (value: any, row?: any) => React.ReactNode;
 }
 
 interface EditableDataTableProps {
@@ -95,7 +96,7 @@ export const EditableDataTable = ({
     const isEditing = editingCell?.id === row.id && editingCell?.field === column.key;
     const isSaving = savingCell === `${row.id}-${column.key}`;
     const value = row[column.key];
-    const displayValue = column.format ? column.format(value, row) : value;
+    const displayValue = column.render ? column.render(value, row) : column.format ? column.format(value, row) : value;
 
     // Calculated columns are never editable
     if (column.calculated) {
