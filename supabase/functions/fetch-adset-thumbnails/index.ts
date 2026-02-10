@@ -76,8 +76,8 @@ Deno.serve(async (req) => {
 
     for (const adSet of adSets) {
       try {
-        // Fetch ads with creative thumbnails for this ad set
-        const url = `https://graph.facebook.com/v21.0/${adSet.adset_id}/ads?fields=name,creative{id,thumbnail_url}&access_token=${metaAccessToken}&limit=1`;
+        // Fetch ads with creative image_url (higher res) and thumbnail_url as fallback
+        const url = `https://graph.facebook.com/v21.0/${adSet.adset_id}/ads?fields=name,creative{id,image_url,thumbnail_url}&access_token=${metaAccessToken}&limit=1`;
         const response = await fetch(url);
         const data = await response.json();
 
@@ -86,7 +86,8 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        const thumbnailUrl = data.data?.[0]?.creative?.thumbnail_url;
+        const creative = data.data?.[0]?.creative;
+        const thumbnailUrl = creative?.image_url || creative?.thumbnail_url;
         if (!thumbnailUrl) continue;
 
         const { error: updateError } = await supabase
