@@ -108,7 +108,7 @@ export const CreateBrandDialog = ({
               toast.error("TikTok import failed: " + error.message);
             } else if (data?.success) {
               toast.success(
-                `TikTok import complete: ${data.imported.campaigns} campaigns, ${data.imported.adSets} ad sets, ${data.imported.ads} ads`
+                `TikTok import complete: ${data.imported.campaigns} campaigns, ${data.imported.adGroups} ad groups, ${data.imported.ads} ads`
               );
             }
           });
