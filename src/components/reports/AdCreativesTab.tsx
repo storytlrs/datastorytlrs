@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Eye, MousePointer, DollarSign, ImageIcon, X, ArrowUpDown, Loader2, TrendingUp } from "lucide-react";
+import { Eye, MousePointer, DollarSign, ImageIcon, X, ArrowUpDown, Loader2, TrendingUp, ExternalLink } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
@@ -393,21 +393,15 @@ export const AdCreativesTab = ({ reportId, spaceId }: AdCreativesTabProps) => {
                 >
                   <div className="relative aspect-[9/12.8] bg-muted overflow-hidden">
                     {iframeUrl ? (
-                      <div className="w-full h-full relative">
-                        <iframe
-                          src={iframeUrl}
-                          className="absolute top-0 left-0 border-0"
-                          style={{
-                            width: "540px",
-                            height: "720px",
-                            transform: "scale(0.28)",
-                            transformOrigin: "top left",
-                          }}
-                          scrolling="no"
-                          allowFullScreen
-                        />
-                        <div className="absolute inset-0 pointer-events-none" />
-                      </div>
+                      <a
+                        href={iframeUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-full h-full flex flex-col items-center justify-center gap-2 hover:bg-muted/80 transition-colors"
+                      >
+                        <ExternalLink className="w-8 h-8 text-muted-foreground" />
+                        <span className="text-xs text-muted-foreground">Open Preview</span>
+                      </a>
                     ) : (
                       <div className="w-full h-full flex flex-col items-center justify-center gap-2">
                         <ImageIcon className="w-8 h-8 text-muted-foreground/30" />
