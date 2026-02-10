@@ -1018,6 +1018,7 @@ export type Database = {
           meta_id: string | null
           name: string
           profile_image_url: string | null
+          tiktok_id: string | null
           updated_at: string
         }
         Insert: {
@@ -1027,6 +1028,7 @@ export type Database = {
           meta_id?: string | null
           name: string
           profile_image_url?: string | null
+          tiktok_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -1036,6 +1038,7 @@ export type Database = {
           meta_id?: string | null
           name?: string
           profile_image_url?: string | null
+          tiktok_id?: string | null
           updated_at?: string
         }
         Relationships: []
