@@ -199,8 +199,18 @@ async function handleMonthlyReport(ctx: any) {
     `  - ${a.ad_name || "Unnamed"}: Spend ${(a.amount_spent || 0).toFixed(0)}, Reach ${a.reach || 0}, Impr ${a.impressions || 0}, Clicks ${a.clicks || 0}, CTR ${(a.ctr || 0).toFixed(2)}%, Reactions ${a.post_reactions || 0}, Comments ${a.post_comments || 0}, Shares ${a.post_shares || 0}, Saves ${a.post_saves || 0}, ThruPlays ${a.thruplays || 0}, 3s Views ${a.video_3s_plays || 0}`
   ).join("\n");
 
-  const systemPrompt = `Jsi zkušený analytik digitálního marketingu. Tvým úkolem je vytvořit kompletní měsíční report výkonu reklamních kampaní v češtině. Report musí být profesionální, datově podložený a obsahovat konkrétní čísla.
+  // Fetch prompts from DB (fallback to hardcoded)
+  const { data: prompts } = await supabase
+    .from("ai_prompts")
+    .select("key, prompt_text")
+    .in("key", ["monthly_ads_system", "monthly_ads_user"]);
 
+  const promptMap: Record<string, string> = {};
+  for (const p of prompts || []) {
+    promptMap[p.key] = p.prompt_text;
+  }
+
+  const dataContext = `
 CELKOVÁ DATA KAMPANĚ:
 - Celkový spend: ${totalSpend.toFixed(2)} CZK
 - Celkový reach: ${totalReach.toLocaleString()}
@@ -233,7 +243,9 @@ ${igAdsDetail || "  Žádné IG reklamy"}
 KONTEXT OD UŽIVATELE:
 - Hlavní cíl kampaně: ${campaign_context.mainGoal}
 - Co bylo realizováno: ${campaign_context.actions}
-- Co se povedlo / highlight: ${campaign_context.highlights}
+- Co se povedlo / highlight: ${campaign_context.highlights}`;
+
+  const defaultSystemPrompt = `Jsi zkušený analytik digitálního marketingu. Tvým úkolem je vytvořit kompletní měsíční report výkonu reklamních kampaní v češtině. Report musí být profesionální, datově podložený a obsahovat konkrétní čísla.
 
 INSTRUKCE:
 1. Executive Summary: Stručný ale výstižný souhrn celého měsíce – klíčové výsledky, spend, reach, co se povedlo.
@@ -242,7 +254,7 @@ INSTRUKCE:
 4. Vliv na brand awareness: Analyzuj dopad na povědomí o značce – reach, frequency, impressions, ThruPlays. Jaký je celkový dopad?
 5. Learnings: Rozděl do 3 kategorií – co se povedlo (works), hrozby a příležitosti (threats_opportunities), co zlepšit (improvements). Buď konkrétní a akční.`;
 
-  const userPrompt = `Vytvoř kompletní měsíční analytický report. Odpověz POUZE validním JSON objektem s touto přesnou strukturou:
+  const defaultUserPrompt = `Vytvoř kompletní měsíční analytický report. Odpověz POUZE validním JSON objektem s touto přesnou strukturou:
 
 {
   "executive_summary": "Kompletní souhrn měsíce s konkrétními čísly – spend, reach, klíčové výsledky, celkové zhodnocení efektivity (max 200 slov)",
@@ -255,6 +267,9 @@ INSTRUKCE:
     "improvements": ["3-5 akčních doporučení co konkrétně zlepšit v dalším měsíci"]
   }
 }`;
+
+  const systemPrompt = (promptMap["monthly_ads_system"] || defaultSystemPrompt) + "\n" + dataContext;
+  const userPrompt = promptMap["monthly_ads_user"] || defaultUserPrompt;
 
   console.log("Calling AI for monthly Ads insights...");
 
