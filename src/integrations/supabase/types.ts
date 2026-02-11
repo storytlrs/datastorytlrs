@@ -1453,9 +1453,13 @@ export type Database = {
       tiktok_campaigns: {
         Row: {
           amount_spent: number | null
+          average_video_play: number | null
+          average_video_play_per_user: number | null
           campaign_id: string
           campaign_name: string | null
           clicks: number | null
+          comments: number | null
+          cost_per_engagement: number | null
           cpc: number | null
           cpm: number | null
           created_at: string
@@ -1463,21 +1467,38 @@ export type Database = {
           daily_budget: number | null
           date_start: string | null
           date_stop: string | null
+          engagements: number | null
+          follows: number | null
           frequency: number | null
           id: string
           impressions: number | null
+          interactive_addon_clicks: number | null
           lifetime_budget: number | null
+          likes: number | null
           objective: string | null
+          profile_visits: number | null
           reach: number | null
+          shares: number | null
           space_id: string
           status: string | null
           updated_at: string
+          video_play_actions: number | null
+          video_view_rate: number | null
+          video_views_p100: number | null
+          video_views_p25: number | null
+          video_views_p50: number | null
+          video_watched_2s: number | null
+          video_watched_6s: number | null
         }
         Insert: {
           amount_spent?: number | null
+          average_video_play?: number | null
+          average_video_play_per_user?: number | null
           campaign_id: string
           campaign_name?: string | null
           clicks?: number | null
+          comments?: number | null
+          cost_per_engagement?: number | null
           cpc?: number | null
           cpm?: number | null
           created_at?: string
@@ -1485,21 +1506,38 @@ export type Database = {
           daily_budget?: number | null
           date_start?: string | null
           date_stop?: string | null
+          engagements?: number | null
+          follows?: number | null
           frequency?: number | null
           id?: string
           impressions?: number | null
+          interactive_addon_clicks?: number | null
           lifetime_budget?: number | null
+          likes?: number | null
           objective?: string | null
+          profile_visits?: number | null
           reach?: number | null
+          shares?: number | null
           space_id: string
           status?: string | null
           updated_at?: string
+          video_play_actions?: number | null
+          video_view_rate?: number | null
+          video_views_p100?: number | null
+          video_views_p25?: number | null
+          video_views_p50?: number | null
+          video_watched_2s?: number | null
+          video_watched_6s?: number | null
         }
         Update: {
           amount_spent?: number | null
+          average_video_play?: number | null
+          average_video_play_per_user?: number | null
           campaign_id?: string
           campaign_name?: string | null
           clicks?: number | null
+          comments?: number | null
+          cost_per_engagement?: number | null
           cpc?: number | null
           cpm?: number | null
           created_at?: string
@@ -1507,15 +1545,28 @@ export type Database = {
           daily_budget?: number | null
           date_start?: string | null
           date_stop?: string | null
+          engagements?: number | null
+          follows?: number | null
           frequency?: number | null
           id?: string
           impressions?: number | null
+          interactive_addon_clicks?: number | null
           lifetime_budget?: number | null
+          likes?: number | null
           objective?: string | null
+          profile_visits?: number | null
           reach?: number | null
+          shares?: number | null
           space_id?: string
           status?: string | null
           updated_at?: string
+          video_play_actions?: number | null
+          video_view_rate?: number | null
+          video_views_p100?: number | null
+          video_views_p25?: number | null
+          video_views_p50?: number | null
+          video_watched_2s?: number | null
+          video_watched_6s?: number | null
         }
         Relationships: [
           {
