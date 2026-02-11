@@ -30,16 +30,26 @@ const fetchTikTokReport = async (
 ): Promise<unknown> => {
   const url = new URL(`${TIKTOK_API_BASE}/report/integrated/get/`);
   url.searchParams.set("advertiser_id", advertiserId);
+  
+  // TikTok report API uses GET with JSON-encoded params as query strings
+  for (const [key, value] of Object.entries(params)) {
+    url.searchParams.set(key, typeof value === "string" ? value : JSON.stringify(value));
+  }
+
+  console.log("TikTok report request URL:", url.toString().substring(0, 300));
 
   const response = await fetch(url.toString(), {
-    method: "POST",
-    headers: {
-      "Access-Token": accessToken,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(params),
+    method: "GET",
+    headers: { "Access-Token": accessToken },
   });
-  const data = await response.json();
+  const text = await response.text();
+  console.log("TikTok report response status:", response.status, "body preview:", text.substring(0, 500));
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    throw new Error(`TikTok API returned non-JSON response: ${text.substring(0, 200)}`);
+  }
   if (data.code !== 0) {
     throw new Error(`TikTok API error: ${data.message} (code: ${data.code})`);
   }
