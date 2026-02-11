@@ -68,13 +68,19 @@ interface TikTokReportRow {
   metrics: TikTokReportMetrics;
 }
 
-const fetchTikTokApi = async (
+const fetchTikTokReport = async (
   endpoint: string,
   accessToken: string,
+  advertiserId: string,
   params: Record<string, unknown>
 ): Promise<unknown> => {
-  const url = `${TIKTOK_API_BASE}${endpoint}`;
-  const response = await fetch(url, {
+  // TikTok report endpoint uses GET with query params + JSON body fields as query params
+  const url = new URL(`${TIKTOK_API_BASE}${endpoint}`);
+  url.searchParams.set("advertiser_id", advertiserId);
+  // page_size as query param
+  if (params.page_size) url.searchParams.set("page_size", String(params.page_size));
+
+  const response = await fetch(url.toString(), {
     method: "POST",
     headers: {
       "Access-Token": accessToken,
@@ -152,7 +158,11 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { spaceId } = await req.json();
+    const { spaceId, startDate, endDate } = await req.json();
+    
+    // Default date range: last 12 months
+    const resolvedStartDate = startDate || new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+    const resolvedEndDate = endDate || new Date().toISOString().split("T")[0];
     if (!spaceId) {
       return new Response(
         JSON.stringify({ error: "spaceId is required" }),
@@ -203,13 +213,13 @@ Deno.serve(async (req) => {
 
     if (campaignIds.length > 0) {
       try {
-        const reportData = (await fetchTikTokApi("/report/integrated/get/", tiktokAccessToken, {
-          advertiser_id: advertiserId,
+        const reportData = (await fetchTikTokReport("/report/integrated/get/", tiktokAccessToken, advertiserId, {
           report_type: "BASIC",
           data_level: "AUCTION_CAMPAIGN",
           dimensions: ["campaign_id"],
           metrics: REPORT_METRICS,
-          lifetime: true,
+          start_date: resolvedStartDate,
+          end_date: resolvedEndDate,
           page_size: 1000,
         })) as { list: TikTokReportRow[] };
 
@@ -270,14 +280,14 @@ Deno.serve(async (req) => {
         let adGroupReportMap: Record<string, TikTokReportMetrics> = {};
         if (adGroups.length > 0) {
           try {
-            const agReportData = (await fetchTikTokApi("/report/integrated/get/", tiktokAccessToken, {
-              advertiser_id: advertiserId,
+            const agReportData = (await fetchTikTokReport("/report/integrated/get/", tiktokAccessToken, advertiserId, {
               report_type: "BASIC",
               data_level: "AUCTION_ADGROUP",
               dimensions: ["adgroup_id"],
               metrics: REPORT_METRICS,
               filtering: [{ field_name: "campaign_id", filter_type: "IN", filter_value: JSON.stringify([campaign.campaign_id]) }],
-              lifetime: true,
+              start_date: resolvedStartDate,
+              end_date: resolvedEndDate,
               page_size: 1000,
             })) as { list: TikTokReportRow[] };
 
@@ -353,14 +363,14 @@ Deno.serve(async (req) => {
             let adReportMap: Record<string, TikTokReportMetrics> = {};
             if (ads.length > 0) {
               try {
-                const adReportData = (await fetchTikTokApi("/report/integrated/get/", tiktokAccessToken, {
-                  advertiser_id: advertiserId,
+                const adReportData = (await fetchTikTokReport("/report/integrated/get/", tiktokAccessToken, advertiserId, {
                   report_type: "BASIC",
                   data_level: "AUCTION_AD",
                   dimensions: ["ad_id"],
                   metrics: REPORT_METRICS,
                   filtering: [{ field_name: "adgroup_id", filter_type: "IN", filter_value: JSON.stringify([adGroup.adgroup_id]) }],
-                  lifetime: true,
+                  start_date: resolvedStartDate,
+                  end_date: resolvedEndDate,
                   page_size: 1000,
                 })) as { list: TikTokReportRow[] };
 
