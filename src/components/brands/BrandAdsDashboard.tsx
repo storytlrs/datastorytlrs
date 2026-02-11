@@ -20,30 +20,33 @@ interface BrandAdsDashboardProps {
   filters: OverviewFilters;
 }
 
-interface BrandCampaign {
+// Normalized interfaces that work for both Meta and TikTok
+interface NormalizedCampaign {
   id: string;
   campaign_name: string | null;
   campaign_id: string;
+  platform: "meta" | "tiktok";
 }
 
-interface BrandAdSet {
+interface NormalizedAdSet {
   id: string;
   adset_name: string | null;
   adset_id: string;
-  brand_campaign_id: string;
+  campaign_id: string; // normalized parent id
   amount_spent: number | null;
   impressions: number | null;
   clicks: number | null;
   ctr: number | null;
   frequency: number | null;
   date_start: string | null;
+  platform: "meta" | "tiktok";
 }
 
-interface BrandAd {
+interface NormalizedAd {
   id: string;
   ad_name: string | null;
   ad_id: string;
-  brand_ad_set_id: string;
+  adset_id: string; // normalized parent id
   amount_spent: number | null;
   impressions: number | null;
   clicks: number | null;
@@ -56,14 +59,15 @@ interface BrandAd {
   post_saves: number | null;
   date_start: string | null;
   thumbnail_url: string | null;
+  platform: "meta" | "tiktok";
 }
 
 type MetricKey = "spend" | "impressions" | "clicks" | "ctr" | "roas";
 
 const BrandAdsDashboard = ({ spaceId, filters }: BrandAdsDashboardProps) => {
-  const [campaigns, setCampaigns] = useState<BrandCampaign[]>([]);
-  const [adSets, setAdSets] = useState<BrandAdSet[]>([]);
-  const [ads, setAds] = useState<BrandAd[]>([]);
+  const [campaigns, setCampaigns] = useState<NormalizedCampaign[]>([]);
+  const [adSets, setAdSets] = useState<NormalizedAdSet[]>([]);
+  const [ads, setAds] = useState<NormalizedAd[]>([]);
   const [selectedCampaignIds, setSelectedCampaignIds] = useState<string[]>([]);
   const [selectedAdSetIds, setSelectedAdSetIds] = useState<string[]>([]);
   const [selectedAdIds, setSelectedAdIds] = useState<string[]>([]);
@@ -72,7 +76,6 @@ const BrandAdsDashboard = ({ spaceId, filters }: BrandAdsDashboardProps) => {
   const [selectedMetric, setSelectedMetric] = useState<MetricKey>("spend");
   const [currency] = useState("CZK");
 
-  // Fetch all data
   useEffect(() => {
     fetchData();
   }, [spaceId, filters]);
@@ -80,27 +83,116 @@ const BrandAdsDashboard = ({ spaceId, filters }: BrandAdsDashboardProps) => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const { data: campaignsData } = await supabase
-        .from("brand_campaigns")
-        .select("id, campaign_name, campaign_id")
-        .eq("space_id", spaceId)
-        .order("campaign_name");
+      // Fetch Meta data
+      const [metaCampaigns, metaAdSets, metaAds] = await Promise.all([
+        supabase.from("brand_campaigns").select("id, campaign_name, campaign_id").eq("space_id", spaceId).order("campaign_name"),
+        supabase.from("brand_ad_sets" as any).select("id, adset_name, adset_id, brand_campaign_id, amount_spent, impressions, clicks, ctr, frequency, date_start").eq("space_id", spaceId),
+        supabase.from("brand_ads").select("id, ad_name, ad_id, brand_ad_set_id, amount_spent, impressions, clicks, ctr, frequency, link_clicks, post_reactions, post_comments, post_shares, post_saves, date_start, thumbnail_url").eq("space_id", spaceId),
+      ]);
 
-      setCampaigns((campaignsData || []) as BrandCampaign[]);
+      // Fetch TikTok data
+      const [ttCampaigns, ttAdGroups, ttAds] = await Promise.all([
+        supabase.from("tiktok_campaigns").select("id, campaign_name, campaign_id").eq("space_id", spaceId).order("campaign_name"),
+        supabase.from("tiktok_ad_groups").select("id, adgroup_name, adgroup_id, tiktok_campaign_id, amount_spent, impressions, clicks, ctr, frequency").eq("space_id", spaceId),
+        supabase.from("tiktok_ads").select("id, ad_name, ad_id, tiktok_ad_group_id, amount_spent, impressions, clicks, ctr, frequency, link_clicks, likes, comments, shares, thumbnail_url").eq("space_id", spaceId),
+      ]);
 
-      const { data: adSetsData } = await supabase
-        .from("brand_ad_sets" as any)
-        .select("id, adset_name, adset_id, brand_campaign_id, amount_spent, impressions, clicks, ctr, frequency, date_start")
-        .eq("space_id", spaceId);
+      // Normalize Meta campaigns
+      const normMetaCampaigns: NormalizedCampaign[] = (metaCampaigns.data || []).map((c: any) => ({
+        id: c.id,
+        campaign_name: c.campaign_name,
+        campaign_id: c.campaign_id,
+        platform: "meta" as const,
+      }));
 
-      setAdSets((adSetsData || []) as unknown as BrandAdSet[]);
+      // Normalize TikTok campaigns (deduplicate by campaign_id since TikTok has demographic dimensions)
+      const ttCampaignMap = new Map<string, NormalizedCampaign>();
+      (ttCampaigns.data || []).forEach((c: any) => {
+        if (!ttCampaignMap.has(c.id)) {
+          ttCampaignMap.set(c.id, {
+            id: c.id,
+            campaign_name: c.campaign_name,
+            campaign_id: c.campaign_id,
+            platform: "tiktok" as const,
+          });
+        }
+      });
 
-      const { data: adsData } = await supabase
-        .from("brand_ads")
-        .select("id, ad_name, ad_id, brand_ad_set_id, amount_spent, impressions, clicks, ctr, frequency, link_clicks, post_reactions, post_comments, post_shares, post_saves, date_start, thumbnail_url")
-        .eq("space_id", spaceId);
+      // Normalize Meta ad sets
+      const normMetaAdSets: NormalizedAdSet[] = (metaAdSets.data || []).map((a: any) => ({
+        id: a.id,
+        adset_name: a.adset_name,
+        adset_id: a.adset_id,
+        campaign_id: a.brand_campaign_id,
+        amount_spent: a.amount_spent,
+        impressions: a.impressions,
+        clicks: a.clicks,
+        ctr: a.ctr,
+        frequency: a.frequency,
+        date_start: a.date_start,
+        platform: "meta" as const,
+      }));
 
-      setAds((adsData || []) as BrandAd[]);
+      // Normalize TikTok ad groups -> ad sets
+      const normTTAdSets: NormalizedAdSet[] = (ttAdGroups.data || []).map((a: any) => ({
+        id: a.id,
+        adset_name: a.adgroup_name,
+        adset_id: a.adgroup_id,
+        campaign_id: a.tiktok_campaign_id,
+        amount_spent: a.amount_spent,
+        impressions: a.impressions,
+        clicks: a.clicks,
+        ctr: a.ctr,
+        frequency: a.frequency,
+        date_start: null,
+        platform: "tiktok" as const,
+      }));
+
+      // Normalize Meta ads
+      const normMetaAds: NormalizedAd[] = (metaAds.data || []).map((a: any) => ({
+        id: a.id,
+        ad_name: a.ad_name,
+        ad_id: a.ad_id,
+        adset_id: a.brand_ad_set_id,
+        amount_spent: a.amount_spent,
+        impressions: a.impressions,
+        clicks: a.clicks,
+        ctr: a.ctr,
+        frequency: a.frequency,
+        link_clicks: a.link_clicks,
+        post_reactions: a.post_reactions,
+        post_comments: a.post_comments,
+        post_shares: a.post_shares,
+        post_saves: a.post_saves,
+        date_start: a.date_start,
+        thumbnail_url: a.thumbnail_url,
+        platform: "meta" as const,
+      }));
+
+      // Normalize TikTok ads
+      const normTTAds: NormalizedAd[] = (ttAds.data || []).map((a: any) => ({
+        id: a.id,
+        ad_name: a.ad_name,
+        ad_id: a.ad_id,
+        adset_id: a.tiktok_ad_group_id,
+        amount_spent: a.amount_spent,
+        impressions: a.impressions,
+        clicks: a.clicks,
+        ctr: a.ctr,
+        frequency: a.frequency,
+        link_clicks: a.link_clicks,
+        post_reactions: a.likes,
+        post_comments: a.comments,
+        post_shares: a.shares,
+        post_saves: null,
+        date_start: null,
+        thumbnail_url: a.thumbnail_url,
+        platform: "tiktok" as const,
+      }));
+
+      setCampaigns([...normMetaCampaigns, ...Array.from(ttCampaignMap.values())]);
+      setAdSets([...normMetaAdSets, ...normTTAdSets]);
+      setAds([...normMetaAds, ...normTTAds]);
     } catch (error) {
       console.error("Failed to fetch ads data:", error);
     } finally {
@@ -128,7 +220,7 @@ const BrandAdsDashboard = ({ spaceId, filters }: BrandAdsDashboardProps) => {
   // Filtered ad sets based on selected campaigns
   const filteredAdSets = useMemo(() => {
     if (selectedCampaignIds.length === 0) return adSets;
-    return adSets.filter(a => selectedCampaignIds.includes(a.brand_campaign_id));
+    return adSets.filter(a => selectedCampaignIds.includes(a.campaign_id));
   }, [adSets, selectedCampaignIds]);
 
   // Filtered ads based on selected ad sets (or all ad sets from selected campaigns)
@@ -138,7 +230,7 @@ const BrandAdsDashboard = ({ spaceId, filters }: BrandAdsDashboardProps) => {
       : filteredAdSets.map(a => a.id);
     if (relevantAdSetIds.length === 0 && selectedCampaignIds.length > 0) return [];
     if (relevantAdSetIds.length === 0) return ads;
-    return ads.filter(a => relevantAdSetIds.includes(a.brand_ad_set_id));
+    return ads.filter(a => relevantAdSetIds.includes(a.adset_id));
   }, [ads, selectedAdSetIds, filteredAdSets, selectedCampaignIds]);
 
   // Final filtered ads
@@ -153,12 +245,11 @@ const BrandAdsDashboard = ({ spaceId, filters }: BrandAdsDashboardProps) => {
     return filteredAdSets;
   }, [filteredAdSets, selectedAdSetIds]);
 
-  // Determine data granularity for KPIs: use ads if available, otherwise ad sets
+  // Determine data granularity for KPIs
   const hasAdsData = ads.length > 0;
 
-  // KPI calculation from the most granular filtered data
+  // KPI calculation
   const kpis = useMemo(() => {
-    // If we have specific ads selected or ads exist, use ad-level data
     const dataSource = hasAdsData ? finalAds : finalAdSets;
     const totalSpend = dataSource.reduce((sum, a) => sum + (a.amount_spent || 0), 0);
     const totalImpressions = dataSource.reduce((sum, a) => sum + (a.impressions || 0), 0);
@@ -170,38 +261,26 @@ const BrandAdsDashboard = ({ spaceId, filters }: BrandAdsDashboardProps) => {
     const cpm = totalImpressions > 0 ? (totalSpend / totalImpressions) * 1000 : 0;
     const cpc = totalClicks > 0 ? totalSpend / totalClicks : 0;
 
-    return {
-      totalSpend,
-      impressions: totalImpressions,
-      clicks: totalClicks,
-      ctr,
-      frequency: avgFrequency,
-      cpm,
-      cpc,
-    };
+    return { totalSpend, impressions: totalImpressions, clicks: totalClicks, ctr, frequency: avgFrequency, cpm, cpc };
   }, [finalAds, finalAdSets, hasAdsData]);
 
   // Chart data grouped by campaign
   const chartData = useMemo(() => {
     const dataSource = hasAdsData ? finalAds : finalAdSets;
-    const campaignData: Record<string, {
-      name: string;
-      spend: number;
-      impressions: number;
-      clicks: number;
-    }> = {};
+    const campaignData: Record<string, { name: string; spend: number; impressions: number; clicks: number }> = {};
 
     dataSource.forEach(item => {
-      // Find campaign id for this item
       let campaignId: string;
-      if ("brand_campaign_id" in item) {
-        campaignId = (item as BrandAdSet).brand_campaign_id;
+      if ("campaign_id" in item && !("adset_id" in item && "ad_id" in item)) {
+        // It's an ad set
+        campaignId = (item as NormalizedAdSet).campaign_id;
       } else {
-        const adSet = adSets.find(as => as.id === (item as BrandAd).brand_ad_set_id);
-        campaignId = adSet?.brand_campaign_id || "unknown";
+        // It's an ad - find its ad set to get campaign
+        const adSet = adSets.find(as => as.id === (item as NormalizedAd).adset_id);
+        campaignId = adSet?.campaign_id || "unknown";
       }
       const campaign = campaigns.find(c => c.id === campaignId);
-      const name = campaign?.campaign_name || campaign?.campaign_id || "Unknown";
+      const name = campaign ? `${campaign.campaign_name || campaign.campaign_id} (${campaign.platform === "tiktok" ? "TT" : "Meta"})` : "Unknown";
 
       if (!campaignData[campaignId]) {
         campaignData[campaignId] = { name, spend: 0, impressions: 0, clicks: 0 };
@@ -223,7 +302,7 @@ const BrandAdsDashboard = ({ spaceId, filters }: BrandAdsDashboardProps) => {
       }));
   }, [finalAds, finalAdSets, hasAdsData, adSets, campaigns]);
 
-  // Top 5 items - use stored preview URL from thumbnail_url as iframe src
+  // Top 5 items
   const topContent: TopContentItem[] = useMemo(() => {
     const dataSource = hasAdsData ? finalAds : finalAdSets;
     if (dataSource.length === 0) return [];
@@ -233,13 +312,13 @@ const BrandAdsDashboard = ({ spaceId, filters }: BrandAdsDashboardProps) => {
     return dataSource
       .map(a => {
         const score = ((a.ctr || 0) / maxCtr) * 0.5 + ((a.clicks || 0) / maxClicks) * 0.5;
-        const storedPreviewUrl = "thumbnail_url" in a ? (a as BrandAd).thumbnail_url || null : null;
+        const storedPreviewUrl = "thumbnail_url" in a ? a.thumbnail_url || null : null;
         return {
           id: a.id,
           thumbnailUrl: storedPreviewUrl,
           previewIframeUrl: null,
           contentType: "ad",
-          platform: "facebook",
+          platform: a.platform === "tiktok" ? "tiktok" : "facebook",
           views: a.impressions || 0,
           engagementRate: a.ctr || 0,
           url: null,
@@ -260,31 +339,27 @@ const BrandAdsDashboard = ({ spaceId, filters }: BrandAdsDashboardProps) => {
 
   const formatChartValue = (value: number, metric: MetricKey): string => {
     switch (metric) {
-      case "spend":
-        return formatCurrency(value, currency);
-      case "ctr":
-        return `${value.toFixed(2)}%`;
-      case "roas":
-        return value.toFixed(2);
-      default:
-        return value.toLocaleString("cs-CZ", { maximumFractionDigits: 0 });
+      case "spend": return formatCurrency(value, currency);
+      case "ctr": return `${value.toFixed(2)}%`;
+      case "roas": return value.toFixed(2);
+      default: return value.toLocaleString("cs-CZ", { maximumFractionDigits: 0 });
     }
   };
 
-  // Filter options
+  // Filter options - show platform in label
   const campaignOptions: FilterOption[] = campaigns.map(c => ({
     id: c.id,
-    label: c.campaign_name || c.campaign_id,
+    label: `${c.campaign_name || c.campaign_id} (${c.platform === "tiktok" ? "TT" : "Meta"})`,
   }));
 
   const adSetOptions: FilterOption[] = filteredAdSets.map(a => ({
     id: a.id,
-    label: a.adset_name || a.adset_id,
+    label: `${a.adset_name || a.adset_id} (${a.platform === "tiktok" ? "TT" : "Meta"})`,
   }));
 
   const adOptions: FilterOption[] = filteredAds.map(a => ({
     id: a.id,
-    label: a.ad_name || a.ad_id,
+    label: `${a.ad_name || a.ad_id} (${a.platform === "tiktok" ? "TT" : "Meta"})`,
   }));
 
   const toggleIn = (list: string[], id: string) =>
@@ -320,7 +395,7 @@ const BrandAdsDashboard = ({ spaceId, filters }: BrandAdsDashboardProps) => {
 
         {adSetOptions.length > 0 && (
           <MultiSelectFilter
-            label="Ad Set"
+            label="Ad Set / Ad Group"
             options={adSetOptions}
             selectedIds={selectedAdSetIds}
             onToggle={(id) => setSelectedAdSetIds(prev => toggleIn(prev, id))}
@@ -420,50 +495,13 @@ const BrandAdsDashboard = ({ spaceId, filters }: BrandAdsDashboardProps) => {
           <div className="space-y-4">
             <h3 className="text-lg font-semibold">Key Metrics</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <KPICard
-                title="Total Spend"
-                value={formatCurrency(kpis.totalSpend, currency)}
-                icon={DollarSign}
-                accentColor="orange"
-                tooltip="Total advertising spend"
-              />
-              <KPICard
-                title="Impressions"
-                value={kpis.impressions.toLocaleString()}
-                icon={Eye}
-                tooltip="Total ad impressions"
-              />
-              <KPICard
-                title="Clicks"
-                value={kpis.clicks.toLocaleString()}
-                icon={MousePointer}
-                tooltip="Total ad clicks"
-              />
-              <KPICard
-                title="CTR"
-                value={`${kpis.ctr.toFixed(2)}%`}
-                icon={TrendingUp}
-                accentColor="green"
-                tooltip="Click-through rate (clicks / impressions × 100)"
-              />
-              <KPICard
-                title="Frequency"
-                value={kpis.frequency.toFixed(2)}
-                icon={Target}
-                tooltip="Average frequency"
-              />
-              <KPICard
-                title="CPM"
-                value={formatCurrency(kpis.cpm, currency)}
-                icon={DollarSign}
-                tooltip="Cost per 1000 impressions"
-              />
-              <KPICard
-                title="CPC"
-                value={formatCurrency(kpis.cpc, currency)}
-                icon={MousePointer}
-                tooltip="Cost per click"
-              />
+              <KPICard title="Total Spend" value={formatCurrency(kpis.totalSpend, currency)} icon={DollarSign} accentColor="orange" tooltip="Total advertising spend" />
+              <KPICard title="Impressions" value={kpis.impressions.toLocaleString()} icon={Eye} tooltip="Total ad impressions" />
+              <KPICard title="Clicks" value={kpis.clicks.toLocaleString()} icon={MousePointer} tooltip="Total ad clicks" />
+              <KPICard title="CTR" value={`${kpis.ctr.toFixed(2)}%`} icon={TrendingUp} accentColor="green" tooltip="Click-through rate" />
+              <KPICard title="Frequency" value={kpis.frequency.toFixed(2)} icon={Target} tooltip="Average frequency" />
+              <KPICard title="CPM" value={formatCurrency(kpis.cpm, currency)} icon={DollarSign} tooltip="Cost per 1000 impressions" />
+              <KPICard title="CPC" value={formatCurrency(kpis.cpc, currency)} icon={MousePointer} tooltip="Cost per click" />
             </div>
           </div>
         </>
