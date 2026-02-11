@@ -1452,6 +1452,7 @@ export type Database = {
       }
       tiktok_campaigns: {
         Row: {
+          age: string | null
           amount_spent: number | null
           average_video_play: number | null
           average_video_play_per_user: number | null
@@ -1464,18 +1465,14 @@ export type Database = {
           cpm: number | null
           created_at: string
           ctr: number | null
-          daily_budget: number | null
-          date_start: string | null
-          date_stop: string | null
-          engagements: number | null
           follows: number | null
           frequency: number | null
+          gender: string | null
           id: string
           impressions: number | null
           interactive_addon_clicks: number | null
-          lifetime_budget: number | null
           likes: number | null
-          objective: string | null
+          location: string | null
           profile_visits: number | null
           reach: number | null
           shares: number | null
@@ -1491,6 +1488,7 @@ export type Database = {
           video_watched_6s: number | null
         }
         Insert: {
+          age?: string | null
           amount_spent?: number | null
           average_video_play?: number | null
           average_video_play_per_user?: number | null
@@ -1503,18 +1501,14 @@ export type Database = {
           cpm?: number | null
           created_at?: string
           ctr?: number | null
-          daily_budget?: number | null
-          date_start?: string | null
-          date_stop?: string | null
-          engagements?: number | null
           follows?: number | null
           frequency?: number | null
+          gender?: string | null
           id?: string
           impressions?: number | null
           interactive_addon_clicks?: number | null
-          lifetime_budget?: number | null
           likes?: number | null
-          objective?: string | null
+          location?: string | null
           profile_visits?: number | null
           reach?: number | null
           shares?: number | null
@@ -1530,6 +1524,7 @@ export type Database = {
           video_watched_6s?: number | null
         }
         Update: {
+          age?: string | null
           amount_spent?: number | null
           average_video_play?: number | null
           average_video_play_per_user?: number | null
@@ -1542,18 +1537,14 @@ export type Database = {
           cpm?: number | null
           created_at?: string
           ctr?: number | null
-          daily_budget?: number | null
-          date_start?: string | null
-          date_stop?: string | null
-          engagements?: number | null
           follows?: number | null
           frequency?: number | null
+          gender?: string | null
           id?: string
           impressions?: number | null
           interactive_addon_clicks?: number | null
-          lifetime_budget?: number | null
           likes?: number | null
-          objective?: string | null
+          location?: string | null
           profile_visits?: number | null
           reach?: number | null
           shares?: number | null

@@ -186,9 +186,6 @@ Deno.serve(async (req) => {
       campaign_id: String(campaignId),
       campaign_name: campaign.campaign_name,
       status: campaign.status,
-      objective: campaign.objective_type || null,
-      daily_budget: campaign.budget_mode === "BUDGET_MODE_DAY" && campaign.budget ? campaign.budget : null,
-      lifetime_budget: campaign.budget_mode === "BUDGET_MODE_TOTAL" && campaign.budget ? campaign.budget : null,
       amount_spent: spend,
       reach: num(m.reach),
       impressions,
@@ -206,7 +203,6 @@ Deno.serve(async (req) => {
       video_views_p100: num(m.video_views_p100),
       average_video_play: num(m.average_video_play),
       average_video_play_per_user: num(m.average_video_play_per_user),
-      engagements: num(m.engagements),
       likes: paidLikes,
       comments: paidComments,
       shares: paidShares,
@@ -214,11 +210,14 @@ Deno.serve(async (req) => {
       follows: num(m.follows),
       interactive_addon_clicks: num(m.interactive_add_on_destination_clicks),
       cost_per_engagement: totalPaidEng > 0 ? spend / totalPaidEng : 0,
+      age: null,
+      gender: null,
+      location: null,
     };
 
     const { error: upsertError } = await supabase
       .from("tiktok_campaigns")
-      .upsert(campaignRecord, { onConflict: "space_id,campaign_id" });
+      .upsert(campaignRecord, { onConflict: "space_id,campaign_id,age,gender,location" });
 
     if (upsertError) {
       console.error("Upsert error:", upsertError);
