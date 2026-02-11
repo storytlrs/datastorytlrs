@@ -220,9 +220,9 @@ Deno.serve(async (req) => {
       follows: num(m.follows),
       interactive_addon_clicks: num(m.interactive_add_on_destination_clicks),
       cost_per_engagement: totalPaidEng > 0 ? spend / totalPaidEng : 0,
-      age: null,
-      gender: null,
-      location: null,
+      age: "",
+      gender: "",
+      location: "",
     };
 
     const { error: upsertError } = await supabase
