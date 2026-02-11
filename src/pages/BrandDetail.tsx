@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Plus, User, TrendingUp, BarChart3, Search, Calendar as CalendarIcon, Image, Check, ChevronsUpDown } from "lucide-react";
+import { Plus, User, TrendingUp, BarChart3, Search, Calendar as CalendarIcon, Image, Check, ChevronsUpDown, RefreshCw } from "lucide-react";
 import {
   Command,
   CommandEmpty,
@@ -35,6 +35,7 @@ interface Brand {
   name: string;
   description: string | null;
   profile_image_url: string | null;
+  tiktok_id: string | null;
 }
 
 interface Project {
@@ -90,6 +91,7 @@ const BrandDetail = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [tiktokSyncing, setTiktokSyncing] = useState(false);
   const [reportContributors, setReportContributors] = useState<Record<string, Contributor[]>>({});
   
   
@@ -264,6 +266,37 @@ const BrandDetail = () => {
                 <p className="text-muted-foreground">{brand.description}</p>
               )}
             </div>
+            {canEdit && brand.tiktok_id && (
+              <Button
+                variant="outline"
+                className="rounded-[35px]"
+                disabled={tiktokSyncing}
+                onClick={async () => {
+                  setTiktokSyncing(true);
+                  try {
+                    const { data: sessionData } = await supabase.auth.getSession();
+                    const res = await supabase.functions.invoke("import-tiktok-ads", {
+                      body: { spaceId: brandId },
+                    });
+                    if (res.error) throw res.error;
+                    const result = res.data;
+                    if (result.error) {
+                      toast.error(result.error);
+                    } else {
+                      toast.success(`TikTok sync done: ${result.imported?.campaigns || 0} campaigns, ${result.imported?.adGroups || 0} ad groups, ${result.imported?.ads || 0} ads`);
+                    }
+                  } catch (err) {
+                    toast.error("TikTok sync failed");
+                    console.error(err);
+                  } finally {
+                    setTiktokSyncing(false);
+                  }
+                }}
+              >
+                <RefreshCw className={cn("w-4 h-4 mr-2", tiktokSyncing && "animate-spin")} />
+                {tiktokSyncing ? "Syncing TikTok..." : "Sync TikTok Ads"}
+              </Button>
+            )}
           </div>
         </div>
 
