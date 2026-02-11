@@ -1452,7 +1452,7 @@ export type Database = {
       }
       tiktok_campaigns: {
         Row: {
-          age: string | null
+          age: string
           amount_spent: number | null
           average_video_play: number | null
           average_video_play_per_user: number | null
@@ -1467,12 +1467,12 @@ export type Database = {
           ctr: number | null
           follows: number | null
           frequency: number | null
-          gender: string | null
+          gender: string
           id: string
           impressions: number | null
           interactive_addon_clicks: number | null
           likes: number | null
-          location: string | null
+          location: string
           profile_visits: number | null
           reach: number | null
           shares: number | null
@@ -1488,7 +1488,7 @@ export type Database = {
           video_watched_6s: number | null
         }
         Insert: {
-          age?: string | null
+          age?: string
           amount_spent?: number | null
           average_video_play?: number | null
           average_video_play_per_user?: number | null
@@ -1503,12 +1503,12 @@ export type Database = {
           ctr?: number | null
           follows?: number | null
           frequency?: number | null
-          gender?: string | null
+          gender?: string
           id?: string
           impressions?: number | null
           interactive_addon_clicks?: number | null
           likes?: number | null
-          location?: string | null
+          location?: string
           profile_visits?: number | null
           reach?: number | null
           shares?: number | null
@@ -1524,7 +1524,7 @@ export type Database = {
           video_watched_6s?: number | null
         }
         Update: {
-          age?: string | null
+          age?: string
           amount_spent?: number | null
           average_video_play?: number | null
           average_video_play_per_user?: number | null
@@ -1539,12 +1539,12 @@ export type Database = {
           ctr?: number | null
           follows?: number | null
           frequency?: number | null
-          gender?: string | null
+          gender?: string
           id?: string
           impressions?: number | null
           interactive_addon_clicks?: number | null
           likes?: number | null
-          location?: string | null
+          location?: string
           profile_visits?: number | null
           reach?: number | null
           shares?: number | null
