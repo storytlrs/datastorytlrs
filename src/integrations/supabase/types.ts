@@ -1067,40 +1067,35 @@ export type Database = {
         }
         Relationships: []
       }
-      tiktok_ad_demographics: {
+      tiktok_ad_groups: {
         Row: {
-          ad_id: string | null
-          adgroup_id: string | null
-          age: string | null
+          adgroup_id: string
+          adgroup_name: string | null
           amount_spent: number | null
-          average_play_time_per_user: number | null
-          average_play_time_per_view: number | null
-          campaign_id: string | null
+          average_video_play: number | null
+          average_video_play_per_user: number | null
           clicks: number | null
+          comments: number | null
           cost_per_engagement: number | null
           cpc: number | null
           cpm: number | null
           created_at: string
           ctr: number | null
+          follows: number | null
           frequency: number | null
-          gender: string | null
           id: string
           impressions: number | null
           interactive_addon_clicks: number | null
-          location: string | null
-          paid_comments: number | null
-          paid_follows: number | null
-          paid_likes: number | null
-          paid_profile_visits: number | null
-          paid_shares: number | null
+          likes: number | null
+          profile_visits: number | null
           reach: number | null
+          shares: number | null
           space_id: string
-          tiktok_ad_group_id: string | null
-          tiktok_ad_id: string | null
-          tiktok_campaign_id: string | null
+          status: string | null
+          tiktok_campaign_id: string
           updated_at: string
+          video_play_actions: number | null
           video_view_rate: number | null
-          video_views: number | null
           video_views_p100: number | null
           video_views_p25: number | null
           video_views_p50: number | null
@@ -1108,210 +1103,72 @@ export type Database = {
           video_watched_6s: number | null
         }
         Insert: {
-          ad_id?: string | null
-          adgroup_id?: string | null
-          age?: string | null
-          amount_spent?: number | null
-          average_play_time_per_user?: number | null
-          average_play_time_per_view?: number | null
-          campaign_id?: string | null
-          clicks?: number | null
-          cost_per_engagement?: number | null
-          cpc?: number | null
-          cpm?: number | null
-          created_at?: string
-          ctr?: number | null
-          frequency?: number | null
-          gender?: string | null
-          id?: string
-          impressions?: number | null
-          interactive_addon_clicks?: number | null
-          location?: string | null
-          paid_comments?: number | null
-          paid_follows?: number | null
-          paid_likes?: number | null
-          paid_profile_visits?: number | null
-          paid_shares?: number | null
-          reach?: number | null
-          space_id: string
-          tiktok_ad_group_id?: string | null
-          tiktok_ad_id?: string | null
-          tiktok_campaign_id?: string | null
-          updated_at?: string
-          video_view_rate?: number | null
-          video_views?: number | null
-          video_views_p100?: number | null
-          video_views_p25?: number | null
-          video_views_p50?: number | null
-          video_watched_2s?: number | null
-          video_watched_6s?: number | null
-        }
-        Update: {
-          ad_id?: string | null
-          adgroup_id?: string | null
-          age?: string | null
-          amount_spent?: number | null
-          average_play_time_per_user?: number | null
-          average_play_time_per_view?: number | null
-          campaign_id?: string | null
-          clicks?: number | null
-          cost_per_engagement?: number | null
-          cpc?: number | null
-          cpm?: number | null
-          created_at?: string
-          ctr?: number | null
-          frequency?: number | null
-          gender?: string | null
-          id?: string
-          impressions?: number | null
-          interactive_addon_clicks?: number | null
-          location?: string | null
-          paid_comments?: number | null
-          paid_follows?: number | null
-          paid_likes?: number | null
-          paid_profile_visits?: number | null
-          paid_shares?: number | null
-          reach?: number | null
-          space_id?: string
-          tiktok_ad_group_id?: string | null
-          tiktok_ad_id?: string | null
-          tiktok_campaign_id?: string | null
-          updated_at?: string
-          video_view_rate?: number | null
-          video_views?: number | null
-          video_views_p100?: number | null
-          video_views_p25?: number | null
-          video_views_p50?: number | null
-          video_watched_2s?: number | null
-          video_watched_6s?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "tiktok_ad_demographics_space_id_fkey"
-            columns: ["space_id"]
-            isOneToOne: false
-            referencedRelation: "spaces"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "tiktok_ad_demographics_tiktok_ad_group_id_fkey"
-            columns: ["tiktok_ad_group_id"]
-            isOneToOne: false
-            referencedRelation: "tiktok_ad_groups"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "tiktok_ad_demographics_tiktok_ad_id_fkey"
-            columns: ["tiktok_ad_id"]
-            isOneToOne: false
-            referencedRelation: "tiktok_ads"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "tiktok_ad_demographics_tiktok_campaign_id_fkey"
-            columns: ["tiktok_campaign_id"]
-            isOneToOne: false
-            referencedRelation: "tiktok_campaigns"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      tiktok_ad_groups: {
-        Row: {
-          adgroup_id: string
-          adgroup_name: string | null
-          amount_spent: number | null
-          clicks: number | null
-          comments: number | null
-          cost_per_3s_play: number | null
-          cost_per_thruplay: number | null
-          cpc: number | null
-          cpe: number | null
-          cpm: number | null
-          created_at: string
-          ctr: number | null
-          date_start: string | null
-          date_stop: string | null
-          engagement_rate: number | null
-          follows: number | null
-          frequency: number | null
-          id: string
-          impressions: number | null
-          likes: number | null
-          reach: number | null
-          shares: number | null
-          space_id: string
-          status: string | null
-          thruplay_rate: number | null
-          thruplays: number | null
-          tiktok_campaign_id: string
-          updated_at: string
-          video_3s_plays: number | null
-          view_rate_3s: number | null
-        }
-        Insert: {
           adgroup_id: string
           adgroup_name?: string | null
           amount_spent?: number | null
+          average_video_play?: number | null
+          average_video_play_per_user?: number | null
           clicks?: number | null
           comments?: number | null
-          cost_per_3s_play?: number | null
-          cost_per_thruplay?: number | null
+          cost_per_engagement?: number | null
           cpc?: number | null
-          cpe?: number | null
           cpm?: number | null
           created_at?: string
           ctr?: number | null
-          date_start?: string | null
-          date_stop?: string | null
-          engagement_rate?: number | null
           follows?: number | null
           frequency?: number | null
           id?: string
           impressions?: number | null
+          interactive_addon_clicks?: number | null
           likes?: number | null
+          profile_visits?: number | null
           reach?: number | null
           shares?: number | null
           space_id: string
           status?: string | null
-          thruplay_rate?: number | null
-          thruplays?: number | null
           tiktok_campaign_id: string
           updated_at?: string
-          video_3s_plays?: number | null
-          view_rate_3s?: number | null
+          video_play_actions?: number | null
+          video_view_rate?: number | null
+          video_views_p100?: number | null
+          video_views_p25?: number | null
+          video_views_p50?: number | null
+          video_watched_2s?: number | null
+          video_watched_6s?: number | null
         }
         Update: {
           adgroup_id?: string
           adgroup_name?: string | null
           amount_spent?: number | null
+          average_video_play?: number | null
+          average_video_play_per_user?: number | null
           clicks?: number | null
           comments?: number | null
-          cost_per_3s_play?: number | null
-          cost_per_thruplay?: number | null
+          cost_per_engagement?: number | null
           cpc?: number | null
-          cpe?: number | null
           cpm?: number | null
           created_at?: string
           ctr?: number | null
-          date_start?: string | null
-          date_stop?: string | null
-          engagement_rate?: number | null
           follows?: number | null
           frequency?: number | null
           id?: string
           impressions?: number | null
+          interactive_addon_clicks?: number | null
           likes?: number | null
+          profile_visits?: number | null
           reach?: number | null
           shares?: number | null
           space_id?: string
           status?: string | null
-          thruplay_rate?: number | null
-          thruplays?: number | null
           tiktok_campaign_id?: string
           updated_at?: string
-          video_3s_plays?: number | null
-          view_rate_3s?: number | null
+          video_play_actions?: number | null
+          video_view_rate?: number | null
+          video_views_p100?: number | null
+          video_views_p25?: number | null
+          video_views_p50?: number | null
+          video_watched_2s?: number | null
+          video_watched_6s?: number | null
         }
         Relationships: [
           {
@@ -1335,103 +1192,109 @@ export type Database = {
           ad_id: string
           ad_name: string | null
           amount_spent: number | null
+          average_video_play: number | null
+          average_video_play_per_user: number | null
           clicks: number | null
           comments: number | null
-          cost_per_3s_play: number | null
-          cost_per_thruplay: number | null
+          cost_per_engagement: number | null
           cpc: number | null
-          cpe: number | null
           cpm: number | null
           created_at: string
           ctr: number | null
-          date_start: string | null
-          date_stop: string | null
-          engagement_rate: number | null
           follows: number | null
           frequency: number | null
           id: string
           impressions: number | null
+          interactive_addon_clicks: number | null
           likes: number | null
           link_clicks: number | null
+          profile_visits: number | null
           reach: number | null
           shares: number | null
           space_id: string
           status: string | null
-          thruplay_rate: number | null
-          thruplays: number | null
           thumbnail_url: string | null
           tiktok_ad_group_id: string
           updated_at: string
-          video_3s_plays: number | null
-          view_rate_3s: number | null
+          video_play_actions: number | null
+          video_view_rate: number | null
+          video_views_p100: number | null
+          video_views_p25: number | null
+          video_views_p50: number | null
+          video_watched_2s: number | null
+          video_watched_6s: number | null
         }
         Insert: {
           ad_id: string
           ad_name?: string | null
           amount_spent?: number | null
+          average_video_play?: number | null
+          average_video_play_per_user?: number | null
           clicks?: number | null
           comments?: number | null
-          cost_per_3s_play?: number | null
-          cost_per_thruplay?: number | null
+          cost_per_engagement?: number | null
           cpc?: number | null
-          cpe?: number | null
           cpm?: number | null
           created_at?: string
           ctr?: number | null
-          date_start?: string | null
-          date_stop?: string | null
-          engagement_rate?: number | null
           follows?: number | null
           frequency?: number | null
           id?: string
           impressions?: number | null
+          interactive_addon_clicks?: number | null
           likes?: number | null
           link_clicks?: number | null
+          profile_visits?: number | null
           reach?: number | null
           shares?: number | null
           space_id: string
           status?: string | null
-          thruplay_rate?: number | null
-          thruplays?: number | null
           thumbnail_url?: string | null
           tiktok_ad_group_id: string
           updated_at?: string
-          video_3s_plays?: number | null
-          view_rate_3s?: number | null
+          video_play_actions?: number | null
+          video_view_rate?: number | null
+          video_views_p100?: number | null
+          video_views_p25?: number | null
+          video_views_p50?: number | null
+          video_watched_2s?: number | null
+          video_watched_6s?: number | null
         }
         Update: {
           ad_id?: string
           ad_name?: string | null
           amount_spent?: number | null
+          average_video_play?: number | null
+          average_video_play_per_user?: number | null
           clicks?: number | null
           comments?: number | null
-          cost_per_3s_play?: number | null
-          cost_per_thruplay?: number | null
+          cost_per_engagement?: number | null
           cpc?: number | null
-          cpe?: number | null
           cpm?: number | null
           created_at?: string
           ctr?: number | null
-          date_start?: string | null
-          date_stop?: string | null
-          engagement_rate?: number | null
           follows?: number | null
           frequency?: number | null
           id?: string
           impressions?: number | null
+          interactive_addon_clicks?: number | null
           likes?: number | null
           link_clicks?: number | null
+          profile_visits?: number | null
           reach?: number | null
           shares?: number | null
           space_id?: string
           status?: string | null
-          thruplay_rate?: number | null
-          thruplays?: number | null
           thumbnail_url?: string | null
           tiktok_ad_group_id?: string
           updated_at?: string
-          video_3s_plays?: number | null
-          view_rate_3s?: number | null
+          video_play_actions?: number | null
+          video_view_rate?: number | null
+          video_views_p100?: number | null
+          video_views_p25?: number | null
+          video_views_p50?: number | null
+          video_watched_2s?: number | null
+          video_watched_6s?: number | null
         }
         Relationships: [
           {
