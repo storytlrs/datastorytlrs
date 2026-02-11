@@ -92,7 +92,6 @@ const BrandDetail = () => {
   const [loading, setLoading] = useState(true);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [tiktokSyncing, setTiktokSyncing] = useState(false);
-  const [tiktokCampaignId, setTiktokCampaignId] = useState("");
   const [reportContributors, setReportContributors] = useState<Record<string, Contributor[]>>({});
   
   
@@ -268,42 +267,34 @@ const BrandDetail = () => {
               )}
             </div>
             {canEdit && brand.tiktok_id && (
-              <div className="flex items-center gap-2">
-                <Input
-                  placeholder="TikTok Campaign ID"
-                  value={tiktokCampaignId}
-                  onChange={(e) => setTiktokCampaignId(e.target.value)}
-                  className="w-[220px] rounded-[35px]"
-                />
-                <Button
-                  variant="outline"
-                  className="rounded-[35px]"
-                  disabled={tiktokSyncing || !tiktokCampaignId.trim()}
-                  onClick={async () => {
-                    setTiktokSyncing(true);
-                    try {
-                      const res = await supabase.functions.invoke("import-tiktok-ads", {
-                        body: { spaceId: brandId, campaignId: tiktokCampaignId.trim() },
-                      });
-                      if (res.error) throw res.error;
-                      const result = res.data;
-                      if (result.error) {
-                        toast.error(result.error);
-                      } else {
-                        toast.success(`TikTok campaign "${result.campaign?.campaign_name}" synced successfully`);
-                      }
-                    } catch (err) {
-                      toast.error("TikTok sync failed");
-                      console.error(err);
-                    } finally {
-                      setTiktokSyncing(false);
+              <Button
+                variant="outline"
+                className="rounded-[35px]"
+                disabled={tiktokSyncing}
+                onClick={async () => {
+                  setTiktokSyncing(true);
+                  try {
+                    const res = await supabase.functions.invoke("import-tiktok-ads", {
+                      body: { spaceId: brandId },
+                    });
+                    if (res.error) throw res.error;
+                    const result = res.data;
+                    if (result.error) {
+                      toast.error(result.error);
+                    } else {
+                      toast.success(`Synced ${result.campaigns_imported} campaigns, ${result.ad_groups_imported} ad groups, ${result.ads_imported} ads`);
                     }
-                  }}
-                >
-                  <RefreshCw className={cn("w-4 h-4 mr-2", tiktokSyncing && "animate-spin")} />
-                  {tiktokSyncing ? "Syncing..." : "Sync TikTok Campaign"}
-                </Button>
-              </div>
+                  } catch (err) {
+                    toast.error("TikTok sync failed");
+                    console.error(err);
+                  } finally {
+                    setTiktokSyncing(false);
+                  }
+                }}
+              >
+                <RefreshCw className={cn("w-4 h-4 mr-2", tiktokSyncing && "animate-spin")} />
+                {tiktokSyncing ? "Syncing..." : "Sync TikTok"}
+              </Button>
             )}
           </div>
         </div>
