@@ -23,6 +23,34 @@ const num = (v?: string): number => {
   return Number.isFinite(n) ? n : 0;
 };
 
+const computeEngagement = (m: Record<string, string>) => {
+  const likes = num(m.likes);
+  const comments = num(m.comments);
+  const shares = num(m.shares);
+  const total = likes + comments + shares;
+  const spend = num(m.spend);
+  return {
+    likes, comments, shares,
+    cost_per_engagement: total > 0 ? spend / total : 0,
+  };
+};
+
+const computeVideoMetrics = (m: Record<string, string>) => {
+  const impressions = num(m.impressions);
+  const videoPlayActions = num(m.video_play_actions);
+  return {
+    video_play_actions: videoPlayActions,
+    video_view_rate: impressions > 0 ? (videoPlayActions / impressions) * 100 : 0,
+    video_watched_2s: num(m.video_watched_2s),
+    video_watched_6s: num(m.video_watched_6s),
+    video_views_p25: num(m.video_views_p25),
+    video_views_p50: num(m.video_views_p50),
+    video_views_p100: num(m.video_views_p100),
+    average_video_play: num(m.average_video_play),
+    average_video_play_per_user: num(m.average_video_play_per_user),
+  };
+};
+
 const fetchTikTokReport = async (
   accessToken: string,
   advertiserId: string,
@@ -30,14 +58,10 @@ const fetchTikTokReport = async (
 ): Promise<unknown> => {
   const url = new URL(`${TIKTOK_API_BASE}/report/integrated/get/`);
   url.searchParams.set("advertiser_id", advertiserId);
-  
-  // TikTok report API uses GET with JSON-encoded params as query strings
   for (const [key, value] of Object.entries(params)) {
     url.searchParams.set(key, typeof value === "string" ? value : JSON.stringify(value));
   }
-
   console.log("TikTok report request URL:", url.toString().substring(0, 300));
-
   const response = await fetch(url.toString(), {
     method: "GET",
     headers: { "Access-Token": accessToken },
@@ -45,9 +69,7 @@ const fetchTikTokReport = async (
   const text = await response.text();
   console.log("TikTok report response status:", response.status, "body preview:", text.substring(0, 500));
   let data;
-  try {
-    data = JSON.parse(text);
-  } catch {
+  try { data = JSON.parse(text); } catch {
     throw new Error(`TikTok API returned non-JSON response: ${text.substring(0, 200)}`);
   }
   if (data.code !== 0) {
@@ -85,8 +107,7 @@ Deno.serve(async (req) => {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -100,22 +121,15 @@ Deno.serve(async (req) => {
     const { data: userData, error: authError } = await supabase.auth.getUser(token);
     if (authError || !userData?.user) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const { spaceId, campaignId, startDate, endDate } = await req.json();
 
-    if (!spaceId) {
+    if (!spaceId || !campaignId) {
       return new Response(
-        JSON.stringify({ error: "spaceId is required" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-    if (!campaignId) {
-      return new Response(
-        JSON.stringify({ error: "campaignId is required" }),
+        JSON.stringify({ error: "spaceId and campaignId are required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -124,10 +138,7 @@ Deno.serve(async (req) => {
     const resolvedEndDate = endDate || new Date().toISOString().split("T")[0];
 
     const { data: space, error: spaceError } = await supabase
-      .from("spaces")
-      .select("tiktok_id")
-      .eq("id", spaceId)
-      .single();
+      .from("spaces").select("tiktok_id").eq("id", spaceId).single();
 
     if (spaceError || !space?.tiktok_id) {
       return new Response(
@@ -145,13 +156,23 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Step 1: Fetch campaign info
+    const filteringByCampaign = [
+      { field_name: "campaign_ids", filter_type: "IN", filter_value: JSON.stringify([campaignId]) },
+    ];
+    const reportParams = {
+      start_date: resolvedStartDate,
+      end_date: resolvedEndDate,
+      page: 1,
+      page_size: 1000,
+    };
+
+    // ── Step 1: Campaign info & report ──
     console.log(`Fetching TikTok campaign ${campaignId} for advertiser: ${advertiserId}`);
     const campaignsData = (await fetchTikTokGet("/campaign/get/", tiktokAccessToken, {
       advertiser_id: advertiserId,
       filtering: JSON.stringify({ campaign_ids: [campaignId] }),
       page_size: 10,
-    })) as { list: Array<{ campaign_id: string; campaign_name: string; status: string; objective_type?: string; budget?: number; budget_mode?: string }> };
+    })) as { list: Array<{ campaign_id: string; campaign_name: string; status: string }> };
 
     const campaign = campaignsData?.list?.[0];
     if (!campaign) {
@@ -161,92 +182,179 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Step 2: Fetch campaign-level reporting with filtering
-    console.log(`Fetching report for campaign ${campaignId}`);
-    const reportData = (await fetchTikTokReport(tiktokAccessToken, advertiserId, {
-      report_type: "BASIC",
-      data_level: "AUCTION_CAMPAIGN",
-      dimensions: ["campaign_id"],
-      metrics: REPORT_METRICS,
-      filtering: [
-        {
-          field_name: "campaign_ids",
-          filter_type: "IN",
-          filter_value: JSON.stringify([campaignId]),
-        },
-      ],
-      start_date: resolvedStartDate,
-      end_date: resolvedEndDate,
-      page: 1,
-      page_size: 1000,
+    const campaignReport = (await fetchTikTokReport(tiktokAccessToken, advertiserId, {
+      report_type: "BASIC", data_level: "AUCTION_CAMPAIGN", dimensions: ["campaign_id"],
+      metrics: REPORT_METRICS, filtering: filteringByCampaign, ...reportParams,
     })) as { list: Array<{ dimensions: { campaign_id: string }; metrics: Record<string, string> }> };
 
-    const m = reportData?.list?.[0]?.metrics || {};
+    const cm = campaignReport?.list?.[0]?.metrics || {};
+    const cEng = computeEngagement(cm);
+    const cVid = computeVideoMetrics(cm);
 
-    const impressions = num(m.impressions);
-    const videoPlayActions = num(m.video_play_actions);
-    const spend = num(m.spend);
-    const paidLikes = num(m.likes);
-    const paidComments = num(m.comments);
-    const paidShares = num(m.shares);
-    const totalPaidEng = paidLikes + paidComments + paidShares;
-
-    const campaignRecord = {
-      space_id: spaceId,
-      campaign_id: String(campaignId),
-      campaign_name: campaign.campaign_name,
-      status: campaign.status,
-      amount_spent: spend,
-      reach: num(m.reach),
-      impressions,
-      frequency: num(m.frequency),
-      cpm: num(m.cpm),
-      cpc: num(m.cpc),
-      ctr: num(m.ctr),
-      clicks: num(m.clicks),
-      video_play_actions: videoPlayActions,
-      video_view_rate: impressions > 0 ? (videoPlayActions / impressions) * 100 : 0,
-      video_watched_2s: num(m.video_watched_2s),
-      video_watched_6s: num(m.video_watched_6s),
-      video_views_p25: num(m.video_views_p25),
-      video_views_p50: num(m.video_views_p50),
-      video_views_p100: num(m.video_views_p100),
-      average_video_play: num(m.average_video_play),
-      average_video_play_per_user: num(m.average_video_play_per_user),
-      likes: paidLikes,
-      comments: paidComments,
-      shares: paidShares,
-      profile_visits: num(m.profile_visits),
-      follows: num(m.follows),
-      interactive_addon_clicks: num(m.interactive_add_on_destination_clicks),
-      cost_per_engagement: totalPaidEng > 0 ? spend / totalPaidEng : 0,
-      age: "",
-      gender: "",
-      location: "",
-    };
-
-    const { error: upsertError } = await supabase
+    const { error: upsertCampaignErr } = await supabase
       .from("tiktok_campaigns")
-      .upsert(campaignRecord, { onConflict: "space_id,campaign_id,age,gender,location" });
+      .upsert({
+        space_id: spaceId, campaign_id: String(campaignId),
+        campaign_name: campaign.campaign_name, status: campaign.status,
+        amount_spent: num(cm.spend), reach: num(cm.reach), impressions: num(cm.impressions),
+        frequency: num(cm.frequency), cpm: num(cm.cpm), cpc: num(cm.cpc),
+        ctr: num(cm.ctr), clicks: num(cm.clicks),
+        ...cVid, ...cEng,
+        profile_visits: num(cm.profile_visits), follows: num(cm.follows),
+        interactive_addon_clicks: num(cm.interactive_add_on_destination_clicks),
+        age: "", gender: "", location: "",
+      }, { onConflict: "space_id,campaign_id,age,gender,location" });
 
-    if (upsertError) {
-      console.error("Upsert error:", upsertError);
-      return new Response(
-        JSON.stringify({ error: upsertError.message }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    if (upsertCampaignErr) {
+      console.error("Campaign upsert error:", upsertCampaignErr);
+      throw new Error(upsertCampaignErr.message);
+    }
+
+    // Get the tiktok_campaigns row id for FK
+    const { data: campaignRow } = await supabase
+      .from("tiktok_campaigns")
+      .select("id")
+      .eq("space_id", spaceId)
+      .eq("campaign_id", String(campaignId))
+      .eq("age", "").eq("gender", "").eq("location", "")
+      .single();
+
+    const tiktokCampaignId = campaignRow?.id;
+
+    // ── Step 2: Ad Groups ──
+    let adGroupCount = 0;
+    if (tiktokCampaignId) {
+      console.log(`Fetching ad groups for campaign ${campaignId}`);
+      const adGroupReport = (await fetchTikTokReport(tiktokAccessToken, advertiserId, {
+        report_type: "BASIC", data_level: "AUCTION_ADGROUP", dimensions: ["adgroup_id"],
+        metrics: REPORT_METRICS, filtering: filteringByCampaign, ...reportParams,
+      })) as { list: Array<{ dimensions: { adgroup_id: string }; metrics: Record<string, string> }> };
+
+      const adGroupIds: string[] = [];
+      for (const row of adGroupReport?.list || []) {
+        const agId = row.dimensions.adgroup_id;
+        const m = row.metrics;
+        const eng = computeEngagement(m);
+        const vid = computeVideoMetrics(m);
+
+        const { error: agErr } = await supabase
+          .from("tiktok_ad_groups")
+          .upsert({
+            space_id: spaceId, tiktok_campaign_id: tiktokCampaignId,
+            adgroup_id: agId, adgroup_name: agId, status: null,
+            amount_spent: num(m.spend), reach: num(m.reach), impressions: num(m.impressions),
+            frequency: num(m.frequency), cpm: num(m.cpm), cpc: num(m.cpc),
+            ctr: num(m.ctr), clicks: num(m.clicks),
+            ...vid, ...eng,
+            profile_visits: num(m.profile_visits), follows: num(m.follows),
+            interactive_addon_clicks: num(m.interactive_add_on_destination_clicks),
+          }, { onConflict: "space_id,adgroup_id" });
+
+        if (agErr) console.error(`Ad group ${agId} upsert error:`, agErr);
+        else { adGroupIds.push(agId); adGroupCount++; }
+      }
+
+      // Fetch ad group names
+      if (adGroupIds.length > 0) {
+        try {
+          const agInfo = (await fetchTikTokGet("/adgroup/get/", tiktokAccessToken, {
+            advertiser_id: advertiserId,
+            filtering: JSON.stringify({ campaign_ids: [campaignId] }),
+            page_size: 1000,
+          })) as { list: Array<{ adgroup_id: string; adgroup_name: string; status: string }> };
+
+          for (const ag of agInfo?.list || []) {
+            await supabase
+              .from("tiktok_ad_groups")
+              .update({ adgroup_name: ag.adgroup_name, status: ag.status })
+              .eq("space_id", spaceId)
+              .eq("adgroup_id", String(ag.adgroup_id));
+          }
+        } catch (e) { console.error("Failed to fetch ad group names:", e); }
+      }
+
+      // ── Step 3: Ads ──
+      let adCount = 0;
+      console.log(`Fetching ads for campaign ${campaignId}`);
+      const adReport = (await fetchTikTokReport(tiktokAccessToken, advertiserId, {
+        report_type: "BASIC", data_level: "AUCTION_AD", dimensions: ["ad_id"],
+        metrics: REPORT_METRICS, filtering: filteringByCampaign, ...reportParams,
+      })) as { list: Array<{ dimensions: { ad_id: string }; metrics: Record<string, string> }> };
+
+      // We need ad_id → adgroup_id mapping from ad/get
+      const adInfoMap = new Map<string, { ad_name: string; adgroup_id: string; status: string }>();
+      try {
+        const adInfo = (await fetchTikTokGet("/ad/get/", tiktokAccessToken, {
+          advertiser_id: advertiserId,
+          filtering: JSON.stringify({ campaign_ids: [campaignId] }),
+          page_size: 1000,
+        })) as { list: Array<{ ad_id: string; ad_name: string; adgroup_id: string; status: string }> };
+
+        for (const ad of adInfo?.list || []) {
+          adInfoMap.set(String(ad.ad_id), {
+            ad_name: ad.ad_name,
+            adgroup_id: String(ad.adgroup_id),
+            status: ad.status,
+          });
+        }
+      } catch (e) { console.error("Failed to fetch ad info:", e); }
+
+      for (const row of adReport?.list || []) {
+        const adId = row.dimensions.ad_id;
+        const m = row.metrics;
+        const eng = computeEngagement(m);
+        const vid = computeVideoMetrics(m);
+        const info = adInfoMap.get(adId);
+
+        // Find parent ad group id
+        let parentAdGroupId: string | null = null;
+        if (info?.adgroup_id) {
+          const { data: agRow } = await supabase
+            .from("tiktok_ad_groups")
+            .select("id")
+            .eq("space_id", spaceId)
+            .eq("adgroup_id", info.adgroup_id)
+            .single();
+          parentAdGroupId = agRow?.id || null;
+        }
+
+        if (!parentAdGroupId) {
+          console.warn(`Skipping ad ${adId}: no parent ad group found`);
+          continue;
+        }
+
+        const { error: adErr } = await supabase
+          .from("tiktok_ads")
+          .upsert({
+            space_id: spaceId, tiktok_ad_group_id: parentAdGroupId,
+            ad_id: adId, ad_name: info?.ad_name || adId, status: info?.status || null,
+            amount_spent: num(m.spend), reach: num(m.reach), impressions: num(m.impressions),
+            frequency: num(m.frequency), cpm: num(m.cpm), cpc: num(m.cpc),
+            ctr: num(m.ctr), clicks: num(m.clicks),
+            ...vid, ...eng,
+            profile_visits: num(m.profile_visits), follows: num(m.follows),
+            interactive_addon_clicks: num(m.interactive_add_on_destination_clicks),
+            link_clicks: num(m.clicks),
+          }, { onConflict: "space_id,ad_id" });
+
+        if (adErr) console.error(`Ad ${adId} upsert error:`, adErr);
+        else adCount++;
+      }
+
+      console.log(`Imported ${adGroupCount} ad groups, ${adCount} ads`);
     }
 
     return new Response(
       JSON.stringify({
         success: true,
         campaign: {
-          campaign_id: campaignRecord.campaign_id,
-          campaign_name: campaignRecord.campaign_name,
-          amount_spent: campaignRecord.amount_spent,
-          impressions: campaignRecord.impressions,
-          reach: campaignRecord.reach,
+          campaign_id: String(campaignId),
+          campaign_name: campaign.campaign_name,
+          amount_spent: num(cm.spend),
+          impressions: num(cm.impressions),
+          reach: num(cm.reach),
         },
+        ad_groups_imported: adGroupCount,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
