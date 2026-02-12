@@ -225,20 +225,68 @@ const importCampaign = async (
   })) as { list: Array<{ dimensions: { ad_id: string }; metrics: Record<string, string> }> };
 
   // Ad info mapping
-  const adInfoMap = new Map<string, { ad_name: string; adgroup_id: string; status: string }>();
+  const adInfoMap = new Map<string, { ad_name: string; adgroup_id: string; status: string; thumbnail_url: string | null }>();
   try {
     const adInfo = (await fetchTikTokGet("/ad/get/", tiktokAccessToken, {
       advertiser_id: advertiserId,
       filtering: JSON.stringify({ campaign_ids: [campaignId] }),
       page_size: 1000,
-    })) as { list: Array<{ ad_id: string; ad_name: string; adgroup_id: string; status: string }> };
+    })) as { list: Array<{ ad_id: string; ad_name: string; adgroup_id: string; status: string; video_id?: string; image_ids?: string[] }> };
 
+    // Collect video IDs for thumbnail fetching
+    const videoIdToAdIds = new Map<string, string[]>();
     for (const ad of adInfo?.list || []) {
-      adInfoMap.set(String(ad.ad_id), {
+      const adIdStr = String(ad.ad_id);
+      adInfoMap.set(adIdStr, {
         ad_name: ad.ad_name,
         adgroup_id: String(ad.adgroup_id),
         status: ad.status,
+        thumbnail_url: null,
       });
+      if (ad.video_id) {
+        const existing = videoIdToAdIds.get(ad.video_id) || [];
+        existing.push(adIdStr);
+        videoIdToAdIds.set(ad.video_id, existing);
+      }
+    }
+
+    // Fetch video poster URLs in batch
+    if (videoIdToAdIds.size > 0) {
+      try {
+        const videoIds = Array.from(videoIdToAdIds.keys());
+        const videoInfo = (await fetchTikTokGet("/file/video/ad/info/", tiktokAccessToken, {
+          advertiser_id: advertiserId,
+          video_ids: JSON.stringify(videoIds.slice(0, 60)),
+        })) as { list: Array<{ video_id: string; poster_url?: string; preview_url?: string }> };
+
+        for (const video of videoInfo?.list || []) {
+          const posterUrl = video.poster_url || video.preview_url || null;
+          if (posterUrl) {
+            const relatedAdIds = videoIdToAdIds.get(String(video.video_id)) || [];
+            for (const adId of relatedAdIds) {
+              const info = adInfoMap.get(adId);
+              if (info) info.thumbnail_url = posterUrl;
+            }
+          }
+        }
+        console.log(`Fetched ${videoInfo?.list?.length || 0} video thumbnails`);
+      } catch (e) { console.error("Failed to fetch video thumbnails:", e); }
+    }
+
+    // For image ads, try to get image URLs
+    for (const ad of adInfo?.list || []) {
+      const adIdStr = String(ad.ad_id);
+      const info = adInfoMap.get(adIdStr);
+      if (info && !info.thumbnail_url && ad.image_ids?.length) {
+        try {
+          const imgInfo = (await fetchTikTokGet("/file/image/ad/info/", tiktokAccessToken, {
+            advertiser_id: advertiserId,
+            image_ids: JSON.stringify(ad.image_ids.slice(0, 1)),
+          })) as { list: Array<{ image_id: string; image_url?: string }> };
+          const imgUrl = imgInfo?.list?.[0]?.image_url;
+          if (imgUrl) info.thumbnail_url = imgUrl;
+        } catch (_) { /* skip */ }
+      }
     }
   } catch (e) { console.error("Failed to fetch ad info:", e); }
 
@@ -270,6 +318,7 @@ const importCampaign = async (
       .upsert({
         space_id: spaceId, tiktok_ad_group_id: parentAdGroupId,
         ad_id: adId, ad_name: info?.ad_name || adId, status: info?.status || null,
+        thumbnail_url: info?.thumbnail_url || null,
         amount_spent: num(m.spend), reach: num(m.reach), impressions: num(m.impressions),
         frequency: num(m.frequency), cpm: num(m.cpm), cpc: num(m.cpc),
         ctr: num(m.ctr), clicks: num(m.clicks),
