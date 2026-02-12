@@ -227,11 +227,13 @@ const importCampaign = async (
   // Ad info mapping
   const adInfoMap = new Map<string, { ad_name: string; adgroup_id: string; status: string; thumbnail_url: string | null }>();
   try {
+    console.log(`Fetching ad info for campaign ${campaignId} via /ad/get/`);
     const adInfo = (await fetchTikTokGet("/ad/get/", tiktokAccessToken, {
       advertiser_id: advertiserId,
       filtering: JSON.stringify({ campaign_ids: [campaignId] }),
       page_size: 1000,
     })) as { list: Array<{ ad_id: string; ad_name: string; adgroup_id: string; status: string; video_id?: string; image_ids?: string[] }> };
+    console.log(`Ad info response: ${adInfo?.list?.length || 0} ads, sample:`, JSON.stringify(adInfo?.list?.[0])?.substring(0, 300));
 
     // Collect video IDs for thumbnail fetching
     const videoIdToAdIds = new Map<string, string[]>();
@@ -272,7 +274,7 @@ const importCampaign = async (
               }
             }
           }
-          console.log(`Fetched batch ${i / 50 + 1}: ${videoInfo?.list?.length || 0} video thumbnails`);
+          console.log(`Fetched video batch ${i / 50 + 1}: ${videoInfo?.list?.length || 0} videos, sample:`, JSON.stringify(videoInfo?.list?.[0])?.substring(0, 300));
         }
       } catch (e) { console.error("Failed to fetch video thumbnails:", e); }
     }
@@ -292,7 +294,9 @@ const importCampaign = async (
         } catch (_) { /* skip */ }
       }
     }
-  } catch (e) { console.error("Failed to fetch ad info:", e); }
+  } catch (e) { console.error("Failed to fetch ad info for campaign", campaignId, ":", e); }
+
+  console.log(`Ad info map for campaign ${campaignId}: ${adInfoMap.size} ads, thumbnails: ${Array.from(adInfoMap.values()).filter(v => v.thumbnail_url).length}`);
 
   for (const row of adReport?.list || []) {
     const adId = row.dimensions.ad_id;
