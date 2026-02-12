@@ -374,7 +374,7 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const { spaceId, campaignId, startDate, endDate } = await req.json();
+    const { spaceId, campaignId, startDate, endDate, listOnly } = await req.json();
 
     if (!spaceId) {
       return new Response(
@@ -449,6 +449,21 @@ Deno.serve(async (req) => {
     if (campaignsToImport.length === 0) {
       return new Response(
         JSON.stringify({ success: true, campaigns_imported: 0, message: "No campaigns found" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // If listOnly mode, return just the campaign list without importing
+    if (listOnly) {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          campaigns: campaignsToImport.map(c => ({
+            campaign_id: String(c.campaign_id),
+            campaign_name: c.campaign_name,
+            status: c.status,
+          })),
+        }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }

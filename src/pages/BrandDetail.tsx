@@ -92,6 +92,7 @@ const BrandDetail = () => {
   const [loading, setLoading] = useState(true);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [tiktokSyncing, setTiktokSyncing] = useState(false);
+  const [syncProgress, setSyncProgress] = useState<{ current: number; total: number; campaignName: string } | null>(null);
   const [reportContributors, setReportContributors] = useState<Record<string, Contributor[]>>({});
   
   
@@ -273,40 +274,77 @@ const BrandDetail = () => {
                 disabled={tiktokSyncing}
                 onClick={async () => {
                   setTiktokSyncing(true);
+                  setSyncProgress(null);
                   try {
                     const session = (await supabase.auth.getSession()).data.session;
-                    const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 5 * 60 * 1000);
-                    const response = await fetch(
-                      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/import-tiktok-ads`,
-                      {
-                        method: "POST",
-                        headers: {
-                          "Content-Type": "application/json",
-                          "Authorization": `Bearer ${session?.access_token}`,
-                          "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-                        },
-                        body: JSON.stringify({ spaceId: brandId }),
-                        signal: controller.signal,
-                      }
-                    );
-                    clearTimeout(timeoutId);
-                    const result = await response.json();
-                    if (!response.ok || result.error) {
-                      toast.error(result.error || "TikTok sync failed");
-                    } else {
-                      toast.success(`Synced ${result.campaigns_imported} campaigns, ${result.ad_groups_imported} ad groups, ${result.ads_imported} ads`);
+                    const headers = {
+                      "Content-Type": "application/json",
+                      "Authorization": `Bearer ${session?.access_token}`,
+                      "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+                    };
+                    const fnUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/import-tiktok-ads`;
+
+                    // Step 1: Get campaign list
+                    const listRes = await fetch(fnUrl, {
+                      method: "POST",
+                      headers,
+                      body: JSON.stringify({ spaceId: brandId, listOnly: true }),
+                    });
+                    const listData = await listRes.json();
+                    if (!listRes.ok || listData.error) {
+                      toast.error(listData.error || "Failed to fetch campaigns");
+                      return;
                     }
+
+                    const campaigns = listData.campaigns || [];
+                    if (campaigns.length === 0) {
+                      toast.info("No TikTok campaigns found");
+                      return;
+                    }
+
+                    // Step 2: Import each campaign individually
+                    let totalAdGroups = 0;
+                    let totalAds = 0;
+                    let successCount = 0;
+
+                    for (let i = 0; i < campaigns.length; i++) {
+                      const c = campaigns[i];
+                      setSyncProgress({ current: i + 1, total: campaigns.length, campaignName: c.campaign_name });
+                      try {
+                        const res = await fetch(fnUrl, {
+                          method: "POST",
+                          headers,
+                          body: JSON.stringify({ spaceId: brandId, campaignId: c.campaign_id }),
+                        });
+                        const data = await res.json();
+                        if (res.ok && !data.error) {
+                          totalAdGroups += data.ad_groups_imported || 0;
+                          totalAds += data.ads_imported || 0;
+                          successCount++;
+                        } else {
+                          console.error(`Campaign ${c.campaign_id} failed:`, data.error);
+                        }
+                      } catch (e) {
+                        console.error(`Campaign ${c.campaign_id} error:`, e);
+                      }
+                    }
+
+                    toast.success(`Synced ${successCount} campaigns, ${totalAdGroups} ad groups, ${totalAds} ads`);
                   } catch (err) {
                     toast.error("TikTok sync failed");
                     console.error(err);
                   } finally {
                     setTiktokSyncing(false);
+                    setSyncProgress(null);
                   }
                 }}
               >
                 <RefreshCw className={cn("w-4 h-4 mr-2", tiktokSyncing && "animate-spin")} />
-                {tiktokSyncing ? "Syncing..." : "Sync TikTok"}
+                {syncProgress
+                  ? `Syncing ${syncProgress.current}/${syncProgress.total}: ${syncProgress.campaignName}`
+                  : tiktokSyncing
+                    ? "Loading campaigns..."
+                    : "Sync TikTok"}
               </Button>
             )}
           </div>
