@@ -440,7 +440,7 @@ const BrandAdsDashboard = ({ spaceId, filters }: BrandAdsDashboardProps) => {
           {/* Bar Chart */}
           <Card className="p-6 rounded-[35px] border-foreground">
             <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-              <h3 className="text-lg font-semibold">Campaign Performance</h3>
+              <h3 className="text-lg font-semibold">Top 10 Campaign Performance</h3>
               <div className="flex flex-wrap gap-2">
                 {(Object.keys(metricLabels) as MetricKey[]).map((key) => (
                   <Button
