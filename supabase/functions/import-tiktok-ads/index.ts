@@ -248,10 +248,12 @@ const importCampaign = async (
       }
     }
 
-    // Collect video IDs for thumbnail fetching
+    // Collect video IDs and tiktok_item_ids for thumbnail fetching
     const videoIdToAdIds = new Map<string, string[]>();
+    const tiktokItemIdToAdIds = new Map<string, string[]>();
     for (const ad of adInfo?.list || []) {
       const adIdStr = String(ad.ad_id);
+      const adRecord = ad as Record<string, unknown>;
       adInfoMap.set(adIdStr, {
         ad_name: ad.ad_name,
         adgroup_id: String(ad.adgroup_id),
@@ -262,6 +264,12 @@ const importCampaign = async (
         const existing = videoIdToAdIds.get(ad.video_id) || [];
         existing.push(adIdStr);
         videoIdToAdIds.set(ad.video_id, existing);
+      } else if (adRecord.tiktok_item_id) {
+        // Spark Ads: no video_id, use tiktok_item_id for oEmbed thumbnail
+        const itemId = String(adRecord.tiktok_item_id);
+        const existing = tiktokItemIdToAdIds.get(itemId) || [];
+        existing.push(adIdStr);
+        tiktokItemIdToAdIds.set(itemId, existing);
       }
     }
 
@@ -290,6 +298,30 @@ const importCampaign = async (
           console.log(`Fetched video batch ${i / 50 + 1}: ${videoInfo?.list?.length || 0} videos, sample:`, JSON.stringify(videoInfo?.list?.[0])?.substring(0, 300));
         }
       } catch (e) { console.error("Failed to fetch video thumbnails:", e); }
+    }
+
+    // For Spark Ads without video_id, use oEmbed to get thumbnail from tiktok_item_id
+    if (tiktokItemIdToAdIds.size > 0) {
+      console.log(`Fetching oEmbed thumbnails for ${tiktokItemIdToAdIds.size} Spark Ads`);
+      for (const [itemId, adIds] of tiktokItemIdToAdIds) {
+        try {
+          const oembedUrl = `https://www.tiktok.com/oembed?url=https://www.tiktok.com/video/${itemId}`;
+          const resp = await fetch(oembedUrl);
+          if (resp.ok) {
+            const data = await resp.json();
+            const thumbUrl = data.thumbnail_url;
+            if (thumbUrl) {
+              for (const adId of adIds) {
+                const info = adInfoMap.get(adId);
+                if (info) info.thumbnail_url = thumbUrl;
+              }
+              console.log(`oEmbed thumbnail for item ${itemId}: ${thumbUrl.substring(0, 100)}`);
+            }
+          } else {
+            console.warn(`oEmbed failed for item ${itemId}: status ${resp.status}`);
+          }
+        } catch (e) { console.error(`oEmbed error for item ${itemId}:`, e); }
+      }
     }
 
     // For image ads, try to get image URLs
