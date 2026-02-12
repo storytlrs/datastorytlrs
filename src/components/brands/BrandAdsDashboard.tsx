@@ -458,14 +458,21 @@ const BrandAdsDashboard = ({ spaceId, filters }: BrandAdsDashboardProps) => {
             </div>
 
             {chartData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={320}>
-                <BarChart data={chartData} margin={{ top: 20, right: 20, bottom: 0, left: 10 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis dataKey="name" stroke="hsl(var(--foreground))" tick={{ fontSize: 11, width: 120 }} interval={0} angle={-35} textAnchor="end" height={100} />
+              <ResponsiveContainer width="100%" height={Math.max(320, chartData.length * 44 + 40)}>
+                <BarChart data={chartData} layout="vertical" margin={{ top: 10, right: 30, bottom: 10, left: 10 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
                   <YAxis
+                    dataKey="name"
+                    type="category"
+                    stroke="hsl(var(--foreground))"
+                    tick={{ fontSize: 11 }}
+                    width={180}
+                    tickFormatter={(value: string) => value.length > 28 ? value.substring(0, 26) + "…" : value}
+                  />
+                  <XAxis
+                    type="number"
                     stroke="hsl(var(--foreground))"
                     tickFormatter={(value) => formatChartValue(value, selectedMetric)}
-                    width={90}
                   />
                   <Tooltip
                     formatter={(value: number) => [
@@ -478,7 +485,7 @@ const BrandAdsDashboard = ({ spaceId, filters }: BrandAdsDashboardProps) => {
                       borderRadius: "8px",
                     }}
                   />
-                  <Bar dataKey={selectedMetric} fill="hsl(var(--accent-green))" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey={selectedMetric} fill="hsl(var(--accent-green))" radius={[0, 4, 4, 0]} barSize={28} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
