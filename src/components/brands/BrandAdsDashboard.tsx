@@ -290,8 +290,7 @@ const BrandAdsDashboard = ({ spaceId, filters }: BrandAdsDashboardProps) => {
       campaignData[campaignId].clicks += item.clicks || 0;
     });
 
-    return Object.values(campaignData)
-      .sort((a, b) => a.name.localeCompare(b.name))
+    const all = Object.values(campaignData)
       .map(d => ({
         name: d.name,
         spend: d.spend,
@@ -300,7 +299,12 @@ const BrandAdsDashboard = ({ spaceId, filters }: BrandAdsDashboardProps) => {
         ctr: d.impressions > 0 ? (d.clicks / d.impressions) * 100 : 0,
         roas: 0,
       }));
-  }, [finalAds, finalAdSets, hasAdsData, adSets, campaigns]);
+
+    // Sort by selected metric descending and take top 10
+    return all
+      .sort((a, b) => (b[selectedMetric] || 0) - (a[selectedMetric] || 0))
+      .slice(0, 10);
+  }, [finalAds, finalAdSets, hasAdsData, adSets, campaigns, selectedMetric]);
 
   // Top 5 items
   const topContent: TopContentItem[] = useMemo(() => {
@@ -458,21 +462,23 @@ const BrandAdsDashboard = ({ spaceId, filters }: BrandAdsDashboardProps) => {
             </div>
 
             {chartData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={Math.max(320, chartData.length * 44 + 40)}>
-                <BarChart data={chartData} layout="vertical" margin={{ top: 10, right: 30, bottom: 10, left: 10 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
-                  <YAxis
-                    dataKey="name"
-                    type="category"
-                    stroke="hsl(var(--foreground))"
-                    tick={{ fontSize: 11 }}
-                    width={180}
-                    tickFormatter={(value: string) => value.length > 28 ? value.substring(0, 26) + "…" : value}
-                  />
+              <ResponsiveContainer width="100%" height={360}>
+                <BarChart data={chartData} margin={{ top: 20, right: 20, bottom: 60, left: 10 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
                   <XAxis
-                    type="number"
+                    dataKey="name"
+                    stroke="hsl(var(--foreground))"
+                    tick={{ fontSize: 10 }}
+                    interval={0}
+                    angle={-40}
+                    textAnchor="end"
+                    height={80}
+                    tickFormatter={(value: string) => value.length > 22 ? value.substring(0, 20) + "…" : value}
+                  />
+                  <YAxis
                     stroke="hsl(var(--foreground))"
                     tickFormatter={(value) => formatChartValue(value, selectedMetric)}
+                    width={80}
                   />
                   <Tooltip
                     formatter={(value: number) => [
@@ -485,7 +491,7 @@ const BrandAdsDashboard = ({ spaceId, filters }: BrandAdsDashboardProps) => {
                       borderRadius: "8px",
                     }}
                   />
-                  <Bar dataKey={selectedMetric} fill="hsl(var(--accent-green))" radius={[0, 4, 4, 0]} barSize={28} />
+                  <Bar dataKey={selectedMetric} fill="hsl(var(--accent-green))" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
