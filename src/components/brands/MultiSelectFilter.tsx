@@ -100,24 +100,6 @@ const MultiSelectFilter = ({
         )}
       </div>
 
-      {selectedIds.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          {selectedIds.map((id) => {
-            const option = options.find((o) => o.id === id);
-            return (
-              <Badge
-                key={id}
-                variant="secondary"
-                className="rounded-full px-3 py-1 flex items-center gap-1 cursor-pointer"
-                onClick={() => onRemove(id)}
-              >
-                <Check className="h-3 w-3" />
-                {option?.label || id}
-              </Badge>
-            );
-          })}
-        </div>
-      )}
     </div>
   );
 };
