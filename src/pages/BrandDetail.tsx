@@ -274,13 +274,26 @@ const BrandDetail = () => {
                 onClick={async () => {
                   setTiktokSyncing(true);
                   try {
-                    const res = await supabase.functions.invoke("import-tiktok-ads", {
-                      body: { spaceId: brandId },
-                    });
-                    if (res.error) throw res.error;
-                    const result = res.data;
-                    if (result.error) {
-                      toast.error(result.error);
+                    const session = (await supabase.auth.getSession()).data.session;
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 5 * 60 * 1000);
+                    const response = await fetch(
+                      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/import-tiktok-ads`,
+                      {
+                        method: "POST",
+                        headers: {
+                          "Content-Type": "application/json",
+                          "Authorization": `Bearer ${session?.access_token}`,
+                          "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+                        },
+                        body: JSON.stringify({ spaceId: brandId }),
+                        signal: controller.signal,
+                      }
+                    );
+                    clearTimeout(timeoutId);
+                    const result = await response.json();
+                    if (!response.ok || result.error) {
+                      toast.error(result.error || "TikTok sync failed");
                     } else {
                       toast.success(`Synced ${result.campaigns_imported} campaigns, ${result.ad_groups_imported} ad groups, ${result.ads_imported} ads`);
                     }
