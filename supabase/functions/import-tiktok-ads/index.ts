@@ -250,26 +250,30 @@ const importCampaign = async (
       }
     }
 
-    // Fetch video poster URLs in batch
+    // Fetch video poster URLs via /tt_video/list/ endpoint
     if (videoIdToAdIds.size > 0) {
       try {
         const videoIds = Array.from(videoIdToAdIds.keys());
-        const videoInfo = (await fetchTikTokGet("/file/video/ad/info/", tiktokAccessToken, {
-          advertiser_id: advertiserId,
-          video_ids: JSON.stringify(videoIds.slice(0, 60)),
-        })) as { list: Array<{ video_id: string; poster_url?: string; preview_url?: string }> };
+        // Fetch in batches of 50
+        for (let i = 0; i < videoIds.length; i += 50) {
+          const batch = videoIds.slice(i, i + 50);
+          const videoInfo = (await fetchTikTokGet("/tt_video/list/", tiktokAccessToken, {
+            advertiser_id: advertiserId,
+            video_ids: JSON.stringify(batch),
+          })) as { list: Array<{ video_id: string; video_info?: { poster_url?: string } }> };
 
-        for (const video of videoInfo?.list || []) {
-          const posterUrl = video.poster_url || video.preview_url || null;
-          if (posterUrl) {
-            const relatedAdIds = videoIdToAdIds.get(String(video.video_id)) || [];
-            for (const adId of relatedAdIds) {
-              const info = adInfoMap.get(adId);
-              if (info) info.thumbnail_url = posterUrl;
+          for (const video of videoInfo?.list || []) {
+            const posterUrl = video.video_info?.poster_url || null;
+            if (posterUrl) {
+              const relatedAdIds = videoIdToAdIds.get(String(video.video_id)) || [];
+              for (const adId of relatedAdIds) {
+                const info = adInfoMap.get(adId);
+                if (info) info.thumbnail_url = posterUrl;
+              }
             }
           }
+          console.log(`Fetched batch ${i / 50 + 1}: ${videoInfo?.list?.length || 0} video thumbnails`);
         }
-        console.log(`Fetched ${videoInfo?.list?.length || 0} video thumbnails`);
       } catch (e) { console.error("Failed to fetch video thumbnails:", e); }
     }
 
