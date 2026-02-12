@@ -61,7 +61,11 @@ const MultiSelectFilter = ({
               <CommandList>
                 <CommandEmpty>{emptyMessage}</CommandEmpty>
                 <CommandGroup>
-                  {options.map((option) => (
+                  {[...options].sort((a, b) => {
+                    const aSelected = selectedIds.includes(a.id) ? 0 : 1;
+                    const bSelected = selectedIds.includes(b.id) ? 0 : 1;
+                    return aSelected - bSelected;
+                  }).map((option) => (
                     <CommandItem
                       key={option.id}
                       value={option.label}
