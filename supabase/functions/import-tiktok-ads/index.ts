@@ -234,6 +234,19 @@ const importCampaign = async (
       page_size: 1000,
     })) as { list: Array<{ ad_id: string; ad_name: string; adgroup_id: string; status: string; video_id?: string; image_ids?: string[] }> };
     console.log(`Ad info response: ${adInfo?.list?.length || 0} ads, sample:`, JSON.stringify(adInfo?.list?.[0])?.substring(0, 300));
+    if (adInfo?.list?.[0]) {
+      console.log(`Ad info keys:`, Object.keys(adInfo.list[0]).join(", "));
+      const first = adInfo.list[0] as Record<string, unknown>;
+      // Log all fields that might contain video/image/thumbnail info
+      const interestingKeys = Object.keys(first).filter(k => 
+        k.includes("video") || k.includes("image") || k.includes("thumb") || 
+        k.includes("cover") || k.includes("poster") || k.includes("avatar") ||
+        k.includes("icon") || k.includes("url") || k.includes("tiktok_item")
+      );
+      for (const key of interestingKeys) {
+        console.log(`  ${key}:`, JSON.stringify(first[key])?.substring(0, 200));
+      }
+    }
 
     // Collect video IDs for thumbnail fetching
     const videoIdToAdIds = new Map<string, string[]>();
