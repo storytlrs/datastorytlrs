@@ -570,6 +570,7 @@ async function handleQuarterlyReport(ctx: any) {
   const {
     supabase, report_id, campaign_context, lovableApiKey,
     campaigns, adSets, ads,
+    tiktokCampaigns, tiktokAdGroups, tiktokAds,
     totalSpend, totalReach, totalImpressions, totalClicks,
     totalThruplays, total3sViews, totalLinkClicks, totalInteractions,
     totalReactions, totalComments, totalShares, totalSaves,
@@ -577,19 +578,41 @@ async function handleQuarterlyReport(ctx: any) {
     costPerThruplay, costPer3sView,
   } = ctx;
 
-  // Separate ads by platform
-  const fbAds = ads.filter((a: any) => {
+  // Separate Meta ads by platform (FB vs IG) using ad name hints
+  const fbAds = (ads || []).filter((a: any) => {
     const name = (a.ad_name || "").toLowerCase();
     return name.includes("facebook") || name.includes("fb");
   });
-  const igAds = ads.filter((a: any) => {
+  const igAds = (ads || []).filter((a: any) => {
     const name = (a.ad_name || "").toLowerCase();
     return name.includes("instagram") || name.includes("ig");
   });
-  const tkAds = ads.filter((a: any) => {
+  // If no ads match FB/IG name patterns, treat all Meta ads as general (split evenly or assign all)
+  const unclassifiedMetaAds = (ads || []).filter((a: any) => {
     const name = (a.ad_name || "").toLowerCase();
-    return name.includes("tiktok") || name.includes("[tiktok]");
+    return !name.includes("facebook") && !name.includes("fb") && !name.includes("instagram") && !name.includes("ig");
   });
+  // Add unclassified Meta ads to both FB and IG if neither has any
+  if (fbAds.length === 0 && igAds.length === 0 && unclassifiedMetaAds.length > 0) {
+    fbAds.push(...unclassifiedMetaAds);
+  }
+
+  // TikTok ads come from the dedicated tiktokAds array (not from Meta brand_ads)
+  // Normalize TikTok ad fields to match the expected shape
+  const normalizedTiktokAds = (tiktokAds || []).map((a: any) => ({
+    ad_name: a.ad_name || "Unnamed",
+    amount_spent: a.amount_spent || 0,
+    reach: a.reach || 0,
+    impressions: a.impressions || 0,
+    clicks: a.clicks || 0,
+    ctr: a.ctr || 0,
+    post_reactions: a.likes || 0,
+    post_comments: a.comments || 0,
+    post_shares: a.shares || 0,
+    post_saves: 0,
+    thruplays: a.video_views_p100 || 0,
+    thumbnail_url: a.thumbnail_url || null,
+  }));
 
   const calcPlatformMetrics = (platformAds: any[]) => {
     const spend = platformAds.reduce((s: number, a: any) => s + (a.amount_spent || 0), 0);
@@ -608,7 +631,7 @@ async function handleQuarterlyReport(ctx: any) {
 
   const fbM = calcPlatformMetrics(fbAds);
   const igM = calcPlatformMetrics(igAds);
-  const tkM = calcPlatformMetrics(tkAds);
+  const tkM = calcPlatformMetrics(normalizedTiktokAds);
 
   const topBySpend = (arr: any[], count: number) =>
     [...arr].sort((a, b) => (b.amount_spent || 0) - (a.amount_spent || 0)).slice(0, count).map((a: any) => ({
@@ -650,14 +673,15 @@ CELKOVÁ DATA KVARTÁLU:
 - CTR: ${ctr.toFixed(2)}%, Engagement Rate: ${engagementRate.toFixed(2)}%
 - CPM: ${cpm.toFixed(2)} CZK, CPC: ${cpc.toFixed(2)} CZK, CPE: ${cpe.toFixed(2)} CZK
 - Cost per ThruPlay: ${costPerThruplay.toFixed(2)} CZK, Cost per 3s View: ${costPer3sView.toFixed(2)} CZK
-- Počet kampaní: ${campaigns.length}, Ad setů: ${adSets.length}, Reklam: ${ads.length}
+- Počet kampaní: ${campaigns.length + (tiktokCampaigns || []).length}, Ad setů: ${adSets.length + (tiktokAdGroups || []).length}, Reklam: ${(ads || []).length + normalizedTiktokAds.length}
 
 KAMPANĚ:
 ${campaignSummary}
+${(tiktokCampaigns || []).map((cm: any) => `${cm.campaign_name || "Unnamed"}: Spend ${cm.amount_spent}, Impr ${cm.impressions}, Clicks ${cm.clicks}`).join("\n")}
 
 FACEBOOK DATA (${fbAds.length} reklam): Spend ${fbM.spend.toFixed(2)}, Reach ${fbM.reach}, Freq ${fbM.frequency.toFixed(2)}, CPM ${fbM.cpm.toFixed(2)}, CPE ${fbM.cpe.toFixed(2)}, CPV ${fbM.cpv.toFixed(2)}
 INSTAGRAM DATA (${igAds.length} reklam): Spend ${igM.spend.toFixed(2)}, Reach ${igM.reach}, Freq ${igM.frequency.toFixed(2)}, CPM ${igM.cpm.toFixed(2)}, CPE ${igM.cpe.toFixed(2)}, CPV ${igM.cpv.toFixed(2)}
-TIKTOK DATA (${tkAds.length} reklam): Spend ${tkM.spend.toFixed(2)}, Reach ${tkM.reach}, Freq ${tkM.frequency.toFixed(2)}, CPM ${tkM.cpm.toFixed(2)}, CPE ${tkM.cpe.toFixed(2)}, CPV ${tkM.cpv.toFixed(2)}
+TIKTOK DATA (${normalizedTiktokAds.length} reklam): Spend ${tkM.spend.toFixed(2)}, Reach ${tkM.reach}, Freq ${tkM.frequency.toFixed(2)}, CPM ${tkM.cpm.toFixed(2)}, CPE ${tkM.cpe.toFixed(2)}, CPV ${tkM.cpv.toFixed(2)}
 
 KONTEXT OD UŽIVATELE:
 - Hlavní cíl: ${campaign_context.mainGoal}
@@ -755,8 +779,8 @@ KONTEXT OD UŽIVATELE:
     tiktok_metrics: { spend: tkM.spend, reach: tkM.reach, frequency: tkM.frequency },
     tiktok_detail_metrics: { cpm: tkM.cpm, cpe: tkM.cpe, cpv: tkM.cpv },
     tiktok_metrics_over_time: aiContent.tiktok_metrics_over_time || "",
-    tiktok_top_posts: topBySpend(tkAds, 5),
-    tiktok_improve_posts: bottomByPerformance(tkAds, 3),
+    tiktok_top_posts: topBySpend(normalizedTiktokAds, 5),
+    tiktok_improve_posts: bottomByPerformance(normalizedTiktokAds, 3),
     followers: { facebook: null, instagram: null, tiktok: null },
     summary_success: aiContent.summary_success,
     summary_events: aiContent.summary_events,
