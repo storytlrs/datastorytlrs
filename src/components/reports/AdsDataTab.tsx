@@ -90,98 +90,190 @@ export const AdsDataTab = ({ reportId, spaceId, onImportSuccess }: AdsDataTabPro
   const fetchData = async () => {
     setLoading(true);
     try {
-      // First fetch linked campaign IDs for this report
-      const { data: links } = await supabase
-        .from("report_campaigns")
-        .select("brand_campaign_id")
-        .eq("report_id", reportId);
+      // Fetch linked campaign IDs for this report (Meta + TikTok)
+      const [metaLinksRes, tiktokLinksRes] = await Promise.all([
+        supabase.from("report_campaigns").select("brand_campaign_id").eq("report_id", reportId),
+        supabase.from("report_tiktok_campaigns").select("tiktok_campaign_id").eq("report_id", reportId),
+      ]);
 
-      const linkedIds = links?.map((l) => l.brand_campaign_id) || [];
+      const metaLinkedIds = metaLinksRes.data?.map((l) => l.brand_campaign_id) || [];
+      const tiktokLinkedIds = tiktokLinksRes.data?.map((l) => l.tiktok_campaign_id) || [];
 
       await Promise.all([
-        fetchCampaignMeta(linkedIds),
-        fetchAdSets(linkedIds),
-        fetchAds(linkedIds),
+        fetchCampaignMeta(metaLinkedIds, tiktokLinkedIds),
+        fetchAdSets(metaLinkedIds, tiktokLinkedIds),
+        fetchAds(metaLinkedIds, tiktokLinkedIds),
       ]);
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchCampaignMeta = async (linkedIds: string[]) => {
-    let query = supabase
-      .from("brand_campaigns" as any)
-      .select("*")
-      .eq("space_id", spaceId)
-      .order("created_at", { ascending: false });
+  const fetchCampaignMeta = async (metaIds: string[], tiktokIds: string[]) => {
+    let allCampaigns: any[] = [];
 
-    if (linkedIds.length > 0) {
-      query = query.in("id", linkedIds);
-    } else {
-      // No campaigns linked — show nothing
-      setCampaignMeta([]);
-      return;
+    if (metaIds.length > 0) {
+      const { data, error } = await supabase
+        .from("brand_campaigns" as any)
+        .select("*")
+        .eq("space_id", spaceId)
+        .in("id", metaIds)
+        .order("created_at", { ascending: false });
+      if (!error && data) {
+        allCampaigns.push(...data.map((c: any) => ({ ...c, platform: "meta" })));
+      }
     }
 
-    const { data, error } = await query;
-    if (error) {
-      toast.error("Failed to load campaigns");
-      return;
+    if (tiktokIds.length > 0) {
+      const { data, error } = await supabase
+        .from("tiktok_campaigns")
+        .select("*")
+        .eq("space_id", spaceId)
+        .in("id", tiktokIds)
+        .eq("age", "").eq("gender", "").eq("location", "")
+        .order("created_at", { ascending: false });
+      if (!error && data) {
+        allCampaigns.push(...data.map((c: any) => ({
+          ...c,
+          campaign_name: c.campaign_name ? `[TikTok] ${c.campaign_name}` : c.campaign_name,
+          platform: "tiktok",
+          thruplays: c.video_views_p100,
+          video_3s_plays: c.video_watched_2s,
+          link_clicks: c.clicks,
+          post_reactions: c.likes,
+          post_comments: c.comments,
+          post_shares: c.shares,
+        })));
+      }
     }
-    setCampaignMeta(data || []);
+
+    setCampaignMeta(allCampaigns);
   };
 
-  const fetchAdSets = async (linkedCampaignIds: string[]) => {
-    if (linkedCampaignIds.length === 0) {
-      setAdSets([]);
-      return;
+  const fetchAdSets = async (metaIds: string[], tiktokIds: string[]) => {
+    let allAdSets: any[] = [];
+
+    if (metaIds.length > 0) {
+      const { data, error } = await supabase
+        .from("brand_ad_sets" as any)
+        .select("*")
+        .eq("space_id", spaceId)
+        .in("brand_campaign_id", metaIds)
+        .order("created_at", { ascending: false });
+      if (!error && data) {
+        allAdSets.push(...data.map((as: any) => ({ ...as, platform: "meta" })));
+      }
     }
 
-    const { data, error } = await supabase
-      .from("brand_ad_sets" as any)
-      .select("*")
-      .eq("space_id", spaceId)
-      .in("brand_campaign_id", linkedCampaignIds)
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      toast.error("Failed to load ad sets");
-      return;
+    if (tiktokIds.length > 0) {
+      const { data, error } = await supabase
+        .from("tiktok_ad_groups")
+        .select("*")
+        .eq("space_id", spaceId)
+        .in("tiktok_campaign_id", tiktokIds)
+        .order("created_at", { ascending: false });
+      if (!error && data) {
+        allAdSets.push(...data.map((ag: any) => ({
+          id: ag.id,
+          brand_campaign_id: ag.tiktok_campaign_id,
+          adset_name: ag.adgroup_name ? `[TikTok] ${ag.adgroup_name}` : ag.adgroup_name,
+          adset_id: ag.adgroup_id,
+          status: ag.status,
+          amount_spent: ag.amount_spent,
+          reach: ag.reach,
+          impressions: ag.impressions,
+          frequency: ag.frequency,
+          ctr: ag.ctr,
+          cpm: ag.cpm,
+          cpc: ag.cpc,
+          clicks: ag.clicks,
+          thruplays: ag.video_views_p100,
+          video_3s_plays: ag.video_watched_2s,
+          post_reactions: ag.likes,
+          post_comments: ag.comments,
+          post_shares: ag.shares,
+          platform: "tiktok",
+          space_id: ag.space_id,
+          created_at: ag.created_at,
+          updated_at: ag.updated_at,
+        })));
+      }
     }
-    setAdSets(data || []);
+
+    setAdSets(allAdSets);
   };
 
-  const fetchAds = async (linkedCampaignIds: string[]) => {
-    if (linkedCampaignIds.length === 0) {
-      setAds([]);
-      return;
+  const fetchAds = async (metaIds: string[], tiktokIds: string[]) => {
+    let allAds: any[] = [];
+
+    if (metaIds.length > 0) {
+      const { data: adSetData } = await supabase
+        .from("brand_ad_sets" as any)
+        .select("id")
+        .eq("space_id", spaceId)
+        .in("brand_campaign_id", metaIds);
+
+      const adSetIds = adSetData?.map((as: any) => as.id) || [];
+      if (adSetIds.length > 0) {
+        const { data, error } = await supabase
+          .from("brand_ads" as any)
+          .select("*")
+          .eq("space_id", spaceId)
+          .in("brand_ad_set_id", adSetIds)
+          .order("created_at", { ascending: false });
+        if (!error && data) {
+          allAds.push(...data.map((a: any) => ({ ...a, platform: "meta" })));
+        }
+      }
     }
 
-    // Fetch ad set IDs belonging to linked campaigns
-    const { data: adSetData } = await supabase
-      .from("brand_ad_sets" as any)
-      .select("id")
-      .eq("space_id", spaceId)
-      .in("brand_campaign_id", linkedCampaignIds);
+    if (tiktokIds.length > 0) {
+      const { data: adGroupData } = await supabase
+        .from("tiktok_ad_groups")
+        .select("id")
+        .eq("space_id", spaceId)
+        .in("tiktok_campaign_id", tiktokIds);
 
-    const adSetIds = adSetData?.map((as: any) => as.id) || [];
-    if (adSetIds.length === 0) {
-      setAds([]);
-      return;
+      const adGroupIds = adGroupData?.map((ag: any) => ag.id) || [];
+      if (adGroupIds.length > 0) {
+        const { data, error } = await supabase
+          .from("tiktok_ads")
+          .select("*")
+          .eq("space_id", spaceId)
+          .in("tiktok_ad_group_id", adGroupIds)
+          .order("created_at", { ascending: false });
+        if (!error && data) {
+          allAds.push(...data.map((a: any) => ({
+            id: a.id,
+            brand_ad_set_id: a.tiktok_ad_group_id,
+            ad_id: a.ad_id,
+            ad_name: a.ad_name ? `[TikTok] ${a.ad_name}` : a.ad_name,
+            status: a.status,
+            amount_spent: a.amount_spent,
+            reach: a.reach,
+            impressions: a.impressions,
+            frequency: a.frequency,
+            ctr: a.ctr,
+            cpm: a.cpm,
+            cpc: a.cpc,
+            clicks: a.clicks,
+            thruplays: a.video_views_p100,
+            video_3s_plays: a.video_watched_2s,
+            link_clicks: a.link_clicks,
+            post_reactions: a.likes,
+            post_comments: a.comments,
+            post_shares: a.shares,
+            thumbnail_url: a.thumbnail_url,
+            platform: "tiktok",
+            space_id: a.space_id,
+            created_at: a.created_at,
+            updated_at: a.updated_at,
+          })));
+        }
+      }
     }
 
-    const { data, error } = await supabase
-      .from("brand_ads" as any)
-      .select("*")
-      .eq("space_id", spaceId)
-      .in("brand_ad_set_id", adSetIds)
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      toast.error("Failed to load ads");
-      return;
-    }
-    setAds(data || []);
+    setAds(allAds);
   };
 
   // Get unique campaigns from brand_campaigns
