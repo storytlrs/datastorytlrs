@@ -123,7 +123,19 @@ serve(async (req) => {
       });
     }
 
-    // Default: campaign/quarterly/yearly (original logic)
+    if (period === "quarterly") {
+      return await handleQuarterlyReport({
+        supabase, report_id, campaign_context, lovableApiKey,
+        campaigns, adSets, ads,
+        totalSpend, totalReach, totalImpressions, totalClicks,
+        totalThruplays, total3sViews, totalLinkClicks, totalInteractions,
+        totalReactions, totalComments, totalShares, totalSaves,
+        avgFrequency, ctr, engagementRate, thruplayRate, viewRate3s,
+        cpm, cpc, costPerThruplay, costPer3sView, cpe,
+      });
+    }
+
+    // Default: campaign/yearly (original logic)
     return await handleDefaultReport({
       supabase, report_id, campaign_context, lovableApiKey,
       campaigns, adSets, ads,
@@ -523,6 +535,226 @@ Kontext od uživatele:
       engagement_summary: aiContent.engagement_summary,
       effectiveness_summary: aiContent.effectiveness_summary,
     }),
+    { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+  );
+}
+
+// ── Quarterly Report Handler ──
+async function handleQuarterlyReport(ctx: any) {
+  const {
+    supabase, report_id, campaign_context, lovableApiKey,
+    campaigns, adSets, ads,
+    totalSpend, totalReach, totalImpressions, totalClicks,
+    totalThruplays, total3sViews, totalLinkClicks, totalInteractions,
+    totalReactions, totalComments, totalShares, totalSaves,
+    avgFrequency, ctr, engagementRate, cpm, cpc, cpe,
+    costPerThruplay, costPer3sView,
+  } = ctx;
+
+  // Separate ads by platform
+  const fbAds = ads.filter((a: any) => {
+    const name = (a.ad_name || "").toLowerCase();
+    return name.includes("facebook") || name.includes("fb");
+  });
+  const igAds = ads.filter((a: any) => {
+    const name = (a.ad_name || "").toLowerCase();
+    return name.includes("instagram") || name.includes("ig");
+  });
+  const tkAds = ads.filter((a: any) => {
+    const name = (a.ad_name || "").toLowerCase();
+    return name.includes("tiktok") || name.includes("[tiktok]");
+  });
+
+  const calcPlatformMetrics = (platformAds: any[]) => {
+    const spend = platformAds.reduce((s: number, a: any) => s + (a.amount_spent || 0), 0);
+    const reach = platformAds.reduce((s: number, a: any) => s + (a.reach || 0), 0);
+    const impr = platformAds.reduce((s: number, a: any) => s + (a.impressions || 0), 0);
+    const clicks = platformAds.reduce((s: number, a: any) => s + (a.clicks || 0), 0);
+    const interactions = platformAds.reduce((s: number, a: any) => s + (a.post_reactions || 0) + (a.post_comments || 0) + (a.post_shares || 0) + (a.post_saves || 0), 0);
+    const thruplays = platformAds.reduce((s: number, a: any) => s + (a.thruplays || 0), 0);
+    return {
+      spend, reach, frequency: reach > 0 ? impr / reach : 0,
+      cpm: impr > 0 ? (spend / impr) * 1000 : 0,
+      cpe: interactions > 0 ? spend / interactions : 0,
+      cpv: thruplays > 0 ? spend / thruplays : 0,
+    };
+  };
+
+  const fbM = calcPlatformMetrics(fbAds);
+  const igM = calcPlatformMetrics(igAds);
+  const tkM = calcPlatformMetrics(tkAds);
+
+  const topBySpend = (arr: any[], count: number) =>
+    [...arr].sort((a, b) => (b.amount_spent || 0) - (a.amount_spent || 0)).slice(0, count).map((a: any) => ({
+      name: a.ad_name || "Unnamed", spend: a.amount_spent || 0, impressions: a.impressions || 0,
+      clicks: a.clicks || 0, ctr: a.ctr || 0, thumbnail_url: a.thumbnail_url || null,
+    }));
+
+  const bottomByPerformance = (arr: any[], count: number) =>
+    [...arr].filter((a) => (a.amount_spent || 0) > 0).sort((a, b) => (a.ctr || 0) - (b.ctr || 0)).slice(0, count).map((a: any) => ({
+      name: a.ad_name || "Unnamed", spend: a.amount_spent || 0, impressions: a.impressions || 0,
+      clicks: a.clicks || 0, ctr: a.ctr || 0, thumbnail_url: a.thumbnail_url || null,
+    }));
+
+  const campaignSummary = campaigns
+    .map((cm: any) => `${cm.campaign_name || "Unnamed"}: Spend ${cm.amount_spent}, Impr ${cm.impressions}, Clicks ${cm.clicks}`)
+    .join("\n");
+
+  // Fetch prompts from DB
+  const { data: prompts } = await supabase
+    .from("ai_prompts")
+    .select("key, prompt_text")
+    .in("key", ["quarterly_ads_system", "quarterly_ads_user"]);
+
+  const promptMap: Record<string, string> = {};
+  for (const p of prompts || []) {
+    promptMap[p.key] = p.prompt_text;
+  }
+
+  const dataContext = `
+CELKOVÁ DATA KVARTÁLU:
+- Celkový spend: ${totalSpend.toFixed(2)} CZK
+- Celkový reach: ${totalReach.toLocaleString()}
+- Celkové impressions: ${totalImpressions.toLocaleString()}
+- Průměrná frekvence: ${avgFrequency.toFixed(2)}
+- ThruPlays: ${totalThruplays.toLocaleString()}
+- 3s Video Views: ${total3sViews.toLocaleString()}
+- Link Clicks: ${totalLinkClicks.toLocaleString()}
+- Celkové interakce: ${totalInteractions.toLocaleString()} (Reactions: ${totalReactions}, Comments: ${totalComments}, Shares: ${totalShares}, Saves: ${totalSaves})
+- CTR: ${ctr.toFixed(2)}%, Engagement Rate: ${engagementRate.toFixed(2)}%
+- CPM: ${cpm.toFixed(2)} CZK, CPC: ${cpc.toFixed(2)} CZK, CPE: ${cpe.toFixed(2)} CZK
+- Cost per ThruPlay: ${costPerThruplay.toFixed(2)} CZK, Cost per 3s View: ${costPer3sView.toFixed(2)} CZK
+- Počet kampaní: ${campaigns.length}, Ad setů: ${adSets.length}, Reklam: ${ads.length}
+
+KAMPANĚ:
+${campaignSummary}
+
+FACEBOOK DATA (${fbAds.length} reklam): Spend ${fbM.spend.toFixed(2)}, Reach ${fbM.reach}, Freq ${fbM.frequency.toFixed(2)}, CPM ${fbM.cpm.toFixed(2)}, CPE ${fbM.cpe.toFixed(2)}, CPV ${fbM.cpv.toFixed(2)}
+INSTAGRAM DATA (${igAds.length} reklam): Spend ${igM.spend.toFixed(2)}, Reach ${igM.reach}, Freq ${igM.frequency.toFixed(2)}, CPM ${igM.cpm.toFixed(2)}, CPE ${igM.cpe.toFixed(2)}, CPV ${igM.cpv.toFixed(2)}
+TIKTOK DATA (${tkAds.length} reklam): Spend ${tkM.spend.toFixed(2)}, Reach ${tkM.reach}, Freq ${tkM.frequency.toFixed(2)}, CPM ${tkM.cpm.toFixed(2)}, CPE ${tkM.cpe.toFixed(2)}, CPV ${tkM.cpv.toFixed(2)}
+
+KONTEXT OD UŽIVATELE:
+- Hlavní cíl: ${campaign_context.mainGoal}
+- Co bylo realizováno: ${campaign_context.actions}
+- Co se povedlo: ${campaign_context.highlights}`;
+
+  const defaultSystemPrompt = `Jsi zkušený analytik digitálního marketingu. Tvým úkolem je vytvořit kompletní kvartální report výkonu reklamních kampaní v češtině. Report musí být profesionální, datově podložený a obsahovat konkrétní čísla. Zaměř se na strategický pohled za celý kvartál, trendy, a doporučení pro následující kvartál.`;
+
+  const defaultUserPrompt = `Vytvoř kompletní kvartální analytický report. Odpověz POUZE validním JSON objektem s touto přesnou strukturou:
+
+{
+  "executive_summary": {
+    "media_insight": "Klíčový media poznatek za kvartál s konkrétními čísly (max 100 slov)",
+    "top_result": "Nejlepší výsledek kvartálu s konkrétními daty (max 100 slov)",
+    "recommendation": "Hlavní doporučení pro zlepšení v dalším kvartálu (max 100 slov)"
+  },
+  "goal_fulfillment": {
+    "goals_set": "Popis stanovených cílů, nových zavedení nebo změn v tomto kvartálu (max 150 slov)",
+    "results": "Detailní vyhodnocení plnění cílů a výsledků změn s konkrétními čísly (max 150 slov)"
+  },
+  "metrics_over_time": "Popis celkového vývoje klíčových metrik za kvartál – trendy, sezónnost, výkyvy (max 150 slov)",
+  "brand_awareness": "Analýza vlivu kampaní na brand awareness za celý kvartál – celkový dosah, frekvence, dopad (max 150 slov)",
+  "facebook_metrics_over_time": "Vývoj FB metrik v průběhu kvartálu (max 100 slov)",
+  "instagram_metrics_over_time": "Vývoj IG metrik v průběhu kvartálu (max 100 slov)",
+  "tiktok_metrics_over_time": "Vývoj TikTok metrik v průběhu kvartálu (max 100 slov)",
+  "summary_success": {
+    "what_worked": ["3-5 bodů co fungovalo dobře za kvartál"],
+    "top_results": ["3-5 TOP výsledků kvartálu s konkrétními čísly"]
+  },
+  "summary_events": {
+    "what_happened": ["3-5 klíčových událostí/aktivit za kvartál"],
+    "what_we_solved": ["2-4 problémy které jsme řešili"],
+    "threats_opportunities": ["2-4 identifikované hrozby a příležitosti"]
+  },
+  "learnings": {
+    "improving": ["3-5 bodů co aktivně zlepšujeme"],
+    "focus_areas": ["3-5 oblastí kterým se budeme věnovat"],
+    "changes": ["3-5 konkrétních změn které implementujeme"]
+  }
+}`;
+
+  const systemPrompt = (promptMap["quarterly_ads_system"] || defaultSystemPrompt) + "\n" + dataContext;
+  const userPrompt = promptMap["quarterly_ads_user"] || defaultUserPrompt;
+
+  console.log("Calling AI for quarterly Ads insights...");
+
+  const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${lovableApiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: "google/gemini-2.5-flash",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      response_format: { type: "json_object" },
+    }),
+  });
+
+  if (!aiResponse.ok) {
+    if (aiResponse.status === 429) {
+      return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again later." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    if (aiResponse.status === 402) {
+      return new Response(JSON.stringify({ error: "Payment required. Please add credits." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    const errorText = await aiResponse.text();
+    console.error("AI gateway error:", aiResponse.status, errorText);
+    throw new Error("AI gateway error");
+  }
+
+  const aiData = await aiResponse.json();
+  const aiContent = JSON.parse(aiData.choices[0].message.content);
+
+  const structuredInsights = {
+    report_period: "quarterly",
+    executive_summary: aiContent.executive_summary,
+    campaign_context,
+    goal_fulfillment: aiContent.goal_fulfillment,
+    key_metrics: { spend: totalSpend, reach: totalReach, frequency: avgFrequency, currency: "CZK" },
+    detail_metrics: { cpm, cpe, cpv: costPerThruplay, currency: "CZK" },
+    metrics_over_time: aiContent.metrics_over_time,
+    community_management: { answered_comments: null, answered_dms: null, response_rate_24h: null },
+    brand_awareness: aiContent.brand_awareness,
+    facebook_metrics: { spend: fbM.spend, reach: fbM.reach, frequency: fbM.frequency },
+    facebook_detail_metrics: { cpm: fbM.cpm, cpe: fbM.cpe, cpv: fbM.cpv },
+    facebook_metrics_over_time: aiContent.facebook_metrics_over_time || "",
+    facebook_top_posts: topBySpend(fbAds, 5),
+    facebook_improve_posts: bottomByPerformance(fbAds, 3),
+    instagram_metrics: { spend: igM.spend, reach: igM.reach, frequency: igM.frequency },
+    instagram_detail_metrics: { cpm: igM.cpm, cpe: igM.cpe, cpv: igM.cpv },
+    instagram_metrics_over_time: aiContent.instagram_metrics_over_time || "",
+    instagram_top_posts: topBySpend(igAds, 5),
+    instagram_improve_posts: bottomByPerformance(igAds, 3),
+    tiktok_metrics: { spend: tkM.spend, reach: tkM.reach, frequency: tkM.frequency },
+    tiktok_detail_metrics: { cpm: tkM.cpm, cpe: tkM.cpe, cpv: tkM.cpv },
+    tiktok_metrics_over_time: aiContent.tiktok_metrics_over_time || "",
+    tiktok_top_posts: topBySpend(tkAds, 5),
+    tiktok_improve_posts: bottomByPerformance(tkAds, 3),
+    followers: { facebook: null, instagram: null, tiktok: null },
+    summary_success: aiContent.summary_success,
+    summary_events: aiContent.summary_events,
+    learnings: aiContent.learnings,
+  };
+
+  const { error: updateError } = await supabase
+    .from("reports")
+    .update({
+      ai_insights: aiContent.executive_summary?.media_insight || "",
+      ai_insights_structured: structuredInsights,
+      ai_insights_context: campaign_context,
+    })
+    .eq("id", report_id);
+
+  if (updateError) {
+    console.error("Error saving insights:", updateError);
+    throw new Error("Failed to save insights");
+  }
+
+  console.log("Quarterly insights saved successfully");
+
+  return new Response(
+    JSON.stringify({ structured_data: structuredInsights }),
     { headers: { ...corsHeaders, "Content-Type": "application/json" } }
   );
 }
