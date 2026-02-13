@@ -61,6 +61,7 @@ export interface MonthlyStructuredInsights {
     clicks: number;
     ctr: number;
     thumbnail_url?: string;
+    reason?: string;
   }[];
   instagram_metrics: {
     spend: number;
@@ -74,6 +75,7 @@ export interface MonthlyStructuredInsights {
     clicks: number;
     ctr: number;
     thumbnail_url?: string;
+    reason?: string;
   }[];
   followers: {
     facebook: number | null;
@@ -218,7 +220,7 @@ const EditableNumberField = ({
   );
 };
 
-const PostCard = ({ post }: { post: { name: string; spend: number; impressions: number; clicks: number; ctr: number; thumbnail_url?: string } }) => (
+const PostCard = ({ post }: { post: { name: string; spend: number; impressions: number; clicks: number; ctr: number; thumbnail_url?: string; reason?: string } }) => (
   <Card className="overflow-hidden rounded-[35px] border-foreground hover:shadow-lg transition-shadow">
     <div className="relative aspect-[9/12.8] bg-muted overflow-hidden">
       {post.thumbnail_url ? (
@@ -239,6 +241,9 @@ const PostCard = ({ post }: { post: { name: string; spend: number; impressions: 
     </div>
     <div className="p-3 space-y-2">
       <span className="font-medium text-xs truncate block">{post.name}</span>
+      {post.reason && (
+        <p className="text-[10px] text-muted-foreground italic leading-tight">{post.reason}</p>
+      )}
       <div className="grid grid-cols-2 gap-1 text-xs">
         <div className="flex items-center gap-1 text-muted-foreground">
           <DollarSign className="w-3 h-3" />

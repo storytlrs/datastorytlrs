@@ -212,13 +212,20 @@ async function handleMonthlyReport(ctx: any) {
   const igMetrics = calcPlatformMetrics(igAds);
 
   const topBySpend = (arr: any[], count: number) =>
-    [...arr].sort((a, b) => (b.amount_spent || 0) - (a.amount_spent || 0)).slice(0, count).map((a: any) => ({
+    [...arr].sort((a, b) => (b.amount_spent || 0) - (a.amount_spent || 0)).slice(0, count).map((a: any, i: number) => ({
       name: a.ad_name || "Unnamed",
       spend: a.amount_spent || 0,
       impressions: a.impressions || 0,
       clicks: a.clicks || 0,
       ctr: a.ctr || 0,
       thumbnail_url: a.thumbnail_url || null,
+      reason: (() => {
+        const parts: string[] = [];
+        if (i < 3) parts.push(`#${i + 1} nejvyšší spend`);
+        if ((a.ctr || 0) > 1) parts.push(`silné CTR ${(a.ctr || 0).toFixed(2)}%`);
+        if ((a.impressions || 0) > 10000) parts.push(`${((a.impressions || 0) / 1000).toFixed(0)}K impressions`);
+        return parts.length > 0 ? parts.join(", ") : "Vysoký spend a dobrý výkon";
+      })(),
     }));
 
   const fbTopPosts = topBySpend(fbAds, 5);
@@ -633,16 +640,36 @@ async function handleQuarterlyReport(ctx: any) {
   const igM = calcPlatformMetrics(igAds);
   const tkM = calcPlatformMetrics(normalizedTiktokAds);
 
+  const generateTopReason = (a: any, rank: number) => {
+    const parts: string[] = [];
+    if (rank <= 3) parts.push(`#${rank} nejvyšší spend`);
+    if ((a.ctr || 0) > 1) parts.push(`silné CTR ${(a.ctr || 0).toFixed(2)}%`);
+    if ((a.impressions || 0) > 10000) parts.push(`${((a.impressions || 0) / 1000).toFixed(0)}K impressions`);
+    if ((a.clicks || 0) > 100) parts.push(`${a.clicks} kliknutí`);
+    return parts.length > 0 ? parts.join(", ") : "Vysoký spend a dobrý výkon";
+  };
+
+  const generateImproveReason = (a: any) => {
+    const parts: string[] = [];
+    if ((a.ctr || 0) < 0.5) parts.push(`nízké CTR ${(a.ctr || 0).toFixed(2)}%`);
+    else if ((a.ctr || 0) < 1) parts.push(`podprůměrné CTR ${(a.ctr || 0).toFixed(2)}%`);
+    if ((a.amount_spent || 0) > 0 && (a.clicks || 0) === 0) parts.push("žádné kliknutí");
+    if ((a.impressions || 0) > 0 && (a.clicks || 0) / (a.impressions || 1) < 0.005) parts.push("nízká konverze zobrazení na kliky");
+    return parts.length > 0 ? parts.join(", ") : "Prostor pro optimalizaci výkonu";
+  };
+
   const topBySpend = (arr: any[], count: number) =>
-    [...arr].sort((a, b) => (b.amount_spent || 0) - (a.amount_spent || 0)).slice(0, count).map((a: any) => ({
+    [...arr].sort((a, b) => (b.amount_spent || 0) - (a.amount_spent || 0)).slice(0, count).map((a: any, i: number) => ({
       name: a.ad_name || "Unnamed", spend: a.amount_spent || 0, impressions: a.impressions || 0,
       clicks: a.clicks || 0, ctr: a.ctr || 0, thumbnail_url: a.thumbnail_url || null,
+      reason: generateTopReason(a, i + 1),
     }));
 
   const bottomByPerformance = (arr: any[], count: number) =>
     [...arr].filter((a) => (a.amount_spent || 0) > 0).sort((a, b) => (a.ctr || 0) - (b.ctr || 0)).slice(0, count).map((a: any) => ({
       name: a.ad_name || "Unnamed", spend: a.amount_spent || 0, impressions: a.impressions || 0,
       clicks: a.clicks || 0, ctr: a.ctr || 0, thumbnail_url: a.thumbnail_url || null,
+      reason: generateImproveReason(a),
     }));
 
   const campaignSummary = campaigns
