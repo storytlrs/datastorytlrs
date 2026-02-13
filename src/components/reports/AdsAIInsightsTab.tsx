@@ -235,7 +235,24 @@ export const AdsAIInsightsTab = ({ reportId }: AdsAIInsightsTabProps) => {
             />
           ) : isMonthly ? (
             <MonthlyAdsInsightsContent
-...
+              ref={contentRef}
+              insights={structuredData as MonthlyStructuredInsights}
+              canEdit={canEdit}
+              onSaveInsights={handleSaveStructuredInsights}
+            />
+          ) : isQuarterly ? (
+            <QuarterlyAdsInsightsContent
+              ref={contentRef}
+              insights={structuredData as QuarterlyStructuredInsights}
+              canEdit={canEdit}
+              onSaveInsights={handleSaveStructuredInsights}
+            />
+          ) : isYearly ? (
+            <YearlyAdsInsightsContent
+              ref={contentRef}
+              insights={structuredData as YearlyStructuredInsights}
+              canEdit={canEdit}
+              onSaveInsights={handleSaveStructuredInsights}
             />
           ) : (
             <AdsAIInsightsContent
@@ -252,7 +269,12 @@ export const AdsAIInsightsTab = ({ reportId }: AdsAIInsightsTabProps) => {
 
         {isPdfMode && structuredData && (
           <div style={{ position: "fixed", left: "-10000px", top: 0 }}>
-            {isMonthly ? (
+            {isCampaign ? (
+              <CampaignAdsInsightsContent
+                ref={pdfRef}
+                insights={structuredData as CampaignStructuredInsights}
+              />
+            ) : isMonthly ? (
               <MonthlyAdsInsightsContent
                 ref={pdfRef}
                 insights={structuredData as MonthlyStructuredInsights}
