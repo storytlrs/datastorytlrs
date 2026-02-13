@@ -173,7 +173,20 @@ serve(async (req) => {
       });
     }
 
-    // Default: campaign (original logic)
+    if (period === "campaign") {
+      return await handleCampaignReport({
+        supabase, report_id, campaign_context, lovableApiKey,
+        campaigns, adSets, ads,
+        tiktokCampaigns, tiktokAdGroups, tiktokAds,
+        totalSpend, totalReach, totalImpressions, totalClicks,
+        totalThruplays, total3sViews, totalLinkClicks, totalInteractions,
+        totalReactions, totalComments, totalShares, totalSaves,
+        avgFrequency, ctr, engagementRate, thruplayRate, viewRate3s,
+        cpm, cpc, costPerThruplay, costPer3sView, cpe,
+      });
+    }
+
+    // Default: fallback to original logic
     return await handleDefaultReport({
       supabase, report_id, campaign_context, lovableApiKey,
       campaigns, adSets, ads,
@@ -581,6 +594,211 @@ Kontext od uživatele:
       engagement_summary: aiContent.engagement_summary,
       effectiveness_summary: aiContent.effectiveness_summary,
     }),
+    { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+  );
+}
+
+// ── Campaign Report Handler ──
+async function handleCampaignReport(ctx: any) {
+  const {
+    supabase, report_id, campaign_context, lovableApiKey,
+    campaigns, adSets, ads,
+    tiktokCampaigns, tiktokAdGroups, tiktokAds,
+    totalSpend, totalReach, totalImpressions, totalClicks,
+    totalThruplays, total3sViews, totalLinkClicks, totalInteractions,
+    totalReactions, totalComments, totalShares, totalSaves,
+    avgFrequency, ctr, engagementRate, thruplayRate, viewRate3s,
+    cpm, cpc, costPerThruplay, costPer3sView, cpe,
+  } = ctx;
+
+  // Normalize TikTok ads
+  const normalizedTiktokAds = (tiktokAds || []).map((a: any) => ({
+    ad_name: a.ad_name || "Unnamed",
+    amount_spent: a.amount_spent || 0,
+    reach: a.reach || 0,
+    impressions: a.impressions || 0,
+    clicks: a.clicks || 0,
+    ctr: a.ctr || 0,
+    thruplays: a.video_views_p100 || 0,
+    video_3s_plays: a.video_watched_2s || 0,
+    thumbnail_url: a.thumbnail_url || null,
+    average_video_play: a.average_video_play || 0,
+  }));
+
+  // Meta platform metrics
+  const metaSpend = (campaigns || []).reduce((s: number, c: any) => s + (c.amount_spent || 0), 0);
+  const metaReach = (campaigns || []).reduce((s: number, c: any) => s + (c.reach || 0), 0);
+  const metaImpr = (campaigns || []).reduce((s: number, c: any) => s + (c.impressions || 0), 0);
+  const metaFreq = metaReach > 0 ? metaImpr / metaReach : 0;
+  const metaThruplays = (ads || []).reduce((s: number, a: any) => s + (a.thruplays || 0), 0);
+  const meta3sViews = (ads || []).reduce((s: number, a: any) => s + (a.video_3s_plays || 0), 0);
+  const metaThruplayRate = metaImpr > 0 ? (metaThruplays / metaImpr) * 100 : 0;
+  const metaViewRate3s = metaImpr > 0 ? (meta3sViews / metaImpr) * 100 : 0;
+  const metaAvgWatchTime = 0;
+
+  // TikTok platform metrics
+  const tkSpend = (tiktokCampaigns || []).reduce((s: number, c: any) => s + (c.amount_spent || 0), 0);
+  const tkReach = (tiktokCampaigns || []).reduce((s: number, c: any) => s + (c.reach || 0), 0);
+  const tkImpr = (tiktokCampaigns || []).reduce((s: number, c: any) => s + (c.impressions || 0), 0);
+  const tkFreq = tkReach > 0 ? tkImpr / tkReach : 0;
+  const tkThruplays = normalizedTiktokAds.reduce((s: number, a: any) => s + (a.thruplays || 0), 0);
+  const tk3sViews = normalizedTiktokAds.reduce((s: number, a: any) => s + (a.video_3s_plays || 0), 0);
+  const tkThruplayRate = tkImpr > 0 ? (tkThruplays / tkImpr) * 100 : 0;
+  const tkViewRate3s = tkImpr > 0 ? (tk3sViews / tkImpr) * 100 : 0;
+  const tkAvgWatchTime = normalizedTiktokAds.length > 0
+    ? normalizedTiktokAds.reduce((s: number, a: any) => s + (a.average_video_play || 0), 0) / normalizedTiktokAds.length
+    : 0;
+
+  // TOP 5 content across all platforms
+  const allAds = [...(ads || []), ...normalizedTiktokAds];
+  const top5 = [...allAds].sort((a, b) => (b.impressions || 0) - (a.impressions || 0)).slice(0, 5).map((a: any, i: number) => ({
+    name: a.ad_name || "Unnamed",
+    spend: a.amount_spent || 0,
+    impressions: a.impressions || 0,
+    reach: a.reach || 0,
+    clicks: a.clicks || 0,
+    ctr: a.ctr || 0,
+    thumbnail_url: a.thumbnail_url || null,
+    reason: `#${i + 1} nejvyšší impressions (${((a.impressions || 0) / 1000).toFixed(0)}K)`,
+  }));
+
+  const campaignSummary = [
+    ...(campaigns || []).map((cm: any) => `[Meta] ${cm.campaign_name || "Unnamed"}: Spend ${cm.amount_spent}, Impr ${cm.impressions}, Clicks ${cm.clicks}`),
+    ...(tiktokCampaigns || []).map((cm: any) => `[TikTok] ${cm.campaign_name || "Unnamed"}: Spend ${cm.amount_spent}, Impr ${cm.impressions}, Clicks ${cm.clicks}`),
+  ].join("\n");
+
+  // Fetch prompts from DB
+  const { data: prompts } = await supabase
+    .from("ai_prompts")
+    .select("key, prompt_text")
+    .in("key", ["campaign_ads_system", "campaign_ads_user"]);
+
+  const promptMap: Record<string, string> = {};
+  for (const p of prompts || []) {
+    promptMap[p.key] = p.prompt_text;
+  }
+
+  const dataContext = `
+CELKOVÁ DATA KAMPANĚ:
+- Celkový spend: ${totalSpend.toFixed(2)} CZK
+- Celkový reach: ${totalReach.toLocaleString()}
+- Celkové impressions: ${totalImpressions.toLocaleString()}
+- Průměrná frekvence: ${avgFrequency.toFixed(2)}
+- ThruPlays: ${totalThruplays.toLocaleString()}
+- 3s Video Views: ${total3sViews.toLocaleString()}
+- Link Clicks: ${totalLinkClicks.toLocaleString()}
+- Celkové interakce: ${totalInteractions.toLocaleString()} (Reactions: ${totalReactions}, Comments: ${totalComments}, Shares: ${totalShares}, Saves: ${totalSaves})
+- CTR: ${ctr.toFixed(2)}%, Engagement Rate: ${engagementRate.toFixed(2)}%
+- ThruPlay Rate: ${thruplayRate.toFixed(2)}%, View Rate 3s: ${viewRate3s.toFixed(2)}%
+- CPM: ${cpm.toFixed(2)} CZK, CPC: ${cpc.toFixed(2)} CZK, CPE: ${cpe.toFixed(2)} CZK
+
+META PLATFORMA:
+- Spend: ${metaSpend.toFixed(2)}, Reach: ${metaReach}, Frequency: ${metaFreq.toFixed(2)}
+- ThruPlay Rate: ${metaThruplayRate.toFixed(2)}%, View Rate 3s: ${metaViewRate3s.toFixed(2)}%
+
+TIKTOK PLATFORMA:
+- Spend: ${tkSpend.toFixed(2)}, Reach: ${tkReach}, Frequency: ${tkFreq.toFixed(2)}
+- ThruPlay Rate: ${tkThruplayRate.toFixed(2)}%, View Rate 3s: ${tkViewRate3s.toFixed(2)}%
+- Avg Watch Time: ${tkAvgWatchTime.toFixed(1)}s
+
+KAMPANĚ:
+${campaignSummary}
+
+KONTEXT OD UŽIVATELE:
+- Hlavní cíl: ${campaign_context.mainGoal}
+- Co bylo realizováno: ${campaign_context.actions}
+- Co se povedlo: ${campaign_context.highlights}`;
+
+  const defaultSystemPrompt = `Jsi zkušený analytik digitálního marketingu. Tvým úkolem je vytvořit kompletní vyhodnocení reklamní kampaně v češtině. Report musí být profesionální, datově podložený a obsahovat konkrétní čísla. Zaměř se na celkové zhodnocení kampaně, ponaučení a doporučení pro budoucí kampaně.`;
+
+  const defaultUserPrompt = `Vytvoř kompletní vyhodnocení kampaně. Odpověz POUZE validním JSON objektem s touto přesnou strukturou:
+
+{
+  "executive_summary": {
+    "media_insight": "Klíčový media poznatek z kampaně (max 150 slov)",
+    "top_result": "Nejlepší výsledek kampaně (max 150 slov)",
+    "recommendation": "Hlavní doporučení pro příští kampaň (max 150 slov)"
+  },
+  "goal_fulfillment": {
+    "goals_set": "Popis stanovených cílů kampaně (max 200 slov)",
+    "results": "Vyhodnocení plnění cílů s čísly (max 200 slov)"
+  },
+  "target_audience": "Analýza oslovené cílové skupiny – kdo byl osloven, jak efektivně, demographické poznatky (max 200 slov)",
+  "brand_awareness": "Analýza vlivu kampaně na brand awareness – celkový dosah, frekvence, dopad na povědomí o značce (max 200 slov)",
+  "learnings": {
+    "what_worked": ["3-5 konkrétních bodů co se povedlo, s čísly"],
+    "what_to_improve": ["3-5 bodů co zlepšit v příští kampani"],
+    "what_to_test": ["3-5 nápadů co příště otestovat"]
+  }
+}`;
+
+  const systemPrompt = (promptMap["campaign_ads_system"] || defaultSystemPrompt) + "\n" + dataContext;
+  const userPrompt = promptMap["campaign_ads_user"] || defaultUserPrompt;
+
+  console.log("Calling AI for campaign Ads insights...");
+
+  const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${lovableApiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: "google/gemini-2.5-flash",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      response_format: { type: "json_object" },
+    }),
+  });
+
+  if (!aiResponse.ok) {
+    if (aiResponse.status === 429) {
+      return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again later." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    if (aiResponse.status === 402) {
+      return new Response(JSON.stringify({ error: "Payment required. Please add credits." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    const errorText = await aiResponse.text();
+    console.error("AI gateway error:", aiResponse.status, errorText);
+    throw new Error("AI gateway error");
+  }
+
+  const aiData = await aiResponse.json();
+  const aiContent = JSON.parse(aiData.choices[0].message.content);
+
+  const structuredInsights = {
+    report_period: "campaign",
+    executive_summary: aiContent.executive_summary,
+    campaign_context,
+    goal_fulfillment: aiContent.goal_fulfillment,
+    meta_key_metrics: { spend: metaSpend, reach: metaReach, frequency: metaFreq, currency: "CZK" },
+    meta_detail_metrics: { thruplay_rate: metaThruplayRate, view_rate_3s: metaViewRate3s, avg_watch_time: metaAvgWatchTime },
+    tiktok_key_metrics: { spend: tkSpend, reach: tkReach, frequency: tkFreq, currency: "CZK" },
+    tiktok_detail_metrics: { thruplay_rate: tkThruplayRate, view_rate_3s: tkViewRate3s, avg_watch_time: tkAvgWatchTime },
+    target_audience: aiContent.target_audience || "",
+    top_content: top5,
+    community_management: { answered_comments: null, answered_dms: null, response_rate_24h: null },
+    brand_awareness: aiContent.brand_awareness || "",
+    learnings: aiContent.learnings,
+  };
+
+  const { error: updateError } = await supabase
+    .from("reports")
+    .update({
+      ai_insights: aiContent.executive_summary?.media_insight || "",
+      ai_insights_structured: structuredInsights,
+      ai_insights_context: campaign_context,
+    })
+    .eq("id", report_id);
+
+  if (updateError) {
+    console.error("Error saving insights:", updateError);
+    throw new Error("Failed to save insights");
+  }
+
+  console.log("Campaign insights saved successfully");
+
+  return new Response(
+    JSON.stringify({ structured_data: structuredInsights }),
     { headers: { ...corsHeaders, "Content-Type": "application/json" } }
   );
 }
