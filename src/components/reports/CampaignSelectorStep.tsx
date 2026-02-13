@@ -19,10 +19,11 @@ import {
   CommandList,
 } from "@/components/ui/command";
 
-interface BrandCampaign {
+interface UnifiedCampaign {
   id: string;
   campaign_id: string;
   campaign_name: string | null;
+  platform: "meta" | "tiktok";
   objective: string | null;
   status: string | null;
   date_start: string | null;
@@ -32,7 +33,8 @@ interface BrandCampaign {
 interface CampaignSelectorStepProps {
   spaceId: string;
   selectedCampaignIds: string[];
-  onSelectionChange: (ids: string[]) => void;
+  selectedTiktokCampaignIds: string[];
+  onSelectionChange: (metaIds: string[], tiktokIds: string[]) => void;
   startDate?: Date;
   endDate?: Date;
 }
@@ -40,61 +42,133 @@ interface CampaignSelectorStepProps {
 export const CampaignSelectorStep = ({
   spaceId,
   selectedCampaignIds,
+  selectedTiktokCampaignIds,
   onSelectionChange,
   startDate,
   endDate,
 }: CampaignSelectorStepProps) => {
-  const [campaigns, setCampaigns] = useState<BrandCampaign[]>([]);
+  const [campaigns, setCampaigns] = useState<UnifiedCampaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
     const fetchCampaigns = async () => {
       setLoading(true);
-      let query = supabase
+      const allCampaigns: UnifiedCampaign[] = [];
+
+      // Fetch Meta campaigns (brand_campaigns)
+      let metaQuery = supabase
         .from("brand_campaigns")
         .select("id, campaign_id, campaign_name, objective, status, date_start, date_stop")
         .eq("space_id", spaceId);
 
       if (startDate) {
-        query = query.or(`date_stop.gte.${format(startDate, "yyyy-MM-dd")},date_stop.is.null`);
+        metaQuery = metaQuery.or(`date_stop.gte.${format(startDate, "yyyy-MM-dd")},date_stop.is.null`);
       }
       if (endDate) {
-        query = query.or(`date_start.lte.${format(endDate, "yyyy-MM-dd")},date_start.is.null`);
+        metaQuery = metaQuery.or(`date_start.lte.${format(endDate, "yyyy-MM-dd")},date_start.is.null`);
       }
 
-      const { data, error } = await query.order("campaign_name", { ascending: true, nullsFirst: false });
+      const { data: metaData, error: metaError } = await metaQuery.order("campaign_name", { ascending: true, nullsFirst: false });
 
-      if (!error && data) {
-        setCampaigns(data);
-        const validIds = new Set(data.map((c) => c.id));
-        const filtered = selectedCampaignIds.filter((id) => validIds.has(id));
-        if (filtered.length !== selectedCampaignIds.length) {
-          onSelectionChange(filtered);
-        }
+      if (!metaError && metaData) {
+        allCampaigns.push(
+          ...metaData.map((c) => ({
+            id: c.id,
+            campaign_id: c.campaign_id,
+            campaign_name: c.campaign_name,
+            platform: "meta" as const,
+            objective: c.objective,
+            status: c.status,
+            date_start: c.date_start,
+            date_stop: c.date_stop,
+          }))
+        );
       }
+
+      // Fetch TikTok campaigns (distinct by campaign_id since tiktok_campaigns has demographic dimensions)
+      const { data: tiktokData, error: tiktokError } = await supabase
+        .from("tiktok_campaigns")
+        .select("id, campaign_id, campaign_name, status")
+        .eq("space_id", spaceId)
+        .eq("age", "")
+        .eq("gender", "")
+        .eq("location", "")
+        .order("campaign_name", { ascending: true, nullsFirst: false });
+
+      if (!tiktokError && tiktokData) {
+        allCampaigns.push(
+          ...tiktokData.map((c) => ({
+            id: c.id,
+            campaign_id: c.campaign_id,
+            campaign_name: c.campaign_name,
+            platform: "tiktok" as const,
+            objective: null,
+            status: c.status,
+            date_start: null,
+            date_stop: null,
+          }))
+        );
+      }
+
+      setCampaigns(allCampaigns);
+
+      // Validate existing selections
+      const validMetaIds = new Set(allCampaigns.filter(c => c.platform === "meta").map(c => c.id));
+      const validTiktokIds = new Set(allCampaigns.filter(c => c.platform === "tiktok").map(c => c.id));
+      const filteredMeta = selectedCampaignIds.filter(id => validMetaIds.has(id));
+      const filteredTiktok = selectedTiktokCampaignIds.filter(id => validTiktokIds.has(id));
+
+      if (filteredMeta.length !== selectedCampaignIds.length || filteredTiktok.length !== selectedTiktokCampaignIds.length) {
+        onSelectionChange(filteredMeta, filteredTiktok);
+      }
+
       setLoading(false);
     };
 
     fetchCampaigns();
   }, [spaceId, startDate, endDate]);
 
-  const toggleCampaign = (id: string) => {
-    if (selectedCampaignIds.includes(id)) {
-      onSelectionChange(selectedCampaignIds.filter((cid) => cid !== id));
+  const allSelectedIds = [...selectedCampaignIds, ...selectedTiktokCampaignIds];
+
+  const toggleCampaign = (campaign: UnifiedCampaign) => {
+    if (campaign.platform === "meta") {
+      if (selectedCampaignIds.includes(campaign.id)) {
+        onSelectionChange(selectedCampaignIds.filter(id => id !== campaign.id), selectedTiktokCampaignIds);
+      } else {
+        onSelectionChange([...selectedCampaignIds, campaign.id], selectedTiktokCampaignIds);
+      }
     } else {
-      onSelectionChange([...selectedCampaignIds, id]);
+      if (selectedTiktokCampaignIds.includes(campaign.id)) {
+        onSelectionChange(selectedCampaignIds, selectedTiktokCampaignIds.filter(id => id !== campaign.id));
+      } else {
+        onSelectionChange(selectedCampaignIds, [...selectedTiktokCampaignIds, campaign.id]);
+      }
     }
   };
 
-  const removeCampaign = (id: string) => {
-    onSelectionChange(selectedCampaignIds.filter((cid) => cid !== id));
+  const removeCampaign = (campaign: UnifiedCampaign) => {
+    if (campaign.platform === "meta") {
+      onSelectionChange(selectedCampaignIds.filter(id => id !== campaign.id), selectedTiktokCampaignIds);
+    } else {
+      onSelectionChange(selectedCampaignIds, selectedTiktokCampaignIds.filter(id => id !== campaign.id));
+    }
   };
 
-  const selectedCampaigns = campaigns.filter((c) => selectedCampaignIds.includes(c.id));
+  const selectedCampaigns = campaigns.filter(c => allSelectedIds.includes(c.id));
 
-  const getDisplayName = (campaign: BrandCampaign) =>
-    campaign.campaign_name || campaign.campaign_id;
+  const getDisplayName = (campaign: UnifiedCampaign) => {
+    const name = campaign.campaign_name || campaign.campaign_id;
+    const platformLabel = campaign.platform === "meta" ? "Meta" : "TikTok";
+    return `[${platformLabel}] ${name}`;
+  };
+
+  // Sort selected campaigns to top
+  const sortedCampaigns = [...campaigns].sort((a, b) => {
+    const aSelected = allSelectedIds.includes(a.id) ? 0 : 1;
+    const bSelected = allSelectedIds.includes(b.id) ? 0 : 1;
+    return aSelected - bSelected;
+  });
 
   if (loading) {
     return (
@@ -104,7 +178,7 @@ export const CampaignSelectorStep = ({
 
   if (campaigns.length === 0) {
     return (
-      <p className="text-sm text-muted-foreground py-2">No campaigns found for this date range.</p>
+      <p className="text-sm text-muted-foreground py-2">No campaigns found for this space.</p>
     );
   }
 
@@ -118,8 +192,8 @@ export const CampaignSelectorStep = ({
             aria-expanded={open}
             className="w-full justify-between rounded-[35px] border-foreground"
           >
-            {selectedCampaignIds.length > 0
-              ? `${selectedCampaignIds.length} campaign${selectedCampaignIds.length > 1 ? "s" : ""} selected`
+            {allSelectedIds.length > 0
+              ? `${allSelectedIds.length} campaign${allSelectedIds.length > 1 ? "s" : ""} selected`
               : "Select campaigns..."}
             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
@@ -130,13 +204,13 @@ export const CampaignSelectorStep = ({
             <CommandList>
               <CommandEmpty>No campaigns found.</CommandEmpty>
               <CommandGroup>
-                {campaigns.map((campaign) => {
-                  const isSelected = selectedCampaignIds.includes(campaign.id);
+                {sortedCampaigns.map((campaign) => {
+                  const isSelected = allSelectedIds.includes(campaign.id);
                   return (
                     <CommandItem
                       key={campaign.id}
                       value={getDisplayName(campaign)}
-                      onSelect={() => toggleCampaign(campaign.id)}
+                      onSelect={() => toggleCampaign(campaign)}
                       className={cn(
                         isSelected && "bg-foreground text-background"
                       )}
@@ -177,7 +251,7 @@ export const CampaignSelectorStep = ({
             >
               <span className="truncate max-w-[200px]">{getDisplayName(campaign)}</span>
               <button
-                onClick={() => removeCampaign(campaign.id)}
+                onClick={() => removeCampaign(campaign)}
                 className="ml-0.5 rounded-full hover:bg-foreground/10 p-0.5"
               >
                 <X className="h-3 w-3" />

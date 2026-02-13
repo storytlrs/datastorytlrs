@@ -68,6 +68,7 @@ export const EditReportDialog = ({ open, onOpenChange, report, onSuccess }: Edit
   const [type, setType] = useState(report.type === "social" ? "always_on" : report.type);
   const [period, setPeriod] = useState(report.period || "monthly");
   const [selectedCampaignIds, setSelectedCampaignIds] = useState<string[]>([]);
+  const [selectedTiktokCampaignIds, setSelectedTiktokCampaignIds] = useState<string[]>([]);
 
   const showCampaignSelector = type === "ads" || type === "always_on";
 
@@ -86,6 +87,7 @@ export const EditReportDialog = ({ open, onOpenChange, report, onSuccess }: Edit
 
       // Fetch existing campaign links
       fetchLinkedCampaigns();
+      fetchLinkedTiktokCampaigns();
     }
   }, [open, report, isAdmin]);
 
@@ -96,6 +98,16 @@ export const EditReportDialog = ({ open, onOpenChange, report, onSuccess }: Edit
       .eq("report_id", report.id);
     if (data) {
       setSelectedCampaignIds(data.map((r) => r.brand_campaign_id));
+    }
+  };
+
+  const fetchLinkedTiktokCampaigns = async () => {
+    const { data } = await supabase
+      .from("report_tiktok_campaigns")
+      .select("tiktok_campaign_id")
+      .eq("report_id", report.id);
+    if (data) {
+      setSelectedTiktokCampaignIds(data.map((r) => r.tiktok_campaign_id));
     }
   };
 
@@ -135,12 +147,24 @@ export const EditReportDialog = ({ open, onOpenChange, report, onSuccess }: Edit
 
       // Sync campaign links
       if (type === "ads" || type === "always_on") {
+        // Meta campaigns
         await supabase.from("report_campaigns").delete().eq("report_id", report.id);
         if (selectedCampaignIds.length > 0) {
           await supabase.from("report_campaigns").insert(
             selectedCampaignIds.map((cid) => ({
               report_id: report.id,
               brand_campaign_id: cid,
+            }))
+          );
+        }
+
+        // TikTok campaigns
+        await supabase.from("report_tiktok_campaigns").delete().eq("report_id", report.id);
+        if (selectedTiktokCampaignIds.length > 0) {
+          await supabase.from("report_tiktok_campaigns").insert(
+            selectedTiktokCampaignIds.map((cid) => ({
+              report_id: report.id,
+              tiktok_campaign_id: cid,
             }))
           );
         }
@@ -305,7 +329,11 @@ export const EditReportDialog = ({ open, onOpenChange, report, onSuccess }: Edit
               <CampaignSelectorStep
                 spaceId={report.space_id}
                 selectedCampaignIds={selectedCampaignIds}
-                onSelectionChange={setSelectedCampaignIds}
+                selectedTiktokCampaignIds={selectedTiktokCampaignIds}
+                onSelectionChange={(metaIds, tiktokIds) => {
+                  setSelectedCampaignIds(metaIds);
+                  setSelectedTiktokCampaignIds(tiktokIds);
+                }}
                 startDate={startDate}
                 endDate={endDate}
               />

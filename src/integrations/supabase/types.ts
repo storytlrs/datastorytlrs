@@ -909,6 +909,42 @@ export type Database = {
           },
         ]
       }
+      report_tiktok_campaigns: {
+        Row: {
+          created_at: string
+          id: string
+          report_id: string
+          tiktok_campaign_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          report_id: string
+          tiktok_campaign_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          report_id?: string
+          tiktok_campaign_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "report_tiktok_campaigns_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "reports"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "report_tiktok_campaigns_tiktok_campaign_id_fkey"
+            columns: ["tiktok_campaign_id"]
+            isOneToOne: false
+            referencedRelation: "tiktok_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reports: {
         Row: {
           ai_insights: string | null
