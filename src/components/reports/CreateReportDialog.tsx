@@ -92,6 +92,7 @@ const CreateReportDialog = ({
 
   // Campaign selection state (for ads/always_on)
   const [selectedCampaignIds, setSelectedCampaignIds] = useState<string[]>([]);
+  const [selectedTiktokCampaignIds, setSelectedTiktokCampaignIds] = useState<string[]>([]);
 
   // Step 2/3 state (file upload)
   const [file, setFile] = useState<File | null>(null);
@@ -134,6 +135,7 @@ const CreateReportDialog = ({
       setStartDate(undefined);
       setEndDate(undefined);
       setSelectedCampaignIds([]);
+      setSelectedTiktokCampaignIds([]);
       setFile(null);
       setParsedFile(null);
       setMappings({});
@@ -270,7 +272,7 @@ const CreateReportDialog = ({
 
       if (reportError) throw reportError;
 
-      // Save campaign links if any selected
+      // Save Meta campaign links
       if (selectedCampaignIds.length > 0) {
         const campaignLinks = selectedCampaignIds.map((cid) => ({
           report_id: report.id,
@@ -280,7 +282,21 @@ const CreateReportDialog = ({
           .from("report_campaigns")
           .insert(campaignLinks);
         if (linkError) {
-          console.error("Error linking campaigns:", linkError);
+          console.error("Error linking Meta campaigns:", linkError);
+        }
+      }
+
+      // Save TikTok campaign links
+      if (selectedTiktokCampaignIds.length > 0) {
+        const tiktokLinks = selectedTiktokCampaignIds.map((cid) => ({
+          report_id: report.id,
+          tiktok_campaign_id: cid,
+        }));
+        const { error: tiktokLinkError } = await supabase
+          .from("report_tiktok_campaigns")
+          .insert(tiktokLinks);
+        if (tiktokLinkError) {
+          console.error("Error linking TikTok campaigns:", tiktokLinkError);
         }
       }
 
@@ -516,7 +532,11 @@ const CreateReportDialog = ({
           <CampaignSelectorStep
             spaceId={spaceId}
             selectedCampaignIds={selectedCampaignIds}
-            onSelectionChange={setSelectedCampaignIds}
+            selectedTiktokCampaignIds={selectedTiktokCampaignIds}
+            onSelectionChange={(metaIds, tiktokIds) => {
+              setSelectedCampaignIds(metaIds);
+              setSelectedTiktokCampaignIds(tiktokIds);
+            }}
             startDate={startDate}
             endDate={endDate}
           />
