@@ -12,6 +12,7 @@ import { jsPDF } from "jspdf";
 import { AIInsightsInputDialog, CampaignContext } from "./AIInsightsInputDialog";
 import { AdsAIInsightsContent, AdsStructuredInsights } from "./AdsAIInsightsContent";
 import { MonthlyAdsInsightsContent, MonthlyStructuredInsights } from "./MonthlyAdsInsightsContent";
+import { QuarterlyAdsInsightsContent, QuarterlyStructuredInsights } from "./QuarterlyAdsInsightsContent";
 
 interface AdsAIInsightsTabProps {
   reportId: string;
@@ -201,6 +202,7 @@ export const AdsAIInsightsTab = ({ reportId }: AdsAIInsightsTabProps) => {
   }
 
   const isMonthly = structuredData?.report_period === "monthly" || (reportPeriod === "monthly" && structuredData);
+  const isQuarterly = structuredData?.report_period === "quarterly" || (reportPeriod === "quarterly" && structuredData);
 
   // Structured view
   if (structuredData && !isEditing) {
@@ -227,6 +229,13 @@ export const AdsAIInsightsTab = ({ reportId }: AdsAIInsightsTabProps) => {
               canEdit={canEdit}
               onSaveInsights={handleSaveStructuredInsights}
             />
+          ) : isQuarterly ? (
+            <QuarterlyAdsInsightsContent
+              ref={contentRef}
+              insights={structuredData as QuarterlyStructuredInsights}
+              canEdit={canEdit}
+              onSaveInsights={handleSaveStructuredInsights}
+            />
           ) : (
             <AdsAIInsightsContent
               ref={contentRef}
@@ -246,6 +255,11 @@ export const AdsAIInsightsTab = ({ reportId }: AdsAIInsightsTabProps) => {
               <MonthlyAdsInsightsContent
                 ref={pdfRef}
                 insights={structuredData as MonthlyStructuredInsights}
+              />
+            ) : isQuarterly ? (
+              <QuarterlyAdsInsightsContent
+                ref={pdfRef}
+                insights={structuredData as QuarterlyStructuredInsights}
               />
             ) : (
               <AdsAIInsightsContent
