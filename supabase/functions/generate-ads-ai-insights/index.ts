@@ -48,7 +48,7 @@ serve(async (req) => {
     const spaceId = report.space_id;
     const period = report.period || "campaign";
 
-    // Fetch linked campaign IDs for this report
+    // Fetch linked campaign IDs for this report (Meta)
     const { data: links } = await supabase
       .from("report_campaigns")
       .select("brand_campaign_id")
@@ -56,45 +56,68 @@ serve(async (req) => {
 
     const linkedCampaignIds = (links || []).map((l: any) => l.brand_campaign_id);
 
-    if (linkedCampaignIds.length === 0) {
+    // Fetch linked TikTok campaign IDs for this report
+    const { data: tiktokLinks } = await supabase
+      .from("report_tiktok_campaigns")
+      .select("tiktok_campaign_id")
+      .eq("report_id", report_id);
+
+    const linkedTiktokCampaignIds = (tiktokLinks || []).map((l: any) => l.tiktok_campaign_id);
+
+    if (linkedCampaignIds.length === 0 && linkedTiktokCampaignIds.length === 0) {
       throw new Error("No campaigns linked to this report. Please select campaigns first.");
     }
 
-    // Fetch only linked campaigns
-    const { data: campaigns = [] } = await supabase
-      .from("brand_campaigns")
-      .select("*")
-      .in("id", linkedCampaignIds);
+    // Fetch only linked Meta campaigns
+    const { data: campaigns = [] } = linkedCampaignIds.length > 0
+      ? await supabase.from("brand_campaigns").select("*").in("id", linkedCampaignIds)
+      : { data: [] };
 
-    // Fetch ad sets belonging to linked campaigns
-    const { data: adSets = [] } = await supabase
-      .from("brand_ad_sets")
-      .select("*")
-      .eq("space_id", spaceId)
-      .in("brand_campaign_id", linkedCampaignIds);
+    // Fetch ad sets belonging to linked Meta campaigns
+    const { data: adSets = [] } = linkedCampaignIds.length > 0
+      ? await supabase.from("brand_ad_sets").select("*").eq("space_id", spaceId).in("brand_campaign_id", linkedCampaignIds)
+      : { data: [] };
 
     const adSetIds = (adSets || []).map((as: any) => as.id);
 
-    // Fetch ads belonging to those ad sets
-    const { data: ads = [] } = await supabase
-      .from("brand_ads")
-      .select("*")
-      .eq("space_id", spaceId)
-      .in("brand_ad_set_id", adSetIds.length > 0 ? adSetIds : ["__none__"]);
+    // Fetch Meta ads belonging to those ad sets
+    const { data: ads = [] } = adSetIds.length > 0
+      ? await supabase.from("brand_ads").select("*").eq("space_id", spaceId).in("brand_ad_set_id", adSetIds)
+      : { data: [] };
 
-    // Calculate aggregated metrics
-    const metricsSource = campaigns.length > 0 ? campaigns : adSets;
+    // Fetch linked TikTok campaigns
+    const { data: tiktokCampaigns = [] } = linkedTiktokCampaignIds.length > 0
+      ? await supabase.from("tiktok_campaigns").select("*").in("id", linkedTiktokCampaignIds)
+      : { data: [] };
+
+    // Fetch TikTok ad groups
+    const { data: tiktokAdGroups = [] } = linkedTiktokCampaignIds.length > 0
+      ? await supabase.from("tiktok_ad_groups").select("*").eq("space_id", spaceId).in("tiktok_campaign_id", linkedTiktokCampaignIds)
+      : { data: [] };
+
+    const tiktokAdGroupIds = (tiktokAdGroups || []).map((ag: any) => ag.id);
+
+    // Fetch TikTok ads
+    const { data: tiktokAds = [] } = tiktokAdGroupIds.length > 0
+      ? await supabase.from("tiktok_ads").select("*").eq("space_id", spaceId).in("tiktok_ad_group_id", tiktokAdGroupIds)
+      : { data: [] };
+
+    // Calculate aggregated metrics from both platforms
+    const allCampaigns = [...(campaigns || []), ...(tiktokCampaigns || [])];
+    const metricsSource = allCampaigns.length > 0 ? allCampaigns : [...(adSets || []), ...(tiktokAdGroups || [])];
     const totalSpend = metricsSource.reduce((s: number, d: any) => s + (d.amount_spent || 0), 0);
     const totalReach = metricsSource.reduce((s: number, d: any) => s + (d.reach || 0), 0);
     const totalImpressions = metricsSource.reduce((s: number, d: any) => s + (d.impressions || 0), 0);
     const totalClicks = metricsSource.reduce((s: number, d: any) => s + (d.clicks || 0), 0);
 
-    const detailSource = ads.length > 0 ? ads : adSets;
-    const totalThruplays = detailSource.reduce((s: number, d: any) => s + (d.thruplays || 0), 0);
-    const total3sViews = detailSource.reduce((s: number, d: any) => s + (d.video_3s_plays || 0), 0);
-    const totalReactions = detailSource.reduce((s: number, d: any) => s + (d.post_reactions || 0), 0);
-    const totalComments = detailSource.reduce((s: number, d: any) => s + (d.post_comments || 0), 0);
-    const totalShares = detailSource.reduce((s: number, d: any) => s + (d.post_shares || 0), 0);
+    const allAds = [...(ads || []), ...(tiktokAds || [])];
+    const allAdSets = [...(adSets || []), ...(tiktokAdGroups || [])];
+    const detailSource = allAds.length > 0 ? allAds : allAdSets;
+    const totalThruplays = detailSource.reduce((s: number, d: any) => s + (d.thruplays || d.video_views_p100 || 0), 0);
+    const total3sViews = detailSource.reduce((s: number, d: any) => s + (d.video_3s_plays || d.video_watched_2s || 0), 0);
+    const totalReactions = detailSource.reduce((s: number, d: any) => s + (d.post_reactions || d.likes || 0), 0);
+    const totalComments = detailSource.reduce((s: number, d: any) => s + (d.post_comments || d.comments || 0), 0);
+    const totalShares = detailSource.reduce((s: number, d: any) => s + (d.post_shares || d.shares || 0), 0);
     const totalSaves = detailSource.reduce((s: number, d: any) => s + (d.post_saves || 0), 0);
     const totalLinkClicks = detailSource.reduce((s: number, d: any) => s + (d.link_clicks || 0), 0);
     const totalInteractions = totalReactions + totalComments + totalShares + totalSaves;
@@ -115,6 +138,7 @@ serve(async (req) => {
       return await handleMonthlyReport({
         supabase, report_id, campaign_context, lovableApiKey,
         campaigns, adSets, ads,
+        tiktokCampaigns, tiktokAdGroups, tiktokAds,
         totalSpend, totalReach, totalImpressions, totalClicks,
         totalThruplays, total3sViews, totalLinkClicks, totalInteractions,
         totalReactions, totalComments, totalShares, totalSaves,
@@ -127,6 +151,7 @@ serve(async (req) => {
       return await handleQuarterlyReport({
         supabase, report_id, campaign_context, lovableApiKey,
         campaigns, adSets, ads,
+        tiktokCampaigns, tiktokAdGroups, tiktokAds,
         totalSpend, totalReach, totalImpressions, totalClicks,
         totalThruplays, total3sViews, totalLinkClicks, totalInteractions,
         totalReactions, totalComments, totalShares, totalSaves,
@@ -139,6 +164,7 @@ serve(async (req) => {
     return await handleDefaultReport({
       supabase, report_id, campaign_context, lovableApiKey,
       campaigns, adSets, ads,
+      tiktokCampaigns, tiktokAdGroups, tiktokAds,
       totalSpend, totalReach, totalImpressions, totalClicks,
       totalThruplays, total3sViews, totalLinkClicks, totalInteractions,
       totalReactions, totalComments, totalShares, totalSaves,
