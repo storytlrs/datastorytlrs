@@ -13,6 +13,7 @@ import { AIInsightsInputDialog, CampaignContext } from "./AIInsightsInputDialog"
 import { AdsAIInsightsContent, AdsStructuredInsights } from "./AdsAIInsightsContent";
 import { MonthlyAdsInsightsContent, MonthlyStructuredInsights } from "./MonthlyAdsInsightsContent";
 import { QuarterlyAdsInsightsContent, QuarterlyStructuredInsights } from "./QuarterlyAdsInsightsContent";
+import { YearlyAdsInsightsContent, YearlyStructuredInsights } from "./YearlyAdsInsightsContent";
 
 interface AdsAIInsightsTabProps {
   reportId: string;
@@ -203,6 +204,7 @@ export const AdsAIInsightsTab = ({ reportId }: AdsAIInsightsTabProps) => {
 
   const isMonthly = structuredData?.report_period === "monthly" || (reportPeriod === "monthly" && structuredData);
   const isQuarterly = structuredData?.report_period === "quarterly" || (reportPeriod === "quarterly" && structuredData);
+  const isYearly = structuredData?.report_period === "yearly" || (reportPeriod === "yearly" && structuredData);
 
   // Structured view
   if (structuredData && !isEditing) {
@@ -236,6 +238,13 @@ export const AdsAIInsightsTab = ({ reportId }: AdsAIInsightsTabProps) => {
               canEdit={canEdit}
               onSaveInsights={handleSaveStructuredInsights}
             />
+          ) : isYearly ? (
+            <YearlyAdsInsightsContent
+              ref={contentRef}
+              insights={structuredData as YearlyStructuredInsights}
+              canEdit={canEdit}
+              onSaveInsights={handleSaveStructuredInsights}
+            />
           ) : (
             <AdsAIInsightsContent
               ref={contentRef}
@@ -260,6 +269,11 @@ export const AdsAIInsightsTab = ({ reportId }: AdsAIInsightsTabProps) => {
               <QuarterlyAdsInsightsContent
                 ref={pdfRef}
                 insights={structuredData as QuarterlyStructuredInsights}
+              />
+            ) : isYearly ? (
+              <YearlyAdsInsightsContent
+                ref={pdfRef}
+                insights={structuredData as YearlyStructuredInsights}
               />
             ) : (
               <AdsAIInsightsContent
