@@ -84,6 +84,13 @@ export const AdCreativesTab = ({ reportId, spaceId }: AdCreativesTabProps) => {
 
     // Fetch Meta ads
     if (metaLinkedIds.length > 0) {
+      // Fetch campaigns to get names
+      const { data: campaignsData } = await supabase
+        .from("brand_campaigns")
+        .select("id, campaign_name")
+        .in("id", metaLinkedIds);
+      const metaCampaignMap = Object.fromEntries((campaignsData || []).map((c: any) => [c.id, c.campaign_name]));
+
       const { data: adSetsData } = await supabase
         .from("brand_ad_sets" as any)
         .select("id, adset_name, brand_campaign_id")
@@ -91,7 +98,7 @@ export const AdCreativesTab = ({ reportId, spaceId }: AdCreativesTabProps) => {
         .in("brand_campaign_id", metaLinkedIds);
 
       const adSetIds = (adSetsData || []).map((a: any) => a.id);
-      const adSetMap = Object.fromEntries((adSetsData || []).map((a: any) => [a.id, a.adset_name]));
+      const adSetMap = Object.fromEntries((adSetsData || []).map((a: any) => [a.id, { adset_name: a.adset_name, campaign_id: a.brand_campaign_id }]));
 
       if (adSetIds.length > 0) {
         const { data, error } = await supabase
@@ -102,31 +109,42 @@ export const AdCreativesTab = ({ reportId, spaceId }: AdCreativesTabProps) => {
           .order("amount_spent", { ascending: false });
 
         if (!error && data) {
-          allCreatives.push(...data.map((row: any) => ({
-            id: row.id,
-            ad_id: row.ad_id,
-            name: row.ad_name || "Unnamed Ad",
-            platform: "meta",
-            ad_type: null,
-            thumbnail_url: row.thumbnail_url || null,
-            url: null,
-            campaign_name: null,
-            adset_name: adSetMap[row.brand_ad_set_id] || null,
-            spend: row.amount_spent,
-            impressions: row.impressions,
-            clicks: row.clicks,
-            conversions: null,
-            ctr: row.ctr,
-            roas: null,
-            frequency: row.frequency,
-            published_date: row.date_start,
-          })));
+          allCreatives.push(...data.map((row: any) => {
+            const adSetInfo = adSetMap[row.brand_ad_set_id] || {};
+            const campaignName = metaCampaignMap[adSetInfo.campaign_id] || null;
+            return {
+              id: row.id,
+              ad_id: row.ad_id,
+              name: row.ad_name || "Unnamed Ad",
+              platform: "meta",
+              ad_type: null,
+              thumbnail_url: row.thumbnail_url || null,
+              url: null,
+              campaign_name: campaignName,
+              adset_name: adSetInfo.adset_name || null,
+              spend: row.amount_spent,
+              impressions: row.impressions,
+              clicks: row.clicks,
+              conversions: null,
+              ctr: row.ctr,
+              roas: null,
+              frequency: row.frequency,
+              published_date: row.date_start,
+            };
+          }));
         }
       }
     }
 
     // Fetch TikTok ads
     if (tiktokLinkedIds.length > 0) {
+      // Fetch TikTok campaigns to get names
+      const { data: tiktokCampaignsData } = await supabase
+        .from("tiktok_campaigns")
+        .select("id, campaign_name")
+        .in("id", tiktokLinkedIds);
+      const tiktokCampaignMap = Object.fromEntries((tiktokCampaignsData || []).map((c: any) => [c.id, c.campaign_name]));
+
       const { data: adGroupsData } = await supabase
         .from("tiktok_ad_groups")
         .select("id, adgroup_name, tiktok_campaign_id")
@@ -134,7 +152,7 @@ export const AdCreativesTab = ({ reportId, spaceId }: AdCreativesTabProps) => {
         .in("tiktok_campaign_id", tiktokLinkedIds);
 
       const adGroupIds = (adGroupsData || []).map((a: any) => a.id);
-      const adGroupMap = Object.fromEntries((adGroupsData || []).map((a: any) => [a.id, a.adgroup_name]));
+      const adGroupMap = Object.fromEntries((adGroupsData || []).map((a: any) => [a.id, { adgroup_name: a.adgroup_name, campaign_id: a.tiktok_campaign_id }]));
 
       if (adGroupIds.length > 0) {
         const { data, error } = await supabase
@@ -145,25 +163,29 @@ export const AdCreativesTab = ({ reportId, spaceId }: AdCreativesTabProps) => {
           .order("amount_spent", { ascending: false });
 
         if (!error && data) {
-          allCreatives.push(...data.map((row: any) => ({
-            id: row.id,
-            ad_id: row.ad_id,
-            name: row.ad_name || "Unnamed Ad",
-            platform: "tiktok",
-            ad_type: null,
-            thumbnail_url: row.thumbnail_url || null,
-            url: null,
-            campaign_name: null,
-            adset_name: adGroupMap[row.tiktok_ad_group_id] || null,
-            spend: row.amount_spent,
-            impressions: row.impressions,
-            clicks: row.clicks,
-            conversions: null,
-            ctr: row.ctr,
-            roas: null,
-            frequency: row.frequency,
-            published_date: null,
-          })));
+          allCreatives.push(...data.map((row: any) => {
+            const adGroupInfo = adGroupMap[row.tiktok_ad_group_id] || {};
+            const campaignName = tiktokCampaignMap[adGroupInfo.campaign_id] || null;
+            return {
+              id: row.id,
+              ad_id: row.ad_id,
+              name: row.ad_name || "Unnamed Ad",
+              platform: "tiktok",
+              ad_type: null,
+              thumbnail_url: row.thumbnail_url || null,
+              url: null,
+              campaign_name: campaignName,
+              adset_name: adGroupInfo.adgroup_name || null,
+              spend: row.amount_spent,
+              impressions: row.impressions,
+              clicks: row.clicks,
+              conversions: null,
+              ctr: row.ctr,
+              roas: null,
+              frequency: row.frequency,
+              published_date: null,
+            };
+          }));
         }
       }
     }
