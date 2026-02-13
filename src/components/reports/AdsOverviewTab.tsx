@@ -206,15 +206,16 @@ export const AdsOverviewTab = ({ reportId, spaceId }: AdsOverviewTabProps) => {
     const fetchData = async () => {
       setLoading(true);
 
-      // Fetch linked campaign IDs for this report
-      const { data: links } = await supabase
-        .from("report_campaigns")
-        .select("brand_campaign_id")
-        .eq("report_id", reportId);
+      // Fetch linked campaign IDs for this report (Meta + TikTok)
+      const [metaLinksRes, tiktokLinksRes] = await Promise.all([
+        supabase.from("report_campaigns").select("brand_campaign_id").eq("report_id", reportId),
+        supabase.from("report_tiktok_campaigns").select("tiktok_campaign_id").eq("report_id", reportId),
+      ]);
 
-      const linkedIds = links?.map((l) => l.brand_campaign_id) || [];
+      const metaLinkedIds = metaLinksRes.data?.map((l) => l.brand_campaign_id) || [];
+      const tiktokLinkedIds = tiktokLinksRes.data?.map((l) => l.tiktok_campaign_id) || [];
 
-      if (linkedIds.length === 0) {
+      if (metaLinkedIds.length === 0 && tiktokLinkedIds.length === 0) {
         setCampaignMeta([]);
         setAdSets([]);
         setAds([]);
@@ -222,21 +223,120 @@ export const AdsOverviewTab = ({ reportId, spaceId }: AdsOverviewTabProps) => {
         return;
       }
 
-      const [campaignMetaRes, adSetsRes] = await Promise.all([
-        supabase.from("brand_campaigns" as any).select("*").eq("space_id", spaceId).in("id", linkedIds),
-        supabase.from("brand_ad_sets" as any).select("*").eq("space_id", spaceId).in("brand_campaign_id", linkedIds),
-      ]);
+      // Fetch Meta data
+      let metaCampaigns: any[] = [];
+      let metaAdSets: any[] = [];
+      let metaAds: any[] = [];
 
-      const adSetIds = (adSetsRes.data || []).map((as: any) => as.id);
-      let adsData: any[] = [];
-      if (adSetIds.length > 0) {
-        const adsRes = await supabase.from("brand_ads" as any).select("*").eq("space_id", spaceId).in("brand_ad_set_id", adSetIds);
-        adsData = (adsRes.data || []) as any;
+      if (metaLinkedIds.length > 0) {
+        const [campaignMetaRes, adSetsRes] = await Promise.all([
+          supabase.from("brand_campaigns" as any).select("*").eq("space_id", spaceId).in("id", metaLinkedIds),
+          supabase.from("brand_ad_sets" as any).select("*").eq("space_id", spaceId).in("brand_campaign_id", metaLinkedIds),
+        ]);
+        metaCampaigns = (campaignMetaRes.data || []).map((c: any) => ({ ...c, platform: "meta" }));
+        metaAdSets = (adSetsRes.data || []).map((as: any) => ({ ...as, platform: "meta" }));
+
+        const adSetIds = metaAdSets.map((as: any) => as.id);
+        if (adSetIds.length > 0) {
+          const adsRes = await supabase.from("brand_ads" as any).select("*").eq("space_id", spaceId).in("brand_ad_set_id", adSetIds);
+          metaAds = (adsRes.data || []).map((a: any) => ({ ...a, platform: "meta" }));
+        }
       }
 
-      setCampaignMeta((campaignMetaRes.data || []) as any);
-      setAdSets((adSetsRes.data || []) as any);
-      setAds(adsData);
+      // Fetch TikTok data
+      let tiktokCampaigns: any[] = [];
+      let tiktokAdGroups: any[] = [];
+      let tiktokAdsData: any[] = [];
+
+      if (tiktokLinkedIds.length > 0) {
+        const [tiktokCampaignsRes, tiktokAdGroupsRes] = await Promise.all([
+          supabase.from("tiktok_campaigns").select("*").eq("space_id", spaceId).in("id", tiktokLinkedIds).eq("age", "").eq("gender", "").eq("location", ""),
+          supabase.from("tiktok_ad_groups").select("*").eq("space_id", spaceId).in("tiktok_campaign_id", tiktokLinkedIds),
+        ]);
+
+        // Map TikTok campaigns to unified format
+        tiktokCampaigns = (tiktokCampaignsRes.data || []).map((c: any) => ({
+          id: c.id,
+          campaign_id: c.campaign_id,
+          campaign_name: c.campaign_name ? `[TikTok] ${c.campaign_name}` : c.campaign_name,
+          platform: "tiktok",
+          amount_spent: c.amount_spent,
+          reach: c.reach,
+          impressions: c.impressions,
+          frequency: c.frequency,
+          ctr: c.ctr,
+          cpm: c.cpm,
+          cpc: c.cpc,
+          thruplays: c.video_views_p100,
+          video_3s_plays: c.video_watched_2s,
+          link_clicks: c.clicks,
+          post_reactions: c.likes,
+          post_comments: c.comments,
+          post_shares: c.shares,
+          post_saves: 0,
+          date_start: null,
+          date_stop: null,
+        }));
+
+        // Map TikTok ad groups to unified ad set format
+        tiktokAdGroups = (tiktokAdGroupsRes.data || []).map((ag: any) => ({
+          id: ag.id,
+          brand_campaign_id: ag.tiktok_campaign_id,
+          adset_name: ag.adgroup_name ? `[TikTok] ${ag.adgroup_name}` : ag.adgroup_name,
+          status: ag.status,
+          amount_spent: ag.amount_spent,
+          reach: ag.reach,
+          impressions: ag.impressions,
+          frequency: ag.frequency,
+          ctr: ag.ctr,
+          cpm: ag.cpm,
+          cpc: ag.cpc,
+          thruplays: ag.video_views_p100,
+          video_3s_plays: ag.video_watched_2s,
+          clicks: ag.clicks,
+          post_reactions: ag.likes,
+          post_comments: ag.comments,
+          post_shares: ag.shares,
+          post_saves: 0,
+          date_start: null,
+          date_stop: null,
+          platform: "tiktok",
+        }));
+
+        const adGroupIds = tiktokAdGroups.map((ag: any) => ag.id);
+        if (adGroupIds.length > 0) {
+          const tiktokAdsRes = await supabase.from("tiktok_ads").select("*").eq("space_id", spaceId).in("tiktok_ad_group_id", adGroupIds);
+          tiktokAdsData = (tiktokAdsRes.data || []).map((a: any) => ({
+            id: a.id,
+            brand_ad_set_id: a.tiktok_ad_group_id,
+            ad_name: a.ad_name ? `[TikTok] ${a.ad_name}` : a.ad_name,
+            status: a.status,
+            amount_spent: a.amount_spent,
+            reach: a.reach,
+            impressions: a.impressions,
+            frequency: a.frequency,
+            ctr: a.ctr,
+            cpm: a.cpm,
+            cpc: a.cpc,
+            thruplays: a.video_views_p100,
+            video_3s_plays: a.video_watched_2s,
+            clicks: a.clicks,
+            post_reactions: a.likes,
+            post_comments: a.comments,
+            post_shares: a.shares,
+            post_saves: 0,
+            link_clicks: a.link_clicks,
+            date_start: null,
+            date_stop: null,
+            thumbnail_url: a.thumbnail_url,
+            platform: "tiktok",
+          }));
+        }
+      }
+
+      setCampaignMeta([...metaCampaigns, ...tiktokCampaigns] as any);
+      setAdSets([...metaAdSets, ...tiktokAdGroups] as any);
+      setAds([...metaAds, ...tiktokAdsData] as any);
       setLoading(false);
     };
     fetchData();
