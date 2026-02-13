@@ -14,6 +14,7 @@ import { AdsAIInsightsContent, AdsStructuredInsights } from "./AdsAIInsightsCont
 import { MonthlyAdsInsightsContent, MonthlyStructuredInsights } from "./MonthlyAdsInsightsContent";
 import { QuarterlyAdsInsightsContent, QuarterlyStructuredInsights } from "./QuarterlyAdsInsightsContent";
 import { YearlyAdsInsightsContent, YearlyStructuredInsights } from "./YearlyAdsInsightsContent";
+import { CampaignAdsInsightsContent, CampaignStructuredInsights } from "./CampaignAdsInsightsContent";
 
 interface AdsAIInsightsTabProps {
   reportId: string;
@@ -202,6 +203,7 @@ export const AdsAIInsightsTab = ({ reportId }: AdsAIInsightsTabProps) => {
     );
   }
 
+  const isCampaign = structuredData?.report_period === "campaign" || (reportPeriod === "campaign" && structuredData);
   const isMonthly = structuredData?.report_period === "monthly" || (reportPeriod === "monthly" && structuredData);
   const isQuarterly = structuredData?.report_period === "quarterly" || (reportPeriod === "quarterly" && structuredData);
   const isYearly = structuredData?.report_period === "yearly" || (reportPeriod === "yearly" && structuredData);
@@ -224,26 +226,16 @@ export const AdsAIInsightsTab = ({ reportId }: AdsAIInsightsTabProps) => {
             )}
           </div>
 
-          {isMonthly ? (
+          {isCampaign ? (
+            <CampaignAdsInsightsContent
+              ref={contentRef}
+              insights={structuredData as CampaignStructuredInsights}
+              canEdit={canEdit}
+              onSaveInsights={handleSaveStructuredInsights}
+            />
+          ) : isMonthly ? (
             <MonthlyAdsInsightsContent
-              ref={contentRef}
-              insights={structuredData as MonthlyStructuredInsights}
-              canEdit={canEdit}
-              onSaveInsights={handleSaveStructuredInsights}
-            />
-          ) : isQuarterly ? (
-            <QuarterlyAdsInsightsContent
-              ref={contentRef}
-              insights={structuredData as QuarterlyStructuredInsights}
-              canEdit={canEdit}
-              onSaveInsights={handleSaveStructuredInsights}
-            />
-          ) : isYearly ? (
-            <YearlyAdsInsightsContent
-              ref={contentRef}
-              insights={structuredData as YearlyStructuredInsights}
-              canEdit={canEdit}
-              onSaveInsights={handleSaveStructuredInsights}
+...
             />
           ) : (
             <AdsAIInsightsContent
