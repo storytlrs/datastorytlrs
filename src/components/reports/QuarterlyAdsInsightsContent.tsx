@@ -71,6 +71,7 @@ export interface QuarterlyStructuredInsights {
     clicks: number;
     ctr: number;
     thumbnail_url?: string;
+    reason?: string;
   }[];
   facebook_improve_posts: {
     name: string;
@@ -79,6 +80,7 @@ export interface QuarterlyStructuredInsights {
     clicks: number;
     ctr: number;
     thumbnail_url?: string;
+    reason?: string;
   }[];
   instagram_metrics: { spend: number; reach: number; frequency: number };
   instagram_detail_metrics: { cpm: number; cpe: number; cpv: number };
@@ -90,6 +92,7 @@ export interface QuarterlyStructuredInsights {
     clicks: number;
     ctr: number;
     thumbnail_url?: string;
+    reason?: string;
   }[];
   instagram_improve_posts: {
     name: string;
@@ -98,6 +101,7 @@ export interface QuarterlyStructuredInsights {
     clicks: number;
     ctr: number;
     thumbnail_url?: string;
+    reason?: string;
   }[];
   tiktok_metrics: { spend: number; reach: number; frequency: number };
   tiktok_detail_metrics: { cpm: number; cpe: number; cpv: number };
@@ -109,6 +113,7 @@ export interface QuarterlyStructuredInsights {
     clicks: number;
     ctr: number;
     thumbnail_url?: string;
+    reason?: string;
   }[];
   tiktok_improve_posts: {
     name: string;
@@ -117,6 +122,7 @@ export interface QuarterlyStructuredInsights {
     clicks: number;
     ctr: number;
     thumbnail_url?: string;
+    reason?: string;
   }[];
   followers: {
     facebook: number | null;
@@ -258,7 +264,7 @@ const EditableNumberField = ({
   );
 };
 
-const PostCard = ({ post }: { post: { name: string; spend: number; impressions: number; clicks: number; ctr: number; thumbnail_url?: string } }) => (
+const PostCard = ({ post }: { post: { name: string; spend: number; impressions: number; clicks: number; ctr: number; thumbnail_url?: string; reason?: string } }) => (
   <Card className="overflow-hidden rounded-[35px] border-foreground hover:shadow-lg transition-shadow">
     <div className="relative aspect-[9/12.8] bg-muted overflow-hidden">
       {post.thumbnail_url ? (
@@ -272,6 +278,9 @@ const PostCard = ({ post }: { post: { name: string; spend: number; impressions: 
     </div>
     <div className="p-3 space-y-2">
       <span className="font-medium text-xs truncate block">{post.name}</span>
+      {post.reason && (
+        <p className="text-[10px] text-muted-foreground italic leading-tight">{post.reason}</p>
+      )}
       <div className="grid grid-cols-2 gap-1 text-xs">
         <div className="flex items-center gap-1 text-muted-foreground"><DollarSign className="w-3 h-3" /><span>{formatCurrencySimple(post.spend || 0, "CZK")}</span></div>
         <div className="flex items-center gap-1 text-muted-foreground"><Eye className="w-3 h-3" /><span>{formatNumber(post.impressions)}</span></div>
@@ -301,8 +310,8 @@ interface PlatformSectionProps {
   metrics: { spend: number; reach: number; frequency: number };
   detailMetrics: { cpm: number; cpe: number; cpv: number };
   metricsOverTime: string;
-  topPosts: { name: string; spend: number; impressions: number; clicks: number; ctr: number; thumbnail_url?: string }[];
-  improvePosts: { name: string; spend: number; impressions: number; clicks: number; ctr: number; thumbnail_url?: string }[];
+  topPosts: { name: string; spend: number; impressions: number; clicks: number; ctr: number; thumbnail_url?: string; reason?: string }[];
+  improvePosts: { name: string; spend: number; impressions: number; clicks: number; ctr: number; thumbnail_url?: string; reason?: string }[];
   cur: string;
   canEdit: boolean;
   editingSections: Set<string>;
