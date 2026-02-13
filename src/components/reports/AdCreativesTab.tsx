@@ -65,66 +65,112 @@ export const AdCreativesTab = ({ reportId, spaceId }: AdCreativesTabProps) => {
   const fetchAdCreatives = async () => {
     setLoading(true);
 
-    // Fetch linked campaign IDs for this report
-    const { data: links } = await supabase
-      .from("report_campaigns")
-      .select("brand_campaign_id")
-      .eq("report_id", reportId);
+    // Fetch linked campaign IDs for this report (Meta + TikTok)
+    const [metaLinksRes, tiktokLinksRes] = await Promise.all([
+      supabase.from("report_campaigns").select("brand_campaign_id").eq("report_id", reportId),
+      supabase.from("report_tiktok_campaigns").select("tiktok_campaign_id").eq("report_id", reportId),
+    ]);
 
-    const linkedIds = links?.map((l) => l.brand_campaign_id) || [];
+    const metaLinkedIds = metaLinksRes.data?.map((l) => l.brand_campaign_id) || [];
+    const tiktokLinkedIds = tiktokLinksRes.data?.map((l) => l.tiktok_campaign_id) || [];
 
-    if (linkedIds.length === 0) {
+    if (metaLinkedIds.length === 0 && tiktokLinkedIds.length === 0) {
       setAdCreatives([]);
       setLoading(false);
       return;
     }
 
-    // Get ad sets for linked campaigns
-    const { data: adSetsData } = await supabase
-      .from("brand_ad_sets" as any)
-      .select("id, adset_name, brand_campaign_id")
-      .eq("space_id", spaceId)
-      .in("brand_campaign_id", linkedIds);
+    let allCreatives: AdCreative[] = [];
 
-    const adSetIds = (adSetsData || []).map((a: any) => a.id);
-    const adSetMap = Object.fromEntries((adSetsData || []).map((a: any) => [a.id, a.adset_name]));
+    // Fetch Meta ads
+    if (metaLinkedIds.length > 0) {
+      const { data: adSetsData } = await supabase
+        .from("brand_ad_sets" as any)
+        .select("id, adset_name, brand_campaign_id")
+        .eq("space_id", spaceId)
+        .in("brand_campaign_id", metaLinkedIds);
 
-    if (adSetIds.length === 0) {
-      setAdCreatives([]);
-      setLoading(false);
-      return;
+      const adSetIds = (adSetsData || []).map((a: any) => a.id);
+      const adSetMap = Object.fromEntries((adSetsData || []).map((a: any) => [a.id, a.adset_name]));
+
+      if (adSetIds.length > 0) {
+        const { data, error } = await supabase
+          .from("brand_ads")
+          .select("id, ad_id, ad_name, brand_ad_set_id, amount_spent, impressions, clicks, ctr, frequency, date_start, thumbnail_url")
+          .eq("space_id", spaceId)
+          .in("brand_ad_set_id", adSetIds)
+          .order("amount_spent", { ascending: false });
+
+        if (!error && data) {
+          allCreatives.push(...data.map((row: any) => ({
+            id: row.id,
+            ad_id: row.ad_id,
+            name: row.ad_name || "Unnamed Ad",
+            platform: "meta",
+            ad_type: null,
+            thumbnail_url: row.thumbnail_url || null,
+            url: null,
+            campaign_name: null,
+            adset_name: adSetMap[row.brand_ad_set_id] || null,
+            spend: row.amount_spent,
+            impressions: row.impressions,
+            clicks: row.clicks,
+            conversions: null,
+            ctr: row.ctr,
+            roas: null,
+            frequency: row.frequency,
+            published_date: row.date_start,
+          })));
+        }
+      }
     }
 
-    // Get ads for those ad sets
-    const { data, error } = await supabase
-      .from("brand_ads")
-      .select("id, ad_id, ad_name, brand_ad_set_id, amount_spent, impressions, clicks, ctr, frequency, date_start, thumbnail_url")
-      .eq("space_id", spaceId)
-      .in("brand_ad_set_id", adSetIds)
-      .order("amount_spent", { ascending: false });
+    // Fetch TikTok ads
+    if (tiktokLinkedIds.length > 0) {
+      const { data: adGroupsData } = await supabase
+        .from("tiktok_ad_groups")
+        .select("id, adgroup_name, tiktok_campaign_id")
+        .eq("space_id", spaceId)
+        .in("tiktok_campaign_id", tiktokLinkedIds);
 
-    if (!error && data) {
-      const mappedData: AdCreative[] = (data || []).map((row: any) => ({
-        id: row.id,
-        ad_id: row.ad_id,
-        name: row.ad_name || "Unnamed Ad",
-        platform: "facebook",
-        ad_type: null,
-        thumbnail_url: row.thumbnail_url || null,
-        url: null,
-        campaign_name: null,
-        adset_name: adSetMap[row.brand_ad_set_id] || null,
-        spend: row.amount_spent,
-        impressions: row.impressions,
-        clicks: row.clicks,
-        conversions: null,
-        ctr: row.ctr,
-        roas: null,
-        frequency: row.frequency,
-        published_date: row.date_start,
-      }));
-      setAdCreatives(mappedData);
+      const adGroupIds = (adGroupsData || []).map((a: any) => a.id);
+      const adGroupMap = Object.fromEntries((adGroupsData || []).map((a: any) => [a.id, a.adgroup_name]));
+
+      if (adGroupIds.length > 0) {
+        const { data, error } = await supabase
+          .from("tiktok_ads")
+          .select("id, ad_id, ad_name, tiktok_ad_group_id, amount_spent, impressions, clicks, ctr, frequency, thumbnail_url")
+          .eq("space_id", spaceId)
+          .in("tiktok_ad_group_id", adGroupIds)
+          .order("amount_spent", { ascending: false });
+
+        if (!error && data) {
+          allCreatives.push(...data.map((row: any) => ({
+            id: row.id,
+            ad_id: row.ad_id,
+            name: row.ad_name || "Unnamed Ad",
+            platform: "tiktok",
+            ad_type: null,
+            thumbnail_url: row.thumbnail_url || null,
+            url: null,
+            campaign_name: null,
+            adset_name: adGroupMap[row.tiktok_ad_group_id] || null,
+            spend: row.amount_spent,
+            impressions: row.impressions,
+            clicks: row.clicks,
+            conversions: null,
+            ctr: row.ctr,
+            roas: null,
+            frequency: row.frequency,
+            published_date: null,
+          })));
+        }
+      }
     }
+
+    // Sort by spend descending
+    allCreatives.sort((a, b) => (b.spend || 0) - (a.spend || 0));
+    setAdCreatives(allCreatives);
     setLoading(false);
   };
 
