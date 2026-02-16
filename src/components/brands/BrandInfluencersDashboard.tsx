@@ -2,8 +2,8 @@ import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Users, FileText, DollarSign, Eye, Clock, TrendingUp, Loader2, Heart, MessageSquare } from "lucide-react";
+import MultiSelectFilter from "./MultiSelectFilter";
 import { MetricTile } from "@/components/reports/MetricTile";
 import { TopContentGrid, TopContentItem } from "./TopContentGrid";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
@@ -68,8 +68,8 @@ const BrandInfluencersDashboard = ({ spaceId, filters }: BrandInfluencersDashboa
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedMetric, setSelectedMetric] = useState<MetricKey>("views");
-  const [selectedCreator, setSelectedCreator] = useState<string>("all");
-  const [selectedCampaign, setSelectedCampaign] = useState<string>("all");
+  const [selectedCreators, setSelectedCreators] = useState<string[]>([]);
+  const [selectedCampaigns, setSelectedCampaigns] = useState<string[]>([]);
 
   useEffect(() => {
     fetchData();
@@ -140,40 +140,41 @@ const BrandInfluencersDashboard = ({ spaceId, filters }: BrandInfluencersDashboa
     return new Map(creators.map(c => [c.id, c]));
   }, [creators]);
 
-  // Creator options for filter dropdown (sorted alphabetically)
-  const creatorOptions = useMemo(() => {
-    return [...new Set(creators.map(c => c.handle))]
-      .sort((a, b) => a.localeCompare(b, "cs"));
+  // Creator options for multi-select filter
+  const creatorFilterOptions = useMemo(() => {
+    const unique = [...new Set(creators.map(c => c.handle))].sort((a, b) => a.localeCompare(b, "cs"));
+    return unique.map(handle => ({ id: handle, label: handle }));
   }, [creators]);
 
-  // Campaign options for filter dropdown (sorted alphabetically)
-  const campaignOptions = useMemo(() => {
-    return [...reports].sort((a, b) => a.name.localeCompare(b.name, "cs"));
+  // Campaign options for multi-select filter
+  const campaignFilterOptions = useMemo(() => {
+    return [...reports].sort((a, b) => a.name.localeCompare(b.name, "cs"))
+      .map(r => ({ id: r.id, label: r.name }));
   }, [reports]);
 
   // Filter content based on selected filters
   const filteredContent = useMemo(() => {
     return content.filter(c => {
-      if (selectedCreator !== "all") {
+      if (selectedCreators.length > 0) {
         const creator = creatorMap.get(c.creator_id);
-        if (creator?.handle !== selectedCreator) return false;
+        if (!creator || !selectedCreators.includes(creator.handle)) return false;
       }
-      if (selectedCampaign !== "all" && c.report_id !== selectedCampaign) {
+      if (selectedCampaigns.length > 0 && !selectedCampaigns.includes(c.report_id)) {
         return false;
       }
       return true;
     });
-  }, [content, selectedCreator, selectedCampaign, creatorMap]);
+  }, [content, selectedCreators, selectedCampaigns, creatorMap]);
 
   // Filter creators based on selected filters
   const filteredCreators = useMemo(() => {
-    if (selectedCampaign === "all" && selectedCreator === "all") return creators;
+    if (selectedCampaigns.length === 0 && selectedCreators.length === 0) return creators;
     return creators.filter(c => {
-      if (selectedCampaign !== "all" && c.report_id !== selectedCampaign) return false;
-      if (selectedCreator !== "all" && c.handle !== selectedCreator) return false;
+      if (selectedCampaigns.length > 0 && !selectedCampaigns.includes(c.report_id)) return false;
+      if (selectedCreators.length > 0 && !selectedCreators.includes(c.handle)) return false;
       return true;
     });
-  }, [creators, selectedCampaign, selectedCreator]);
+  }, [creators, selectedCampaigns, selectedCreators]);
 
   // Calculate KPIs
   const kpis = useMemo(() => {
@@ -398,51 +399,43 @@ const BrandInfluencersDashboard = ({ spaceId, filters }: BrandInfluencersDashboa
   return (
     <div className="space-y-8">
       {/* Influencer-specific filters */}
-      <div className="flex flex-wrap gap-3">
-        <Select value={selectedCreator} onValueChange={setSelectedCreator}>
-          <SelectTrigger className={cn(
-            "w-[200px] rounded-[35px]",
-            selectedCreator !== "all"
-              ? "border-accent-orange bg-accent-orange text-foreground"
-              : ""
-          )}>
-            <SelectValue placeholder="Creator" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All creators</SelectItem>
-            {creatorOptions.map((handle) => (
-              <SelectItem key={handle} value={handle}>{handle}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <div className="flex flex-wrap gap-3 items-start">
+        <MultiSelectFilter
+          label="Creator"
+          options={creatorFilterOptions}
+          selectedIds={selectedCreators}
+          onToggle={(id) => setSelectedCreators(prev => 
+            prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+          )}
+          onRemove={(id) => setSelectedCreators(prev => prev.filter(x => x !== id))}
+          onClear={() => setSelectedCreators([])}
+          searchPlaceholder="Search creators..."
+          emptyMessage="No creators found."
+        />
 
-        <Select value={selectedCampaign} onValueChange={setSelectedCampaign}>
-          <SelectTrigger className={cn(
-            "w-[200px] rounded-[35px]",
-            selectedCampaign !== "all"
-              ? "border-accent-orange bg-accent-orange text-foreground"
-              : ""
-          )}>
-            <SelectValue placeholder="Campaign" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All campaigns</SelectItem>
-            {campaignOptions.map((report) => (
-              <SelectItem key={report.id} value={report.id}>{report.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <MultiSelectFilter
+          label="Campaign"
+          options={campaignFilterOptions}
+          selectedIds={selectedCampaigns}
+          onToggle={(id) => setSelectedCampaigns(prev => 
+            prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+          )}
+          onRemove={(id) => setSelectedCampaigns(prev => prev.filter(x => x !== id))}
+          onClear={() => setSelectedCampaigns([])}
+          searchPlaceholder="Search campaigns..."
+          emptyMessage="No campaigns found."
+        />
 
-        {(selectedCreator !== "all" || selectedCampaign !== "all") && (
+        {(selectedCreators.length > 0 || selectedCampaigns.length > 0) && (
           <Button
             variant="ghost"
             onClick={() => {
-              setSelectedCreator("all");
-              setSelectedCampaign("all");
+              setSelectedCreators([]);
+              setSelectedCampaigns([]);
             }}
             className="rounded-[35px]"
           >
-            Clear
+            Clear all
           </Button>
         )}
       </div>
