@@ -25,60 +25,15 @@ interface PresetOption {
 const getPresets = (): PresetOption[] => {
   const now = new Date();
   return [
-    {
-      label: "Tento měsíc",
-      getRange: () => ({ start: startOfMonth(now), end: endOfMonth(now) }),
-    },
-    {
-      label: "Tento kvartál",
-      getRange: () => ({ start: startOfQuarter(now), end: endOfQuarter(now) }),
-    },
-    {
-      label: "Tento rok",
-      getRange: () => ({ start: startOfYear(now), end: endOfYear(now) }),
-    },
-    {
-      label: "Minulý měsíc",
-      getRange: () => {
-        const prev = subMonths(now, 1);
-        return { start: startOfMonth(prev), end: endOfMonth(prev) };
-      },
-    },
-    {
-      label: "Minulý kvartál",
-      getRange: () => {
-        const prev = subQuarters(now, 1);
-        return { start: startOfQuarter(prev), end: endOfQuarter(prev) };
-      },
-    },
-    {
-      label: "Minulý rok",
-      getRange: () => {
-        const prev = subYears(now, 1);
-        return { start: startOfYear(prev), end: endOfYear(prev) };
-      },
-    },
-    {
-      label: "Příští měsíc",
-      getRange: () => {
-        const next = addMonths(now, 1);
-        return { start: startOfMonth(next), end: endOfMonth(next) };
-      },
-    },
-    {
-      label: "Příští kvartál",
-      getRange: () => {
-        const next = addQuarters(now, 1);
-        return { start: startOfQuarter(next), end: endOfQuarter(next) };
-      },
-    },
-    {
-      label: "Příští rok",
-      getRange: () => {
-        const next = addYears(now, 1);
-        return { start: startOfYear(next), end: endOfYear(next) };
-      },
-    },
+    { label: "Tento měsíc", getRange: () => ({ start: startOfMonth(now), end: endOfMonth(now) }) },
+    { label: "Tento kvartál", getRange: () => ({ start: startOfQuarter(now), end: endOfQuarter(now) }) },
+    { label: "Tento rok", getRange: () => ({ start: startOfYear(now), end: endOfYear(now) }) },
+    { label: "Minulý měsíc", getRange: () => { const p = subMonths(now, 1); return { start: startOfMonth(p), end: endOfMonth(p) }; } },
+    { label: "Minulý kvartál", getRange: () => { const p = subQuarters(now, 1); return { start: startOfQuarter(p), end: endOfQuarter(p) }; } },
+    { label: "Minulý rok", getRange: () => { const p = subYears(now, 1); return { start: startOfYear(p), end: endOfYear(p) }; } },
+    { label: "Příští měsíc", getRange: () => { const n = addMonths(now, 1); return { start: startOfMonth(n), end: endOfMonth(n) }; } },
+    { label: "Příští kvartál", getRange: () => { const n = addQuarters(now, 1); return { start: startOfQuarter(n), end: endOfQuarter(n) }; } },
+    { label: "Příští rok", getRange: () => { const n = addYears(now, 1); return { start: startOfYear(n), end: endOfYear(n) }; } },
   ];
 };
 
@@ -99,45 +54,57 @@ const findActivePreset = (dateRange: DateRange, presets: PresetOption[]): string
 
 export function DateRangeFilter({ dateRange, onDateRangeChange, className }: DateRangeFilterProps) {
   const [open, setOpen] = React.useState(false);
-  const [selectingStart, setSelectingStart] = React.useState(true);
+  const [startMonth, setStartMonth] = React.useState<Date>(dateRange.start || new Date());
+  const [endMonth, setEndMonth] = React.useState<Date>(dateRange.end || addMonths(new Date(), 1));
   const presets = React.useMemo(() => getPresets(), []);
   const activePreset = findActivePreset(dateRange, presets);
   const hasValue = dateRange.start || dateRange.end;
 
+  // Sync displayed months when dateRange changes from presets
+  React.useEffect(() => {
+    if (dateRange.start) setStartMonth(dateRange.start);
+    if (dateRange.end) setEndMonth(dateRange.end);
+  }, [dateRange.start, dateRange.end]);
+
   const getLabel = () => {
     if (activePreset) return activePreset;
     if (dateRange.start && dateRange.end) {
-      return `${format(dateRange.start, "d MMM yyyy")} – ${format(dateRange.end, "d MMM yyyy")}`;
+      return `${format(dateRange.start, "d. M. yyyy")} – ${format(dateRange.end, "d. M. yyyy")}`;
     }
-    if (dateRange.start) return `Od ${format(dateRange.start, "d MMM yyyy")}`;
-    if (dateRange.end) return `Do ${format(dateRange.end, "d MMM yyyy")}`;
+    if (dateRange.start) return `Od ${format(dateRange.start, "d. M. yyyy")}`;
+    if (dateRange.end) return `Do ${format(dateRange.end, "d. M. yyyy")}`;
     return "Vybrat datum";
   };
 
   const handlePresetClick = (preset: PresetOption) => {
-    onDateRangeChange(preset.getRange());
+    const range = preset.getRange();
+    onDateRangeChange(range);
     setOpen(false);
   };
 
-  const handleCalendarSelect = (date: Date | undefined) => {
+  const handleStartSelect = (date: Date | undefined) => {
     if (!date) return;
-    if (selectingStart) {
-      onDateRangeChange({ start: date, end: dateRange.end });
-      setSelectingStart(false);
+    const newStart = date;
+    // If start > end, swap
+    if (dateRange.end && date > dateRange.end) {
+      onDateRangeChange({ start: dateRange.end, end: date });
     } else {
-      // If end < start, swap
-      if (dateRange.start && date < dateRange.start) {
-        onDateRangeChange({ start: date, end: dateRange.start });
-      } else {
-        onDateRangeChange({ ...dateRange, end: date });
-      }
-      setSelectingStart(true);
+      onDateRangeChange({ ...dateRange, start: newStart });
+    }
+  };
+
+  const handleEndSelect = (date: Date | undefined) => {
+    if (!date) return;
+    // If end < start, swap
+    if (dateRange.start && date < dateRange.start) {
+      onDateRangeChange({ start: date, end: dateRange.start });
+    } else {
+      onDateRangeChange({ ...dateRange, end: date });
     }
   };
 
   const handleClear = () => {
     onDateRangeChange({ start: null, end: null });
-    setSelectingStart(true);
   };
 
   return (
@@ -158,72 +125,65 @@ export function DateRangeFilter({ dateRange, onDateRangeChange, className }: Dat
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0 rounded-[20px]" align="start">
-        <div className="flex">
-          {/* Presets sidebar */}
-          <div className="border-r border-border p-3 flex flex-col gap-1 min-w-[160px]">
-            <p className="text-xs font-medium text-muted-foreground mb-1 px-2">Rychlé volby</p>
-            {presets.map((preset) => (
-              <Button
-                key={preset.label}
-                variant="ghost"
-                size="sm"
-                className={cn(
-                  "justify-start text-sm h-8 rounded-lg",
-                  activePreset === preset.label && "bg-accent-orange text-foreground"
-                )}
-                onClick={() => handlePresetClick(preset)}
-              >
-                {preset.label}
-              </Button>
-            ))}
+        <div className="flex flex-col">
+          {/* Two calendars side by side */}
+          <div className="flex">
+            {/* Start calendar */}
+            <div className="p-3 border-r border-border">
+              <p className="text-center text-sm font-medium text-muted-foreground mb-2">Od</p>
+              <Calendar
+                mode="single"
+                selected={dateRange.start || undefined}
+                onSelect={handleStartSelect}
+                month={startMonth}
+                onMonthChange={setStartMonth}
+                initialFocus
+                className="pointer-events-auto"
+              />
+            </div>
+            {/* End calendar */}
+            <div className="p-3">
+              <p className="text-center text-sm font-medium text-muted-foreground mb-2">Do</p>
+              <Calendar
+                mode="single"
+                selected={dateRange.end || undefined}
+                onSelect={handleEndSelect}
+                month={endMonth}
+                onMonthChange={setEndMonth}
+                className="pointer-events-auto"
+              />
+            </div>
+          </div>
+          {/* Presets grid 3x3 below */}
+          <div className="border-t border-border p-3">
+            <div className="grid grid-cols-3 gap-2">
+              {presets.map((preset) => (
+                <Button
+                  key={preset.label}
+                  variant="ghost"
+                  size="sm"
+                  className={cn(
+                    "text-sm h-9 rounded-full",
+                    activePreset === preset.label && "bg-accent-purple text-accent-purple-foreground"
+                  )}
+                  onClick={() => handlePresetClick(preset)}
+                >
+                  {preset.label}
+                </Button>
+              ))}
+            </div>
             {hasValue && (
-              <>
-                <div className="border-t border-border my-1" />
+              <div className="mt-2 flex justify-center">
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="justify-start text-sm h-8 rounded-lg text-muted-foreground"
+                  className="text-sm h-8 rounded-full text-muted-foreground"
                   onClick={handleClear}
                 >
                   Vymazat
                 </Button>
-              </>
+              </div>
             )}
-          </div>
-          {/* Calendar */}
-          <div className="p-3">
-            <div className="flex gap-2 mb-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                className={cn(
-                  "rounded-lg text-xs h-7 flex-1",
-                  selectingStart && "bg-accent-orange text-foreground"
-                )}
-                onClick={() => setSelectingStart(true)}
-              >
-                {dateRange.start ? format(dateRange.start, "d MMM yyyy") : "Od"}
-              </Button>
-              <span className="text-muted-foreground self-center">–</span>
-              <Button
-                variant="ghost"
-                size="sm"
-                className={cn(
-                  "rounded-lg text-xs h-7 flex-1",
-                  !selectingStart && "bg-accent-orange text-foreground"
-                )}
-                onClick={() => setSelectingStart(false)}
-              >
-                {dateRange.end ? format(dateRange.end, "d MMM yyyy") : "Do"}
-              </Button>
-            </div>
-            <Calendar
-              mode="single"
-              selected={(selectingStart ? dateRange.start : dateRange.end) || undefined}
-              onSelect={handleCalendarSelect}
-              initialFocus
-              className="pointer-events-auto"
-            />
           </div>
         </div>
       </PopoverContent>
