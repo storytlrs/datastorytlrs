@@ -164,7 +164,7 @@ export function DateRangeFilter({ dateRange, onDateRangeChange, className }: Dat
                   size="sm"
                   className={cn(
                     "text-sm h-9 rounded-full",
-                    activePreset === preset.label && "bg-accent-purple text-accent-purple-foreground"
+                    activePreset === preset.label && "bg-accent-orange text-foreground"
                   )}
                   onClick={() => handlePresetClick(preset)}
                 >
