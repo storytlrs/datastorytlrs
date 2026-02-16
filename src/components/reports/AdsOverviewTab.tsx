@@ -5,8 +5,8 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { DateRangeFilter } from "@/components/ui/date-range-filter";
 import { format } from "date-fns";
 import { 
   Eye, 
@@ -487,59 +487,10 @@ export const AdsOverviewTab = ({ reportId, spaceId }: AdsOverviewTabProps) => {
     <div className="space-y-8">
       {/* Filter Bar */}
       <div className="flex flex-wrap gap-3 items-center">
-        {/* Start Date */}
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              className={cn(
-                "rounded-[35px] justify-start text-left font-normal hover:border-foreground hover:bg-foreground hover:text-background",
-                dateRange.start
-                  ? "border-accent-orange bg-accent-orange text-foreground"
-                  : "border-foreground bg-card text-foreground"
-              )}
-            >
-              <CalendarIcon className="mr-2 h-4 w-4" />
-              {dateRange.start ? format(dateRange.start, "MMM d, yyyy") : "Start date"}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0 rounded-[20px]" align="start">
-            <Calendar
-              mode="single"
-              selected={dateRange.start || undefined}
-              onSelect={(date) => setDateRange((prev) => ({ ...prev, start: date || null }))}
-              initialFocus
-              className="pointer-events-auto"
-            />
-          </PopoverContent>
-        </Popover>
-
-        {/* End Date */}
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              className={cn(
-                "rounded-[35px] justify-start text-left font-normal hover:border-foreground hover:bg-foreground hover:text-background",
-                dateRange.end
-                  ? "border-accent-orange bg-accent-orange text-foreground"
-                  : "border-foreground bg-card text-foreground"
-              )}
-            >
-              <CalendarIcon className="mr-2 h-4 w-4" />
-              {dateRange.end ? format(dateRange.end, "MMM d, yyyy") : "End date"}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0 rounded-[20px]" align="start">
-            <Calendar
-              mode="single"
-              selected={dateRange.end || undefined}
-              onSelect={(date) => setDateRange((prev) => ({ ...prev, end: date || null }))}
-              initialFocus
-              className="pointer-events-auto"
-            />
-          </PopoverContent>
-        </Popover>
+        <DateRangeFilter
+          dateRange={dateRange}
+          onDateRangeChange={setDateRange}
+        />
 
         {/* Campaign Multi-Select */}
         <Popover open={campaignOpen} onOpenChange={setCampaignOpen}>

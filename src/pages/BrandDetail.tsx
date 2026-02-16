@@ -21,6 +21,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { format, subMonths } from "date-fns";
+import { DateRangeFilter } from "@/components/ui/date-range-filter";
 import CreateReportDialog from "@/components/reports/CreateReportDialog";
 import { ReportContributors, Contributor } from "@/components/reports/ReportContributors";
 
@@ -363,61 +364,10 @@ const BrandDetail = () => {
           {/* Dashboard Filters - shared across Content, Ads, Influencers tabs */}
           {showDashboardFilters && (
             <div className="flex flex-wrap gap-3 mb-6">
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "rounded-[35px] justify-start text-left font-normal hover:border-foreground hover:bg-foreground hover:text-background",
-                      dashboardFilters.dateRange.start
-                        ? "border-accent-orange bg-accent-orange text-foreground"
-                        : "border-foreground bg-card text-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {dashboardFilters.dateRange.start ? format(dashboardFilters.dateRange.start, "PPP") : "Start date"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={dashboardFilters.dateRange.start || undefined}
-                    onSelect={(date) => setDashboardFilters(prev => ({
-                      ...prev,
-                      dateRange: { ...prev.dateRange, start: date || null }
-                    }))}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
-
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "rounded-[35px] justify-start text-left font-normal hover:border-foreground hover:bg-foreground hover:text-background",
-                      dashboardFilters.dateRange.end
-                        ? "border-accent-orange bg-accent-orange text-foreground"
-                        : "border-foreground bg-card text-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {dashboardFilters.dateRange.end ? format(dashboardFilters.dateRange.end, "PPP") : "End date"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={dashboardFilters.dateRange.end || undefined}
-                    onSelect={(date) => setDashboardFilters(prev => ({
-                      ...prev,
-                      dateRange: { ...prev.dateRange, end: date || null }
-                    }))}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
+              <DateRangeFilter
+                dateRange={dashboardFilters.dateRange}
+                onDateRangeChange={(range) => setDashboardFilters(prev => ({ ...prev, dateRange: range }))}
+              />
 
               <Select
                 value={dashboardFilters.platform}
@@ -504,57 +454,10 @@ const BrandDetail = () => {
 
             {/* Filters */}
             <div className="flex flex-wrap gap-3 mb-6">
-                {/* Date Range Start */}
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "rounded-[35px] justify-start text-left font-normal hover:border-foreground hover:bg-foreground hover:text-background",
-                        reportsDateRange.start
-                          ? "border-accent-orange bg-accent-orange text-foreground"
-                          : "border-foreground bg-card text-foreground"
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {reportsDateRange.start ? format(reportsDateRange.start, "PPP") : "Start date"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={reportsDateRange.start || undefined}
-                      onSelect={(date) => setReportsDateRange(prev => ({ ...prev, start: date || null }))}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-
-                {/* Date Range End */}
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "rounded-[35px] justify-start text-left font-normal hover:border-foreground hover:bg-foreground hover:text-background",
-                        reportsDateRange.end
-                          ? "border-accent-orange bg-accent-orange text-foreground"
-                          : "border-foreground bg-card text-foreground"
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {reportsDateRange.end ? format(reportsDateRange.end, "PPP") : "End date"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={reportsDateRange.end || undefined}
-                      onSelect={(date) => setReportsDateRange(prev => ({ ...prev, end: date || null }))}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
+                <DateRangeFilter
+                  dateRange={reportsDateRange}
+                  onDateRangeChange={setReportsDateRange}
+                />
 
                 {/* Type Filter */}
                 <Select value={typeFilter} onValueChange={setTypeFilter}>
