@@ -75,6 +75,10 @@ export const TopContentGrid = ({ items, title = "Top 5 Content", emptyMessage = 
                   alt="Ad preview"
                   className="w-full h-full object-cover"
                   referrerPolicy="no-referrer"
+                  onError={(e) => {
+                    e.currentTarget.style.display = "none";
+                    e.currentTarget.parentElement?.querySelector(".fallback-icon")?.classList.remove("hidden");
+                  }}
                 />
               ) : item.thumbnailUrl ? (
                 <img
@@ -82,12 +86,15 @@ export const TopContentGrid = ({ items, title = "Top 5 Content", emptyMessage = 
                   alt="Content thumbnail"
                   className="w-full h-full object-cover"
                   referrerPolicy="no-referrer"
+                  onError={(e) => {
+                    e.currentTarget.style.display = "none";
+                    e.currentTarget.parentElement?.querySelector(".fallback-icon")?.classList.remove("hidden");
+                  }}
                 />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center">
-                  <Play className="w-8 h-8 text-muted-foreground" />
-                </div>
-              )}
+              ) : null}
+              <div className={cn("fallback-icon w-full h-full flex items-center justify-center absolute inset-0", (item.previewIframeUrl || item.thumbnailUrl) ? "hidden" : "")}>
+                <Play className="w-8 h-8 text-muted-foreground" />
+              </div>
               
               {/* Platform & Type badge */}
               <div className="absolute top-2 left-2 flex gap-1">
