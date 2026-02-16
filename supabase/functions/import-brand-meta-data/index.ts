@@ -223,7 +223,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { spaceId, thumbnailsOnly } = await req.json();
+    const { spaceId, thumbnailsOnly, campaignIds: rawCampaignIds, reportId } = await req.json();
     if (!spaceId) {
       return new Response(
         JSON.stringify({ error: "spaceId is required" }),
@@ -252,6 +252,27 @@ Deno.serve(async (req) => {
         JSON.stringify({ error: "META_ACCESS_TOKEN not configured" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    // Resolve campaign IDs to filter by (from reportId or direct campaignIds)
+    let filterMetaCampaignIds: string[] | null = null;
+    if (reportId) {
+      // Get linked Meta campaign IDs from report_campaigns junction
+      const { data: linkedCampaigns } = await supabase
+        .from("report_campaigns")
+        .select("brand_campaign_id")
+        .eq("report_id", reportId);
+      if (linkedCampaigns && linkedCampaigns.length > 0) {
+        // Get the Meta campaign_id (external ID) from brand_campaigns
+        const linkedIds = linkedCampaigns.map(l => l.brand_campaign_id);
+        const { data: brandCampaigns } = await supabase
+          .from("brand_campaigns")
+          .select("campaign_id")
+          .in("id", linkedIds);
+        filterMetaCampaignIds = brandCampaigns?.map(c => c.campaign_id) || [];
+      }
+    } else if (rawCampaignIds && Array.isArray(rawCampaignIds) && rawCampaignIds.length > 0) {
+      filterMetaCampaignIds = rawCampaignIds;
     }
 
     // ── THUMBNAILS-ONLY FAST PATH ──
@@ -330,8 +351,16 @@ Deno.serve(async (req) => {
       );
     }
 
-    const campaigns: MetaCampaign[] = campaignsData.data || [];
-    console.log(`Found ${campaigns.length} campaigns`);
+    let campaigns: MetaCampaign[] = campaignsData.data || [];
+    
+    // Filter to specific campaigns if requested
+    if (filterMetaCampaignIds && filterMetaCampaignIds.length > 0) {
+      const filterSet = new Set(filterMetaCampaignIds);
+      campaigns = campaigns.filter(c => filterSet.has(c.id));
+      console.log(`Filtered to ${campaigns.length} campaigns (from ${campaignsData.data?.length || 0} total)`);
+    } else {
+      console.log(`Found ${campaigns.length} campaigns`);
+    }
 
     const insightFields = "date_start,date_stop,spend,reach,impressions,frequency,cpm,ctr,cpc,cost_per_thruplay,video_avg_time_watched_actions,video_thruplay_watched_actions,actions";
 

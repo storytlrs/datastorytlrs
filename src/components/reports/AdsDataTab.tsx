@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Loader2 } from "lucide-react";
+import { Loader2, RefreshCw } from "lucide-react";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { supabase } from "@/integrations/supabase/client";
 import { EditableDataTable, ColumnDef } from "./EditableDataTable";
@@ -46,6 +46,33 @@ export const AdsDataTab = ({ reportId, spaceId, onImportSuccess }: AdsDataTabPro
   const [editingAdSet, setEditingAdSet] = useState<any>(null);
   const [editingAd, setEditingAd] = useState<any>(null);
   const [fetchingThumbnails, setFetchingThumbnails] = useState(false);
+  const [syncingMetaData, setSyncingMetaData] = useState(false);
+
+  const handleSyncMetaData = async () => {
+    setSyncingMetaData(true);
+    try {
+      const response = await supabase.functions.invoke("import-brand-meta-data", {
+        body: { spaceId, reportId },
+      });
+      if (response.error) throw response.error;
+      const result = response.data;
+      if (result?.success) {
+        const { campaigns = 0, adSets = 0, ads = 0 } = result.imported || {};
+        toast.success(`Synced: ${campaigns} campaigns, ${adSets} ad sets, ${ads} ads`);
+        fetchData();
+      } else {
+        toast.error(result?.error || "Sync failed");
+      }
+      if (result?.errors?.length > 0) {
+        console.warn("Sync errors:", result.errors);
+      }
+    } catch (error) {
+      console.error("Sync Meta data error:", error);
+      toast.error("Failed to sync Meta data");
+    } finally {
+      setSyncingMetaData(false);
+    }
+  };
 
   // Column visibility state
   const [visibleCampaignColumns, setVisibleCampaignColumns] = useState<string[]>([
@@ -476,6 +503,15 @@ export const AdsDataTab = ({ reportId, spaceId, onImportSuccess }: AdsDataTabPro
         </div>
         {canEdit && (
           <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-[35px]"
+              disabled={syncingMetaData}
+              onClick={handleSyncMetaData}
+            >
+              {syncingMetaData ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Syncing...</> : <><RefreshCw className="mr-2 h-4 w-4" />Sync Meta Data</>}
+            </Button>
             <Button
               variant="outline"
               size="sm"
