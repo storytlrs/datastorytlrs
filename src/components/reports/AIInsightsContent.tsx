@@ -8,7 +8,7 @@ import { ContentPreviewCard } from "./ContentPreviewCard";
 import { LeaderboardTable, LeaderboardEntry, Benchmarks } from "./LeaderboardTable";
 import { CreatorPerformanceCard } from "./CreatorPerformanceCard";
 import { TopicBadge } from "./TopicBadge";
-import { ContentSelectorDialog } from "./ContentSelectorDialog";
+import { ContentSelectorDialog, SelectedContentItem } from "./ContentSelectorDialog";
 import { Users, FileText, Eye, DollarSign, Clock, Heart, TrendingUp, MessageSquare, Target, Rocket, Star, Pencil, Save, X, Settings2 } from "lucide-react";
 import { formatCurrency } from "@/lib/currencyUtils";
 
@@ -431,10 +431,16 @@ export const AIInsightsContent = forwardRef<HTMLDivElement, AIInsightsContentPro
     }
   };
 
-  const handleContentSelection = (ids: string[]) => {
+  const handleContentSelection = (ids: string[], items: SelectedContentItem[]) => {
     setSelectedTopContentIds(ids);
     if (onSaveInsights) {
-      onSaveInsights({ selected_top_content_ids: ids });
+      // Update both the selected IDs and the top_content array with full data
+      const existingContent = insights.top_content || [];
+      // Merge: keep existing items not in new selection, add all new selected items
+      const existingMap = new Map(existingContent.map(c => [c.id, c]));
+      items.forEach(item => existingMap.set(item.id, item));
+      const mergedContent = Array.from(existingMap.values());
+      onSaveInsights({ selected_top_content_ids: ids, top_content: mergedContent });
     }
   };
 
