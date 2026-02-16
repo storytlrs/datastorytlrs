@@ -13,6 +13,78 @@ interface CampaignContext {
   highlights: string;
 }
 
+// ── Thumbnail persistence utility ──
+// Downloads CDN thumbnails (TikTok, Meta) and uploads to Supabase Storage
+// to prevent expiring signed URLs from breaking report previews.
+async function persistThumbnails(
+  supabase: any,
+  reportId: string,
+  postArrays: { key: string; posts: any[] }[]
+): Promise<void> {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+
+  for (const { key, posts } of postArrays) {
+    if (!posts || posts.length === 0) continue;
+
+    await Promise.all(
+      posts.map(async (post: any, index: number) => {
+        const url = post.thumbnail_url;
+        if (!url || typeof url !== "string") return;
+
+        // Skip if already a Supabase Storage URL
+        if (url.includes("supabase") && url.includes("content-thumbnails")) return;
+
+        try {
+          // Fetch image via proxy to bypass CORS/hotlink protection
+          const proxyUrl = `${supabaseUrl}/functions/v1/proxy-image?url=${encodeURIComponent(url)}`;
+          const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+          const imgResponse = await fetch(proxyUrl, {
+            headers: {
+              Authorization: `Bearer ${serviceKey}`,
+            },
+          });
+
+          if (!imgResponse.ok) {
+            console.warn(`Failed to proxy thumbnail for ${key}[${index}]: ${imgResponse.status}`);
+            return;
+          }
+
+          const contentType = imgResponse.headers.get("content-type") || "image/jpeg";
+          const ext = contentType.includes("png") ? "png" : contentType.includes("webp") ? "webp" : "jpg";
+          const imageData = await imgResponse.arrayBuffer();
+
+          // Upload to storage
+          const storagePath = `reports/${reportId}/${key}_${index}.${ext}`;
+          const { error: uploadError } = await supabase.storage
+            .from("content-thumbnails")
+            .upload(storagePath, imageData, {
+              contentType,
+              upsert: true,
+            });
+
+          if (uploadError) {
+            console.warn(`Failed to upload thumbnail ${storagePath}:`, uploadError.message);
+            return;
+          }
+
+          // Get public URL
+          const { data: publicUrlData } = supabase.storage
+            .from("content-thumbnails")
+            .getPublicUrl(storagePath);
+
+          if (publicUrlData?.publicUrl) {
+            post.thumbnail_url = publicUrlData.publicUrl;
+            console.log(`Persisted thumbnail: ${storagePath}`);
+          }
+        } catch (err) {
+          console.warn(`Error persisting thumbnail for ${key}[${index}]:`, err);
+        }
+      })
+    );
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -371,6 +443,12 @@ INSTRUKCE:
 
   const aiData = await aiResponse.json();
   const aiContent = JSON.parse(aiData.choices[0].message.content);
+
+  // Persist thumbnails to permanent storage before building insights
+  await persistThumbnails(supabase, report_id, [
+    { key: "facebook_top_posts", posts: fbTopPosts },
+    { key: "instagram_top_posts", posts: igTopPosts },
+  ]);
 
   const structuredInsights = {
     report_period: "monthly",
@@ -765,6 +843,11 @@ KONTEXT OD UŽIVATELE:
   const aiData = await aiResponse.json();
   const aiContent = JSON.parse(aiData.choices[0].message.content);
 
+  // Persist thumbnails to permanent storage
+  await persistThumbnails(supabase, report_id, [
+    { key: "top_content", posts: top5 },
+  ]);
+
   const structuredInsights = {
     report_period: "campaign",
     executive_summary: aiContent.executive_summary,
@@ -1014,6 +1097,23 @@ KONTEXT OD UŽIVATELE:
   const aiData = await aiResponse.json();
   const aiContent = JSON.parse(aiData.choices[0].message.content);
 
+  // Persist thumbnails to permanent storage
+  const fbTop = topBySpend(fbAds, 5);
+  const fbImprove = bottomByPerformance(fbAds, 3);
+  const igTop = topBySpend(igAds, 5);
+  const igImprove = bottomByPerformance(igAds, 3);
+  const tkTop = topBySpend(normalizedTiktokAds, 5);
+  const tkImprove = bottomByPerformance(normalizedTiktokAds, 3);
+
+  await persistThumbnails(supabase, report_id, [
+    { key: "facebook_top_posts", posts: fbTop },
+    { key: "facebook_improve_posts", posts: fbImprove },
+    { key: "instagram_top_posts", posts: igTop },
+    { key: "instagram_improve_posts", posts: igImprove },
+    { key: "tiktok_top_posts", posts: tkTop },
+    { key: "tiktok_improve_posts", posts: tkImprove },
+  ]);
+
   const structuredInsights = {
     report_period: "quarterly",
     executive_summary: aiContent.executive_summary,
@@ -1027,18 +1127,18 @@ KONTEXT OD UŽIVATELE:
     facebook_metrics: { spend: fbM.spend, reach: fbM.reach, frequency: fbM.frequency },
     facebook_detail_metrics: { cpm: fbM.cpm, cpe: fbM.cpe, cpv: fbM.cpv },
     facebook_metrics_over_time: aiContent.facebook_metrics_over_time || "",
-    facebook_top_posts: topBySpend(fbAds, 5),
-    facebook_improve_posts: bottomByPerformance(fbAds, 3),
+    facebook_top_posts: fbTop,
+    facebook_improve_posts: fbImprove,
     instagram_metrics: { spend: igM.spend, reach: igM.reach, frequency: igM.frequency },
     instagram_detail_metrics: { cpm: igM.cpm, cpe: igM.cpe, cpv: igM.cpv },
     instagram_metrics_over_time: aiContent.instagram_metrics_over_time || "",
-    instagram_top_posts: topBySpend(igAds, 5),
-    instagram_improve_posts: bottomByPerformance(igAds, 3),
+    instagram_top_posts: igTop,
+    instagram_improve_posts: igImprove,
     tiktok_metrics: { spend: tkM.spend, reach: tkM.reach, frequency: tkM.frequency },
     tiktok_detail_metrics: { cpm: tkM.cpm, cpe: tkM.cpe, cpv: tkM.cpv },
     tiktok_metrics_over_time: aiContent.tiktok_metrics_over_time || "",
-    tiktok_top_posts: topBySpend(normalizedTiktokAds, 5),
-    tiktok_improve_posts: bottomByPerformance(normalizedTiktokAds, 3),
+    tiktok_top_posts: tkTop,
+    tiktok_improve_posts: tkImprove,
     followers: { facebook: null, instagram: null, tiktok: null },
     summary_success: aiContent.summary_success,
     summary_events: aiContent.summary_events,
@@ -1348,6 +1448,47 @@ KONTEXT OD UŽIVATELE:
   const aiData = await aiResponse.json();
   const aiContent = JSON.parse(aiData.choices[0].message.content);
 
+  // Persist thumbnails to permanent storage
+  const fbTopR = topByReach(fbAds, 5);
+  const fbBotR = bottomByReach(fbAds, 3);
+  const fbTopE = topByEngagement(fbAds, 5);
+  const fbBotE = bottomByEngagement(fbAds, 3);
+  const fbTopV = topByVideoViews(fbAds, 5);
+  const fbBotV = bottomByVideoViews(fbAds, 3);
+  const igTopR = topByReach(igAds, 5);
+  const igBotR = bottomByReach(igAds, 3);
+  const igTopE = topByEngagement(igAds, 5);
+  const igBotE = bottomByEngagement(igAds, 3);
+  const igTopV = topByVideoViews(igAds, 5);
+  const igBotV = bottomByVideoViews(igAds, 3);
+  const tkTopR = topByReach(normalizedTiktokAds, 5);
+  const tkBotR = bottomByReach(normalizedTiktokAds, 3);
+  const tkTopE = topByEngagement(normalizedTiktokAds, 5);
+  const tkBotE = bottomByEngagement(normalizedTiktokAds, 3);
+  const tkTopV = topByVideoViews(normalizedTiktokAds, 5);
+  const tkBotV = bottomByVideoViews(normalizedTiktokAds, 3);
+
+  await persistThumbnails(supabase, report_id, [
+    { key: "fb_top_reach", posts: fbTopR },
+    { key: "fb_improve_reach", posts: fbBotR },
+    { key: "fb_top_engagement", posts: fbTopE },
+    { key: "fb_improve_engagement", posts: fbBotE },
+    { key: "fb_top_video", posts: fbTopV },
+    { key: "fb_improve_video", posts: fbBotV },
+    { key: "ig_top_reach", posts: igTopR },
+    { key: "ig_improve_reach", posts: igBotR },
+    { key: "ig_top_engagement", posts: igTopE },
+    { key: "ig_improve_engagement", posts: igBotE },
+    { key: "ig_top_video", posts: igTopV },
+    { key: "ig_improve_video", posts: igBotV },
+    { key: "tk_top_reach", posts: tkTopR },
+    { key: "tk_improve_reach", posts: tkBotR },
+    { key: "tk_top_engagement", posts: tkTopE },
+    { key: "tk_improve_engagement", posts: tkBotE },
+    { key: "tk_top_video", posts: tkTopV },
+    { key: "tk_improve_video", posts: tkBotV },
+  ]);
+
   const structuredInsights = {
     report_period: "yearly",
     executive_summary: aiContent.executive_summary,
@@ -1362,40 +1503,40 @@ KONTEXT OD UŽIVATELE:
     facebook_metrics: { spend: fbM.spend, reach: fbM.reach, frequency: fbM.frequency },
     facebook_detail_metrics: { cpm: fbM.cpm, cpe: fbM.cpe, cpv: fbM.cpv },
     facebook_metrics_over_time: aiContent.facebook_metrics_over_time || "",
-    facebook_top_reach: topByReach(fbAds, 5),
-    facebook_improve_reach: bottomByReach(fbAds, 3),
+    facebook_top_reach: fbTopR,
+    facebook_improve_reach: fbBotR,
     facebook_reach_analysis: aiContent.facebook_reach_analysis || "",
-    facebook_top_engagement: topByEngagement(fbAds, 5),
-    facebook_improve_engagement: bottomByEngagement(fbAds, 3),
+    facebook_top_engagement: fbTopE,
+    facebook_improve_engagement: fbBotE,
     facebook_engagement_analysis: aiContent.facebook_engagement_analysis || "",
-    facebook_top_video: topByVideoViews(fbAds, 5),
-    facebook_improve_video: bottomByVideoViews(fbAds, 3),
+    facebook_top_video: fbTopV,
+    facebook_improve_video: fbBotV,
     facebook_video_analysis: aiContent.facebook_video_analysis || "",
     // Instagram
     instagram_metrics: { spend: igM.spend, reach: igM.reach, frequency: igM.frequency },
     instagram_detail_metrics: { cpm: igM.cpm, cpe: igM.cpe, cpv: igM.cpv },
     instagram_metrics_over_time: aiContent.instagram_metrics_over_time || "",
-    instagram_top_reach: topByReach(igAds, 5),
-    instagram_improve_reach: bottomByReach(igAds, 3),
+    instagram_top_reach: igTopR,
+    instagram_improve_reach: igBotR,
     instagram_reach_analysis: aiContent.instagram_reach_analysis || "",
-    instagram_top_engagement: topByEngagement(igAds, 5),
-    instagram_improve_engagement: bottomByEngagement(igAds, 3),
+    instagram_top_engagement: igTopE,
+    instagram_improve_engagement: igBotE,
     instagram_engagement_analysis: aiContent.instagram_engagement_analysis || "",
-    instagram_top_video: topByVideoViews(igAds, 5),
-    instagram_improve_video: bottomByVideoViews(igAds, 3),
+    instagram_top_video: igTopV,
+    instagram_improve_video: igBotV,
     instagram_video_analysis: aiContent.instagram_video_analysis || "",
     // TikTok
     tiktok_metrics: { spend: tkM.spend, reach: tkM.reach, frequency: tkM.frequency },
     tiktok_detail_metrics: { cpm: tkM.cpm, cpe: tkM.cpe, cpv: tkM.cpv },
     tiktok_metrics_over_time: aiContent.tiktok_metrics_over_time || "",
-    tiktok_top_reach: topByReach(normalizedTiktokAds, 5),
-    tiktok_improve_reach: bottomByReach(normalizedTiktokAds, 3),
+    tiktok_top_reach: tkTopR,
+    tiktok_improve_reach: tkBotR,
     tiktok_reach_analysis: aiContent.tiktok_reach_analysis || "",
-    tiktok_top_engagement: topByEngagement(normalizedTiktokAds, 5),
-    tiktok_improve_engagement: bottomByEngagement(normalizedTiktokAds, 3),
+    tiktok_top_engagement: tkTopE,
+    tiktok_improve_engagement: tkBotE,
     tiktok_engagement_analysis: aiContent.tiktok_engagement_analysis || "",
-    tiktok_top_video: topByVideoViews(normalizedTiktokAds, 5),
-    tiktok_improve_video: bottomByVideoViews(normalizedTiktokAds, 3),
+    tiktok_top_video: tkTopV,
+    tiktok_improve_video: tkBotV,
     tiktok_video_analysis: aiContent.tiktok_video_analysis || "",
     // Competition
     competition_analysis: aiContent.competition_analysis || "",
