@@ -3,9 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { KPICard } from "./KPICard";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DateRangeFilter } from "@/components/ui/date-range-filter";
 import { format } from "date-fns";
 import { 
   Users, 
@@ -395,57 +394,10 @@ export const OverviewTab = ({ reportId }: OverviewTabProps) => {
     <div className="space-y-8">
       {/* Filter Bar */}
       <div className="flex flex-wrap gap-4 items-center">
-        {/* Start Date */}
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              className={cn(
-                "rounded-[35px] justify-start text-left font-normal hover:border-foreground hover:bg-foreground hover:text-background",
-                dateRange.start
-                  ? "border-accent-orange bg-accent-orange text-foreground"
-                  : "border-foreground bg-card text-foreground"
-              )}
-            >
-              <CalendarIcon className="mr-2 h-4 w-4" />
-              {dateRange.start ? format(dateRange.start, "MMM d, yyyy") : "Start date"}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0 rounded-[20px]" align="start">
-            <Calendar
-              mode="single"
-              selected={dateRange.start || undefined}
-              onSelect={(date) => setDateRange((prev) => ({ ...prev, start: date || null }))}
-              initialFocus
-            />
-          </PopoverContent>
-        </Popover>
-
-        {/* End Date */}
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              className={cn(
-                "rounded-[35px] justify-start text-left font-normal hover:border-foreground hover:bg-foreground hover:text-background",
-                dateRange.end
-                  ? "border-accent-orange bg-accent-orange text-foreground"
-                  : "border-foreground bg-card text-foreground"
-              )}
-            >
-              <CalendarIcon className="mr-2 h-4 w-4" />
-              {dateRange.end ? format(dateRange.end, "MMM d, yyyy") : "End date"}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0 rounded-[20px]" align="start">
-            <Calendar
-              mode="single"
-              selected={dateRange.end || undefined}
-              onSelect={(date) => setDateRange((prev) => ({ ...prev, end: date || null }))}
-              initialFocus
-            />
-          </PopoverContent>
-        </Popover>
+        <DateRangeFilter
+          dateRange={dateRange}
+          onDateRangeChange={setDateRange}
+        />
 
         {/* Creator Filter */}
         <Select value={selectedCreator} onValueChange={setSelectedCreator}>
