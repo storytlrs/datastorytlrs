@@ -26,12 +26,24 @@ interface ContentItem {
   } | null;
 }
 
+export interface SelectedContentItem {
+  id: string;
+  thumbnail_url: string | null;
+  content_type: string;
+  platform: string;
+  views: number;
+  engagement_rate: number;
+  url: string | null;
+  content_summary: string | null;
+  creator_handle: string;
+}
+
 interface ContentSelectorDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   reportId: string;
   selectedIds: string[];
-  onSelect: (ids: string[]) => void;
+  onSelect: (ids: string[], items: SelectedContentItem[]) => void;
   maxSelections?: number;
 }
 
@@ -90,7 +102,24 @@ export const ContentSelectorDialog = ({
   };
 
   const handleConfirm = () => {
-    onSelect(localSelection);
+    const selectedItems: SelectedContentItem[] = localSelection
+      .map((id) => {
+        const item = content.find((c) => c.id === id);
+        if (!item) return null;
+        return {
+          id: item.id,
+          thumbnail_url: item.thumbnail_url,
+          content_type: item.content_type,
+          platform: item.platform,
+          views: item.views || 0,
+          engagement_rate: item.engagement_rate || 0,
+          url: item.url,
+          content_summary: item.content_summary,
+          creator_handle: item.creators?.handle || "unknown",
+        };
+      })
+      .filter(Boolean) as SelectedContentItem[];
+    onSelect(localSelection, selectedItems);
     onOpenChange(false);
   };
 
