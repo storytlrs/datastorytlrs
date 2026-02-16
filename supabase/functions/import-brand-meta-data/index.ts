@@ -75,6 +75,63 @@ const getBestAdImage = (creative?: MetaCreative): string | null => {
   );
 };
 
+const persistThumbnailToStorage = async (
+  supabaseAdmin: any,
+  imageUrl: string,
+  spaceId: string,
+  adId: string
+): Promise<string | null> => {
+  try {
+    // Skip if already a Supabase Storage URL
+    if (imageUrl.includes("supabase") && imageUrl.includes("/storage/")) {
+      return imageUrl;
+    }
+
+    // Download image via proxy to bypass CORS/hotlink
+    const proxyUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/proxy-image`;
+    const proxyRes = await fetch(proxyUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+      },
+      body: JSON.stringify({ url: imageUrl }),
+    });
+
+    if (!proxyRes.ok) {
+      console.warn(`Proxy failed for ad ${adId}: ${proxyRes.status}`);
+      return imageUrl; // fallback to original
+    }
+
+    const contentType = proxyRes.headers.get("content-type") || "image/jpeg";
+    const ext = contentType.includes("png") ? "png" : contentType.includes("webp") ? "webp" : "jpg";
+    const blob = await proxyRes.blob();
+    const arrayBuf = await blob.arrayBuffer();
+
+    const storagePath = `brand-ads/${spaceId}/${adId}.${ext}`;
+    const { error: uploadErr } = await supabaseAdmin.storage
+      .from("content-thumbnails")
+      .upload(storagePath, arrayBuf, {
+        contentType,
+        upsert: true,
+      });
+
+    if (uploadErr) {
+      console.warn(`Storage upload failed for ad ${adId}: ${uploadErr.message}`);
+      return imageUrl;
+    }
+
+    const { data: publicData } = supabaseAdmin.storage
+      .from("content-thumbnails")
+      .getPublicUrl(storagePath);
+
+    return publicData?.publicUrl || imageUrl;
+  } catch (e) {
+    console.warn(`Persist thumbnail failed for ad ${adId}: ${e}`);
+    return imageUrl;
+  }
+};
+
 const getHiResCreativeThumbnail = async (creativeId: string, token: string): Promise<string | null> => {
   try {
     const url = `https://graph.facebook.com/v21.0/${creativeId}?fields=thumbnail_url&thumbnail_width=1080&thumbnail_height=1080&access_token=${token}`;
@@ -149,6 +206,12 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_ANON_KEY")!,
       { global: { headers: { Authorization: authHeader } } }
+    );
+
+    // Admin client for storage operations
+    const supabaseAdmin = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
     const token = authHeader.replace("Bearer ", "");
@@ -227,9 +290,11 @@ Deno.serve(async (req) => {
             if (hiRes) imageUrl = hiRes;
           }
           if (imageUrl) {
+            // Persist to Supabase Storage for permanent access
+            const persistedUrl = await persistThumbnailToStorage(supabaseAdmin, imageUrl, spaceId, ad.ad_id);
             const { error: upErr } = await supabase
               .from("brand_ads")
-              .update({ thumbnail_url: imageUrl })
+              .update({ thumbnail_url: persistedUrl || imageUrl })
               .eq("id", ad.id);
             if (upErr) errors.push(`Update ${ad.ad_id}: ${upErr.message}`);
             else updated++;
@@ -396,6 +461,12 @@ Deno.serve(async (req) => {
                 if ((!previewUrl || previewUrl.includes("p64x64")) && ad.creative?.id) {
                   const hiRes = await getHiResCreativeThumbnail(ad.creative.id, metaAccessToken);
                   if (hiRes) previewUrl = hiRes;
+                }
+
+                // Persist thumbnail to Supabase Storage
+                if (previewUrl) {
+                  const persistedUrl = await persistThumbnailToStorage(supabaseAdmin, previewUrl, spaceId, ad.id);
+                  if (persistedUrl) previewUrl = persistedUrl;
                 }
 
                 const adRecord = {
