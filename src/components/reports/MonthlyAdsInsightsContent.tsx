@@ -375,7 +375,7 @@ export const MonthlyAdsInsightsContent = forwardRef<HTMLDivElement, MonthlyAdsIn
 
     const hasFacebook = insights.facebook_metrics.spend > 0 || insights.facebook_metrics.reach > 0 || insights.facebook_top_posts.length > 0;
     const hasInstagram = insights.instagram_metrics.spend > 0 || insights.instagram_metrics.reach > 0 || insights.instagram_top_posts.length > 0;
-    const hasTiktok = (insights.followers?.tiktok != null && insights.followers.tiktok > 0);
+    const hasTiktok = (insights as any).tiktok_metrics?.spend > 0 || (insights as any).tiktok_metrics?.reach > 0 || (insights.followers?.tiktok != null && insights.followers.tiktok > 0);
 
     return (
       <div ref={ref} className="space-y-8" style={{ backgroundColor: "#E9E9E9" }}>
@@ -424,7 +424,14 @@ export const MonthlyAdsInsightsContent = forwardRef<HTMLDivElement, MonthlyAdsIn
 
         {/* 3. Klíčové metriky */}
         <Card className="p-6 rounded-[20px] border-foreground" style={{ backgroundColor: "#E9E9E9" }}>
-          <h2 className="text-xl font-bold mb-4">Klíčové metriky</h2>
+          <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+            Klíčové metriky
+            <span className="flex items-center gap-1 ml-2">
+              {hasFacebook && <FacebookIcon />}
+              {hasInstagram && <InstagramIcon />}
+              {hasTiktok && <TiktokIcon />}
+            </span>
+          </h2>
           <div className="grid grid-cols-3 gap-4">
             <MetricTile title="Spend" value={formatCurrency(insights.key_metrics.spend, cur)} icon={DollarSign} accentColor="orange" />
             <MetricTile title="Reach" value={formatNumber(insights.key_metrics.reach)} icon={Users} accentColor="blue" />
@@ -540,29 +547,39 @@ export const MonthlyAdsInsightsContent = forwardRef<HTMLDivElement, MonthlyAdsIn
         {/* 9. Followers */}
         <Card className="p-6 rounded-[20px] border-foreground" style={{ backgroundColor: "#E9E9E9" }}>
           <h2 className="text-xl font-bold mb-4">Followers</h2>
-          <div className={`grid grid-cols-1 gap-6 ${[hasFacebook, hasInstagram, hasTiktok].filter(Boolean).length === 3 ? "md:grid-cols-3" : [hasFacebook, hasInstagram, hasTiktok].filter(Boolean).length === 2 ? "md:grid-cols-2" : ""}`}>
-            {(hasFacebook || insights.followers.facebook != null) && (
-              <Card className="p-4 rounded-[15px] border-border bg-muted/30 flex flex-col items-center gap-3">
-                <FacebookIcon />
-                <span className="text-sm font-medium text-muted-foreground uppercase">Facebook</span>
-                <EditableNumberField value={insights.followers.facebook} label="Facebook" canEdit={canEdit} onSave={(v) => handleSaveFollowersField("facebook", v)} />
-              </Card>
-            )}
-            {(hasInstagram || insights.followers.instagram != null) && (
-              <Card className="p-4 rounded-[15px] border-border bg-muted/30 flex flex-col items-center gap-3">
-                <InstagramIcon />
-                <span className="text-sm font-medium text-muted-foreground uppercase">Instagram</span>
-                <EditableNumberField value={insights.followers.instagram} label="Instagram" canEdit={canEdit} onSave={(v) => handleSaveFollowersField("instagram", v)} />
-              </Card>
-            )}
-            {(hasTiktok || insights.followers.tiktok != null) && (
-              <Card className="p-4 rounded-[15px] border-border bg-muted/30 flex flex-col items-center gap-3">
-                <TiktokIcon />
-                <span className="text-sm font-medium text-muted-foreground uppercase">TikTok</span>
-                <EditableNumberField value={insights.followers.tiktok} label="TikTok" canEdit={canEdit} onSave={(v) => handleSaveFollowersField("tiktok", v)} />
-              </Card>
-            )}
-          </div>
+          {(() => {
+            const visiblePlatforms = [
+              hasFacebook ? "facebook" : null,
+              hasInstagram ? "instagram" : null,
+              hasTiktok ? "tiktok" : null,
+            ].filter(Boolean);
+            const cols = visiblePlatforms.length === 3 ? "md:grid-cols-3" : visiblePlatforms.length === 2 ? "md:grid-cols-2" : "";
+            return (
+              <div className={`grid grid-cols-1 gap-6 ${cols}`}>
+                {(hasFacebook || insights.followers.facebook != null) && (
+                  <Card className="p-4 rounded-[15px] border-border bg-muted/30 flex flex-col items-center gap-3">
+                    <FacebookIcon />
+                    <span className="text-sm font-medium text-muted-foreground uppercase">Facebook</span>
+                    <EditableNumberField value={insights.followers.facebook} label="Facebook" canEdit={canEdit} onSave={(v) => handleSaveFollowersField("facebook", v)} />
+                  </Card>
+                )}
+                {(hasInstagram || insights.followers.instagram != null) && (
+                  <Card className="p-4 rounded-[15px] border-border bg-muted/30 flex flex-col items-center gap-3">
+                    <InstagramIcon />
+                    <span className="text-sm font-medium text-muted-foreground uppercase">Instagram</span>
+                    <EditableNumberField value={insights.followers.instagram} label="Instagram" canEdit={canEdit} onSave={(v) => handleSaveFollowersField("instagram", v)} />
+                  </Card>
+                )}
+                {(hasTiktok || insights.followers.tiktok != null) && (
+                  <Card className="p-4 rounded-[15px] border-border bg-muted/30 flex flex-col items-center gap-3">
+                    <TiktokIcon />
+                    <span className="text-sm font-medium text-muted-foreground uppercase">TikTok</span>
+                    <EditableNumberField value={insights.followers.tiktok} label="TikTok" canEdit={canEdit} onSave={(v) => handleSaveFollowersField("tiktok", v)} />
+                  </Card>
+                )}
+              </div>
+            );
+          })()}
         </Card>
 
         {/* 10. Learnings */}

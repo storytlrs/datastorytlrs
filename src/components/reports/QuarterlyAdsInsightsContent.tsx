@@ -589,7 +589,14 @@ export const QuarterlyAdsInsightsContent = forwardRef<HTMLDivElement, QuarterlyA
 
         {/* 3. Klíčové metriky */}
         <Card className="p-6 rounded-[20px] border-foreground" style={{ backgroundColor: "#E9E9E9" }}>
-          <h2 className="text-xl font-bold mb-4">Klíčové metriky</h2>
+          <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+            Klíčové metriky
+            <span className="flex items-center gap-1 ml-2">
+              {hasFacebook && <FacebookIcon />}
+              {hasInstagram && <InstagramIcon />}
+              {hasTiktokData && <TiktokIcon />}
+            </span>
+          </h2>
           <div className="grid grid-cols-3 gap-4">
             <MetricTile title="Spend" value={formatCurrency(insights.key_metrics.spend, cur)} icon={DollarSign} accentColor="orange" />
             <MetricTile title="Reach" value={formatNumber(insights.key_metrics.reach)} icon={Users} accentColor="blue" />
@@ -599,7 +606,14 @@ export const QuarterlyAdsInsightsContent = forwardRef<HTMLDivElement, QuarterlyA
 
         {/* 4. Detailní metriky */}
         <Card className="p-6 rounded-[20px] border-foreground" style={{ backgroundColor: "#E9E9E9" }}>
-          <h2 className="text-xl font-bold mb-4">Detailní metriky</h2>
+          <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+            Detailní metriky
+            <span className="flex items-center gap-1 ml-2">
+              {hasFacebook && <FacebookIcon />}
+              {hasInstagram && <InstagramIcon />}
+              {hasTiktokData && <TiktokIcon />}
+            </span>
+          </h2>
           <div className="grid grid-cols-3 gap-4">
             <MetricTile title="CPM" value={formatCurrency(insights.detail_metrics.cpm, cur)} icon={DollarSign} accentColor="orange" />
             <MetricTile title="CPE" value={formatCurrency(insights.detail_metrics.cpe, cur)} icon={DollarSign} accentColor="orange" />
@@ -711,10 +725,18 @@ export const QuarterlyAdsInsightsContent = forwardRef<HTMLDivElement, QuarterlyA
         {/* Followers */}
         <Card className="p-6 rounded-[20px] border-foreground" style={{ backgroundColor: "#E9E9E9" }}>
           <h2 className="text-xl font-bold mb-4">Followers</h2>
-          <div className={`grid grid-cols-1 gap-6 ${[hasFacebook, hasInstagram, hasTiktokData].filter(Boolean).length === 3 ? "md:grid-cols-3" : [hasFacebook, hasInstagram, hasTiktokData].filter(Boolean).length === 2 ? "md:grid-cols-2" : ""}`}>
-            {(hasFacebook || insights.followers.facebook != null) && (
-              <Card className="p-4 rounded-[15px] border-border bg-muted/30 flex flex-col items-center gap-3">
-                <FacebookIcon /><span className="text-sm font-medium text-muted-foreground uppercase">Facebook</span>
+          {(() => {
+            const visiblePlatforms = [
+              hasFacebook ? "facebook" : null,
+              hasInstagram ? "instagram" : null,
+              hasTiktokData ? "tiktok" : null,
+            ].filter(Boolean);
+            const cols = visiblePlatforms.length === 3 ? "md:grid-cols-3" : visiblePlatforms.length === 2 ? "md:grid-cols-2" : "";
+            return (
+              <div className={`grid grid-cols-1 gap-6 ${cols}`}>
+                {(hasFacebook || insights.followers.facebook != null) && (
+                  <Card className="p-4 rounded-[15px] border-border bg-muted/30 flex flex-col items-center gap-3">
+                    <FacebookIcon /><span className="text-sm font-medium text-muted-foreground uppercase">Facebook</span>
                 <EditableNumberField value={insights.followers.facebook} label="Facebook" canEdit={canEdit} onSave={(v) => handleSaveFollowersField("facebook", v)} />
               </Card>
             )}
@@ -730,7 +752,9 @@ export const QuarterlyAdsInsightsContent = forwardRef<HTMLDivElement, QuarterlyA
                 <EditableNumberField value={insights.followers.tiktok} label="TikTok" canEdit={canEdit} onSave={(v) => handleSaveFollowersField("tiktok", v)} />
               </Card>
             )}
-          </div>
+              </div>
+            );
+          })()}
         </Card>
 
         {/* Shrnutí: Co se povedlo */}
