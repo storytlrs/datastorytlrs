@@ -19,13 +19,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Calendar } from "@/components/ui/calendar";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { CalendarIcon, Upload, FileSpreadsheet, X, Check, ChevronsUpDown } from "lucide-react";
+import { DateRangeFilter } from "@/components/ui/date-range-filter";
+import { Upload, FileSpreadsheet, X, Check, ChevronsUpDown } from "lucide-react";
 import { CampaignSelectorStep } from "./CampaignSelectorStep";
 import {
   Command,
@@ -470,60 +470,16 @@ const CreateReportDialog = ({
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label>Start Date *</Label>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className={cn(
-                  "w-full justify-start text-left font-normal rounded-[35px]",
-                  !startDate && "text-muted-foreground"
-                )}
-              >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {startDate ? format(startDate, "PPP") : "Pick a date"}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0 bg-background border-foreground" align="start">
-              <Calendar
-                mode="single"
-                selected={startDate}
-                onSelect={setStartDate}
-                initialFocus
-                className="pointer-events-auto"
-              />
-            </PopoverContent>
-          </Popover>
-        </div>
-
-        <div className="space-y-2">
-          <Label>End Date *</Label>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className={cn(
-                  "w-full justify-start text-left font-normal rounded-[35px]",
-                  !endDate && "text-muted-foreground"
-                )}
-              >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {endDate ? format(endDate, "PPP") : "Pick a date"}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0 bg-background border-foreground" align="start">
-              <Calendar
-                mode="single"
-                selected={endDate}
-                onSelect={setEndDate}
-                initialFocus
-                className="pointer-events-auto"
-              />
-            </PopoverContent>
-          </Popover>
-        </div>
+      <div className="space-y-2">
+        <Label>Date Range *</Label>
+        <DateRangeFilter
+          dateRange={{ start: startDate || null, end: endDate || null }}
+          onDateRangeChange={(range) => {
+            setStartDate(range.start || undefined);
+            setEndDate(range.end || undefined);
+          }}
+          className="w-full"
+        />
       </div>
 
       {showCampaignSelector && (
