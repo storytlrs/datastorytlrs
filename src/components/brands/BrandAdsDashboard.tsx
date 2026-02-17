@@ -200,12 +200,31 @@ const BrandAdsDashboard = ({ spaceId, filters }: BrandAdsDashboardProps) => {
     }
   };
 
-  // Reset all filters when space changes
+  // Platform-filtered base data
+  const platformCampaigns = useMemo(() => {
+    if (!filters.platform || filters.platform === "all") return campaigns;
+    const p = filters.platform === "tiktok" ? "tiktok" : "meta";
+    return campaigns.filter(c => c.platform === p);
+  }, [campaigns, filters.platform]);
+
+  const platformAdSets = useMemo(() => {
+    if (!filters.platform || filters.platform === "all") return adSets;
+    const p = filters.platform === "tiktok" ? "tiktok" : "meta";
+    return adSets.filter(a => a.platform === p);
+  }, [adSets, filters.platform]);
+
+  const platformAds = useMemo(() => {
+    if (!filters.platform || filters.platform === "all") return ads;
+    const p = filters.platform === "tiktok" ? "tiktok" : "meta";
+    return ads.filter(a => a.platform === p);
+  }, [ads, filters.platform]);
+
+  // Reset all filters when space or platform changes
   useEffect(() => {
     setSelectedCampaignIds([]);
     setSelectedAdSetIds([]);
     setSelectedAdIds([]);
-  }, [spaceId]);
+  }, [spaceId, filters.platform]);
 
   // Reset child filters when parent changes
   useEffect(() => {
@@ -219,9 +238,9 @@ const BrandAdsDashboard = ({ spaceId, filters }: BrandAdsDashboardProps) => {
 
   // Filtered ad sets based on selected campaigns
   const filteredAdSets = useMemo(() => {
-    if (selectedCampaignIds.length === 0) return adSets;
-    return adSets.filter(a => selectedCampaignIds.includes(a.campaign_id));
-  }, [adSets, selectedCampaignIds]);
+    if (selectedCampaignIds.length === 0) return platformAdSets;
+    return platformAdSets.filter(a => selectedCampaignIds.includes(a.campaign_id));
+  }, [platformAdSets, selectedCampaignIds]);
 
   // Filtered ads based on selected ad sets (or all ad sets from selected campaigns)
   const filteredAds = useMemo(() => {
@@ -229,8 +248,8 @@ const BrandAdsDashboard = ({ spaceId, filters }: BrandAdsDashboardProps) => {
       ? selectedAdSetIds
       : filteredAdSets.map(a => a.id);
     if (relevantAdSetIds.length === 0 && selectedCampaignIds.length > 0) return [];
-    if (relevantAdSetIds.length === 0) return ads;
-    return ads.filter(a => relevantAdSetIds.includes(a.adset_id));
+    if (relevantAdSetIds.length === 0) return platformAds;
+    return platformAds.filter(a => relevantAdSetIds.includes(a.adset_id));
   }, [ads, selectedAdSetIds, filteredAdSets, selectedCampaignIds]);
 
   // Final filtered ads
@@ -246,7 +265,7 @@ const BrandAdsDashboard = ({ spaceId, filters }: BrandAdsDashboardProps) => {
   }, [filteredAdSets, selectedAdSetIds]);
 
   // Determine data granularity for KPIs
-  const hasAdsData = ads.length > 0;
+  const hasAdsData = platformAds.length > 0;
 
   // KPI calculation
   const kpis = useMemo(() => {
@@ -279,7 +298,7 @@ const BrandAdsDashboard = ({ spaceId, filters }: BrandAdsDashboardProps) => {
         const adSet = adSets.find(as => as.id === (item as NormalizedAd).adset_id);
         campaignId = adSet?.campaign_id || "unknown";
       }
-      const campaign = campaigns.find(c => c.id === campaignId);
+      const campaign = platformCampaigns.find(c => c.id === campaignId);
       const name = campaign ? `${campaign.campaign_name || campaign.campaign_id} (${campaign.platform === "tiktok" ? "TT" : "Meta"})` : "Unknown";
 
       if (!campaignData[campaignId]) {
@@ -351,7 +370,7 @@ const BrandAdsDashboard = ({ spaceId, filters }: BrandAdsDashboardProps) => {
   };
 
   // Filter options - show platform in label
-  const campaignOptions: FilterOption[] = campaigns.map(c => ({
+  const campaignOptions: FilterOption[] = platformCampaigns.map(c => ({
     id: c.id,
     label: `${c.campaign_name || c.campaign_id} (${c.platform === "tiktok" ? "TT" : "Meta"})`,
   }));
@@ -378,7 +397,7 @@ const BrandAdsDashboard = ({ spaceId, filters }: BrandAdsDashboardProps) => {
     );
   }
 
-  const hasData = adSets.length > 0 || ads.length > 0;
+  const hasData = platformAdSets.length > 0 || platformAds.length > 0;
 
   return (
     <div className="space-y-8">
