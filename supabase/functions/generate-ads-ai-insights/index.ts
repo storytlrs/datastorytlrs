@@ -299,6 +299,20 @@ async function handleMonthlyReport(ctx: any) {
     return name.includes("instagram") || name.includes("ig");
   });
 
+  // Normalize TikTok ads for monthly report
+  const normalizedTiktokAds = (ctx.tiktokAds || []).map((a: any) => ({
+    ad_name: a.ad_name || "Unnamed",
+    amount_spent: a.amount_spent || 0,
+    reach: a.reach || 0,
+    impressions: a.impressions || 0,
+    clicks: a.clicks || 0,
+    ctr: a.ctr || 0,
+    thruplays: a.video_views_p100 || 0,
+    video_3s_plays: a.video_watched_2s || 0,
+    thumbnail_url: a.thumbnail_url || null,
+    average_video_play: a.average_video_play || 0,
+  }));
+
   const calcPlatformMetrics = (platformAds: any[]) => {
     const spend = platformAds.reduce((s: number, a: any) => s + (a.amount_spent || 0), 0);
     const reach = platformAds.reduce((s: number, a: any) => s + (a.reach || 0), 0);
@@ -308,6 +322,14 @@ async function handleMonthlyReport(ctx: any) {
 
   const fbMetrics = calcPlatformMetrics(fbAds);
   const igMetrics = calcPlatformMetrics(igAds);
+
+  // TikTok platform metrics from campaign-level data
+  const tkCampaigns = ctx.tiktokCampaigns || [];
+  const tkSpend = tkCampaigns.reduce((s: number, c: any) => s + (c.amount_spent || 0), 0);
+  const tkReach = tkCampaigns.reduce((s: number, c: any) => s + (c.reach || 0), 0);
+  const tkImpr = tkCampaigns.reduce((s: number, c: any) => s + (c.impressions || 0), 0);
+  const tkFreq = tkReach > 0 ? tkImpr / tkReach : 0;
+  const tiktokMetrics = { spend: tkSpend, reach: tkReach, frequency: tkFreq };
 
   const topBySpend = (arr: any[], count: number) =>
     [...arr].sort((a, b) => (b.amount_spent || 0) - (a.amount_spent || 0)).slice(0, count).map((a: any, i: number) => ({
@@ -328,6 +350,7 @@ async function handleMonthlyReport(ctx: any) {
 
   const fbTopPosts = topBySpend(fbAds, 5);
   const igTopPosts = topBySpend(igAds, 5);
+  const tiktokTopPosts = topBySpend(normalizedTiktokAds, 5);
 
   const campaignSummary = campaigns
     .map((cm: any) => `${cm.campaign_name || "Unnamed"}: Spend ${cm.amount_spent}, Impr ${cm.impressions}, Clicks ${cm.clicks}`)
@@ -382,6 +405,11 @@ INSTAGRAM DATA (${igAds.length} reklam):
 - Spend: ${igMetrics.spend.toFixed(2)} CZK, Reach: ${igMetrics.reach.toLocaleString()}, Frequency: ${igMetrics.frequency.toFixed(2)}
 Jednotlivé reklamy:
 ${igAdsDetail || "  Žádné IG reklamy"}
+
+TIKTOK DATA (${normalizedTiktokAds.length} reklam):
+- Spend: ${tiktokMetrics.spend.toFixed(2)} CZK, Reach: ${tiktokMetrics.reach.toLocaleString()}, Frequency: ${tiktokMetrics.frequency.toFixed(2)}
+Jednotlivé reklamy:
+${normalizedTiktokAds.map((a: any) => `  - ${a.ad_name}: Spend ${(a.amount_spent || 0).toFixed(0)}, Reach ${a.reach || 0}, Impr ${a.impressions || 0}, Clicks ${a.clicks || 0}, CTR ${(a.ctr || 0).toFixed(2)}%`).join("\n") || "  Žádné TikTok reklamy"}
 
 KONTEXT OD UŽIVATELE:
 - Hlavní cíl kampaně: ${campaign_context.mainGoal}
@@ -448,6 +476,7 @@ INSTRUKCE:
   await persistThumbnails(supabase, report_id, [
     { key: "facebook_top_posts", posts: fbTopPosts },
     { key: "instagram_top_posts", posts: igTopPosts },
+    { key: "tiktok_top_posts", posts: tiktokTopPosts },
   ]);
 
   const structuredInsights = {
@@ -472,6 +501,8 @@ INSTRUKCE:
     facebook_top_posts: fbTopPosts,
     instagram_metrics: igMetrics,
     instagram_top_posts: igTopPosts,
+    tiktok_metrics: tiktokMetrics,
+    tiktok_top_posts: tiktokTopPosts,
     followers: { facebook: null, instagram: null, tiktok: null },
     learnings: aiContent.learnings,
   };
