@@ -181,6 +181,9 @@ export const CreatorPerformanceCard = ({
             <span className={`font-bold ${getRelevanceColor(creator.relevance)}`}>
               {creator.relevance}%
             </span>
+            <p className="text-xs text-muted-foreground mt-1">
+              Relevance vyjadřuje míru shody mezi obsahem tvůrce a hodnotami značky. Zohledňuje jak celkovou relevanci ke značce (brand fit), tak konkrétní obsah příspěvků (content summary) — tedy nakolik tvůrce přirozeně komunikuje témata blízká značce.
+            </p>
           </div>
         </div>
 
