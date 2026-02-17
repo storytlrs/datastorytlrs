@@ -189,13 +189,20 @@ export const CampaignAdsInsightsContent = forwardRef<HTMLDivElement, CampaignAds
   ({ insights: raw, canEdit = false, onSaveInsights, hasMetaPlatform, hasTiktokPlatform }, ref) => {
     const d = (obj: any, defaults: any) => ({ ...defaults, ...obj });
 
+    // Map legacy key_metrics / detail_metrics to platform-specific keys
+    const rawAny = raw as any;
+    const metaKeySource = raw.meta_key_metrics ?? rawAny.key_metrics;
+    const metaDetailSource = raw.meta_detail_metrics ?? rawAny.detail_metrics;
+    const tiktokKeySource = raw.tiktok_key_metrics ?? rawAny.tiktok_key_metrics;
+    const tiktokDetailSource = raw.tiktok_detail_metrics ?? rawAny.tiktok_detail_metrics;
+
     const insights: CampaignStructuredInsights = {
       executive_summary: d(raw.executive_summary, { media_insight: "", top_result: "", recommendation: "" }),
       goal_fulfillment: d(raw.goal_fulfillment, { goals_set: "", results: "" }),
-      meta_key_metrics: d(raw.meta_key_metrics, { spend: 0, reach: 0, frequency: 0, currency: "CZK" }),
-      meta_detail_metrics: d(raw.meta_detail_metrics, { thruplay_rate: 0, view_rate_3s: 0, avg_watch_time: 0 }),
-      tiktok_key_metrics: d(raw.tiktok_key_metrics, { spend: 0, reach: 0, frequency: 0, currency: "CZK" }),
-      tiktok_detail_metrics: d(raw.tiktok_detail_metrics, { thruplay_rate: 0, view_rate_3s: 0, avg_watch_time: 0 }),
+      meta_key_metrics: d(metaKeySource, { spend: 0, reach: 0, frequency: 0, currency: "CZK" }),
+      meta_detail_metrics: d(metaDetailSource, { thruplay_rate: 0, view_rate_3s: 0, avg_watch_time: 0 }),
+      tiktok_key_metrics: d(tiktokKeySource, { spend: 0, reach: 0, frequency: 0, currency: "CZK" }),
+      tiktok_detail_metrics: d(tiktokDetailSource, { thruplay_rate: 0, view_rate_3s: 0, avg_watch_time: 0 }),
       target_audience: raw.target_audience || "",
       top_content: raw.top_content || [],
       community_management: d(raw.community_management, { answered_comments: null, answered_dms: null, response_rate_24h: null }),
