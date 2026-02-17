@@ -130,6 +130,87 @@ const BrandDetail = () => {
     }
   }, [brandId]);
 
+  // Auto-sync TikTok when brand has tiktok_id but no campaigns yet
+  useEffect(() => {
+    const autoSyncTiktok = async () => {
+      if (!brand?.tiktok_id || !brandId || tiktokSyncing) return;
+
+      // Check if any TikTok campaigns exist for this space
+      const { count } = await supabase
+        .from("tiktok_campaigns" as any)
+        .select("id", { count: "exact", head: true })
+        .eq("space_id", brandId);
+
+      if ((count ?? 0) > 0) return; // Already has data
+
+      // Trigger auto-sync
+      setTiktokSyncing(true);
+      setSyncProgress(null);
+      toast.info("Auto-syncing TikTok Ads data...");
+
+      try {
+        const session = (await supabase.auth.getSession()).data.session;
+        const headers = {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session?.access_token}`,
+          "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        };
+        const fnUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/import-tiktok-ads`;
+
+        const listRes = await fetch(fnUrl, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ spaceId: brandId, listOnly: true }),
+        });
+        const listData = await listRes.json();
+        if (!listRes.ok || listData.error) {
+          toast.error(listData.error || "Auto-sync: Failed to fetch campaigns");
+          return;
+        }
+
+        const campaigns = listData.campaigns || [];
+        if (campaigns.length === 0) {
+          toast.info("No TikTok campaigns found");
+          return;
+        }
+
+        let totalAdGroups = 0;
+        let totalAds = 0;
+        let successCount = 0;
+
+        for (let i = 0; i < campaigns.length; i++) {
+          const c = campaigns[i];
+          setSyncProgress({ current: i + 1, total: campaigns.length, campaignName: c.campaign_name });
+          try {
+            const res = await fetch(fnUrl, {
+              method: "POST",
+              headers,
+              body: JSON.stringify({ spaceId: brandId, campaignId: c.campaign_id }),
+            });
+            const data = await res.json();
+            if (res.ok && !data.error) {
+              totalAdGroups += data.ad_groups_imported || 0;
+              totalAds += data.ads_imported || 0;
+              successCount++;
+            }
+          } catch (e) {
+            console.error(`Auto-sync campaign ${c.campaign_id} error:`, e);
+          }
+        }
+
+        toast.success(`Auto-synced ${successCount} campaigns, ${totalAdGroups} ad groups, ${totalAds} ads`);
+      } catch (err) {
+        toast.error("TikTok auto-sync failed");
+        console.error(err);
+      } finally {
+        setTiktokSyncing(false);
+        setSyncProgress(null);
+      }
+    };
+
+    autoSyncTiktok();
+  }, [brand?.tiktok_id, brandId]);
+
   const fetchReportContributors = async (reportIds: string[]) => {
     if (reportIds.length === 0) return;
     
