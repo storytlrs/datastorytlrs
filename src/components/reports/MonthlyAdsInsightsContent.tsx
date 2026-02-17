@@ -373,6 +373,10 @@ export const MonthlyAdsInsightsContent = forwardRef<HTMLDivElement, MonthlyAdsIn
 
     const cur = insights.key_metrics.currency || "CZK";
 
+    const hasFacebook = insights.facebook_metrics.spend > 0 || insights.facebook_metrics.reach > 0 || insights.facebook_top_posts.length > 0;
+    const hasInstagram = insights.instagram_metrics.spend > 0 || insights.instagram_metrics.reach > 0 || insights.instagram_top_posts.length > 0;
+    const hasTiktok = (insights.followers?.tiktok != null && insights.followers.tiktok > 0);
+
     return (
       <div ref={ref} className="space-y-8" style={{ backgroundColor: "#E9E9E9" }}>
         {/* 1. Executive Summary */}
@@ -476,78 +480,88 @@ export const MonthlyAdsInsightsContent = forwardRef<HTMLDivElement, MonthlyAdsIn
         </Card>
 
         {/* 7. Facebook příspěvky */}
-        <Card className="p-6 rounded-[20px] border-foreground" style={{ backgroundColor: "#E9E9E9" }}>
-          <div className="flex items-center gap-3 mb-4">
-            <FacebookIcon />
-            <h2 className="text-xl font-bold">Klíčové metriky – Facebook</h2>
-          </div>
-          <div className="grid grid-cols-3 gap-4 mb-6">
-            <MetricTile title="Spend" value={formatCurrency(insights.facebook_metrics.spend, cur)} icon={DollarSign} accentColor="orange" />
-            <MetricTile title="Reach" value={formatNumber(insights.facebook_metrics.reach)} icon={Users} accentColor="blue" />
-            <MetricTile title="Frequency" value={insights.facebook_metrics.frequency.toFixed(2)} icon={BarChart3} accentColor="blue" />
-          </div>
-          {insights.facebook_top_posts.length > 0 && (
-            <>
-              <h3 className="font-bold text-lg mb-3">TOP příspěvky</h3>
-              <div className={`grid gap-10 ${
-                insights.facebook_top_posts.length === 1 ? "grid-cols-1 max-w-[250px] mx-auto" :
-                insights.facebook_top_posts.length === 2 ? "grid-cols-2 max-w-[520px] mx-auto" :
-                insights.facebook_top_posts.length === 3 ? "grid-cols-3 max-w-[780px] mx-auto" :
-                insights.facebook_top_posts.length === 4 ? "grid-cols-2 md:grid-cols-4" :
-                "grid-cols-2 md:grid-cols-3 lg:grid-cols-5"
-              }`}>
-                {insights.facebook_top_posts.map((post, i) => <PostCard key={i} post={post} />)}
-              </div>
-            </>
-          )}
-        </Card>
+        {hasFacebook && (
+          <Card className="p-6 rounded-[20px] border-foreground" style={{ backgroundColor: "#E9E9E9" }}>
+            <div className="flex items-center gap-3 mb-4">
+              <FacebookIcon />
+              <h2 className="text-xl font-bold">Klíčové metriky – Facebook</h2>
+            </div>
+            <div className="grid grid-cols-3 gap-4 mb-6">
+              <MetricTile title="Spend" value={formatCurrency(insights.facebook_metrics.spend, cur)} icon={DollarSign} accentColor="orange" />
+              <MetricTile title="Reach" value={formatNumber(insights.facebook_metrics.reach)} icon={Users} accentColor="blue" />
+              <MetricTile title="Frequency" value={insights.facebook_metrics.frequency.toFixed(2)} icon={BarChart3} accentColor="blue" />
+            </div>
+            {insights.facebook_top_posts.length > 0 && (
+              <>
+                <h3 className="font-bold text-lg mb-3">TOP příspěvky</h3>
+                <div className={`grid gap-10 ${
+                  insights.facebook_top_posts.length === 1 ? "grid-cols-1 max-w-[250px] mx-auto" :
+                  insights.facebook_top_posts.length === 2 ? "grid-cols-2 max-w-[520px] mx-auto" :
+                  insights.facebook_top_posts.length === 3 ? "grid-cols-3 max-w-[780px] mx-auto" :
+                  insights.facebook_top_posts.length === 4 ? "grid-cols-2 md:grid-cols-4" :
+                  "grid-cols-2 md:grid-cols-3 lg:grid-cols-5"
+                }`}>
+                  {insights.facebook_top_posts.map((post, i) => <PostCard key={i} post={post} />)}
+                </div>
+              </>
+            )}
+          </Card>
+        )}
 
         {/* 8. Instagram příspěvky */}
-        <Card className="p-6 rounded-[20px] border-foreground" style={{ backgroundColor: "#E9E9E9" }}>
-          <div className="flex items-center gap-3 mb-4">
-            <InstagramIcon />
-            <h2 className="text-xl font-bold">Klíčové metriky – Instagram</h2>
-          </div>
-          <div className="grid grid-cols-3 gap-4 mb-6">
-            <MetricTile title="Spend" value={formatCurrency(insights.instagram_metrics.spend, cur)} icon={DollarSign} accentColor="orange" />
-            <MetricTile title="Reach" value={formatNumber(insights.instagram_metrics.reach)} icon={Users} accentColor="blue" />
-            <MetricTile title="Frequency" value={insights.instagram_metrics.frequency.toFixed(2)} icon={BarChart3} accentColor="blue" />
-          </div>
-          {insights.instagram_top_posts.length > 0 && (
-            <>
-              <h3 className="font-bold text-lg mb-3">TOP příspěvky</h3>
-              <div className={`grid gap-10 ${
-                insights.instagram_top_posts.length === 1 ? "grid-cols-1 max-w-[250px] mx-auto" :
-                insights.instagram_top_posts.length === 2 ? "grid-cols-2 max-w-[520px] mx-auto" :
-                insights.instagram_top_posts.length === 3 ? "grid-cols-3 max-w-[780px] mx-auto" :
-                insights.instagram_top_posts.length === 4 ? "grid-cols-2 md:grid-cols-4" :
-                "grid-cols-2 md:grid-cols-3 lg:grid-cols-5"
-              }`}>
-                {insights.instagram_top_posts.map((post, i) => <PostCard key={i} post={post} />)}
-              </div>
-            </>
-          )}
-        </Card>
+        {hasInstagram && (
+          <Card className="p-6 rounded-[20px] border-foreground" style={{ backgroundColor: "#E9E9E9" }}>
+            <div className="flex items-center gap-3 mb-4">
+              <InstagramIcon />
+              <h2 className="text-xl font-bold">Klíčové metriky – Instagram</h2>
+            </div>
+            <div className="grid grid-cols-3 gap-4 mb-6">
+              <MetricTile title="Spend" value={formatCurrency(insights.instagram_metrics.spend, cur)} icon={DollarSign} accentColor="orange" />
+              <MetricTile title="Reach" value={formatNumber(insights.instagram_metrics.reach)} icon={Users} accentColor="blue" />
+              <MetricTile title="Frequency" value={insights.instagram_metrics.frequency.toFixed(2)} icon={BarChart3} accentColor="blue" />
+            </div>
+            {insights.instagram_top_posts.length > 0 && (
+              <>
+                <h3 className="font-bold text-lg mb-3">TOP příspěvky</h3>
+                <div className={`grid gap-10 ${
+                  insights.instagram_top_posts.length === 1 ? "grid-cols-1 max-w-[250px] mx-auto" :
+                  insights.instagram_top_posts.length === 2 ? "grid-cols-2 max-w-[520px] mx-auto" :
+                  insights.instagram_top_posts.length === 3 ? "grid-cols-3 max-w-[780px] mx-auto" :
+                  insights.instagram_top_posts.length === 4 ? "grid-cols-2 md:grid-cols-4" :
+                  "grid-cols-2 md:grid-cols-3 lg:grid-cols-5"
+                }`}>
+                  {insights.instagram_top_posts.map((post, i) => <PostCard key={i} post={post} />)}
+                </div>
+              </>
+            )}
+          </Card>
+        )}
 
         {/* 9. Followers */}
         <Card className="p-6 rounded-[20px] border-foreground" style={{ backgroundColor: "#E9E9E9" }}>
           <h2 className="text-xl font-bold mb-4">Followers</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card className="p-4 rounded-[15px] border-border bg-muted/30 flex flex-col items-center gap-3">
-              <FacebookIcon />
-              <span className="text-sm font-medium text-muted-foreground uppercase">Facebook</span>
-              <EditableNumberField value={insights.followers.facebook} label="Facebook" canEdit={canEdit} onSave={(v) => handleSaveFollowersField("facebook", v)} />
-            </Card>
-            <Card className="p-4 rounded-[15px] border-border bg-muted/30 flex flex-col items-center gap-3">
-              <InstagramIcon />
-              <span className="text-sm font-medium text-muted-foreground uppercase">Instagram</span>
-              <EditableNumberField value={insights.followers.instagram} label="Instagram" canEdit={canEdit} onSave={(v) => handleSaveFollowersField("instagram", v)} />
-            </Card>
-            <Card className="p-4 rounded-[15px] border-border bg-muted/30 flex flex-col items-center gap-3">
-              <TiktokIcon />
-              <span className="text-sm font-medium text-muted-foreground uppercase">TikTok</span>
-              <EditableNumberField value={insights.followers.tiktok} label="TikTok" canEdit={canEdit} onSave={(v) => handleSaveFollowersField("tiktok", v)} />
-            </Card>
+          <div className={`grid grid-cols-1 gap-6 ${[hasFacebook, hasInstagram, hasTiktok].filter(Boolean).length === 3 ? "md:grid-cols-3" : [hasFacebook, hasInstagram, hasTiktok].filter(Boolean).length === 2 ? "md:grid-cols-2" : ""}`}>
+            {(hasFacebook || insights.followers.facebook != null) && (
+              <Card className="p-4 rounded-[15px] border-border bg-muted/30 flex flex-col items-center gap-3">
+                <FacebookIcon />
+                <span className="text-sm font-medium text-muted-foreground uppercase">Facebook</span>
+                <EditableNumberField value={insights.followers.facebook} label="Facebook" canEdit={canEdit} onSave={(v) => handleSaveFollowersField("facebook", v)} />
+              </Card>
+            )}
+            {(hasInstagram || insights.followers.instagram != null) && (
+              <Card className="p-4 rounded-[15px] border-border bg-muted/30 flex flex-col items-center gap-3">
+                <InstagramIcon />
+                <span className="text-sm font-medium text-muted-foreground uppercase">Instagram</span>
+                <EditableNumberField value={insights.followers.instagram} label="Instagram" canEdit={canEdit} onSave={(v) => handleSaveFollowersField("instagram", v)} />
+              </Card>
+            )}
+            {(hasTiktok || insights.followers.tiktok != null) && (
+              <Card className="p-4 rounded-[15px] border-border bg-muted/30 flex flex-col items-center gap-3">
+                <TiktokIcon />
+                <span className="text-sm font-medium text-muted-foreground uppercase">TikTok</span>
+                <EditableNumberField value={insights.followers.tiktok} label="TikTok" canEdit={canEdit} onSave={(v) => handleSaveFollowersField("tiktok", v)} />
+              </Card>
+            )}
           </div>
         </Card>
 

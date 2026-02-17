@@ -37,6 +37,7 @@ export const AdsAIInsightsTab = ({ reportId }: AdsAIInsightsTabProps) => {
   const [awarenessParagraph, setAwarenessParagraph] = useState("");
   const [engagementParagraph, setEngagementParagraph] = useState("");
   const [effectivenessParagraph, setEffectivenessParagraph] = useState("");
+  const [contentKey, setContentKey] = useState(0);
 
   useEffect(() => {
     fetchReportData();
@@ -97,6 +98,7 @@ export const AdsAIInsightsTab = ({ reportId }: AdsAIInsightsTabProps) => {
 
       setStructuredData(data.structured_data);
       setAiInsights(data.structured_data?.executive_summary || "");
+      setContentKey(prev => prev + 1);
 
       if (data.structured_data?.report_period !== "monthly") {
         setAwarenessParagraph(data.awareness_summary || "");
@@ -228,6 +230,7 @@ export const AdsAIInsightsTab = ({ reportId }: AdsAIInsightsTabProps) => {
 
           {isCampaign ? (
             <CampaignAdsInsightsContent
+              key={contentKey}
               ref={contentRef}
               insights={structuredData as CampaignStructuredInsights}
               canEdit={canEdit}
@@ -235,6 +238,7 @@ export const AdsAIInsightsTab = ({ reportId }: AdsAIInsightsTabProps) => {
             />
           ) : isMonthly ? (
             <MonthlyAdsInsightsContent
+              key={contentKey}
               ref={contentRef}
               insights={structuredData as MonthlyStructuredInsights}
               canEdit={canEdit}
@@ -242,6 +246,7 @@ export const AdsAIInsightsTab = ({ reportId }: AdsAIInsightsTabProps) => {
             />
           ) : isQuarterly ? (
             <QuarterlyAdsInsightsContent
+              key={contentKey}
               ref={contentRef}
               insights={structuredData as QuarterlyStructuredInsights}
               canEdit={canEdit}
@@ -249,6 +254,7 @@ export const AdsAIInsightsTab = ({ reportId }: AdsAIInsightsTabProps) => {
             />
           ) : isYearly ? (
             <YearlyAdsInsightsContent
+              key={contentKey}
               ref={contentRef}
               insights={structuredData as YearlyStructuredInsights}
               canEdit={canEdit}
@@ -256,6 +262,7 @@ export const AdsAIInsightsTab = ({ reportId }: AdsAIInsightsTabProps) => {
             />
           ) : (
             <AdsAIInsightsContent
+              key={contentKey}
               ref={contentRef}
               insights={structuredData as AdsStructuredInsights}
               awarenessParagraph={awarenessParagraph}

@@ -273,6 +273,7 @@ export const CampaignAdsInsightsContent = forwardRef<HTMLDivElement, CampaignAds
     };
 
     const cur = insights.meta_key_metrics.currency || "CZK";
+    const hasMeta = insights.meta_key_metrics.spend > 0 || insights.meta_key_metrics.reach > 0;
     const hasTiktok = insights.tiktok_key_metrics.spend > 0 || insights.tiktok_key_metrics.reach > 0;
 
     return (
@@ -312,32 +313,36 @@ export const CampaignAdsInsightsContent = forwardRef<HTMLDivElement, CampaignAds
         </Card>
 
         {/* 3. Klíčové metriky META */}
-        <Card className="p-6 rounded-[20px] border-foreground" style={{ backgroundColor: "#E9E9E9" }}>
-          <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-            <svg viewBox="0 0 24 24" className="w-6 h-6" fill="currentColor"><path d="M12 2.04c-5.5 0-10 4.49-10 10.02 0 5 3.66 9.15 8.44 9.9v-7H7.9v-2.9h2.54V9.85c0-2.51 1.49-3.89 3.78-3.89 1.09 0 2.23.19 2.23.19v2.47h-1.26c-1.24 0-1.63.77-1.63 1.56v1.88h2.78l-.45 2.9h-2.33v7a10 10 0 0 0 8.44-9.9c0-5.53-4.5-10.02-10-10.02Z"/></svg>
-            <svg viewBox="0 0 24 24" className="w-6 h-6" fill="currentColor"><path d="M7.8 2h8.4C19.4 2 22 4.6 22 7.8v8.4a5.8 5.8 0 0 1-5.8 5.8H7.8C4.6 22 2 19.4 2 16.2V7.8A5.8 5.8 0 0 1 7.8 2m-.2 2A3.6 3.6 0 0 0 4 7.6v8.8C4 18.39 5.61 20 7.6 20h8.8a3.6 3.6 0 0 0 3.6-3.6V7.6C20 5.61 18.39 4 16.4 4H7.6m9.65 1.5a1.25 1.25 0 1 1 0 2.5 1.25 1.25 0 0 1 0-2.5M12 7a5 5 0 1 1 0 10 5 5 0 0 1 0-10m0 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z"/></svg>
-            Klíčové metriky META
-          </h2>
-          <div className="grid grid-cols-3 gap-4">
-            <MetricTile title="Spend" value={formatCurrency(insights.meta_key_metrics.spend, cur)} icon={DollarSign} accentColor="orange" />
-            <MetricTile title="Reach" value={formatNumber(insights.meta_key_metrics.reach)} icon={Users} accentColor="blue" />
-            <MetricTile title="Frequency" value={insights.meta_key_metrics.frequency.toFixed(2)} icon={BarChart3} accentColor="blue" />
-          </div>
-        </Card>
+        {hasMeta && (
+          <Card className="p-6 rounded-[20px] border-foreground" style={{ backgroundColor: "#E9E9E9" }}>
+            <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+              <svg viewBox="0 0 24 24" className="w-6 h-6" fill="currentColor"><path d="M12 2.04c-5.5 0-10 4.49-10 10.02 0 5 3.66 9.15 8.44 9.9v-7H7.9v-2.9h2.54V9.85c0-2.51 1.49-3.89 3.78-3.89 1.09 0 2.23.19 2.23.19v2.47h-1.26c-1.24 0-1.63.77-1.63 1.56v1.88h2.78l-.45 2.9h-2.33v7a10 10 0 0 0 8.44-9.9c0-5.53-4.5-10.02-10-10.02Z"/></svg>
+              <svg viewBox="0 0 24 24" className="w-6 h-6" fill="currentColor"><path d="M7.8 2h8.4C19.4 2 22 4.6 22 7.8v8.4a5.8 5.8 0 0 1-5.8 5.8H7.8C4.6 22 2 19.4 2 16.2V7.8A5.8 5.8 0 0 1 7.8 2m-.2 2A3.6 3.6 0 0 0 4 7.6v8.8C4 18.39 5.61 20 7.6 20h8.8a3.6 3.6 0 0 0 3.6-3.6V7.6C20 5.61 18.39 4 16.4 4H7.6m9.65 1.5a1.25 1.25 0 1 1 0 2.5 1.25 1.25 0 0 1 0-2.5M12 7a5 5 0 1 1 0 10 5 5 0 0 1 0-10m0 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z"/></svg>
+              Klíčové metriky META
+            </h2>
+            <div className="grid grid-cols-3 gap-4">
+              <MetricTile title="Spend" value={formatCurrency(insights.meta_key_metrics.spend, cur)} icon={DollarSign} accentColor="orange" />
+              <MetricTile title="Reach" value={formatNumber(insights.meta_key_metrics.reach)} icon={Users} accentColor="blue" />
+              <MetricTile title="Frequency" value={insights.meta_key_metrics.frequency.toFixed(2)} icon={BarChart3} accentColor="blue" />
+            </div>
+          </Card>
+        )}
 
         {/* 4. Detailní metriky META */}
-        <Card className="p-6 rounded-[20px] border-foreground" style={{ backgroundColor: "#E9E9E9" }}>
-          <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-            <svg viewBox="0 0 24 24" className="w-6 h-6" fill="currentColor"><path d="M12 2.04c-5.5 0-10 4.49-10 10.02 0 5 3.66 9.15 8.44 9.9v-7H7.9v-2.9h2.54V9.85c0-2.51 1.49-3.89 3.78-3.89 1.09 0 2.23.19 2.23.19v2.47h-1.26c-1.24 0-1.63.77-1.63 1.56v1.88h2.78l-.45 2.9h-2.33v7a10 10 0 0 0 8.44-9.9c0-5.53-4.5-10.02-10-10.02Z"/></svg>
-            <svg viewBox="0 0 24 24" className="w-6 h-6" fill="currentColor"><path d="M7.8 2h8.4C19.4 2 22 4.6 22 7.8v8.4a5.8 5.8 0 0 1-5.8 5.8H7.8C4.6 22 2 19.4 2 16.2V7.8A5.8 5.8 0 0 1 7.8 2m-.2 2A3.6 3.6 0 0 0 4 7.6v8.8C4 18.39 5.61 20 7.6 20h8.8a3.6 3.6 0 0 0 3.6-3.6V7.6C20 5.61 18.39 4 16.4 4H7.6m9.65 1.5a1.25 1.25 0 1 1 0 2.5 1.25 1.25 0 0 1 0-2.5M12 7a5 5 0 1 1 0 10 5 5 0 0 1 0-10m0 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z"/></svg>
-            Detailní metriky META
-          </h2>
-          <div className="grid grid-cols-3 gap-4">
-            <MetricTile title="ThruPlay Rate" value={formatPercent(insights.meta_detail_metrics.thruplay_rate)} icon={Play} accentColor="blue" />
-            <MetricTile title="VV 3s Rate" value={formatPercent(insights.meta_detail_metrics.view_rate_3s)} icon={Eye} accentColor="blue" />
-            <MetricTile title="Avg. Watch Time" value={`${insights.meta_detail_metrics.avg_watch_time.toFixed(1)}s`} icon={Clock} accentColor="blue" />
-          </div>
-        </Card>
+        {hasMeta && (
+          <Card className="p-6 rounded-[20px] border-foreground" style={{ backgroundColor: "#E9E9E9" }}>
+            <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+              <svg viewBox="0 0 24 24" className="w-6 h-6" fill="currentColor"><path d="M12 2.04c-5.5 0-10 4.49-10 10.02 0 5 3.66 9.15 8.44 9.9v-7H7.9v-2.9h2.54V9.85c0-2.51 1.49-3.89 3.78-3.89 1.09 0 2.23.19 2.23.19v2.47h-1.26c-1.24 0-1.63.77-1.63 1.56v1.88h2.78l-.45 2.9h-2.33v7a10 10 0 0 0 8.44-9.9c0-5.53-4.5-10.02-10-10.02Z"/></svg>
+              <svg viewBox="0 0 24 24" className="w-6 h-6" fill="currentColor"><path d="M7.8 2h8.4C19.4 2 22 4.6 22 7.8v8.4a5.8 5.8 0 0 1-5.8 5.8H7.8C4.6 22 2 19.4 2 16.2V7.8A5.8 5.8 0 0 1 7.8 2m-.2 2A3.6 3.6 0 0 0 4 7.6v8.8C4 18.39 5.61 20 7.6 20h8.8a3.6 3.6 0 0 0 3.6-3.6V7.6C20 5.61 18.39 4 16.4 4H7.6m9.65 1.5a1.25 1.25 0 1 1 0 2.5 1.25 1.25 0 0 1 0-2.5M12 7a5 5 0 1 1 0 10 5 5 0 0 1 0-10m0 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z"/></svg>
+              Detailní metriky META
+            </h2>
+            <div className="grid grid-cols-3 gap-4">
+              <MetricTile title="ThruPlay Rate" value={formatPercent(insights.meta_detail_metrics.thruplay_rate)} icon={Play} accentColor="blue" />
+              <MetricTile title="VV 3s Rate" value={formatPercent(insights.meta_detail_metrics.view_rate_3s)} icon={Eye} accentColor="blue" />
+              <MetricTile title="Avg. Watch Time" value={`${insights.meta_detail_metrics.avg_watch_time.toFixed(1)}s`} icon={Clock} accentColor="blue" />
+            </div>
+          </Card>
+        )}
 
         {/* 5. Klíčové metriky TikTok */}
         {hasTiktok && (

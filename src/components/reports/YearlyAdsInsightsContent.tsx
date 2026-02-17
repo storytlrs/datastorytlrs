@@ -622,6 +622,9 @@ export const YearlyAdsInsightsContent = forwardRef<HTMLDivElement, YearlyAdsInsi
     };
 
     const cur = insights.key_metrics.currency || "CZK";
+    const hasFacebook = insights.facebook_metrics.spend > 0 || insights.facebook_metrics.reach > 0;
+    const hasInstagram = insights.instagram_metrics.spend > 0 || insights.instagram_metrics.reach > 0;
+    const hasTiktokData = insights.tiktok_metrics.spend > 0 || insights.tiktok_metrics.reach > 0;
 
     return (
       <div ref={ref} className="space-y-8" style={{ backgroundColor: "#E9E9E9" }}>
@@ -777,19 +780,25 @@ export const YearlyAdsInsightsContent = forwardRef<HTMLDivElement, YearlyAdsInsi
         {/* Followers */}
         <Card className="p-6 rounded-[20px] border-foreground" style={{ backgroundColor: "#E9E9E9" }}>
           <h2 className="text-xl font-bold mb-4">Followers</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card className="p-4 rounded-[15px] border-border bg-muted/30 flex flex-col items-center gap-3">
-              <FacebookIcon /><span className="text-sm font-medium text-muted-foreground uppercase">Facebook</span>
-              <EditableNumberField value={insights.followers.facebook} label="Facebook" canEdit={canEdit} onSave={(v) => handleSaveFollowersField("facebook", v)} />
-            </Card>
-            <Card className="p-4 rounded-[15px] border-border bg-muted/30 flex flex-col items-center gap-3">
-              <InstagramIcon /><span className="text-sm font-medium text-muted-foreground uppercase">Instagram</span>
-              <EditableNumberField value={insights.followers.instagram} label="Instagram" canEdit={canEdit} onSave={(v) => handleSaveFollowersField("instagram", v)} />
-            </Card>
-            <Card className="p-4 rounded-[15px] border-border bg-muted/30 flex flex-col items-center gap-3">
-              <TiktokIcon /><span className="text-sm font-medium text-muted-foreground uppercase">TikTok</span>
-              <EditableNumberField value={insights.followers.tiktok} label="TikTok" canEdit={canEdit} onSave={(v) => handleSaveFollowersField("tiktok", v)} />
-            </Card>
+          <div className={`grid grid-cols-1 gap-6 ${[hasFacebook, hasInstagram, hasTiktokData].filter(Boolean).length === 3 ? "md:grid-cols-3" : [hasFacebook, hasInstagram, hasTiktokData].filter(Boolean).length === 2 ? "md:grid-cols-2" : ""}`}>
+            {(hasFacebook || insights.followers.facebook != null) && (
+              <Card className="p-4 rounded-[15px] border-border bg-muted/30 flex flex-col items-center gap-3">
+                <FacebookIcon /><span className="text-sm font-medium text-muted-foreground uppercase">Facebook</span>
+                <EditableNumberField value={insights.followers.facebook} label="Facebook" canEdit={canEdit} onSave={(v) => handleSaveFollowersField("facebook", v)} />
+              </Card>
+            )}
+            {(hasInstagram || insights.followers.instagram != null) && (
+              <Card className="p-4 rounded-[15px] border-border bg-muted/30 flex flex-col items-center gap-3">
+                <InstagramIcon /><span className="text-sm font-medium text-muted-foreground uppercase">Instagram</span>
+                <EditableNumberField value={insights.followers.instagram} label="Instagram" canEdit={canEdit} onSave={(v) => handleSaveFollowersField("instagram", v)} />
+              </Card>
+            )}
+            {(hasTiktokData || insights.followers.tiktok != null) && (
+              <Card className="p-4 rounded-[15px] border-border bg-muted/30 flex flex-col items-center gap-3">
+                <TiktokIcon /><span className="text-sm font-medium text-muted-foreground uppercase">TikTok</span>
+                <EditableNumberField value={insights.followers.tiktok} label="TikTok" canEdit={canEdit} onSave={(v) => handleSaveFollowersField("tiktok", v)} />
+              </Card>
+            )}
           </div>
         </Card>
 
