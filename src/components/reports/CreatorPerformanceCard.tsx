@@ -40,6 +40,7 @@ interface CreatorPerformanceCardProps {
   creator: CreatorPerformanceData;
   canEdit?: boolean;
   variant?: 'default' | 'flat';
+  brandName?: string;
   onSaveKeyInsight?: (handle: string, insight: string) => void;
   onSaveTopics?: (handle: string, positiveTopics: string[], negativeTopics: string[]) => void;
 }
@@ -50,10 +51,51 @@ const getRelevanceColor = (relevance: number) => {
   return "text-muted-foreground";
 };
 
+const getRelevanceExplanation = (
+  creator: CreatorPerformanceData,
+  brandName?: string
+): string => {
+  const { relevance, positive_topics, negative_topics, top_content } = creator;
+  const brand = brandName || "značce";
+
+  const hasPositive = positive_topics.length > 0;
+  const hasNegative = negative_topics.length > 0;
+  const hasContentContext = !!top_content?.content_summary;
+
+  if (relevance >= 70) {
+    const topicsPart = hasPositive
+      ? ` Obsah přirozeně rezonuje s tématy jako ${positive_topics.slice(0, 3).join(", ")}, což je v souladu s komunikací ${brand}.`
+      : "";
+    const contentPart = hasContentContext
+      ? ` Shrnutí obsahu ukazuje na silnou tematickou blízkost ke značce.`
+      : "";
+    const negativePart = hasNegative
+      ? ` Drobná rizika se objevují u témat: ${negative_topics.slice(0, 2).join(", ")}.`
+      : "";
+    return `Vysoká relevance značí, že tvůrce komunikuje témata blízká ${brand} a jeho obsah organicky zapadá do brandové komunikace.${topicsPart}${contentPart}${negativePart}`;
+  }
+
+  if (relevance >= 40) {
+    const topicsPart = hasPositive
+      ? ` Některá témata (${positive_topics.slice(0, 2).join(", ")}) jsou relevantní, ale nejsou dominantní v obsahu tvůrce.`
+      : " Tematický překryv s brandem je omezený.";
+    const negativePart = hasNegative
+      ? ` Negativně vnímané oblasti (${negative_topics.slice(0, 2).join(", ")}) mohou snižovat celkový fit.`
+      : "";
+    return `Střední relevance naznačuje částečný překryv mezi obsahem tvůrce a komunikací ${brand}.${topicsPart}${negativePart}`;
+  }
+
+  const reason = hasNegative
+    ? ` Převažují témata, která nejsou v souladu se značkou (${negative_topics.slice(0, 2).join(", ")}).`
+    : " Obsah tvůrce se tematicky míjí s hodnotami a komunikací značky.";
+  return `Nízká relevance ukazuje na malou shodu mezi obsahem tvůrce a brandem ${brand}.${reason}`;
+};
+
 export const CreatorPerformanceCard = ({
   creator,
   canEdit = false,
   variant = 'default',
+  brandName,
   onSaveKeyInsight,
   onSaveTopics,
 }: CreatorPerformanceCardProps) => {
@@ -181,8 +223,8 @@ export const CreatorPerformanceCard = ({
             <span className={`font-bold ${getRelevanceColor(creator.relevance)}`}>
               {creator.relevance}%
             </span>
-            <p className="text-xs text-muted-foreground mt-1">
-              Relevance vyjadřuje míru shody mezi obsahem tvůrce a hodnotami značky. Zohledňuje jak celkovou relevanci ke značce (brand fit), tak konkrétní obsah příspěvků (content summary) — tedy nakolik tvůrce přirozeně komunikuje témata blízká značce.
+            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+              {getRelevanceExplanation(creator, brandName)}
             </p>
           </div>
         </div>

@@ -115,6 +115,7 @@ interface AIInsightsContentProps {
   sentimentParagraph?: string;
   canEdit?: boolean;
   reportId?: string;
+  brandName?: string;
   onSaveInsights?: (updates: Partial<StructuredInsights>) => Promise<void>;
 }
 
@@ -310,6 +311,7 @@ export const AIInsightsContent = forwardRef<HTMLDivElement, AIInsightsContentPro
   sentimentParagraph,
   canEdit = false,
   reportId,
+  brandName,
   onSaveInsights,
 }, ref) => {
   const [editingSections, setEditingSections] = useState<Set<string>>(new Set());
@@ -795,6 +797,7 @@ export const AIInsightsContent = forwardRef<HTMLDivElement, AIInsightsContentPro
                 creator={transformedCreator}
                 canEdit={canEdit}
                 variant="flat"
+                brandName={brandName}
                 onSaveKeyInsight={(handle, insight) => {
                   if (onSaveInsights) {
                     const updatedPerformance = (insights.creator_performance || []).map((c) =>
