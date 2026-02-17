@@ -69,6 +69,47 @@ const EditBrandDialog = ({ open, onOpenChange, brand, onSuccess }: EditBrandDial
       if (error) throw error;
 
       toast.success("Brand updated successfully");
+
+      // Trigger Meta import if meta_id changed and is now set
+      const oldMetaId = brand.meta_id || "";
+      const newMetaId = isAdmin ? (metaId.trim() || "") : oldMetaId;
+      if (newMetaId && newMetaId !== oldMetaId) {
+        toast.info("Importing data from Meta Ads...");
+        supabase.functions
+          .invoke("import-brand-meta-data", {
+            body: { spaceId: brand.id },
+          })
+          .then(({ data, error }) => {
+            if (error) {
+              toast.error("Meta import failed: " + error.message);
+            } else if (data?.success) {
+              toast.success(
+                `Meta import complete: ${data.imported.campaigns} campaigns, ${data.imported.adSets} ad sets, ${data.imported.ads} ads`
+              );
+            }
+          });
+      }
+
+      // Trigger TikTok import if tiktok_id changed and is now set
+      const oldTiktokId = brand.tiktok_id || "";
+      const newTiktokId = isAdmin ? (tiktokId.trim() || "") : oldTiktokId;
+      if (newTiktokId && newTiktokId !== oldTiktokId) {
+        toast.info("Importing data from TikTok Ads...");
+        supabase.functions
+          .invoke("import-tiktok-ads", {
+            body: { spaceId: brand.id },
+          })
+          .then(({ data, error }) => {
+            if (error) {
+              toast.error("TikTok import failed: " + error.message);
+            } else if (data?.success) {
+              toast.success(
+                `TikTok import complete: ${data.imported.campaigns} campaigns, ${data.imported.adGroups} ad groups, ${data.imported.ads} ads`
+              );
+            }
+          });
+      }
+
       onSuccess();
       onOpenChange(false);
     } catch (error) {
