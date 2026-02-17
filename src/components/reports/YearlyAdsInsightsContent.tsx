@@ -83,6 +83,8 @@ interface YearlyAdsInsightsContentProps {
   insights: YearlyStructuredInsights;
   canEdit?: boolean;
   onSaveInsights?: (updates: Partial<YearlyStructuredInsights>) => Promise<void>;
+  hasMetaPlatform?: boolean;
+  hasTiktokPlatform?: boolean;
 }
 
 // ── Helpers ──
@@ -449,7 +451,7 @@ const YearlyPlatformSection = ({
 // ── Main Component ──
 
 export const YearlyAdsInsightsContent = forwardRef<HTMLDivElement, YearlyAdsInsightsContentProps>(
-  ({ insights: raw, canEdit = false, onSaveInsights }, ref) => {
+  ({ insights: raw, canEdit = false, onSaveInsights, hasMetaPlatform, hasTiktokPlatform }, ref) => {
     const d = (obj: any, defaults: any) => ({ ...defaults, ...obj });
 
     const insights: YearlyStructuredInsights = {
@@ -622,9 +624,9 @@ export const YearlyAdsInsightsContent = forwardRef<HTMLDivElement, YearlyAdsInsi
     };
 
     const cur = insights.key_metrics.currency || "CZK";
-    const hasFacebook = insights.facebook_metrics.spend > 0 || insights.facebook_metrics.reach > 0;
-    const hasInstagram = insights.instagram_metrics.spend > 0 || insights.instagram_metrics.reach > 0;
-    const hasTiktokData = insights.tiktok_metrics.spend > 0 || insights.tiktok_metrics.reach > 0;
+    const hasFacebook = hasMetaPlatform ?? (insights.facebook_metrics.spend > 0 || insights.facebook_metrics.reach > 0);
+    const hasInstagram = hasMetaPlatform ?? (insights.instagram_metrics.spend > 0 || insights.instagram_metrics.reach > 0);
+    const hasTiktokData = hasTiktokPlatform ?? (insights.tiktok_metrics.spend > 0 || insights.tiktok_metrics.reach > 0);
 
     return (
       <div ref={ref} className="space-y-8" style={{ backgroundColor: "#E9E9E9" }}>

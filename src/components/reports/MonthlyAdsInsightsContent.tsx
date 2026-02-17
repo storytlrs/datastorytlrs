@@ -93,6 +93,8 @@ interface MonthlyAdsInsightsContentProps {
   insights: MonthlyStructuredInsights;
   canEdit?: boolean;
   onSaveInsights?: (updates: Partial<MonthlyStructuredInsights>) => Promise<void>;
+  hasMetaPlatform?: boolean;
+  hasTiktokPlatform?: boolean;
 }
 
 const formatNumber = (num: number): string => {
@@ -278,7 +280,7 @@ const TiktokIcon = () => (
 );
 
 export const MonthlyAdsInsightsContent = forwardRef<HTMLDivElement, MonthlyAdsInsightsContentProps>(
-  ({ insights: raw, canEdit = false, onSaveInsights }, ref) => {
+  ({ insights: raw, canEdit = false, onSaveInsights, hasMetaPlatform, hasTiktokPlatform }, ref) => {
     const insights: MonthlyStructuredInsights = {
       executive_summary: raw.executive_summary || "",
       campaign_context: raw.campaign_context || { mainGoal: "", actions: "", highlights: "" },
@@ -373,9 +375,9 @@ export const MonthlyAdsInsightsContent = forwardRef<HTMLDivElement, MonthlyAdsIn
 
     const cur = insights.key_metrics.currency || "CZK";
 
-    const hasFacebook = insights.facebook_metrics.spend > 0 || insights.facebook_metrics.reach > 0 || insights.facebook_top_posts.length > 0;
-    const hasInstagram = insights.instagram_metrics.spend > 0 || insights.instagram_metrics.reach > 0 || insights.instagram_top_posts.length > 0;
-    const hasTiktok = (insights as any).tiktok_metrics?.spend > 0 || (insights as any).tiktok_metrics?.reach > 0 || (insights.followers?.tiktok != null && insights.followers.tiktok > 0);
+    const hasFacebook = hasMetaPlatform ?? (insights.facebook_metrics.spend > 0 || insights.facebook_metrics.reach > 0 || insights.facebook_top_posts.length > 0);
+    const hasInstagram = hasMetaPlatform ?? (insights.instagram_metrics.spend > 0 || insights.instagram_metrics.reach > 0 || insights.instagram_top_posts.length > 0);
+    const hasTiktok = hasTiktokPlatform ?? ((insights as any).tiktok_metrics?.spend > 0 || (insights as any).tiktok_metrics?.reach > 0 || (insights.followers?.tiktok != null && insights.followers.tiktok > 0));
 
     return (
       <div ref={ref} className="space-y-8" style={{ backgroundColor: "#E9E9E9" }}>
