@@ -184,7 +184,7 @@ export const CampaignSelectorStep = ({
 
   return (
     <div className="space-y-2">
-      <Popover open={open} onOpenChange={setOpen}>
+      <Popover open={open} onOpenChange={setOpen} modal={true}>
         <PopoverTrigger asChild>
           <Button
             variant="outline"
@@ -198,10 +198,10 @@ export const CampaignSelectorStep = ({
             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+        <PopoverContent className="w-[--radix-popover-trigger-width] p-0 pointer-events-auto" align="start">
           <Command>
             <CommandInput placeholder="Search campaigns..." />
-            <CommandList className="max-h-[200px] overflow-y-auto">
+            <CommandList className="max-h-[200px]">
               <CommandEmpty>No campaigns found.</CommandEmpty>
               <CommandGroup>
                 {sortedCampaigns.map((campaign) => {
