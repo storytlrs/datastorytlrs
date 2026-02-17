@@ -101,6 +101,7 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
   const pdfRef = useRef<HTMLDivElement>(null);
   const [aiInsights, setAiInsights] = useState<string>("");
   const [spaceId, setSpaceId] = useState<string>("");
+  const [brandName, setBrandName] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -139,6 +140,16 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
       setAiInsights(data.ai_insights || "");
       
       setSpaceId(data.space_id || "");
+
+      // Fetch brand/space name
+      if (data.space_id) {
+        const { data: spaceData } = await supabase
+          .from("spaces")
+          .select("name")
+          .eq("id", data.space_id)
+          .single();
+        if (spaceData) setBrandName(spaceData.name);
+      }
       
       if (data.ai_insights_structured) {
         const structured = data.ai_insights_structured as unknown as StructuredInsights;
@@ -373,6 +384,7 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
             sentimentParagraph={sentimentParagraph}
             canEdit={canEdit}
             reportId={reportId}
+            brandName={brandName}
             onSaveInsights={handleSaveStructuredInsights}
           />
         </div>
