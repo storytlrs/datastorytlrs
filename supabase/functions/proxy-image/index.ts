@@ -18,6 +18,7 @@ const ALLOWED_IMAGE_DOMAINS = [
   'p16-sign.tiktokcdn-us.com',
   'tiktokcdn.com',
   'tiktokcdn-us.com',
+  'tiktokcdn-eu.com',
   'muscdn.com',
   'ytimg.com',
   'i.ytimg.com',
@@ -85,26 +86,31 @@ serve(async (req) => {
       );
     }
 
-    // Verify the JWT token
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_ANON_KEY')!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
     const token = authHeader.replace('Bearer ', '');
-    const { data: claimsData, error: claimsError } = await supabaseClient.auth.getClaims(token);
     
-    if (claimsError || !claimsData?.claims) {
-      console.log('Invalid or expired token');
-      return new Response(
-        JSON.stringify({ error: 'Invalid or expired token' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    // Check if it's the service role key (server-to-server calls)
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    if (token === serviceRoleKey) {
+      console.log('Authenticated via service role key');
+    } else {
+      // Verify the JWT token for user requests
+      const supabaseClient = createClient(
+        Deno.env.get('SUPABASE_URL')!,
+        Deno.env.get('SUPABASE_ANON_KEY')!,
+        { global: { headers: { Authorization: authHeader } } }
       );
-    }
 
-    const userId = claimsData.claims.sub;
-    console.log(`Authenticated image proxy request from user: ${userId}`);
+      const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
+      
+      if (userError || !userData?.user) {
+        console.log('Invalid or expired token');
+        return new Response(
+          JSON.stringify({ error: 'Invalid or expired token' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      console.log(`Authenticated image proxy request from user: ${userData.user.id}`);
+    }
 
     const url = new URL(req.url);
     const imageUrl = url.searchParams.get('url');
