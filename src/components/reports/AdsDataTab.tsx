@@ -3,7 +3,8 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Loader2, RefreshCw } from "lucide-react";
+import { Loader2, RefreshCw, Download } from "lucide-react";
+import { exportToExcel } from "@/lib/exportToExcel";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { supabase } from "@/integrations/supabase/client";
 import { EditableDataTable, ColumnDef } from "./EditableDataTable";
@@ -501,29 +502,48 @@ export const AdsDataTab = ({ reportId, spaceId, onImportSuccess }: AdsDataTabPro
             Hierarchical campaign data {canEdit ? "(Click rows to edit)" : "(Read-only)"}
           </p>
         </div>
-        {canEdit && (
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className="rounded-[35px]"
-              disabled={syncingMetaData}
-              onClick={handleSyncMetaData}
-            >
-              {syncingMetaData ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Syncing...</> : <><RefreshCw className="mr-2 h-4 w-4" />Sync Meta Data</>}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="rounded-[35px]"
-              disabled={fetchingThumbnails}
-              onClick={handleFetchThumbnails}
-            >
-              {fetchingThumbnails ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Fetching...</> : "Fetch Thumbnails"}
-            </Button>
-            <CreatePlanningItemDialog reportId={reportId} onSuccess={fetchData} />
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="rounded-[35px]"
+            onClick={() => {
+              const sheets = [
+                { name: "Campaigns", columns: allCampaignColumns, data: displayCampaigns },
+                { name: "Ad Sets", columns: allAdSetsColumns.filter(c => c.key !== "thumbnail_url"), data: displayAdSets },
+                { name: "Ads", columns: allAdsColumns.filter(c => c.key !== "thumbnail_url"), data: displayAds },
+              ];
+              exportToExcel(sheets, "ads-campaign-data");
+              toast.success("Data exported to Excel");
+            }}
+          >
+            <Download className="mr-2 h-4 w-4" />
+            Export Excel
+          </Button>
+          {canEdit && (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                className="rounded-[35px]"
+                disabled={syncingMetaData}
+                onClick={handleSyncMetaData}
+              >
+                {syncingMetaData ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Syncing...</> : <><RefreshCw className="mr-2 h-4 w-4" />Sync Meta Data</>}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="rounded-[35px]"
+                disabled={fetchingThumbnails}
+                onClick={handleFetchThumbnails}
+              >
+                {fetchingThumbnails ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Fetching...</> : "Fetch Thumbnails"}
+              </Button>
+              <CreatePlanningItemDialog reportId={reportId} onSuccess={fetchData} />
+            </>
+          )}
+        </div>
       </div>
 
       {/* Hierarchical Filters */}

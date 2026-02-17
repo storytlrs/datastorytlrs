@@ -11,7 +11,8 @@ import { EditContentDialog } from "./EditContentDialog";
 import { CreatePlanningItemDialog } from "./CreatePlanningItemDialog";
 import { EditPlanningItemDialog } from "./EditPlanningItemDialog";
 import { formatWatchTimeDisplay } from "@/lib/watchTimeUtils";
-import { Upload } from "lucide-react";
+import { Upload, Download } from "lucide-react";
+import { exportToExcel } from "@/lib/exportToExcel";
 
 interface AlwaysOnDataTabProps {
   reportId: string;
@@ -155,6 +156,21 @@ export const AlwaysOnDataTab = ({ reportId, spaceId, onImportSuccess }: AlwaysOn
             Manage content planning and performance data {canEdit ? "(Click rows to edit)" : "(Read-only)"}
           </p>
         </div>
+        <Button
+          variant="outline"
+          onClick={() => {
+            const sheets = [
+              { name: "Planning", columns: planningColumns, data: planning },
+              { name: "Content", columns: contentColumns, data: content },
+            ];
+            exportToExcel(sheets, "always-on-data");
+            toast.success("Data exported to Excel");
+          }}
+          className="rounded-[35px]"
+        >
+          <Download className="w-4 h-4 mr-2" />
+          Export Excel
+        </Button>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
