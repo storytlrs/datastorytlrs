@@ -88,14 +88,11 @@ const persistThumbnailToStorage = async (
     }
 
     // Download image via proxy to bypass CORS/hotlink
-    const proxyUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/proxy-image`;
+    const proxyUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/proxy-image?url=${encodeURIComponent(imageUrl)}`;
     const proxyRes = await fetch(proxyUrl, {
-      method: "POST",
       headers: {
-        "Content-Type": "application/json",
         Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
       },
-      body: JSON.stringify({ url: imageUrl }),
     });
 
     if (!proxyRes.ok) {
