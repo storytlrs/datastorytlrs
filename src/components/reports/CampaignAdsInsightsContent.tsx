@@ -43,6 +43,8 @@ interface CampaignAdsInsightsContentProps {
   insights: CampaignStructuredInsights;
   canEdit?: boolean;
   onSaveInsights?: (updates: Partial<CampaignStructuredInsights>) => Promise<void>;
+  hasMetaPlatform?: boolean;
+  hasTiktokPlatform?: boolean;
 }
 
 // ── Helpers ──
@@ -184,7 +186,7 @@ const postGrid = (posts: PostData[]) => (
 // ── Main Component ──
 
 export const CampaignAdsInsightsContent = forwardRef<HTMLDivElement, CampaignAdsInsightsContentProps>(
-  ({ insights: raw, canEdit = false, onSaveInsights }, ref) => {
+  ({ insights: raw, canEdit = false, onSaveInsights, hasMetaPlatform, hasTiktokPlatform }, ref) => {
     const d = (obj: any, defaults: any) => ({ ...defaults, ...obj });
 
     const insights: CampaignStructuredInsights = {
@@ -273,8 +275,8 @@ export const CampaignAdsInsightsContent = forwardRef<HTMLDivElement, CampaignAds
     };
 
     const cur = insights.meta_key_metrics.currency || "CZK";
-    const hasMeta = insights.meta_key_metrics.spend > 0 || insights.meta_key_metrics.reach > 0;
-    const hasTiktok = insights.tiktok_key_metrics.spend > 0 || insights.tiktok_key_metrics.reach > 0;
+    const hasMeta = hasMetaPlatform ?? (insights.meta_key_metrics.spend > 0 || insights.meta_key_metrics.reach > 0);
+    const hasTiktok = hasTiktokPlatform ?? (insights.tiktok_key_metrics.spend > 0 || insights.tiktok_key_metrics.reach > 0);
 
     return (
       <div ref={ref} className="space-y-8" style={{ backgroundColor: "#E9E9E9" }}>

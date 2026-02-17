@@ -38,10 +38,26 @@ export const AdsAIInsightsTab = ({ reportId }: AdsAIInsightsTabProps) => {
   const [engagementParagraph, setEngagementParagraph] = useState("");
   const [effectivenessParagraph, setEffectivenessParagraph] = useState("");
   const [contentKey, setContentKey] = useState(0);
+  const [hasMetaCampaigns, setHasMetaCampaigns] = useState(false);
+  const [hasTiktokCampaigns, setHasTiktokCampaigns] = useState(false);
 
   useEffect(() => {
     fetchReportData();
+    fetchLinkedPlatforms();
   }, [reportId]);
+
+  const fetchLinkedPlatforms = async () => {
+    try {
+      const [metaRes, tiktokRes] = await Promise.all([
+        supabase.from("report_campaigns").select("id", { count: "exact", head: true }).eq("report_id", reportId),
+        supabase.from("report_tiktok_campaigns").select("id", { count: "exact", head: true }).eq("report_id", reportId),
+      ]);
+      setHasMetaCampaigns((metaRes.count ?? 0) > 0);
+      setHasTiktokCampaigns((tiktokRes.count ?? 0) > 0);
+    } catch (error) {
+      console.error("Error fetching linked platforms:", error);
+    }
+  };
 
   const fetchReportData = async () => {
     setIsLoading(true);
@@ -235,6 +251,8 @@ export const AdsAIInsightsTab = ({ reportId }: AdsAIInsightsTabProps) => {
               insights={structuredData as CampaignStructuredInsights}
               canEdit={canEdit}
               onSaveInsights={handleSaveStructuredInsights}
+              hasMetaPlatform={hasMetaCampaigns}
+              hasTiktokPlatform={hasTiktokCampaigns}
             />
           ) : isMonthly ? (
             <MonthlyAdsInsightsContent
@@ -243,6 +261,8 @@ export const AdsAIInsightsTab = ({ reportId }: AdsAIInsightsTabProps) => {
               insights={structuredData as MonthlyStructuredInsights}
               canEdit={canEdit}
               onSaveInsights={handleSaveStructuredInsights}
+              hasMetaPlatform={hasMetaCampaigns}
+              hasTiktokPlatform={hasTiktokCampaigns}
             />
           ) : isQuarterly ? (
             <QuarterlyAdsInsightsContent
@@ -251,6 +271,8 @@ export const AdsAIInsightsTab = ({ reportId }: AdsAIInsightsTabProps) => {
               insights={structuredData as QuarterlyStructuredInsights}
               canEdit={canEdit}
               onSaveInsights={handleSaveStructuredInsights}
+              hasMetaPlatform={hasMetaCampaigns}
+              hasTiktokPlatform={hasTiktokCampaigns}
             />
           ) : isYearly ? (
             <YearlyAdsInsightsContent
@@ -259,6 +281,8 @@ export const AdsAIInsightsTab = ({ reportId }: AdsAIInsightsTabProps) => {
               insights={structuredData as YearlyStructuredInsights}
               canEdit={canEdit}
               onSaveInsights={handleSaveStructuredInsights}
+              hasMetaPlatform={hasMetaCampaigns}
+              hasTiktokPlatform={hasTiktokCampaigns}
             />
           ) : (
             <AdsAIInsightsContent
@@ -280,21 +304,29 @@ export const AdsAIInsightsTab = ({ reportId }: AdsAIInsightsTabProps) => {
               <CampaignAdsInsightsContent
                 ref={pdfRef}
                 insights={structuredData as CampaignStructuredInsights}
+                hasMetaPlatform={hasMetaCampaigns}
+                hasTiktokPlatform={hasTiktokCampaigns}
               />
             ) : isMonthly ? (
               <MonthlyAdsInsightsContent
                 ref={pdfRef}
                 insights={structuredData as MonthlyStructuredInsights}
+                hasMetaPlatform={hasMetaCampaigns}
+                hasTiktokPlatform={hasTiktokCampaigns}
               />
             ) : isQuarterly ? (
               <QuarterlyAdsInsightsContent
                 ref={pdfRef}
                 insights={structuredData as QuarterlyStructuredInsights}
+                hasMetaPlatform={hasMetaCampaigns}
+                hasTiktokPlatform={hasTiktokCampaigns}
               />
             ) : isYearly ? (
               <YearlyAdsInsightsContent
                 ref={pdfRef}
                 insights={structuredData as YearlyStructuredInsights}
+                hasMetaPlatform={hasMetaCampaigns}
+                hasTiktokPlatform={hasTiktokCampaigns}
               />
             ) : (
               <AdsAIInsightsContent
