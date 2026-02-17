@@ -77,6 +77,20 @@ export interface MonthlyStructuredInsights {
     thumbnail_url?: string;
     reason?: string;
   }[];
+  tiktok_metrics: {
+    spend: number;
+    reach: number;
+    frequency: number;
+  };
+  tiktok_top_posts: {
+    name: string;
+    spend: number;
+    impressions: number;
+    clicks: number;
+    ctr: number;
+    thumbnail_url?: string;
+    reason?: string;
+  }[];
   followers: {
     facebook: number | null;
     instagram: number | null;
@@ -293,6 +307,8 @@ export const MonthlyAdsInsightsContent = forwardRef<HTMLDivElement, MonthlyAdsIn
       facebook_top_posts: raw.facebook_top_posts || [],
       instagram_metrics: { spend: 0, reach: 0, frequency: 0, ...raw.instagram_metrics },
       instagram_top_posts: raw.instagram_top_posts || [],
+      tiktok_metrics: { spend: 0, reach: 0, frequency: 0, ...(raw as any).tiktok_metrics },
+      tiktok_top_posts: (raw as any).tiktok_top_posts || [],
       followers: { facebook: null, instagram: null, tiktok: null, ...raw.followers },
       learnings: { works: [], threats_opportunities: [], improvements: [], ...raw.learnings },
     };
@@ -377,7 +393,7 @@ export const MonthlyAdsInsightsContent = forwardRef<HTMLDivElement, MonthlyAdsIn
 
     const hasFacebook = hasMetaPlatform ?? (insights.facebook_metrics.spend > 0 || insights.facebook_metrics.reach > 0 || insights.facebook_top_posts.length > 0);
     const hasInstagram = hasMetaPlatform ?? (insights.instagram_metrics.spend > 0 || insights.instagram_metrics.reach > 0 || insights.instagram_top_posts.length > 0);
-    const hasTiktok = hasTiktokPlatform ?? ((insights as any).tiktok_metrics?.spend > 0 || (insights as any).tiktok_metrics?.reach > 0 || (insights.followers?.tiktok != null && insights.followers.tiktok > 0));
+    const hasTiktok = hasTiktokPlatform ?? ((insights.tiktok_metrics?.spend > 0) || (insights.tiktok_metrics?.reach > 0) || (insights.tiktok_top_posts?.length > 0));
 
     return (
       <div ref={ref} className="space-y-8" style={{ backgroundColor: "#E9E9E9" }}>
@@ -540,6 +556,35 @@ export const MonthlyAdsInsightsContent = forwardRef<HTMLDivElement, MonthlyAdsIn
                   "grid-cols-2 md:grid-cols-3 lg:grid-cols-5"
                 }`}>
                   {insights.instagram_top_posts.map((post, i) => <PostCard key={i} post={post} />)}
+                </div>
+              </>
+            )}
+          </Card>
+        )}
+
+        {/* 8b. TikTok příspěvky */}
+        {hasTiktok && (
+          <Card className="p-6 rounded-[20px] border-foreground" style={{ backgroundColor: "#E9E9E9" }}>
+            <div className="flex items-center gap-3 mb-4">
+              <TiktokIcon />
+              <h2 className="text-xl font-bold">Klíčové metriky – TikTok</h2>
+            </div>
+            <div className="grid grid-cols-3 gap-4 mb-6">
+              <MetricTile title="Spend" value={formatCurrency(insights.tiktok_metrics.spend, cur)} icon={DollarSign} accentColor="orange" />
+              <MetricTile title="Reach" value={formatNumber(insights.tiktok_metrics.reach)} icon={Users} accentColor="blue" />
+              <MetricTile title="Frequency" value={insights.tiktok_metrics.frequency.toFixed(2)} icon={BarChart3} accentColor="blue" />
+            </div>
+            {insights.tiktok_top_posts.length > 0 && (
+              <>
+                <h3 className="font-bold text-lg mb-3">TOP příspěvky</h3>
+                <div className={`grid gap-10 ${
+                  insights.tiktok_top_posts.length === 1 ? "grid-cols-1 max-w-[250px] mx-auto" :
+                  insights.tiktok_top_posts.length === 2 ? "grid-cols-2 max-w-[520px] mx-auto" :
+                  insights.tiktok_top_posts.length === 3 ? "grid-cols-3 max-w-[780px] mx-auto" :
+                  insights.tiktok_top_posts.length === 4 ? "grid-cols-2 md:grid-cols-4" :
+                  "grid-cols-2 md:grid-cols-3 lg:grid-cols-5"
+                }`}>
+                  {insights.tiktok_top_posts.map((post, i) => <PostCard key={i} post={post} />)}
                 </div>
               </>
             )}
