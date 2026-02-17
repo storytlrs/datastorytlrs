@@ -14,7 +14,8 @@ import { CreatePromoCodeDialog } from "./CreatePromoCodeDialog";
 import { ImportDataDialog } from "./ImportDataDialog";
 import { formatWatchTimeDisplay } from "@/lib/watchTimeUtils";
 import { formatCurrencySimple } from "@/lib/currencyUtils";
-import { Upload } from "lucide-react";
+import { Upload, Download } from "lucide-react";
+import { exportToExcel } from "@/lib/exportToExcel";
 
 interface DataTabProps {
   reportId: string;
@@ -302,15 +303,33 @@ export const DataTab = ({ reportId, onImportSuccess }: DataTabProps) => {
             View and edit all data in this report {canEdit ? "(Click cells to edit)" : "(Read-only)"}
           </p>
         </div>
-        {canEdit && (
+        <div className="flex items-center gap-2">
           <Button
-            onClick={() => setIsImportDialogOpen(true)}
+            variant="outline"
+            onClick={() => {
+              const sheets = [
+                { name: "Creators", columns: creatorsColumns, data: creators },
+                { name: "Content", columns: contentColumns, data: content },
+                { name: "Promo Codes", columns: promoColumns, data: promoCodes },
+              ];
+              exportToExcel(sheets, "report-data");
+              toast.success("Data exported to Excel");
+            }}
             className="rounded-[35px]"
           >
-            <Upload className="w-4 h-4 mr-2" />
-            Import Data
+            <Download className="w-4 h-4 mr-2" />
+            Export Excel
           </Button>
-        )}
+          {canEdit && (
+            <Button
+              onClick={() => setIsImportDialogOpen(true)}
+              className="rounded-[35px]"
+            >
+              <Upload className="w-4 h-4 mr-2" />
+              Import Data
+            </Button>
+          )}
+        </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
