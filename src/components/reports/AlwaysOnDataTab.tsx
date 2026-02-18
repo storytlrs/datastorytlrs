@@ -41,6 +41,11 @@ export const AlwaysOnDataTab = ({ reportId, spaceId, onImportSuccess }: AlwaysOn
     "type", "platform", "target_group", "placements", "media_buying_type", "creatives",
     "impressions", "reach", "frequency", "cpm", "budget",
   ]);
+  // Column visibility & order for planning and content
+  const [planningColOrder, setPlanningColOrder] = useState<string[]>([]);
+  const [planningVisibleCols, setPlanningVisibleCols] = useState<string[]>([]);
+  const [contentColOrder, setContentColOrder] = useState<string[]>([]);
+  const [contentVisibleCols, setContentVisibleCols] = useState<string[]>([]);
 
   useEffect(() => {
     fetchData();
@@ -204,6 +209,40 @@ export const AlwaysOnDataTab = ({ reportId, spaceId, onImportSuccess }: AlwaysOn
     });
   };
 
+  // Generic reorder/toggle helpers
+  const makeReorder = (setter: React.Dispatch<React.SetStateAction<string[]>>) => (from: number, to: number) => {
+    setter(prev => {
+      const next = [...prev];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
+    });
+  };
+  const makeToggle = (setter: React.Dispatch<React.SetStateAction<string[]>>) => (key: string) => {
+    setter(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]);
+  };
+
+  // Init planning/content column orders
+  useEffect(() => {
+    if (planningColOrder.length === 0) {
+      const keys = planningColumns.map(c => c.key);
+      setPlanningColOrder(keys);
+      setPlanningVisibleCols(keys);
+    }
+    if (contentColOrder.length === 0) {
+      const keys = contentColumns.map(c => c.key);
+      setContentColOrder(keys);
+      setContentVisibleCols(keys);
+    }
+  }, []);
+
+  const planningColMap = Object.fromEntries(planningColumns.map(c => [c.key, c]));
+  const contentColMap = Object.fromEntries(contentColumns.map(c => [c.key, c]));
+  const orderedPlanningCols = planningColOrder.map(k => planningColMap[k]).filter(Boolean);
+  const filteredPlanningCols = orderedPlanningCols.filter(c => planningVisibleCols.includes(c.key));
+  const orderedContentCols = contentColOrder.map(k => contentColMap[k]).filter(Boolean);
+  const filteredContentCols = orderedContentCols.filter(c => contentVisibleCols.includes(c.key));
+
   return (
     <Card className="p-8 rounded-[35px] border-foreground">
       <div className="flex items-start justify-between mb-6">
@@ -251,19 +290,25 @@ export const AlwaysOnDataTab = ({ reportId, spaceId, onImportSuccess }: AlwaysOn
         </TabsList>
 
         <TabsContent value="planning" className="space-y-4">
-          <div className="mb-4">
-            <h3 className="text-lg font-semibold">Content Planning</h3>
-            <p className="text-sm text-muted-foreground">
-              Content calendar, frequency targets, and planned vs actual output
-            </p>
-          </div>
-          {canEdit && (
-            <div className="flex justify-end">
-              <CreatePlanningItemDialog reportId={reportId} onSuccess={fetchPlanning} />
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-lg font-semibold">Content Planning</h3>
+              <p className="text-sm text-muted-foreground">
+                Content calendar, frequency targets, and planned vs actual output
+              </p>
             </div>
-          )}
+            <div className="flex items-center gap-2">
+              <ColumnSelector
+                allColumns={orderedPlanningCols}
+                visibleColumns={planningVisibleCols}
+                onColumnToggle={makeToggle(setPlanningVisibleCols)}
+                onReorder={makeReorder(setPlanningColOrder)}
+              />
+              {canEdit && <CreatePlanningItemDialog reportId={reportId} onSuccess={fetchPlanning} />}
+            </div>
+          </div>
           <EditableDataTable
-            columns={planningColumns}
+            columns={filteredPlanningCols}
             data={planning}
             canEdit={canEdit}
             onUpdate={(id, field, value) => handleUpdate("kpi_targets", id, field, value)}
@@ -282,19 +327,25 @@ export const AlwaysOnDataTab = ({ reportId, spaceId, onImportSuccess }: AlwaysOn
         </TabsContent>
 
         <TabsContent value="content" className="space-y-4">
-          <div className="mb-4">
-            <h3 className="text-lg font-semibold">Content Performance Details</h3>
-            <p className="text-sm text-muted-foreground">
-              Detailed metrics for each piece of content
-            </p>
-          </div>
-          {canEdit && (
-            <div className="flex justify-end">
-              <CreateContentDialog reportId={reportId} onSuccess={fetchContent} />
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-lg font-semibold">Content Performance Details</h3>
+              <p className="text-sm text-muted-foreground">
+                Detailed metrics for each piece of content
+              </p>
             </div>
-          )}
+            <div className="flex items-center gap-2">
+              <ColumnSelector
+                allColumns={orderedContentCols}
+                visibleColumns={contentVisibleCols}
+                onColumnToggle={makeToggle(setContentVisibleCols)}
+                onReorder={makeReorder(setContentColOrder)}
+              />
+              {canEdit && <CreateContentDialog reportId={reportId} onSuccess={fetchContent} />}
+            </div>
+          </div>
           <EditableDataTable
-            columns={contentColumns}
+            columns={filteredContentCols}
             data={content}
             canEdit={canEdit}
             onUpdate={(id, field, value) => handleUpdate("content", id, field, value)}
