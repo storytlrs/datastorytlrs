@@ -68,6 +68,7 @@ const scrapeInstagramPost = async (url: string, apiKey: string): Promise<{
         resultsType: 'posts',
         resultsLimit: 1,
         addParentData: false,
+        maxComments: 1000,
       }),
     }
   );
