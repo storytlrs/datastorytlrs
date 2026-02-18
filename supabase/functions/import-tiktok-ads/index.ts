@@ -440,8 +440,8 @@ Deno.serve(async (req) => {
 
     if (spaceError || !space?.tiktok_id) {
       return new Response(
-        JSON.stringify({ error: "Brand has no TikTok Advertiser ID configured" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ success: true, campaigns_imported: 0, message: "Brand has no TikTok Advertiser ID configured, skipping." }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
