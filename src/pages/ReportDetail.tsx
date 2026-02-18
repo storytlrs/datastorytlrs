@@ -281,7 +281,7 @@ const ReportDetail = () => {
 
           {/* Common tab content */}
           <TabsContent value="overview">
-            {isAds ? (
+            {(isAds || isAlwaysOn) ? (
               <AdsOverviewTab key={refreshKey} reportId={reportId!} spaceId={report.space_id} />
             ) : (
               <OverviewTab key={refreshKey} reportId={reportId!} />
@@ -289,7 +289,7 @@ const ReportDetail = () => {
           </TabsContent>
 
           <TabsContent value="insights">
-            {isAds ? (
+            {(isAds || isAlwaysOn) ? (
               <AdsAIInsightsTab key={refreshKey} reportId={reportId!} />
             ) : (
               <AIInsightsTab key={refreshKey} reportId={reportId!} />
