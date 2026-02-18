@@ -461,6 +461,8 @@ export const AdsDataTab = ({ reportId, spaceId, onImportSuccess }: AdsDataTabPro
   // Media plan columns
   const mediaPlanColumns: ColumnDef[] = [
     { key: "type", label: "Type", type: "text", width: "150px", editable: false },
+    { key: "platform", label: "Platform", type: "text", width: "150px", editable: false },
+    { key: "target_group", label: "Target Group", type: "text", width: "180px", editable: false },
     { key: "placements", label: "Placements", type: "text", width: "180px", editable: false },
     { key: "media_buying_type", label: "Media Buying / Optimization", type: "text", width: "220px", editable: false },
     { key: "creatives", label: "Creatives", type: "text", width: "180px", editable: false },
