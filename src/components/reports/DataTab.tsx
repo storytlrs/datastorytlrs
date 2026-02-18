@@ -16,6 +16,7 @@ import { formatWatchTimeDisplay } from "@/lib/watchTimeUtils";
 import { formatCurrencySimple } from "@/lib/currencyUtils";
 import { Upload, Download } from "lucide-react";
 import { exportToExcel } from "@/lib/exportToExcel";
+import { ColumnSelector } from "./ColumnSelector";
 
 interface DataTabProps {
   reportId: string;
@@ -32,6 +33,14 @@ export const DataTab = ({ reportId, onImportSuccess }: DataTabProps) => {
   const [editingCreator, setEditingCreator] = useState<any>(null);
   const [editingContent, setEditingContent] = useState<any>(null);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+
+  // Column visibility & order state
+  const [creatorsColOrder, setCreatorsColOrder] = useState<string[]>([]);
+  const [creatorsVisibleCols, setCreatorsVisibleCols] = useState<string[]>([]);
+  const [contentColOrder, setContentColOrder] = useState<string[]>([]);
+  const [contentVisibleCols, setContentVisibleCols] = useState<string[]>([]);
+  const [promoColOrder, setPromoColOrder] = useState<string[]>([]);
+  const [promoVisibleCols, setPromoVisibleCols] = useState<string[]>([]);
 
   useEffect(() => {
     fetchData();
@@ -289,6 +298,49 @@ export const DataTab = ({ reportId, onImportSuccess }: DataTabProps) => {
     { key: "conversion_rate", label: "Conv. Rate %", type: "number", width: "120px" },
   ];
 
+  // Initialize column order/visibility once
+  useEffect(() => {
+    if (creatorsColOrder.length === 0) {
+      const keys = creatorsColumns.map(c => c.key);
+      setCreatorsColOrder(keys);
+      setCreatorsVisibleCols(keys);
+    }
+    if (contentColOrder.length === 0) {
+      const keys = contentColumns.map(c => c.key);
+      setContentColOrder(keys);
+      setContentVisibleCols(keys);
+    }
+    if (promoColOrder.length === 0) {
+      const keys = promoColumns.map(c => c.key);
+      setPromoColOrder(keys);
+      setPromoVisibleCols(keys);
+    }
+  }, []);
+
+  const creatorsColMap = Object.fromEntries(creatorsColumns.map(c => [c.key, c]));
+  const contentColMap = Object.fromEntries(contentColumns.map(c => [c.key, c]));
+  const promoColMap = Object.fromEntries(promoColumns.map(c => [c.key, c]));
+
+  const orderedCreatorsCols = creatorsColOrder.map(k => creatorsColMap[k]).filter(Boolean);
+  const filteredCreatorsCols = orderedCreatorsCols.filter(c => creatorsVisibleCols.includes(c.key));
+  const orderedContentCols = contentColOrder.map(k => contentColMap[k]).filter(Boolean);
+  const filteredContentCols = orderedContentCols.filter(c => contentVisibleCols.includes(c.key));
+  const orderedPromoCols = promoColOrder.map(k => promoColMap[k]).filter(Boolean);
+  const filteredPromoCols = orderedPromoCols.filter(c => promoVisibleCols.includes(c.key));
+
+  const makeReorder = (setter: React.Dispatch<React.SetStateAction<string[]>>) => (from: number, to: number) => {
+    setter(prev => {
+      const next = [...prev];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
+    });
+  };
+
+  const makeToggle = (setter: React.Dispatch<React.SetStateAction<string[]>>) => (key: string) => {
+    setter(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]);
+  };
+
   const handleImportSuccess = () => {
     fetchData();
     onImportSuccess?.();
@@ -340,19 +392,25 @@ export const DataTab = ({ reportId, onImportSuccess }: DataTabProps) => {
         </TabsList>
 
         <TabsContent value="creators" className="space-y-4">
-          <div className="mb-4">
-            <h3 className="text-lg font-semibold">Creators (Campaign Planning)</h3>
-            <p className="text-sm text-muted-foreground">
-              Planned content deliverables and expected performance. Actual results are tracked in Content tab.
-            </p>
-          </div>
-          {canEdit && (
-            <div className="flex justify-end">
-              <CreateCreatorDialog reportId={reportId} onSuccess={fetchCreators} />
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-lg font-semibold">Creators (Campaign Planning)</h3>
+              <p className="text-sm text-muted-foreground">
+                Planned content deliverables and expected performance. Actual results are tracked in Content tab.
+              </p>
             </div>
-          )}
+            <div className="flex items-center gap-2">
+              <ColumnSelector
+                allColumns={orderedCreatorsCols}
+                visibleColumns={creatorsVisibleCols}
+                onColumnToggle={makeToggle(setCreatorsVisibleCols)}
+                onReorder={makeReorder(setCreatorsColOrder)}
+              />
+              {canEdit && <CreateCreatorDialog reportId={reportId} onSuccess={fetchCreators} />}
+            </div>
+          </div>
           <EditableDataTable
-            columns={creatorsColumns}
+            columns={filteredCreatorsCols}
             data={creators}
             canEdit={canEdit}
             onUpdate={(id, field, value) => handleUpdate("creators", id, field, value)}
@@ -371,13 +429,17 @@ export const DataTab = ({ reportId, onImportSuccess }: DataTabProps) => {
         </TabsContent>
 
         <TabsContent value="content" className="space-y-4">
-          {canEdit && (
-            <div className="flex justify-end">
-              <CreateContentDialog reportId={reportId} onSuccess={fetchContent} />
-            </div>
-          )}
+          <div className="flex items-center justify-end gap-2 mb-4">
+            <ColumnSelector
+              allColumns={orderedContentCols}
+              visibleColumns={contentVisibleCols}
+              onColumnToggle={makeToggle(setContentVisibleCols)}
+              onReorder={makeReorder(setContentColOrder)}
+            />
+            {canEdit && <CreateContentDialog reportId={reportId} onSuccess={fetchContent} />}
+          </div>
           <EditableDataTable
-            columns={contentColumns}
+            columns={filteredContentCols}
             data={content}
             canEdit={canEdit}
             onUpdate={(id, field, value) => handleUpdate("content", id, field, value)}
@@ -396,13 +458,17 @@ export const DataTab = ({ reportId, onImportSuccess }: DataTabProps) => {
         </TabsContent>
 
         <TabsContent value="promo" className="space-y-4">
-          {canEdit && (
-            <div className="flex justify-end">
-              <CreatePromoCodeDialog reportId={reportId} onSuccess={fetchPromoCodes} />
-            </div>
-          )}
+          <div className="flex items-center justify-end gap-2 mb-4">
+            <ColumnSelector
+              allColumns={orderedPromoCols}
+              visibleColumns={promoVisibleCols}
+              onColumnToggle={makeToggle(setPromoVisibleCols)}
+              onReorder={makeReorder(setPromoColOrder)}
+            />
+            {canEdit && <CreatePromoCodeDialog reportId={reportId} onSuccess={fetchPromoCodes} />}
+          </div>
           <EditableDataTable
-            columns={promoColumns}
+            columns={filteredPromoCols}
             data={promoCodes}
             canEdit={canEdit}
             onUpdate={(id, field, value) => handleUpdate("promo_codes", id, field, value)}
