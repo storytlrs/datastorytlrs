@@ -78,16 +78,21 @@ export const AdsDataTab = ({ reportId, spaceId, onImportSuccess }: AdsDataTabPro
     }
   };
 
-  // Column visibility state
+  // Column visibility & order state
   const [visibleCampaignColumns, setVisibleCampaignColumns] = useState<string[]>([
     "campaign_name", "platform", "amount_spent", "impressions", "reach", "thruplays", "ctr", "frequency"
   ]);
+  const [campaignColOrder, setCampaignColOrder] = useState<string[]>([]);
   const [visibleAdSetColumns, setVisibleAdSetColumns] = useState<string[]>([
     "thumbnail_url", "ad_name", "platform", "amount_spent", "impressions", "reach", "thruplays", "ctr", "frequency"
   ]);
+  const [adSetColOrder, setAdSetColOrder] = useState<string[]>([]);
   const [visibleAdsColumns, setVisibleAdsColumns] = useState<string[]>([
     "thumbnail_url", "ad_name", "platform", "amount_spent", "impressions", "reach", "thruplays", "ctr", "frequency"
   ]);
+  const [adsColOrder, setAdsColOrder] = useState<string[]>([]);
+  const [mediaPlanColOrder, setMediaPlanColOrder] = useState<string[]>([]);
+  const [mediaPlanVisibleCols, setMediaPlanVisibleCols] = useState<string[]>([]);
 
   const handleFetchThumbnails = async () => {
     setFetchingThumbnails(true);
@@ -466,45 +471,47 @@ export const AdsDataTab = ({ reportId, spaceId, onImportSuccess }: AdsDataTabPro
     { key: "budget", label: "Budget", type: "number", width: "120px", editable: false, format: (val: number) => formatCurrencySimple(val, "CZK") },
   ];
 
-  // Filter columns based on visibility
-  const visibleCampaignColumnDefs = useMemo(() => 
-    allCampaignColumns.filter(col => visibleCampaignColumns.includes(col.key)),
-    [visibleCampaignColumns]
-  );
+  // Initialize column orders
+  useEffect(() => {
+    if (campaignColOrder.length === 0) setCampaignColOrder(allCampaignColumns.map(c => c.key));
+    if (adSetColOrder.length === 0) setAdSetColOrder(allAdSetsColumns.map(c => c.key));
+    if (adsColOrder.length === 0) setAdsColOrder(allAdsColumns.map(c => c.key));
+    if (mediaPlanColOrder.length === 0) {
+      const keys = mediaPlanColumns.map(c => c.key);
+      setMediaPlanColOrder(keys);
+      setMediaPlanVisibleCols(keys);
+    }
+  }, []);
 
-  const visibleAdSetColumnDefs = useMemo(() => 
-    allAdSetsColumns.filter(col => visibleAdSetColumns.includes(col.key)),
-    [visibleAdSetColumns]
-  );
-
-  const visibleAdsColumnDefs = useMemo(() => 
-    allAdsColumns.filter(col => visibleAdsColumns.includes(col.key)),
-    [visibleAdsColumns]
-  );
-
-  const toggleCampaignColumn = (columnKey: string) => {
-    setVisibleCampaignColumns(prev => 
-      prev.includes(columnKey) 
-        ? prev.filter(k => k !== columnKey)
-        : [...prev, columnKey]
-    );
+  const makeReorder = (setter: React.Dispatch<React.SetStateAction<string[]>>) => (from: number, to: number) => {
+    setter(prev => {
+      const next = [...prev];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
+    });
   };
 
-  const toggleAdSetColumn = (columnKey: string) => {
-    setVisibleAdSetColumns(prev => 
-      prev.includes(columnKey) 
-        ? prev.filter(k => k !== columnKey)
-        : [...prev, columnKey]
-    );
+  const makeToggle = (setter: React.Dispatch<React.SetStateAction<string[]>>) => (key: string) => {
+    setter(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]);
   };
 
-  const toggleAdsColumn = (columnKey: string) => {
-    setVisibleAdsColumns(prev => 
-      prev.includes(columnKey) 
-        ? prev.filter(k => k !== columnKey)
-        : [...prev, columnKey]
-    );
-  };
+  const campaignColMap = Object.fromEntries(allCampaignColumns.map(c => [c.key, c]));
+  const adSetColMap = Object.fromEntries(allAdSetsColumns.map(c => [c.key, c]));
+  const adsColMap = Object.fromEntries(allAdsColumns.map(c => [c.key, c]));
+  const mediaPlanColMap = Object.fromEntries(mediaPlanColumns.map(c => [c.key, c]));
+
+  const orderedCampaignCols = campaignColOrder.map(k => campaignColMap[k]).filter(Boolean);
+  const visibleCampaignColumnDefs = orderedCampaignCols.filter(col => visibleCampaignColumns.includes(col.key));
+
+  const orderedAdSetCols = adSetColOrder.map(k => adSetColMap[k]).filter(Boolean);
+  const visibleAdSetColumnDefs = orderedAdSetCols.filter(col => visibleAdSetColumns.includes(col.key));
+
+  const orderedAdsCols = adsColOrder.map(k => adsColMap[k]).filter(Boolean);
+  const visibleAdsColumnDefs = orderedAdsCols.filter(col => visibleAdsColumns.includes(col.key));
+
+  const orderedMediaPlanCols = mediaPlanColOrder.map(k => mediaPlanColMap[k]).filter(Boolean);
+  const filteredMediaPlanCols = orderedMediaPlanCols.filter(col => mediaPlanVisibleCols.includes(col.key));
 
   // Get data for display based on selection level
   const displayCampaigns = selectedCampaignId 
@@ -739,9 +746,10 @@ export const AdsDataTab = ({ reportId, spaceId, onImportSuccess }: AdsDataTabPro
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold">Campaigns</h3>
               <ColumnSelector
-                allColumns={allCampaignColumns}
+                allColumns={orderedCampaignCols}
                 visibleColumns={visibleCampaignColumns}
-                onColumnToggle={toggleCampaignColumn}
+                onColumnToggle={makeToggle(setVisibleCampaignColumns)}
+                onReorder={makeReorder(setCampaignColOrder)}
               />
             </div>
             <EditableDataTable
@@ -762,9 +770,10 @@ export const AdsDataTab = ({ reportId, spaceId, onImportSuccess }: AdsDataTabPro
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold">Ad Sets</h3>
               <ColumnSelector
-                allColumns={allAdSetsColumns}
+                allColumns={orderedAdSetCols}
                 visibleColumns={visibleAdSetColumns}
-                onColumnToggle={toggleAdSetColumn}
+                onColumnToggle={makeToggle(setVisibleAdSetColumns)}
+                onReorder={makeReorder(setAdSetColOrder)}
               />
             </div>
             <EditableDataTable
@@ -785,9 +794,10 @@ export const AdsDataTab = ({ reportId, spaceId, onImportSuccess }: AdsDataTabPro
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold">Ads</h3>
               <ColumnSelector
-                allColumns={allAdsColumns}
+                allColumns={orderedAdsCols}
                 visibleColumns={visibleAdsColumns}
-                onColumnToggle={toggleAdsColumn}
+                onColumnToggle={makeToggle(setVisibleAdsColumns)}
+                onReorder={makeReorder(setAdsColOrder)}
               />
             </div>
             <EditableDataTable
@@ -807,9 +817,15 @@ export const AdsDataTab = ({ reportId, spaceId, onImportSuccess }: AdsDataTabPro
           <div>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold">Media Plan</h3>
+              <ColumnSelector
+                allColumns={orderedMediaPlanCols}
+                visibleColumns={mediaPlanVisibleCols}
+                onColumnToggle={makeToggle(setMediaPlanVisibleCols)}
+                onReorder={makeReorder(setMediaPlanColOrder)}
+              />
             </div>
             <EditableDataTable
-              columns={mediaPlanColumns}
+              columns={filteredMediaPlanCols}
               data={mediaPlanItems}
               canEdit={canEdit}
               onUpdate={(id, field, value) => handleUpdate("media_plan_items", id, field, value)}
