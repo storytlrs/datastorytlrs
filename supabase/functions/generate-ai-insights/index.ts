@@ -492,8 +492,9 @@ Pro creator_insights vytvoř entry pro každého z těchto creatorů: ${creatorP
 
     // Merge AI insights into creator performance
     const enhancedCreatorPerformance = creatorPerformance.map((creator) => {
+      const normalizeHandle = (h: string) => h.replace(/^@/, '').toLowerCase();
       const aiInsight = aiContent.creator_insights?.find(
-        (i: any) => i.handle.toLowerCase() === creator.handle.toLowerCase()
+        (i: any) => normalizeHandle(i.handle) === normalizeHandle(creator.handle)
       );
       
       // Remove internal field
