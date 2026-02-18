@@ -561,220 +561,224 @@ export const AdsDataTab = ({ reportId, spaceId, onImportSuccess, embedded = fals
 
   return (
     <Wrapper {...wrapperProps as any}>
-      <div className="flex items-start justify-between mb-6">
-        <div>
-          <h2 className="text-2xl font-bold mb-2">Campaign Data</h2>
-          <p className="text-muted-foreground">
-            Hierarchical campaign data {canEdit ? "(Click rows to edit)" : "(Read-only)"}
-          </p>
+      {!embedded && (
+        <div className="flex items-start justify-between mb-6">
+          <div>
+            <h2 className="text-2xl font-bold mb-2">Campaign Data</h2>
+            <p className="text-muted-foreground">
+              Hierarchical campaign data {canEdit ? "(Click rows to edit)" : "(Read-only)"}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-[35px]"
+              onClick={() => {
+                const sheets = [
+                  { name: "Campaigns", columns: allCampaignColumns, data: displayCampaigns },
+                  { name: "Ad Sets", columns: allAdSetsColumns.filter(c => c.key !== "thumbnail_url"), data: displayAdSets },
+                  { name: "Ads", columns: allAdsColumns.filter(c => c.key !== "thumbnail_url"), data: displayAds },
+                ];
+                exportToExcel(sheets, "ads-campaign-data");
+                toast.success("Data exported to Excel");
+              }}
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Export Excel
+            </Button>
+            {canEdit && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="rounded-[35px]"
+                  onClick={() => setImportMediaPlanOpen(true)}
+                >
+                  <Upload className="mr-2 h-4 w-4" />
+                  Import Media Plan
+                </Button>
+                <CreatePlanningItemDialog reportId={reportId} onSuccess={fetchData} />
+              </>
+            )}
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="rounded-[35px]"
-            onClick={() => {
-              const sheets = [
-                { name: "Campaigns", columns: allCampaignColumns, data: displayCampaigns },
-                { name: "Ad Sets", columns: allAdSetsColumns.filter(c => c.key !== "thumbnail_url"), data: displayAdSets },
-                { name: "Ads", columns: allAdsColumns.filter(c => c.key !== "thumbnail_url"), data: displayAds },
-              ];
-              exportToExcel(sheets, "ads-campaign-data");
-              toast.success("Data exported to Excel");
-            }}
-          >
-            <Download className="mr-2 h-4 w-4" />
-            Export Excel
-          </Button>
-          {canEdit && (
-            <>
+      )}
+
+      {/* Hierarchical Filters - hide in embedded mode */}
+      {!embedded && (
+        <div className="flex flex-wrap items-center gap-3 mb-6">
+          {/* Campaign Selector */}
+          <Popover open={campaignOpen} onOpenChange={setCampaignOpen}>
+            <PopoverTrigger asChild>
               <Button
                 variant="outline"
-                size="sm"
-                className="rounded-[35px]"
-                onClick={() => setImportMediaPlanOpen(true)}
+                role="combobox"
+                aria-expanded={campaignOpen}
+                className={cn(
+                  "min-w-[200px] justify-between rounded-[35px] border-foreground",
+                  selectedCampaignId && "border-accent-orange bg-accent-orange text-foreground"
+                )}
               >
-                <Upload className="mr-2 h-4 w-4" />
-                Import Media Plan
+                {selectedCampaign?.name || "Select Campaign..."}
+                <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
               </Button>
-              <CreatePlanningItemDialog reportId={reportId} onSuccess={fetchData} />
+            </PopoverTrigger>
+            <PopoverContent className="w-[300px] p-0" align="start">
+              <Command>
+                <CommandInput placeholder="Search campaigns..." />
+                <CommandList>
+                  <CommandEmpty>No campaigns found.</CommandEmpty>
+                  <CommandGroup>
+                    {campaigns.map((campaign) => (
+                      <CommandItem
+                        key={campaign.id}
+                        value={campaign.name}
+                        onSelect={() => {
+                          setSelectedCampaignId(campaign.id);
+                          setSelectedAdSetId(null);
+                          setSelectedAdId(null);
+                          setCampaignOpen(false);
+                        }}
+                      >
+                        <Check
+                          className={cn(
+                            "mr-2 h-4 w-4",
+                            selectedCampaignId === campaign.id ? "opacity-100" : "opacity-0"
+                          )}
+                        />
+                        {campaign.name}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
+          {selectedCampaignId && (
+            <Button variant="ghost" size="icon" onClick={clearCampaign} className="h-9 w-9">
+              <X className="h-4 w-4" />
+            </Button>
+          )}
+
+          {/* Ad Set Selector - only show when campaign is selected */}
+          {selectedCampaignId && filteredAdSets.length > 0 && (
+            <>
+              <span className="text-muted-foreground">→</span>
+              <Popover open={adSetOpen} onOpenChange={setAdSetOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={adSetOpen}
+                    className={cn(
+                      "min-w-[200px] justify-between rounded-[35px] border-foreground",
+                      selectedAdSetId && "border-accent-orange bg-accent-orange text-foreground"
+                    )}
+                  >
+                     {selectedAdSet?.adset_name || "Select Ad Set..."}
+                    <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[300px] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Search ad sets..." />
+                    <CommandList>
+                      <CommandEmpty>No ad sets found.</CommandEmpty>
+                      <CommandGroup>
+                        {filteredAdSets.map((adSet) => (
+                          <CommandItem
+                            key={adSet.id}
+                            value={adSet.adset_name || adSet.id}
+                            onSelect={() => {
+                              setSelectedAdSetId(adSet.id);
+                              setSelectedAdId(null);
+                              setAdSetOpen(false);
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                selectedAdSetId === adSet.id ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            {adSet.adset_name || "Unnamed Ad Set"}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+              {selectedAdSetId && (
+                <Button variant="ghost" size="icon" onClick={clearAdSet} className="h-9 w-9">
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
+            </>
+          )}
+
+          {/* Ad Selector - only show when ad set is selected */}
+          {selectedAdSetId && filteredAds.length > 0 && (
+            <>
+              <span className="text-muted-foreground">→</span>
+              <Popover open={adOpen} onOpenChange={setAdOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={adOpen}
+                    className={cn(
+                      "min-w-[200px] justify-between rounded-[35px] border-foreground",
+                      selectedAdId && "border-accent-orange bg-accent-orange text-foreground"
+                    )}
+                  >
+                    {selectedAd?.ad_name || "Select Ad..."}
+                    <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[300px] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Search ads..." />
+                    <CommandList>
+                      <CommandEmpty>No ads found.</CommandEmpty>
+                      <CommandGroup>
+                        {filteredAds.map((ad) => (
+                          <CommandItem
+                            key={ad.id}
+                            value={ad.ad_name || ad.id}
+                            onSelect={() => {
+                              setSelectedAdId(ad.id);
+                              setAdOpen(false);
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                selectedAdId === ad.id ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            {ad.ad_name || "Unnamed Ad"}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+              {selectedAdId && (
+                <Button variant="ghost" size="icon" onClick={clearAd} className="h-9 w-9">
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
             </>
           )}
         </div>
-      </div>
-
-      {/* Hierarchical Filters */}
-      <div className="flex flex-wrap items-center gap-3 mb-6">
-        {/* Campaign Selector */}
-        <Popover open={campaignOpen} onOpenChange={setCampaignOpen}>
-          <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              role="combobox"
-              aria-expanded={campaignOpen}
-              className={cn(
-                "min-w-[200px] justify-between rounded-[35px] border-foreground",
-                selectedCampaignId && "border-accent-orange bg-accent-orange text-foreground"
-              )}
-            >
-              {selectedCampaign?.name || "Select Campaign..."}
-              <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-[300px] p-0" align="start">
-            <Command>
-              <CommandInput placeholder="Search campaigns..." />
-              <CommandList>
-                <CommandEmpty>No campaigns found.</CommandEmpty>
-                <CommandGroup>
-                  {campaigns.map((campaign) => (
-                    <CommandItem
-                      key={campaign.id}
-                      value={campaign.name}
-                      onSelect={() => {
-                        setSelectedCampaignId(campaign.id);
-                        setSelectedAdSetId(null);
-                        setSelectedAdId(null);
-                        setCampaignOpen(false);
-                      }}
-                    >
-                      <Check
-                        className={cn(
-                          "mr-2 h-4 w-4",
-                          selectedCampaignId === campaign.id ? "opacity-100" : "opacity-0"
-                        )}
-                      />
-                      {campaign.name}
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              </CommandList>
-            </Command>
-          </PopoverContent>
-        </Popover>
-        {selectedCampaignId && (
-          <Button variant="ghost" size="icon" onClick={clearCampaign} className="h-9 w-9">
-            <X className="h-4 w-4" />
-          </Button>
-        )}
-
-        {/* Ad Set Selector - only show when campaign is selected */}
-        {selectedCampaignId && filteredAdSets.length > 0 && (
-          <>
-            <span className="text-muted-foreground">→</span>
-            <Popover open={adSetOpen} onOpenChange={setAdSetOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  role="combobox"
-                  aria-expanded={adSetOpen}
-                  className={cn(
-                    "min-w-[200px] justify-between rounded-[35px] border-foreground",
-                    selectedAdSetId && "border-accent-orange bg-accent-orange text-foreground"
-                  )}
-                >
-                   {selectedAdSet?.adset_name || "Select Ad Set..."}
-                  <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[300px] p-0" align="start">
-                <Command>
-                  <CommandInput placeholder="Search ad sets..." />
-                  <CommandList>
-                    <CommandEmpty>No ad sets found.</CommandEmpty>
-                    <CommandGroup>
-                      {filteredAdSets.map((adSet) => (
-                        <CommandItem
-                          key={adSet.id}
-                          value={adSet.adset_name || adSet.id}
-                          onSelect={() => {
-                            setSelectedAdSetId(adSet.id);
-                            setSelectedAdId(null);
-                            setAdSetOpen(false);
-                          }}
-                        >
-                          <Check
-                            className={cn(
-                              "mr-2 h-4 w-4",
-                              selectedAdSetId === adSet.id ? "opacity-100" : "opacity-0"
-                            )}
-                          />
-                          {adSet.adset_name || "Unnamed Ad Set"}
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </CommandList>
-                </Command>
-              </PopoverContent>
-            </Popover>
-            {selectedAdSetId && (
-              <Button variant="ghost" size="icon" onClick={clearAdSet} className="h-9 w-9">
-                <X className="h-4 w-4" />
-              </Button>
-            )}
-          </>
-        )}
-
-        {/* Ad Selector - only show when ad set is selected */}
-        {selectedAdSetId && filteredAds.length > 0 && (
-          <>
-            <span className="text-muted-foreground">→</span>
-            <Popover open={adOpen} onOpenChange={setAdOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  role="combobox"
-                  aria-expanded={adOpen}
-                  className={cn(
-                    "min-w-[200px] justify-between rounded-[35px] border-foreground",
-                    selectedAdId && "border-accent-orange bg-accent-orange text-foreground"
-                  )}
-                >
-                  {selectedAd?.ad_name || "Select Ad..."}
-                  <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[300px] p-0" align="start">
-                <Command>
-                  <CommandInput placeholder="Search ads..." />
-                  <CommandList>
-                    <CommandEmpty>No ads found.</CommandEmpty>
-                    <CommandGroup>
-                      {filteredAds.map((ad) => (
-                        <CommandItem
-                          key={ad.id}
-                          value={ad.ad_name || ad.id}
-                          onSelect={() => {
-                            setSelectedAdId(ad.id);
-                            setAdOpen(false);
-                          }}
-                        >
-                          <Check
-                            className={cn(
-                              "mr-2 h-4 w-4",
-                              selectedAdId === ad.id ? "opacity-100" : "opacity-0"
-                            )}
-                          />
-                          {ad.ad_name || "Unnamed Ad"}
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </CommandList>
-                </Command>
-              </PopoverContent>
-            </Popover>
-            {selectedAdId && (
-              <Button variant="ghost" size="icon" onClick={clearAd} className="h-9 w-9">
-                <X className="h-4 w-4" />
-              </Button>
-            )}
-          </>
-        )}
-      </div>
+      )}
 
       <div className="space-y-8">
-        {/* Campaign Meta Table - show only when campaign is selected but NOT ad set or ad */}
-        {displayCampaigns.length > 0 && !selectedAdSetId && !selectedAdId && (
+        {/* Campaign Meta Table */}
+        {displayCampaigns.length > 0 && (embedded || (!selectedAdSetId && !selectedAdId)) && (
           <div>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold">Campaigns</h3>
@@ -787,7 +791,7 @@ export const AdsDataTab = ({ reportId, spaceId, onImportSuccess, embedded = fals
             </div>
             <EditableDataTable
               columns={visibleCampaignColumnDefs}
-              data={displayCampaigns}
+              data={embedded ? campaignMeta : displayCampaigns}
               canEdit={canEdit}
               onUpdate={(id, field, value) => handleUpdate("brand_campaigns", id, field, value)}
               onDelete={canEdit ? (id) => handleDelete("brand_campaigns", id) : undefined}
@@ -797,8 +801,8 @@ export const AdsDataTab = ({ reportId, spaceId, onImportSuccess, embedded = fals
           </div>
         )}
 
-        {/* Ad Sets Table - show only when ad set is selected but NOT ad */}
-        {selectedAdSetId && !selectedAdId && displayAdSets.length > 0 && (
+        {/* Ad Sets Table - hide in embedded mode */}
+        {!embedded && selectedAdSetId && !selectedAdId && displayAdSets.length > 0 && (
           <div>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold">Ad Sets</h3>
@@ -821,8 +825,8 @@ export const AdsDataTab = ({ reportId, spaceId, onImportSuccess, embedded = fals
           </div>
         )}
 
-        {/* Ads Table - show only when ad is selected */}
-        {selectedAdId && displayAds.length > 0 && (
+        {/* Ads Table - hide in embedded mode */}
+        {!embedded && selectedAdId && displayAds.length > 0 && (
           <div>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold">Ads</h3>
@@ -845,8 +849,8 @@ export const AdsDataTab = ({ reportId, spaceId, onImportSuccess, embedded = fals
           </div>
         )}
 
-        {/* Media Plan Table */}
-        {mediaPlanItems.length > 0 && (
+        {/* Media Plan Table - hide in embedded mode */}
+        {!embedded && mediaPlanItems.length > 0 && (
           <div>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold">Media Plan</h3>
@@ -869,9 +873,9 @@ export const AdsDataTab = ({ reportId, spaceId, onImportSuccess, embedded = fals
         )}
 
         {/* Empty state */}
-        {displayCampaigns.length === 0 && displayAdSets.length === 0 && displayAds.length === 0 && mediaPlanItems.length === 0 && !loading && (
+        {campaignMeta.length === 0 && !loading && (
           <div className="text-center py-12 text-muted-foreground">
-            <p>No campaign data found. Use "Import from Meta" to fetch data.</p>
+            <p>No campaign data found. {!embedded ? 'Use "Import from Meta" to fetch data.' : ''}</p>
           </div>
         )}
       </div>
