@@ -3,6 +3,7 @@ import { Upload, FileSpreadsheet, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 
 interface FileUploadStepProps {
@@ -14,6 +15,10 @@ interface FileUploadStepProps {
   sheetNames?: string[];
   selectedSheet?: string | null;
   onSheetChange?: (sheet: string) => void;
+  skipFirstRow?: boolean;
+  onSkipFirstRowChange?: (val: boolean) => void;
+  skipLastRow?: boolean;
+  onSkipLastRowChange?: (val: boolean) => void;
 }
 
 export const FileUploadStep = ({
@@ -25,6 +30,10 @@ export const FileUploadStep = ({
   sheetNames,
   selectedSheet,
   onSheetChange,
+  skipFirstRow,
+  onSkipFirstRowChange,
+  skipLastRow,
+  onSkipLastRowChange,
 }: FileUploadStepProps) => {
   const [dragActive, setDragActive] = useState(false);
 
@@ -143,6 +152,32 @@ export const FileUploadStep = ({
               ))}
             </SelectContent>
           </Select>
+        </div>
+      )}
+
+      {/* Skip rows options */}
+      {file && onSkipFirstRowChange && onSkipLastRowChange && (
+        <div className="flex gap-6">
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="skip-first"
+              checked={skipFirstRow}
+              onCheckedChange={(checked) => onSkipFirstRowChange(!!checked)}
+            />
+            <Label htmlFor="skip-first" className="text-sm cursor-pointer">
+              Skip first row (report name / header)
+            </Label>
+          </div>
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="skip-last"
+              checked={skipLastRow}
+              onCheckedChange={(checked) => onSkipLastRowChange(!!checked)}
+            />
+            <Label htmlFor="skip-last" className="text-sm cursor-pointer">
+              Skip last row (totals / result)
+            </Label>
+          </div>
         </div>
       )}
 

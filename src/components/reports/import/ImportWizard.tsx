@@ -33,6 +33,8 @@ export const ImportWizard = ({ reportId, spaceId, onComplete, onCancel, showShee
   const [isLoading, setIsLoading] = useState(false);
   const [sheetNames, setSheetNames] = useState<string[]>([]);
   const [selectedSheet, setSelectedSheet] = useState<string | null>(null);
+  const [skipFirstRow, setSkipFirstRow] = useState(false);
+  const [skipLastRow, setSkipLastRow] = useState(false);
 
   // Handle file selection and parse
   const handleFileSelect = useCallback(async (selectedFile: File | null) => {
@@ -110,6 +112,15 @@ export const ImportWizard = ({ reportId, spaceId, onComplete, onCancel, showShee
         fieldTypes[`${field.table}.${field.key}`] = field.type;
       });
 
+      // Filter rows based on skip settings
+      let rowsToImport = parsedFile.rows;
+      if (skipFirstRow && rowsToImport.length > 0) {
+        rowsToImport = rowsToImport.slice(1);
+      }
+      if (skipLastRow && rowsToImport.length > 0) {
+        rowsToImport = rowsToImport.slice(0, -1);
+      }
+
       const { data: session } = await supabase.auth.getSession();
       if (!session?.session) {
         throw new Error("Not authenticated");
@@ -129,7 +140,7 @@ export const ImportWizard = ({ reportId, spaceId, onComplete, onCancel, showShee
             spaceId,
             fileName: parsedFile.fileName,
             mappings: mappingsList,
-            rows: parsedFile.rows,
+            rows: rowsToImport,
           }),
         }
       );
@@ -164,7 +175,7 @@ export const ImportWizard = ({ reportId, spaceId, onComplete, onCancel, showShee
     } finally {
       setIsLoading(false);
     }
-  }, [parsedFile, mappings, reportId, onComplete]);
+  }, [parsedFile, mappings, reportId, skipFirstRow, skipLastRow, onComplete]);
 
   // Render step indicator
   const renderStepIndicator = () => {
@@ -218,6 +229,10 @@ export const ImportWizard = ({ reportId, spaceId, onComplete, onCancel, showShee
           sheetNames={showSheetSelector ? sheetNames : undefined}
           selectedSheet={selectedSheet}
           onSheetChange={setSelectedSheet}
+          skipFirstRow={skipFirstRow}
+          onSkipFirstRowChange={setSkipFirstRow}
+          skipLastRow={skipLastRow}
+          onSkipLastRowChange={setSkipLastRow}
         />
       )}
 
