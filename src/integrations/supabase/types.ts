@@ -768,9 +768,11 @@ export type Database = {
           impressions: number | null
           media_buying_type: string | null
           placements: string | null
+          platform: string | null
           reach: number | null
           report_id: string
           space_id: string
+          target_group: string | null
           type: string | null
           updated_at: string
         }
@@ -784,9 +786,11 @@ export type Database = {
           impressions?: number | null
           media_buying_type?: string | null
           placements?: string | null
+          platform?: string | null
           reach?: number | null
           report_id: string
           space_id: string
+          target_group?: string | null
           type?: string | null
           updated_at?: string
         }
@@ -800,9 +804,11 @@ export type Database = {
           impressions?: number | null
           media_buying_type?: string | null
           placements?: string | null
+          platform?: string | null
           reach?: number | null
           report_id?: string
           space_id?: string
+          target_group?: string | null
           type?: string | null
           updated_at?: string
         }

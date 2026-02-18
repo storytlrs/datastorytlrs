@@ -70,6 +70,8 @@ export const MAPPING_FIELDS: MappingField[] = [
   { key: "mp_frequency", label: "Frequency", table: "media_plan_items", required: false, type: "number" },
   { key: "mp_cpm", label: "CPM", table: "media_plan_items", required: false, type: "number" },
   { key: "budget", label: "Budget", table: "media_plan_items", required: false, type: "number" },
+  { key: "mp_platform", label: "Platform", table: "media_plan_items", required: false, type: "text" },
+  { key: "target_group", label: "Target Group", table: "media_plan_items", required: false, type: "text" },
 ];
 
 // Get fields grouped by table
@@ -206,6 +208,10 @@ export const AUTO_SUGGESTIONS: Record<string, string> = {
   "cpm": "media_plan_items.mp_cpm",
   "frequency": "media_plan_items.mp_frequency",
   "frekvence": "media_plan_items.mp_frequency",
+  "target group": "media_plan_items.target_group",
+  "cílová skupina": "media_plan_items.target_group",
+  "cílovka": "media_plan_items.target_group",
+  "targeting": "media_plan_items.target_group",
 };
 
 // Suggest mapping based on column name
