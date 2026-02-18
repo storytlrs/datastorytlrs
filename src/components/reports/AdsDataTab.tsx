@@ -24,9 +24,10 @@ interface AdsDataTabProps {
   reportId: string;
   spaceId: string;
   onImportSuccess?: () => void;
+  embedded?: boolean;
 }
 
-export const AdsDataTab = ({ reportId, spaceId, onImportSuccess }: AdsDataTabProps) => {
+export const AdsDataTab = ({ reportId, spaceId, onImportSuccess, embedded = false }: AdsDataTabProps) => {
   const { canEdit } = useUserRole();
   const [campaignMeta, setCampaignMeta] = useState<any[]>([]);
   const [adSets, setAdSets] = useState<any[]>([]);
@@ -555,8 +556,11 @@ export const AdsDataTab = ({ reportId, spaceId, onImportSuccess }: AdsDataTabPro
     ? ads.filter(a => a.id === selectedAdId)
     : filteredAds;
 
+  const Wrapper = embedded ? 'div' : Card;
+  const wrapperProps = embedded ? {} : { className: "p-8 rounded-[35px] border-foreground" };
+
   return (
-    <Card className="p-8 rounded-[35px] border-foreground">
+    <Wrapper {...wrapperProps as any}>
       <div className="flex items-start justify-between mb-6">
         <div>
           <h2 className="text-2xl font-bold mb-2">Campaign Data</h2>
@@ -906,6 +910,6 @@ export const AdsDataTab = ({ reportId, spaceId, onImportSuccess }: AdsDataTabPro
         spaceId={spaceId}
         onSuccess={() => { fetchMediaPlan(); onImportSuccess?.(); }}
       />
-    </Card>
+    </Wrapper>
   );
 };

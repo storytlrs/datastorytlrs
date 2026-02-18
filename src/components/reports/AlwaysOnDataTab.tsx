@@ -8,10 +8,9 @@ import { toast } from "sonner";
 import { useUserRole } from "@/hooks/useUserRole";
 import { CreateContentDialog } from "./CreateContentDialog";
 import { EditContentDialog } from "./EditContentDialog";
-import { CreatePlanningItemDialog } from "./CreatePlanningItemDialog";
-import { EditPlanningItemDialog } from "./EditPlanningItemDialog";
 import { ImportMediaPlanDialog } from "./ImportMediaPlanDialog";
 import { ColumnSelector } from "./ColumnSelector";
+import { AdsDataTab } from "./AdsDataTab";
 import { formatWatchTimeDisplay } from "@/lib/watchTimeUtils";
 import { formatCurrencySimple } from "@/lib/currencyUtils";
 import { Upload, Download } from "lucide-react";
@@ -25,27 +24,18 @@ interface AlwaysOnDataTabProps {
 
 export const AlwaysOnDataTab = ({ reportId, spaceId, onImportSuccess }: AlwaysOnDataTabProps) => {
   const { canEdit } = useUserRole();
-  const [activeTab, setActiveTab] = useState("planning");
-  const [planning, setPlanning] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState("ads_data");
   const [content, setContent] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [editingPlanning, setEditingPlanning] = useState<any>(null);
   const [editingContent, setEditingContent] = useState<any>(null);
   const [importMediaPlanOpen, setImportMediaPlanOpen] = useState(false);
   const [mediaPlanItems, setMediaPlanItems] = useState<any[]>([]);
-  const [mediaPlanVisibleColumns, setMediaPlanVisibleColumns] = useState<string[]>([
-    "type", "platform", "target_group", "placements", "media_buying_type", "creatives",
-    "impressions", "reach", "frequency", "cpm", "budget",
-  ]);
-  const [mediaPlanColumnOrder, setMediaPlanColumnOrder] = useState<string[]>([
-    "type", "platform", "target_group", "placements", "media_buying_type", "creatives",
-    "impressions", "reach", "frequency", "cpm", "budget",
-  ]);
-  // Column visibility & order for planning and content
-  const [planningColOrder, setPlanningColOrder] = useState<string[]>([]);
-  const [planningVisibleCols, setPlanningVisibleCols] = useState<string[]>([]);
+
+  // Column visibility & order for content and media plan
   const [contentColOrder, setContentColOrder] = useState<string[]>([]);
   const [contentVisibleCols, setContentVisibleCols] = useState<string[]>([]);
+  const [mediaPlanColOrder, setMediaPlanColOrder] = useState<string[]>([]);
+  const [mediaPlanVisibleCols, setMediaPlanVisibleCols] = useState<string[]>([]);
 
   useEffect(() => {
     fetchData();
@@ -55,7 +45,7 @@ export const AlwaysOnDataTab = ({ reportId, spaceId, onImportSuccess }: AlwaysOn
   const fetchData = async () => {
     setLoading(true);
     try {
-      await Promise.all([fetchPlanning(), fetchContent()]);
+      await fetchContent();
     } finally {
       setLoading(false);
     }
@@ -68,20 +58,6 @@ export const AlwaysOnDataTab = ({ reportId, spaceId, onImportSuccess }: AlwaysOn
       .eq("report_id", reportId)
       .order("created_at", { ascending: true });
     if (!error && data) setMediaPlanItems(data as any[]);
-  };
-
-  const fetchPlanning = async () => {
-    const { data, error } = await supabase
-      .from("kpi_targets")
-      .select("*")
-      .eq("report_id", reportId)
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      toast.error("Failed to load planning data");
-      return;
-    }
-    setPlanning(data || []);
   };
 
   const fetchContent = async () => {
@@ -106,7 +82,6 @@ export const AlwaysOnDataTab = ({ reportId, spaceId, onImportSuccess }: AlwaysOn
 
     if (error) throw error;
 
-    if (table === "kpi_targets") await fetchPlanning();
     if (table === "content") await fetchContent();
     if (table === "media_plan_items") await fetchMediaPlan();
   };
@@ -116,7 +91,6 @@ export const AlwaysOnDataTab = ({ reportId, spaceId, onImportSuccess }: AlwaysOn
 
     if (error) throw error;
 
-    if (table === "kpi_targets") await fetchPlanning();
     if (table === "content") await fetchContent();
     if (table === "media_plan_items") await fetchMediaPlan();
   };
@@ -127,38 +101,6 @@ export const AlwaysOnDataTab = ({ reportId, spaceId, onImportSuccess }: AlwaysOn
     if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
     return num.toString();
   };
-
-  const planningColumns: ColumnDef[] = [
-    { key: "item_name", label: "Item", type: "text", width: "200px", editable: false },
-    { 
-      key: "item_type", 
-      label: "Type", 
-      type: "select", 
-      width: "120px",
-      editable: false,
-      options: [
-        { value: "content", label: "Content" },
-        { value: "budget", label: "Budget" },
-        { value: "objective", label: "Objective" },
-      ]
-    },
-    { key: "planned_value", label: "Planned", type: "number", width: "120px", editable: false },
-    { key: "actual_value", label: "Actual", type: "number", width: "120px", editable: false },
-    { key: "unit", label: "Unit", type: "text", width: "100px", editable: false },
-    { 
-      key: "currency", 
-      label: "Currency", 
-      type: "select", 
-      width: "100px",
-      editable: false,
-      options: [
-        { value: "CZK", label: "Kč CZK" },
-        { value: "EUR", label: "€ EUR" },
-        { value: "USD", label: "$ USD" },
-      ]
-    },
-    { key: "notes", label: "Notes", type: "text", width: "200px", editable: false },
-  ];
 
   const contentColumns: ColumnDef[] = [
     { key: "thumbnail_url", label: "Preview", type: "text", width: "80px", editable: false, format: (val: string | null) => val ? "✓" : "-" },
@@ -191,24 +133,6 @@ export const AlwaysOnDataTab = ({ reportId, spaceId, onImportSuccess }: AlwaysOn
     budget: { key: "budget", label: "Budget", type: "number", editable: false, format: (val: number) => formatCurrencySimple(val, "CZK") },
   };
 
-  const orderedMediaPlanColumns = mediaPlanColumnOrder.map(key => mediaPlanColumnsMap[key]).filter(Boolean);
-  const filteredMediaPlanColumns = orderedMediaPlanColumns.filter(col => mediaPlanVisibleColumns.includes(col.key));
-
-  const handleMediaPlanColumnToggle = (columnKey: string) => {
-    setMediaPlanVisibleColumns(prev =>
-      prev.includes(columnKey) ? prev.filter(k => k !== columnKey) : [...prev, columnKey]
-    );
-  };
-
-  const handleMediaPlanColumnReorder = (fromIndex: number, toIndex: number) => {
-    setMediaPlanColumnOrder(prev => {
-      const newOrder = [...prev];
-      const [moved] = newOrder.splice(fromIndex, 1);
-      newOrder.splice(toIndex, 0, moved);
-      return newOrder;
-    });
-  };
-
   // Generic reorder/toggle helpers
   const makeReorder = (setter: React.Dispatch<React.SetStateAction<string[]>>) => (from: number, to: number) => {
     setter(prev => {
@@ -222,34 +146,34 @@ export const AlwaysOnDataTab = ({ reportId, spaceId, onImportSuccess }: AlwaysOn
     setter(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]);
   };
 
-  // Init planning/content column orders
+  // Init column orders
   useEffect(() => {
-    if (planningColOrder.length === 0) {
-      const keys = planningColumns.map(c => c.key);
-      setPlanningColOrder(keys);
-      setPlanningVisibleCols(keys);
-    }
     if (contentColOrder.length === 0) {
       const keys = contentColumns.map(c => c.key);
       setContentColOrder(keys);
       setContentVisibleCols(keys);
     }
+    if (mediaPlanColOrder.length === 0) {
+      const defaultKeys = Object.keys(mediaPlanColumnsMap);
+      setMediaPlanColOrder(defaultKeys);
+      setMediaPlanVisibleCols(defaultKeys);
+    }
   }, []);
 
-  const planningColMap = Object.fromEntries(planningColumns.map(c => [c.key, c]));
   const contentColMap = Object.fromEntries(contentColumns.map(c => [c.key, c]));
-  const orderedPlanningCols = planningColOrder.map(k => planningColMap[k]).filter(Boolean);
-  const filteredPlanningCols = orderedPlanningCols.filter(c => planningVisibleCols.includes(c.key));
   const orderedContentCols = contentColOrder.map(k => contentColMap[k]).filter(Boolean);
   const filteredContentCols = orderedContentCols.filter(c => contentVisibleCols.includes(c.key));
+
+  const orderedMediaPlanColumns = mediaPlanColOrder.map(k => mediaPlanColumnsMap[k]).filter(Boolean);
+  const filteredMediaPlanColumns = orderedMediaPlanColumns.filter(col => mediaPlanVisibleCols.includes(col.key));
 
   return (
     <Card className="p-8 rounded-[35px] border-foreground">
       <div className="flex items-start justify-between mb-6">
         <div>
-          <h2 className="text-2xl font-bold mb-2">Always-on Content Data</h2>
+          <h2 className="text-2xl font-bold mb-2">Always-on Data</h2>
           <p className="text-muted-foreground">
-            Manage content planning and performance data {canEdit ? "(Click rows to edit)" : "(Read-only)"}
+            Campaign ads data, influencer content, and media plan {canEdit ? "(Click rows to edit)" : "(Read-only)"}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -267,7 +191,6 @@ export const AlwaysOnDataTab = ({ reportId, spaceId, onImportSuccess }: AlwaysOn
             variant="outline"
             onClick={() => {
               const sheets = [
-                { name: "Planning", columns: planningColumns, data: planning },
                 { name: "Content", columns: contentColumns, data: content },
                 { name: "Media Plan", columns: orderedMediaPlanColumns, data: mediaPlanItems },
               ];
@@ -284,54 +207,26 @@ export const AlwaysOnDataTab = ({ reportId, spaceId, onImportSuccess }: AlwaysOn
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="mb-6">
-          <TabsTrigger value="planning">Planning</TabsTrigger>
-          <TabsTrigger value="content">Content Details</TabsTrigger>
+          <TabsTrigger value="ads_data">Ads Data</TabsTrigger>
+          <TabsTrigger value="content">Content</TabsTrigger>
           <TabsTrigger value="media_plan">Media Plan</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="planning" className="space-y-4">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="text-lg font-semibold">Content Planning</h3>
-              <p className="text-sm text-muted-foreground">
-                Content calendar, frequency targets, and planned vs actual output
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <ColumnSelector
-                allColumns={orderedPlanningCols}
-                visibleColumns={planningVisibleCols}
-                onColumnToggle={makeToggle(setPlanningVisibleCols)}
-                onReorder={makeReorder(setPlanningColOrder)}
-              />
-              {canEdit && <CreatePlanningItemDialog reportId={reportId} onSuccess={fetchPlanning} />}
-            </div>
-          </div>
-          <EditableDataTable
-            columns={filteredPlanningCols}
-            data={planning}
-            canEdit={canEdit}
-            onUpdate={(id, field, value) => handleUpdate("kpi_targets", id, field, value)}
-            onDelete={canEdit ? (id) => handleDelete("kpi_targets", id) : undefined}
-            onEdit={canEdit ? (item) => setEditingPlanning(item) : undefined}
-            loading={loading}
+        <TabsContent value="ads_data">
+          <AdsDataTab
+            reportId={reportId}
+            spaceId={spaceId}
+            onImportSuccess={onImportSuccess}
+            embedded
           />
-          {editingPlanning && (
-            <EditPlanningItemDialog
-              item={editingPlanning}
-              open={!!editingPlanning}
-              onOpenChange={(open) => !open && setEditingPlanning(null)}
-              onSuccess={fetchPlanning}
-            />
-          )}
         </TabsContent>
 
         <TabsContent value="content" className="space-y-4">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h3 className="text-lg font-semibold">Content Performance Details</h3>
+              <h3 className="text-lg font-semibold">Influencer Content</h3>
               <p className="text-sm text-muted-foreground">
-                Detailed metrics for each piece of content
+                Detailed metrics for each piece of influencer content
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -373,9 +268,9 @@ export const AlwaysOnDataTab = ({ reportId, spaceId, onImportSuccess }: AlwaysOn
             </div>
             <ColumnSelector
               allColumns={orderedMediaPlanColumns}
-              visibleColumns={mediaPlanVisibleColumns}
-              onColumnToggle={handleMediaPlanColumnToggle}
-              onReorder={handleMediaPlanColumnReorder}
+              visibleColumns={mediaPlanVisibleCols}
+              onColumnToggle={makeToggle(setMediaPlanVisibleCols)}
+              onReorder={makeReorder(setMediaPlanColOrder)}
             />
           </div>
           <EditableDataTable
