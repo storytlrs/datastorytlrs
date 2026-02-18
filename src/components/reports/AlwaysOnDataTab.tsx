@@ -11,6 +11,7 @@ import { EditContentDialog } from "./EditContentDialog";
 import { CreatePlanningItemDialog } from "./CreatePlanningItemDialog";
 import { EditPlanningItemDialog } from "./EditPlanningItemDialog";
 import { ImportMediaPlanDialog } from "./ImportMediaPlanDialog";
+import { ColumnSelector } from "./ColumnSelector";
 import { formatWatchTimeDisplay } from "@/lib/watchTimeUtils";
 import { formatCurrencySimple } from "@/lib/currencyUtils";
 import { Upload, Download } from "lucide-react";
@@ -32,6 +33,10 @@ export const AlwaysOnDataTab = ({ reportId, spaceId, onImportSuccess }: AlwaysOn
   const [editingContent, setEditingContent] = useState<any>(null);
   const [importMediaPlanOpen, setImportMediaPlanOpen] = useState(false);
   const [mediaPlanItems, setMediaPlanItems] = useState<any[]>([]);
+  const [mediaPlanVisibleColumns, setMediaPlanVisibleColumns] = useState<string[]>([
+    "type", "platform", "target_group", "placements", "media_buying_type", "creatives",
+    "impressions", "reach", "frequency", "cpm", "budget",
+  ]);
 
   useEffect(() => {
     fetchData();
@@ -165,6 +170,8 @@ export const AlwaysOnDataTab = ({ reportId, spaceId, onImportSuccess }: AlwaysOn
 
   const mediaPlanColumns: ColumnDef[] = [
     { key: "type", label: "Type", type: "text", width: "150px", editable: false },
+    { key: "platform", label: "Platform", type: "text", width: "150px", editable: false },
+    { key: "target_group", label: "Target Group", type: "text", width: "180px", editable: false },
     { key: "placements", label: "Placements", type: "text", width: "180px", editable: false },
     { key: "media_buying_type", label: "Media Buying / Optimization", type: "text", width: "220px", editable: false },
     { key: "creatives", label: "Creatives", type: "text", width: "180px", editable: false },
@@ -174,6 +181,14 @@ export const AlwaysOnDataTab = ({ reportId, spaceId, onImportSuccess }: AlwaysOn
     { key: "cpm", label: "CPM", type: "number", editable: false, format: (val: number) => formatCurrencySimple(val, "CZK") },
     { key: "budget", label: "Budget", type: "number", editable: false, format: (val: number) => formatCurrencySimple(val, "CZK") },
   ];
+
+  const filteredMediaPlanColumns = mediaPlanColumns.filter(col => mediaPlanVisibleColumns.includes(col.key));
+
+  const handleMediaPlanColumnToggle = (columnKey: string) => {
+    setMediaPlanVisibleColumns(prev =>
+      prev.includes(columnKey) ? prev.filter(k => k !== columnKey) : [...prev, columnKey]
+    );
+  };
 
   return (
     <Card className="p-8 rounded-[35px] border-foreground">
@@ -284,14 +299,21 @@ export const AlwaysOnDataTab = ({ reportId, spaceId, onImportSuccess }: AlwaysOn
         </TabsContent>
 
         <TabsContent value="media_plan" className="space-y-4">
-          <div className="mb-4">
-            <h3 className="text-lg font-semibold">Media Plan</h3>
-            <p className="text-sm text-muted-foreground">
-              Imported media plan data with placements, budgets, and forecasted metrics
-            </p>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-lg font-semibold">Media Plan</h3>
+              <p className="text-sm text-muted-foreground">
+                Imported media plan data with placements, budgets, and forecasted metrics
+              </p>
+            </div>
+            <ColumnSelector
+              allColumns={mediaPlanColumns}
+              visibleColumns={mediaPlanVisibleColumns}
+              onColumnToggle={handleMediaPlanColumnToggle}
+            />
           </div>
           <EditableDataTable
-            columns={mediaPlanColumns}
+            columns={filteredMediaPlanColumns}
             data={mediaPlanItems}
             canEdit={canEdit}
             onUpdate={(id, field, value) => handleUpdate("media_plan_items", id, field, value)}
