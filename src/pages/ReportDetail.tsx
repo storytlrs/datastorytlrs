@@ -41,6 +41,7 @@ const ReportDetail = () => {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [contributors, setContributors] = useState<Contributor[]>([]);
   const [isLogOpen, setIsLogOpen] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     if (reportId) {
@@ -281,17 +282,17 @@ const ReportDetail = () => {
           {/* Common tab content */}
           <TabsContent value="overview">
             {isAds ? (
-              <AdsOverviewTab reportId={reportId!} spaceId={report.space_id} />
+              <AdsOverviewTab key={refreshKey} reportId={reportId!} spaceId={report.space_id} />
             ) : (
-              <OverviewTab reportId={reportId!} />
+              <OverviewTab key={refreshKey} reportId={reportId!} />
             )}
           </TabsContent>
 
           <TabsContent value="insights">
             {isAds ? (
-              <AdsAIInsightsTab reportId={reportId!} />
+              <AdsAIInsightsTab key={refreshKey} reportId={reportId!} />
             ) : (
-              <AIInsightsTab reportId={reportId!} />
+              <AIInsightsTab key={refreshKey} reportId={reportId!} />
             )}
           </TabsContent>
 
@@ -299,16 +300,16 @@ const ReportDetail = () => {
           {isInfluencer && (
             <>
               <TabsContent value="creators">
-                <CreatorsTab reportId={reportId!} />
+                <CreatorsTab key={refreshKey} reportId={reportId!} />
               </TabsContent>
 
               <TabsContent value="content">
-                <ContentTab reportId={reportId!} />
+                <ContentTab key={refreshKey} reportId={reportId!} />
               </TabsContent>
 
 
               <TabsContent value="data">
-                <DataTab reportId={reportId!} onImportSuccess={fetchReport} />
+                <DataTab key={refreshKey} reportId={reportId!} onImportSuccess={fetchReport} />
               </TabsContent>
             </>
           )}
@@ -317,11 +318,11 @@ const ReportDetail = () => {
           {isAds && (
             <>
               <TabsContent value="ad-creatives">
-                <AdCreativesTab reportId={reportId!} spaceId={report.space_id} />
+                <AdCreativesTab key={refreshKey} reportId={reportId!} spaceId={report.space_id} />
               </TabsContent>
 
               <TabsContent value="data">
-                <AdsDataTab reportId={reportId!} spaceId={report.space_id} onImportSuccess={fetchReport} />
+                <AdsDataTab key={refreshKey} reportId={reportId!} spaceId={report.space_id} onImportSuccess={fetchReport} />
               </TabsContent>
             </>
           )}
@@ -330,11 +331,11 @@ const ReportDetail = () => {
           {isAlwaysOn && (
             <>
               <TabsContent value="content">
-                <ContentTab reportId={reportId!} />
+                <ContentTab key={refreshKey} reportId={reportId!} />
               </TabsContent>
 
               <TabsContent value="data">
-                <AlwaysOnDataTab reportId={reportId!} spaceId={report.space_id} onImportSuccess={fetchReport} />
+                <AlwaysOnDataTab key={refreshKey} reportId={reportId!} spaceId={report.space_id} onImportSuccess={fetchReport} />
               </TabsContent>
             </>
           )}
@@ -352,7 +353,7 @@ const ReportDetail = () => {
           open={isEditDialogOpen}
           onOpenChange={setIsEditDialogOpen}
           report={report}
-          onSuccess={fetchReport}
+          onSuccess={() => { fetchReport(); setRefreshKey(k => k + 1); }}
         />
       )}
     </div>
