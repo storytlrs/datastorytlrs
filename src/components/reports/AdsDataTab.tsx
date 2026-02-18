@@ -78,18 +78,26 @@ export const AdsDataTab = ({ reportId, spaceId, onImportSuccess }: AdsDataTabPro
     }
   };
 
-  // Column visibility & order state
-  const [visibleCampaignColumns, setVisibleCampaignColumns] = useState<string[]>([
-    "campaign_name", "platform", "amount_spent", "impressions", "reach", "thruplays", "ctr", "frequency"
-  ]);
+  // Column visibility & order state — persisted in localStorage
+  const adsStorageKey = (tab: string, type: string) => `adsDataTab_${reportId}_${tab}_${type}`;
+
+  const loadAdsStorage = (tab: string, type: string, fallback: string[]): string[] => {
+    try {
+      const stored = localStorage.getItem(adsStorageKey(tab, type));
+      if (stored) return JSON.parse(stored);
+    } catch {}
+    return fallback;
+  };
+
+  const defaultCampaignVisible = ["campaign_name", "platform", "amount_spent", "impressions", "reach", "thruplays", "ctr", "frequency"];
+  const defaultAdSetVisible = ["thumbnail_url", "ad_name", "platform", "amount_spent", "impressions", "reach", "thruplays", "ctr", "frequency"];
+  const defaultAdsVisible = ["thumbnail_url", "ad_name", "platform", "amount_spent", "impressions", "reach", "thruplays", "ctr", "frequency"];
+
+  const [visibleCampaignColumns, setVisibleCampaignColumns] = useState<string[]>(() => loadAdsStorage("campaigns", "visible", defaultCampaignVisible));
   const [campaignColOrder, setCampaignColOrder] = useState<string[]>([]);
-  const [visibleAdSetColumns, setVisibleAdSetColumns] = useState<string[]>([
-    "thumbnail_url", "ad_name", "platform", "amount_spent", "impressions", "reach", "thruplays", "ctr", "frequency"
-  ]);
+  const [visibleAdSetColumns, setVisibleAdSetColumns] = useState<string[]>(() => loadAdsStorage("adsets", "visible", defaultAdSetVisible));
   const [adSetColOrder, setAdSetColOrder] = useState<string[]>([]);
-  const [visibleAdsColumns, setVisibleAdsColumns] = useState<string[]>([
-    "thumbnail_url", "ad_name", "platform", "amount_spent", "impressions", "reach", "thruplays", "ctr", "frequency"
-  ]);
+  const [visibleAdsColumns, setVisibleAdsColumns] = useState<string[]>(() => loadAdsStorage("ads", "visible", defaultAdsVisible));
   const [adsColOrder, setAdsColOrder] = useState<string[]>([]);
   const [mediaPlanColOrder, setMediaPlanColOrder] = useState<string[]>([]);
   const [mediaPlanVisibleCols, setMediaPlanVisibleCols] = useState<string[]>([]);
@@ -473,17 +481,36 @@ export const AdsDataTab = ({ reportId, spaceId, onImportSuccess }: AdsDataTabPro
     { key: "budget", label: "Budget", type: "number", width: "120px", editable: false, format: (val: number) => formatCurrencySimple(val, "CZK") },
   ];
 
-  // Initialize column orders
+  // Initialize column orders from localStorage
   useEffect(() => {
-    if (campaignColOrder.length === 0) setCampaignColOrder(allCampaignColumns.map(c => c.key));
-    if (adSetColOrder.length === 0) setAdSetColOrder(allAdSetsColumns.map(c => c.key));
-    if (adsColOrder.length === 0) setAdsColOrder(allAdsColumns.map(c => c.key));
+    if (campaignColOrder.length === 0) {
+      const defaultKeys = allCampaignColumns.map(c => c.key);
+      setCampaignColOrder(loadAdsStorage("campaigns", "order", defaultKeys));
+    }
+    if (adSetColOrder.length === 0) {
+      const defaultKeys = allAdSetsColumns.map(c => c.key);
+      setAdSetColOrder(loadAdsStorage("adsets", "order", defaultKeys));
+    }
+    if (adsColOrder.length === 0) {
+      const defaultKeys = allAdsColumns.map(c => c.key);
+      setAdsColOrder(loadAdsStorage("ads", "order", defaultKeys));
+    }
     if (mediaPlanColOrder.length === 0) {
-      const keys = mediaPlanColumns.map(c => c.key);
-      setMediaPlanColOrder(keys);
-      setMediaPlanVisibleCols(keys);
+      const defaultKeys = mediaPlanColumns.map(c => c.key);
+      setMediaPlanColOrder(loadAdsStorage("mediaplan", "order", defaultKeys));
+      setMediaPlanVisibleCols(loadAdsStorage("mediaplan", "visible", defaultKeys));
     }
   }, []);
+
+  // Persist all column preferences
+  useEffect(() => { if (campaignColOrder.length) localStorage.setItem(adsStorageKey("campaigns", "order"), JSON.stringify(campaignColOrder)); }, [campaignColOrder]);
+  useEffect(() => { if (visibleCampaignColumns.length) localStorage.setItem(adsStorageKey("campaigns", "visible"), JSON.stringify(visibleCampaignColumns)); }, [visibleCampaignColumns]);
+  useEffect(() => { if (adSetColOrder.length) localStorage.setItem(adsStorageKey("adsets", "order"), JSON.stringify(adSetColOrder)); }, [adSetColOrder]);
+  useEffect(() => { if (visibleAdSetColumns.length) localStorage.setItem(adsStorageKey("adsets", "visible"), JSON.stringify(visibleAdSetColumns)); }, [visibleAdSetColumns]);
+  useEffect(() => { if (adsColOrder.length) localStorage.setItem(adsStorageKey("ads", "order"), JSON.stringify(adsColOrder)); }, [adsColOrder]);
+  useEffect(() => { if (visibleAdsColumns.length) localStorage.setItem(adsStorageKey("ads", "visible"), JSON.stringify(visibleAdsColumns)); }, [visibleAdsColumns]);
+  useEffect(() => { if (mediaPlanColOrder.length) localStorage.setItem(adsStorageKey("mediaplan", "order"), JSON.stringify(mediaPlanColOrder)); }, [mediaPlanColOrder]);
+  useEffect(() => { if (mediaPlanVisibleCols.length) localStorage.setItem(adsStorageKey("mediaplan", "visible"), JSON.stringify(mediaPlanVisibleCols)); }, [mediaPlanVisibleCols]);
 
   const makeReorder = (setter: React.Dispatch<React.SetStateAction<string[]>>) => (from: number, to: number) => {
     setter(prev => {
