@@ -85,6 +85,43 @@ async function persistThumbnails(
   }
 }
 
+// ── Media Plan context builder ──
+function formatMediaPlanContext(mediaPlanItems: any[]): string {
+  if (!mediaPlanItems || mediaPlanItems.length === 0) return "";
+
+  const totalPlannedBudget = mediaPlanItems.reduce((s: number, i: any) => s + (i.budget || 0), 0);
+  const totalPlannedImpressions = mediaPlanItems.reduce((s: number, i: any) => s + (i.impressions || 0), 0);
+  const totalPlannedReach = mediaPlanItems.reduce((s: number, i: any) => s + (i.reach || 0), 0);
+
+  const itemLines = mediaPlanItems.map((item: any) => {
+    const parts: string[] = [];
+    if (item.type) parts.push(`Type: ${item.type}`);
+    if (item.platform) parts.push(`Platform: ${item.platform}`);
+    if (item.target_group) parts.push(`Target: ${item.target_group}`);
+    if (item.placements) parts.push(`Placements: ${item.placements}`);
+    if (item.media_buying_type) parts.push(`Buying: ${item.media_buying_type}`);
+    if (item.creatives) parts.push(`Creatives: ${item.creatives}`);
+    if (item.impressions) parts.push(`Impressions: ${item.impressions.toLocaleString()}`);
+    if (item.reach) parts.push(`Reach: ${item.reach.toLocaleString()}`);
+    if (item.frequency) parts.push(`Frequency: ${item.frequency}`);
+    if (item.cpm) parts.push(`CPM: ${item.cpm}`);
+    if (item.budget) parts.push(`Budget: ${item.budget}`);
+    return `  - ${parts.join(", ")}`;
+  }).join("\n");
+
+  return `
+
+MEDIA PLÁN (plánované hodnoty):
+- Celkový plánovaný budget: ${totalPlannedBudget.toLocaleString()} CZK
+- Celkové plánované impressions: ${totalPlannedImpressions.toLocaleString()}
+- Celkový plánovaný reach: ${totalPlannedReach.toLocaleString()}
+- Počet položek: ${mediaPlanItems.length}
+Položky:
+${itemLines}
+
+INSTRUKCE PRO MEDIA PLÁN: Porovnej plánované hodnoty z media plánu s reálnými výsledky kampaní. Identifikuj odchylky, vyhodnoť plnění plánu a zahrň toto srovnání do analýzy.`;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -174,6 +211,12 @@ serve(async (req) => {
       ? await supabase.from("tiktok_ads").select("*").eq("space_id", spaceId).in("tiktok_ad_group_id", tiktokAdGroupIds)
       : { data: [] };
 
+    // Fetch media plan items for this report
+    const { data: mediaPlanItems = [] } = await supabase
+      .from("media_plan_items")
+      .select("*")
+      .eq("report_id", report_id);
+
     // Calculate aggregated metrics from both platforms
     const allCampaigns = [...(campaigns || []), ...(tiktokCampaigns || [])];
     const metricsSource = allCampaigns.length > 0 ? allCampaigns : [...(adSets || []), ...(tiktokAdGroups || [])];
@@ -205,6 +248,8 @@ serve(async (req) => {
     const costPer3sView = total3sViews > 0 ? totalSpend / total3sViews : 0;
     const cpe = totalInteractions > 0 ? totalSpend / totalInteractions : 0;
 
+    const mediaPlanContext = formatMediaPlanContext(mediaPlanItems);
+
     // Route based on period
     if (period === "monthly") {
       return await handleMonthlyReport({
@@ -216,6 +261,7 @@ serve(async (req) => {
         totalReactions, totalComments, totalShares, totalSaves,
         avgFrequency, ctr, engagementRate, thruplayRate, viewRate3s,
         cpm, cpc, costPerThruplay, costPer3sView, cpe,
+        mediaPlanContext,
       });
     }
 
@@ -229,6 +275,7 @@ serve(async (req) => {
         totalReactions, totalComments, totalShares, totalSaves,
         avgFrequency, ctr, engagementRate, thruplayRate, viewRate3s,
         cpm, cpc, costPerThruplay, costPer3sView, cpe,
+        mediaPlanContext,
       });
     }
 
@@ -242,6 +289,7 @@ serve(async (req) => {
         totalReactions, totalComments, totalShares, totalSaves,
         avgFrequency, ctr, engagementRate, thruplayRate, viewRate3s,
         cpm, cpc, costPerThruplay, costPer3sView, cpe,
+        mediaPlanContext,
       });
     }
 
@@ -255,6 +303,7 @@ serve(async (req) => {
         totalReactions, totalComments, totalShares, totalSaves,
         avgFrequency, ctr, engagementRate, thruplayRate, viewRate3s,
         cpm, cpc, costPerThruplay, costPer3sView, cpe,
+        mediaPlanContext,
       });
     }
 
@@ -268,6 +317,7 @@ serve(async (req) => {
       totalReactions, totalComments, totalShares, totalSaves,
       avgFrequency, ctr, engagementRate, thruplayRate, viewRate3s,
       cpm, cpc, costPerThruplay, costPer3sView, cpe,
+      mediaPlanContext,
     });
   } catch (error) {
     console.error("Error generating Ads AI insights:", error);
@@ -439,7 +489,7 @@ INSTRUKCE:
   }
 }`;
 
-  const systemPrompt = (promptMap["monthly_ads_system"] || defaultSystemPrompt) + "\n" + dataContext;
+  const systemPrompt = (promptMap["monthly_ads_system"] || defaultSystemPrompt) + "\n" + dataContext + (ctx.mediaPlanContext || "");
   const userPrompt = promptMap["monthly_ads_user"] || defaultUserPrompt;
 
   console.log("Calling AI for monthly Ads insights...");
@@ -590,7 +640,8 @@ ${topAdSets.map((a: any) => `${a.name}: Spend ${a.spend}, Impr ${a.impressions},
 Kontext od uživatele:
 - Hlavní cíl: ${campaign_context.mainGoal}
 - Co udělali: ${campaign_context.actions}
-- Co se povedlo: ${campaign_context.highlights}`;
+- Co se povedlo: ${campaign_context.highlights}
+${ctx.mediaPlanContext || ""}`;
 
   const userPrompt = `Vytvoř analytický obsah pro Ads Campaign report. Odpověz ve formátu JSON s následující strukturou:
 
@@ -841,7 +892,7 @@ KONTEXT OD UŽIVATELE:
   }
 }`;
 
-  const systemPrompt = (promptMap["campaign_ads_system"] || defaultSystemPrompt) + "\n" + dataContext;
+  const systemPrompt = (promptMap["campaign_ads_system"] || defaultSystemPrompt) + "\n" + dataContext + (ctx.mediaPlanContext || "");
   const userPrompt = promptMap["campaign_ads_user"] || defaultUserPrompt;
 
   console.log("Calling AI for campaign Ads insights...");
@@ -1095,7 +1146,7 @@ KONTEXT OD UŽIVATELE:
   }
 }`;
 
-  const systemPrompt = (promptMap["quarterly_ads_system"] || defaultSystemPrompt) + "\n" + dataContext;
+  const systemPrompt = (promptMap["quarterly_ads_system"] || defaultSystemPrompt) + "\n" + dataContext + (ctx.mediaPlanContext || "");
   const userPrompt = promptMap["quarterly_ads_user"] || defaultUserPrompt;
 
   console.log("Calling AI for quarterly Ads insights...");
@@ -1446,7 +1497,7 @@ KONTEXT OD UŽIVATELE:
   }
 }`;
 
-  const systemPrompt = (promptMap["yearly_ads_system"] || defaultSystemPrompt) + "\n" + dataContext;
+  const systemPrompt = (promptMap["yearly_ads_system"] || defaultSystemPrompt) + "\n" + dataContext + (ctx.mediaPlanContext || "");
   const userPrompt = promptMap["yearly_ads_user"] || defaultUserPrompt;
 
   console.log("Calling AI for yearly Ads insights...");
