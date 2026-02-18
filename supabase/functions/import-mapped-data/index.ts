@@ -494,6 +494,8 @@ serve(async (req) => {
                 "mp_frequency": "frequency",
                 "mp_cpm": "cpm",
                 "budget": "budget",
+                "mp_platform": "platform",
+                "target_group": "target_group",
               };
 
               let hasData = false;
