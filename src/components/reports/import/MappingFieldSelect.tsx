@@ -13,10 +13,18 @@ interface MappingFieldSelectProps {
   value: string | null;
   onChange: (value: string | null) => void;
   disabled?: boolean;
+  filterTable?: TargetTable;
 }
 
-export const MappingFieldSelect = ({ value, onChange, disabled }: MappingFieldSelectProps) => {
-  const fieldsByTable = getFieldsByTable();
+export const MappingFieldSelect = ({ value, onChange, disabled, filterTable }: MappingFieldSelectProps) => {
+  let fieldsByTable = getFieldsByTable();
+  
+  // Filter to only show fields from a specific table
+  if (filterTable) {
+    const filtered: Partial<Record<TargetTable, MappingField[]>> = {};
+    filtered[filterTable] = fieldsByTable[filterTable];
+    fieldsByTable = filtered as Record<TargetTable, MappingField[]>;
+  }
   
   const handleChange = (newValue: string) => {
     onChange(newValue === "skip" ? null : newValue);

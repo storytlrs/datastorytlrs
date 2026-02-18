@@ -4,7 +4,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, Info } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ColumnMappingRow } from "./ColumnMappingRow";
-import { validateMappings } from "./mappingConfig";
+import { validateMappings, type TargetTable } from "./mappingConfig";
 import type { ParsedFile } from "./fileParser";
 
 interface ColumnMappingStepProps {
@@ -14,6 +14,7 @@ interface ColumnMappingStepProps {
   onNext: () => void;
   onBack: () => void;
   onCancel: () => void;
+  filterTable?: TargetTable;
 }
 
 export const ColumnMappingStep = ({
@@ -23,6 +24,7 @@ export const ColumnMappingStep = ({
   onNext,
   onBack,
   onCancel,
+  filterTable,
 }: ColumnMappingStepProps) => {
   // Validate current mappings
   const validation = useMemo(() => validateMappings(mappings), [mappings]);
@@ -78,6 +80,7 @@ export const ColumnMappingStep = ({
                 column={column}
                 mapping={mappings[column.name] ?? null}
                 onChange={(value) => onMappingChange(column.name, value)}
+                filterTable={filterTable}
               />
             ))}
           </tbody>

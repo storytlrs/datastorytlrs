@@ -244,6 +244,7 @@ export const ImportWizard = ({ reportId, spaceId, onComplete, onCancel, showShee
           onNext={() => setStep("review")}
           onBack={() => setStep("upload")}
           onCancel={onCancel}
+          filterTable={showSheetSelector ? "media_plan_items" : undefined}
         />
       )}
 
