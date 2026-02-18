@@ -34,7 +34,17 @@ export const DataTab = ({ reportId, onImportSuccess }: DataTabProps) => {
   const [editingContent, setEditingContent] = useState<any>(null);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
 
-  // Column visibility & order state
+  // Column visibility & order state — persisted in localStorage
+  const storageKey = (tab: string, type: string) => `dataTab_${reportId}_${tab}_${type}`;
+
+  const loadFromStorage = (tab: string, type: string, fallback: string[]): string[] => {
+    try {
+      const stored = localStorage.getItem(storageKey(tab, type));
+      if (stored) return JSON.parse(stored);
+    } catch {}
+    return fallback;
+  };
+
   const [creatorsColOrder, setCreatorsColOrder] = useState<string[]>([]);
   const [creatorsVisibleCols, setCreatorsVisibleCols] = useState<string[]>([]);
   const [contentColOrder, setContentColOrder] = useState<string[]>([]);
@@ -298,24 +308,32 @@ export const DataTab = ({ reportId, onImportSuccess }: DataTabProps) => {
     { key: "conversion_rate", label: "Conv. Rate %", type: "number", width: "120px" },
   ];
 
-  // Initialize column order/visibility once
+  // Initialize column order/visibility from localStorage or defaults
   useEffect(() => {
     if (creatorsColOrder.length === 0) {
-      const keys = creatorsColumns.map(c => c.key);
-      setCreatorsColOrder(keys);
-      setCreatorsVisibleCols(keys);
+      const defaultKeys = creatorsColumns.map(c => c.key);
+      setCreatorsColOrder(loadFromStorage("creators", "order", defaultKeys));
+      setCreatorsVisibleCols(loadFromStorage("creators", "visible", defaultKeys));
     }
     if (contentColOrder.length === 0) {
-      const keys = contentColumns.map(c => c.key);
-      setContentColOrder(keys);
-      setContentVisibleCols(keys);
+      const defaultKeys = contentColumns.map(c => c.key);
+      setContentColOrder(loadFromStorage("content", "order", defaultKeys));
+      setContentVisibleCols(loadFromStorage("content", "visible", defaultKeys));
     }
     if (promoColOrder.length === 0) {
-      const keys = promoColumns.map(c => c.key);
-      setPromoColOrder(keys);
-      setPromoVisibleCols(keys);
+      const defaultKeys = promoColumns.map(c => c.key);
+      setPromoColOrder(loadFromStorage("promo", "order", defaultKeys));
+      setPromoVisibleCols(loadFromStorage("promo", "visible", defaultKeys));
     }
   }, []);
+
+  // Persist changes to localStorage
+  useEffect(() => { if (creatorsColOrder.length) localStorage.setItem(storageKey("creators", "order"), JSON.stringify(creatorsColOrder)); }, [creatorsColOrder]);
+  useEffect(() => { if (creatorsVisibleCols.length) localStorage.setItem(storageKey("creators", "visible"), JSON.stringify(creatorsVisibleCols)); }, [creatorsVisibleCols]);
+  useEffect(() => { if (contentColOrder.length) localStorage.setItem(storageKey("content", "order"), JSON.stringify(contentColOrder)); }, [contentColOrder]);
+  useEffect(() => { if (contentVisibleCols.length) localStorage.setItem(storageKey("content", "visible"), JSON.stringify(contentVisibleCols)); }, [contentVisibleCols]);
+  useEffect(() => { if (promoColOrder.length) localStorage.setItem(storageKey("promo", "order"), JSON.stringify(promoColOrder)); }, [promoColOrder]);
+  useEffect(() => { if (promoVisibleCols.length) localStorage.setItem(storageKey("promo", "visible"), JSON.stringify(promoVisibleCols)); }, [promoVisibleCols]);
 
   const creatorsColMap = Object.fromEntries(creatorsColumns.map(c => [c.key, c]));
   const contentColMap = Object.fromEntries(contentColumns.map(c => [c.key, c]));
