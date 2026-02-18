@@ -552,24 +552,6 @@ export const AdsDataTab = ({ reportId, spaceId, onImportSuccess }: AdsDataTabPro
                 variant="outline"
                 size="sm"
                 className="rounded-[35px]"
-                disabled={syncingMetaData}
-                onClick={handleSyncMetaData}
-              >
-                {syncingMetaData ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Syncing...</> : <><RefreshCw className="mr-2 h-4 w-4" />Sync Meta Data</>}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="rounded-[35px]"
-                disabled={fetchingThumbnails}
-                onClick={handleFetchThumbnails}
-              >
-                {fetchingThumbnails ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Fetching...</> : "Fetch Thumbnails"}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="rounded-[35px]"
                 onClick={() => setImportMediaPlanOpen(true)}
               >
                 <Upload className="mr-2 h-4 w-4" />
