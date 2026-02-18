@@ -757,6 +757,72 @@ export type Database = {
           },
         ]
       }
+      media_plan_items: {
+        Row: {
+          budget: number | null
+          cpm: number | null
+          created_at: string
+          creatives: string | null
+          frequency: number | null
+          id: string
+          impressions: number | null
+          media_buying_type: string | null
+          placements: string | null
+          reach: number | null
+          report_id: string
+          space_id: string
+          type: string | null
+          updated_at: string
+        }
+        Insert: {
+          budget?: number | null
+          cpm?: number | null
+          created_at?: string
+          creatives?: string | null
+          frequency?: number | null
+          id?: string
+          impressions?: number | null
+          media_buying_type?: string | null
+          placements?: string | null
+          reach?: number | null
+          report_id: string
+          space_id: string
+          type?: string | null
+          updated_at?: string
+        }
+        Update: {
+          budget?: number | null
+          cpm?: number | null
+          created_at?: string
+          creatives?: string | null
+          frequency?: number | null
+          id?: string
+          impressions?: number | null
+          media_buying_type?: string | null
+          placements?: string | null
+          reach?: number | null
+          report_id?: string
+          space_id?: string
+          type?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "media_plan_items_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "reports"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "media_plan_items_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "spaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null

@@ -8,12 +8,13 @@ const corsHeaders = {
 
 interface ColumnMapping {
   sourceColumn: string;
-  targetTable: "creators" | "content" | "promo_codes";
+  targetTable: "creators" | "content" | "promo_codes" | "media_plan_items";
   targetField: string;
 }
 
 interface ImportRequest {
   reportId: string;
+  spaceId?: string;
   fileName: string;
   mappings: ColumnMapping[];
   rows: Record<string, any>[];
@@ -143,7 +144,7 @@ serve(async (req) => {
     }
 
     const body: ImportRequest = await req.json();
-    const { reportId, fileName, mappings, rows } = body;
+    const { reportId, spaceId, fileName, mappings, rows } = body;
 
     if (!reportId || !mappings || !rows) {
       return new Response(JSON.stringify({ error: "Missing required fields" }), {
@@ -187,6 +188,7 @@ serve(async (req) => {
       const creatorMappings = mappings.filter(m => m.targetTable === "creators");
       const contentMappings = mappings.filter(m => m.targetTable === "content");
       const promoMappings = mappings.filter(m => m.targetTable === "promo_codes");
+      const mediaPlanMappings = mappings.filter(m => m.targetTable === "media_plan_items");
 
       // Find key columns for linking
       const creatorHandleColumn = creatorMappings.find(m => m.targetField === "handle")?.sourceColumn;
@@ -461,6 +463,71 @@ serve(async (req) => {
               }
             }
           }
+
+          // --- Process Media Plan Items ---
+          if (mediaPlanMappings.length > 0) {
+            // Resolve spaceId from report if not provided
+            let resolvedSpaceId = spaceId;
+            if (!resolvedSpaceId) {
+              const { data: report } = await supabase
+                .from("reports")
+                .select("space_id")
+                .eq("id", reportId)
+                .single();
+              resolvedSpaceId = report?.space_id;
+            }
+
+            if (resolvedSpaceId) {
+              const mediaPlanData: Record<string, any> = {
+                report_id: reportId,
+                space_id: resolvedSpaceId,
+              };
+
+              // Field name mapping from config keys to DB columns
+              const fieldMap: Record<string, string> = {
+                "type": "type",
+                "placements": "placements",
+                "media_buying_type": "media_buying_type",
+                "creatives": "creatives",
+                "mp_impressions": "impressions",
+                "mp_reach": "reach",
+                "mp_frequency": "frequency",
+                "mp_cpm": "cpm",
+                "budget": "budget",
+              };
+
+              let hasData = false;
+              mediaPlanMappings.forEach(mapping => {
+                const value = row[mapping.sourceColumn];
+                if (value !== null && value !== undefined && value !== "") {
+                  hasData = true;
+                  const dbField = fieldMap[mapping.targetField] || mapping.targetField;
+                  if (["impressions", "reach"].includes(dbField)) {
+                    mediaPlanData[dbField] = parseNumber(value, 0);
+                  } else if (["frequency", "cpm", "budget"].includes(dbField)) {
+                    mediaPlanData[dbField] = parseDecimal(value, 0);
+                  } else {
+                    mediaPlanData[dbField] = sanitizeString(value);
+                  }
+                }
+              });
+
+              if (hasData) {
+                const { error: mpError } = await supabase
+                  .from("media_plan_items")
+                  .insert(mediaPlanData);
+
+                if (mpError) {
+                  console.error(`Row ${rowNum} media plan error:`, mpError);
+                  warnings.push(`Row ${rowNum}: Failed to create media plan item`);
+                  rowsFailed++;
+                } else {
+                  rowsImported++;
+                }
+              }
+            }
+          }
+
         } catch (rowError) {
           console.error(`Row ${rowNum} error:`, rowError);
           errors.push(`Row ${rowNum}: ${rowError instanceof Error ? rowError.message : String(rowError)}`);

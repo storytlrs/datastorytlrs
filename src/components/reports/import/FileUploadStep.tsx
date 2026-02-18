@@ -1,6 +1,8 @@
 import { useState, useCallback } from "react";
 import { Upload, FileSpreadsheet, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
 interface FileUploadStepProps {
@@ -9,6 +11,9 @@ interface FileUploadStepProps {
   onNext: () => void;
   onCancel: () => void;
   isLoading?: boolean;
+  sheetNames?: string[];
+  selectedSheet?: string | null;
+  onSheetChange?: (sheet: string) => void;
 }
 
 export const FileUploadStep = ({
@@ -17,6 +22,9 @@ export const FileUploadStep = ({
   onNext,
   onCancel,
   isLoading,
+  sheetNames,
+  selectedSheet,
+  onSheetChange,
 }: FileUploadStepProps) => {
   const [dragActive, setDragActive] = useState(false);
 
@@ -120,6 +128,23 @@ export const FileUploadStep = ({
           )}
         </div>
       </div>
+
+      {/* Sheet Selector */}
+      {sheetNames && sheetNames.length > 1 && file && (
+        <div className="space-y-2">
+          <Label>Select Sheet</Label>
+          <Select value={selectedSheet || undefined} onValueChange={(val) => onSheetChange?.(val)}>
+            <SelectTrigger className="rounded-[35px]">
+              <SelectValue placeholder="Select a sheet..." />
+            </SelectTrigger>
+            <SelectContent>
+              {sheetNames.map((name) => (
+                <SelectItem key={name} value={name}>{name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
       {/* Actions */}
       <div className="flex justify-end gap-3">

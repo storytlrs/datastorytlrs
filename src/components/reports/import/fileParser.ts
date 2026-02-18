@@ -12,20 +12,31 @@ export interface ParsedFile {
   rows: Record<string, any>[];
   totalRows: number;
   fileName: string;
+  sheetNames?: string[];
+  selectedSheet?: string;
 }
 
 // Parse XLSX or CSV file
-export const parseFile = async (file: File): Promise<ParsedFile> => {
+export const parseFile = async (file: File, sheetName?: string): Promise<ParsedFile> => {
   const fileName = file.name;
   const extension = fileName.split(".").pop()?.toLowerCase();
 
   if (extension === "csv") {
     return parseCSV(file);
   } else if (extension === "xlsx" || extension === "xls") {
-    return parseXLSX(file);
+    return parseXLSX(file, sheetName);
   } else {
     throw new Error("Unsupported file format. Please upload XLSX, XLS, or CSV file.");
   }
+};
+
+// Get sheet names from an XLSX file
+export const getSheetNames = async (file: File): Promise<string[]> => {
+  const extension = file.name.split(".").pop()?.toLowerCase();
+  if (extension === "csv") return [];
+  const arrayBuffer = await file.arrayBuffer();
+  const workbook = XLSX.read(arrayBuffer, { type: "array" });
+  return workbook.SheetNames;
 };
 
 // Parse CSV file
@@ -50,18 +61,30 @@ const parseCSV = async (file: File): Promise<ParsedFile> => {
 };
 
 // Parse XLSX file
-const parseXLSX = async (file: File): Promise<ParsedFile> => {
+const parseXLSX = async (file: File, targetSheet?: string): Promise<ParsedFile> => {
   const arrayBuffer = await file.arrayBuffer();
   const workbook = XLSX.read(arrayBuffer, { type: "array" });
   
+  // If a specific sheet is requested, use that
+  if (targetSheet && workbook.SheetNames.includes(targetSheet)) {
+    const sheet = workbook.Sheets[targetSheet];
+    const result = parseSheet(sheet, file.name);
+    result.sheetNames = workbook.SheetNames;
+    result.selectedSheet = targetSheet;
+    return result;
+  }
+
   // Find the first sheet with actual data
   for (const sheetName of workbook.SheetNames) {
     const sheet = workbook.Sheets[sheetName];
     const data = XLSX.utils.sheet_to_json(sheet, { defval: null });
     
-    // Skip empty sheets or sheets with less than 2 rows (header + at least one row)
+    // Skip empty sheets or sheets with less than 1 row
     if (data.length >= 1) {
-      return parseSheet(sheet, file.name);
+      const result = parseSheet(sheet, file.name);
+      result.sheetNames = workbook.SheetNames;
+      result.selectedSheet = sheetName;
+      return result;
     }
   }
   
