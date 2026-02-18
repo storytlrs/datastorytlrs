@@ -37,6 +37,10 @@ export const AlwaysOnDataTab = ({ reportId, spaceId, onImportSuccess }: AlwaysOn
     "type", "platform", "target_group", "placements", "media_buying_type", "creatives",
     "impressions", "reach", "frequency", "cpm", "budget",
   ]);
+  const [mediaPlanColumnOrder, setMediaPlanColumnOrder] = useState<string[]>([
+    "type", "platform", "target_group", "placements", "media_buying_type", "creatives",
+    "impressions", "reach", "frequency", "cpm", "budget",
+  ]);
 
   useEffect(() => {
     fetchData();
@@ -168,26 +172,36 @@ export const AlwaysOnDataTab = ({ reportId, spaceId, onImportSuccess }: AlwaysOn
     { key: "watch_time", label: "Watch Time", type: "text", editable: false, format: formatWatchTimeDisplay },
   ];
 
-  const mediaPlanColumns: ColumnDef[] = [
-    { key: "type", label: "Type", type: "text", width: "150px", editable: false },
-    { key: "platform", label: "Platform", type: "text", width: "150px", editable: false },
-    { key: "target_group", label: "Target Group", type: "text", width: "180px", editable: false },
-    { key: "placements", label: "Placements", type: "text", width: "180px", editable: false },
-    { key: "media_buying_type", label: "Media Buying / Optimization", type: "text", width: "220px", editable: false },
-    { key: "creatives", label: "Creatives", type: "text", width: "180px", editable: false },
-    { key: "impressions", label: "Impressions", type: "number", editable: false, format: formatNumber },
-    { key: "reach", label: "Reach", type: "number", editable: false, format: formatNumber },
-    { key: "frequency", label: "Frequency", type: "number", editable: false, format: (val: number) => val ? val.toFixed(2) : "-" },
-    { key: "cpm", label: "CPM", type: "number", editable: false, format: (val: number) => formatCurrencySimple(val, "CZK") },
-    { key: "budget", label: "Budget", type: "number", editable: false, format: (val: number) => formatCurrencySimple(val, "CZK") },
-  ];
+  const mediaPlanColumnsMap: Record<string, ColumnDef> = {
+    type: { key: "type", label: "Type", type: "text", width: "150px", editable: false },
+    platform: { key: "platform", label: "Platform", type: "text", width: "150px", editable: false },
+    target_group: { key: "target_group", label: "Target Group", type: "text", width: "180px", editable: false },
+    placements: { key: "placements", label: "Placements", type: "text", width: "180px", editable: false },
+    media_buying_type: { key: "media_buying_type", label: "Media Buying / Optimization", type: "text", width: "220px", editable: false },
+    creatives: { key: "creatives", label: "Creatives", type: "text", width: "180px", editable: false },
+    impressions: { key: "impressions", label: "Impressions", type: "number", editable: false, format: formatNumber },
+    reach: { key: "reach", label: "Reach", type: "number", editable: false, format: formatNumber },
+    frequency: { key: "frequency", label: "Frequency", type: "number", editable: false, format: (val: number) => val ? val.toFixed(2) : "-" },
+    cpm: { key: "cpm", label: "CPM", type: "number", editable: false, format: (val: number) => formatCurrencySimple(val, "CZK") },
+    budget: { key: "budget", label: "Budget", type: "number", editable: false, format: (val: number) => formatCurrencySimple(val, "CZK") },
+  };
 
-  const filteredMediaPlanColumns = mediaPlanColumns.filter(col => mediaPlanVisibleColumns.includes(col.key));
+  const orderedMediaPlanColumns = mediaPlanColumnOrder.map(key => mediaPlanColumnsMap[key]).filter(Boolean);
+  const filteredMediaPlanColumns = orderedMediaPlanColumns.filter(col => mediaPlanVisibleColumns.includes(col.key));
 
   const handleMediaPlanColumnToggle = (columnKey: string) => {
     setMediaPlanVisibleColumns(prev =>
       prev.includes(columnKey) ? prev.filter(k => k !== columnKey) : [...prev, columnKey]
     );
+  };
+
+  const handleMediaPlanColumnReorder = (fromIndex: number, toIndex: number) => {
+    setMediaPlanColumnOrder(prev => {
+      const newOrder = [...prev];
+      const [moved] = newOrder.splice(fromIndex, 1);
+      newOrder.splice(toIndex, 0, moved);
+      return newOrder;
+    });
   };
 
   return (
@@ -216,7 +230,7 @@ export const AlwaysOnDataTab = ({ reportId, spaceId, onImportSuccess }: AlwaysOn
               const sheets = [
                 { name: "Planning", columns: planningColumns, data: planning },
                 { name: "Content", columns: contentColumns, data: content },
-                { name: "Media Plan", columns: mediaPlanColumns, data: mediaPlanItems },
+                { name: "Media Plan", columns: orderedMediaPlanColumns, data: mediaPlanItems },
               ];
               exportToExcel(sheets, "always-on-data");
               toast.success("Data exported to Excel");
@@ -307,9 +321,10 @@ export const AlwaysOnDataTab = ({ reportId, spaceId, onImportSuccess }: AlwaysOn
               </p>
             </div>
             <ColumnSelector
-              allColumns={mediaPlanColumns}
+              allColumns={orderedMediaPlanColumns}
               visibleColumns={mediaPlanVisibleColumns}
               onColumnToggle={handleMediaPlanColumnToggle}
+              onReorder={handleMediaPlanColumnReorder}
             />
           </div>
           <EditableDataTable
