@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Loader2, RefreshCw, Download } from "lucide-react";
+import { Loader2, RefreshCw, Download, Upload } from "lucide-react";
 import { exportToExcel } from "@/lib/exportToExcel";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,6 +15,7 @@ import { EditAdSetDialog } from "./EditAdSetDialog";
 import { EditAdDialog } from "./EditAdDialog";
 import { EditPlanningItemDialog } from "./EditPlanningItemDialog";
 import { CreatePlanningItemDialog } from "./CreatePlanningItemDialog";
+import { ImportMediaPlanDialog } from "./ImportMediaPlanDialog";
 import { formatCurrencySimple } from "@/lib/currencyUtils";
 import { Check, ChevronDown, X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -48,6 +49,8 @@ export const AdsDataTab = ({ reportId, spaceId, onImportSuccess }: AdsDataTabPro
   const [editingAd, setEditingAd] = useState<any>(null);
   const [fetchingThumbnails, setFetchingThumbnails] = useState(false);
   const [syncingMetaData, setSyncingMetaData] = useState(false);
+  const [importMediaPlanOpen, setImportMediaPlanOpen] = useState(false);
+  const [mediaPlanItems, setMediaPlanItems] = useState<any[]>([]);
 
   const handleSyncMetaData = async () => {
     setSyncingMetaData(true);
@@ -113,7 +116,17 @@ export const AdsDataTab = ({ reportId, spaceId, onImportSuccess }: AdsDataTabPro
 
   useEffect(() => {
     fetchData();
+    fetchMediaPlan();
   }, [reportId, spaceId]);
+
+  const fetchMediaPlan = async () => {
+    const { data, error } = await supabase
+      .from("media_plan_items" as any)
+      .select("*")
+      .eq("report_id", reportId)
+      .order("created_at", { ascending: true });
+    if (!error && data) setMediaPlanItems(data as any[]);
+  };
 
   const fetchData = async () => {
     setLoading(true);
@@ -440,6 +453,19 @@ export const AdsDataTab = ({ reportId, spaceId, onImportSuccess }: AdsDataTabPro
     { key: "post_shares", label: "Shares", type: "number", width: "100px", editable: false, format: formatNumber },
   ];
 
+  // Media plan columns
+  const mediaPlanColumns: ColumnDef[] = [
+    { key: "type", label: "Type", type: "text", width: "150px", editable: false },
+    { key: "placements", label: "Placements", type: "text", width: "180px", editable: false },
+    { key: "media_buying_type", label: "Media Buying / Optimization", type: "text", width: "220px", editable: false },
+    { key: "creatives", label: "Creatives", type: "text", width: "180px", editable: false },
+    { key: "impressions", label: "Impressions", type: "number", width: "120px", editable: false, format: formatNumber },
+    { key: "reach", label: "Reach", type: "number", width: "100px", editable: false, format: formatNumber },
+    { key: "frequency", label: "Frequency", type: "number", width: "100px", editable: false, format: (val: number) => val ? val.toFixed(2) : "-" },
+    { key: "cpm", label: "CPM", type: "number", width: "100px", editable: false, format: (val: number) => formatCurrencySimple(val, "CZK") },
+    { key: "budget", label: "Budget", type: "number", width: "120px", editable: false, format: (val: number) => formatCurrencySimple(val, "CZK") },
+  ];
+
   // Filter columns based on visibility
   const visibleCampaignColumnDefs = useMemo(() => 
     allCampaignColumns.filter(col => visibleCampaignColumns.includes(col.key)),
@@ -539,6 +565,15 @@ export const AdsDataTab = ({ reportId, spaceId, onImportSuccess }: AdsDataTabPro
                 onClick={handleFetchThumbnails}
               >
                 {fetchingThumbnails ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Fetching...</> : "Fetch Thumbnails"}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="rounded-[35px]"
+                onClick={() => setImportMediaPlanOpen(true)}
+              >
+                <Upload className="mr-2 h-4 w-4" />
+                Import Media Plan
               </Button>
               <CreatePlanningItemDialog reportId={reportId} onSuccess={fetchData} />
             </>
@@ -785,8 +820,25 @@ export const AdsDataTab = ({ reportId, spaceId, onImportSuccess }: AdsDataTabPro
           </div>
         )}
 
+        {/* Media Plan Table */}
+        {mediaPlanItems.length > 0 && (
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">Media Plan</h3>
+            </div>
+            <EditableDataTable
+              columns={mediaPlanColumns}
+              data={mediaPlanItems}
+              canEdit={canEdit}
+              onUpdate={(id, field, value) => handleUpdate("media_plan_items", id, field, value)}
+              onDelete={canEdit ? (id) => handleDelete("media_plan_items", id) : undefined}
+              loading={loading}
+            />
+          </div>
+        )}
+
         {/* Empty state */}
-        {displayCampaigns.length === 0 && displayAdSets.length === 0 && displayAds.length === 0 && !loading && (
+        {displayCampaigns.length === 0 && displayAdSets.length === 0 && displayAds.length === 0 && mediaPlanItems.length === 0 && !loading && (
           <div className="text-center py-12 text-muted-foreground">
             <p>No campaign data found. Use "Import from Meta" to fetch data.</p>
           </div>
@@ -819,6 +871,14 @@ export const AdsDataTab = ({ reportId, spaceId, onImportSuccess }: AdsDataTabPro
           onSuccess={fetchData}
         />
       )}
+
+      <ImportMediaPlanDialog
+        open={importMediaPlanOpen}
+        onOpenChange={setImportMediaPlanOpen}
+        reportId={reportId}
+        spaceId={spaceId}
+        onSuccess={() => { fetchMediaPlan(); onImportSuccess?.(); }}
+      />
     </Card>
   );
 };

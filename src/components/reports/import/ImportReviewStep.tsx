@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { CheckCircle, AlertCircle, FileSpreadsheet, Users, Image, Tag } from "lucide-react";
+import { CheckCircle, AlertCircle, FileSpreadsheet, Users, Image, Tag, BarChart3 } from "lucide-react";
 import { getMappingLabel, parseMappingTarget, validateMappings, type TargetTable } from "./mappingConfig";
 import type { ParsedFile } from "./fileParser";
 
@@ -28,6 +28,7 @@ export const ImportReviewStep = ({
       creators: [],
       content: [],
       promo_codes: [],
+      media_plan_items: [],
     };
 
     Object.entries(mappings).forEach(([source, target]) => {
@@ -62,12 +63,14 @@ export const ImportReviewStep = ({
     creators: <Users className="w-5 h-5" />,
     content: <Image className="w-5 h-5" />,
     promo_codes: <Tag className="w-5 h-5" />,
+    media_plan_items: <BarChart3 className="w-5 h-5" />,
   };
 
   const tableLabels: Record<TargetTable, string> = {
     creators: "Creators",
     content: "Content",
     promo_codes: "Promo Codes",
+    media_plan_items: "Media Plan",
   };
 
   return (

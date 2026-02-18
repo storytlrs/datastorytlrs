@@ -10,7 +10,9 @@ import { CreateContentDialog } from "./CreateContentDialog";
 import { EditContentDialog } from "./EditContentDialog";
 import { CreatePlanningItemDialog } from "./CreatePlanningItemDialog";
 import { EditPlanningItemDialog } from "./EditPlanningItemDialog";
+import { ImportMediaPlanDialog } from "./ImportMediaPlanDialog";
 import { formatWatchTimeDisplay } from "@/lib/watchTimeUtils";
+import { formatCurrencySimple } from "@/lib/currencyUtils";
 import { Upload, Download } from "lucide-react";
 import { exportToExcel } from "@/lib/exportToExcel";
 
@@ -28,9 +30,12 @@ export const AlwaysOnDataTab = ({ reportId, spaceId, onImportSuccess }: AlwaysOn
   const [loading, setLoading] = useState(true);
   const [editingPlanning, setEditingPlanning] = useState<any>(null);
   const [editingContent, setEditingContent] = useState<any>(null);
+  const [importMediaPlanOpen, setImportMediaPlanOpen] = useState(false);
+  const [mediaPlanItems, setMediaPlanItems] = useState<any[]>([]);
 
   useEffect(() => {
     fetchData();
+    fetchMediaPlan();
   }, [reportId]);
 
   const fetchData = async () => {
@@ -40,6 +45,15 @@ export const AlwaysOnDataTab = ({ reportId, spaceId, onImportSuccess }: AlwaysOn
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchMediaPlan = async () => {
+    const { data, error } = await supabase
+      .from("media_plan_items" as any)
+      .select("*")
+      .eq("report_id", reportId)
+      .order("created_at", { ascending: true });
+    if (!error && data) setMediaPlanItems(data as any[]);
   };
 
   const fetchPlanning = async () => {
@@ -80,6 +94,7 @@ export const AlwaysOnDataTab = ({ reportId, spaceId, onImportSuccess }: AlwaysOn
 
     if (table === "kpi_targets") await fetchPlanning();
     if (table === "content") await fetchContent();
+    if (table === "media_plan_items") await fetchMediaPlan();
   };
 
   const handleDelete = async (table: string, id: string) => {
@@ -89,6 +104,7 @@ export const AlwaysOnDataTab = ({ reportId, spaceId, onImportSuccess }: AlwaysOn
 
     if (table === "kpi_targets") await fetchPlanning();
     if (table === "content") await fetchContent();
+    if (table === "media_plan_items") await fetchMediaPlan();
   };
 
   const formatNumber = (num: number | null) => {
@@ -147,6 +163,18 @@ export const AlwaysOnDataTab = ({ reportId, spaceId, onImportSuccess }: AlwaysOn
     { key: "watch_time", label: "Watch Time", type: "text", editable: false, format: formatWatchTimeDisplay },
   ];
 
+  const mediaPlanColumns: ColumnDef[] = [
+    { key: "type", label: "Type", type: "text", width: "150px", editable: false },
+    { key: "placements", label: "Placements", type: "text", width: "180px", editable: false },
+    { key: "media_buying_type", label: "Media Buying / Optimization", type: "text", width: "220px", editable: false },
+    { key: "creatives", label: "Creatives", type: "text", width: "180px", editable: false },
+    { key: "impressions", label: "Impressions", type: "number", editable: false, format: formatNumber },
+    { key: "reach", label: "Reach", type: "number", editable: false, format: formatNumber },
+    { key: "frequency", label: "Frequency", type: "number", editable: false, format: (val: number) => val ? val.toFixed(2) : "-" },
+    { key: "cpm", label: "CPM", type: "number", editable: false, format: (val: number) => formatCurrencySimple(val, "CZK") },
+    { key: "budget", label: "Budget", type: "number", editable: false, format: (val: number) => formatCurrencySimple(val, "CZK") },
+  ];
+
   return (
     <Card className="p-8 rounded-[35px] border-foreground">
       <div className="flex items-start justify-between mb-6">
@@ -156,27 +184,41 @@ export const AlwaysOnDataTab = ({ reportId, spaceId, onImportSuccess }: AlwaysOn
             Manage content planning and performance data {canEdit ? "(Click rows to edit)" : "(Read-only)"}
           </p>
         </div>
-        <Button
-          variant="outline"
-          onClick={() => {
-            const sheets = [
-              { name: "Planning", columns: planningColumns, data: planning },
-              { name: "Content", columns: contentColumns, data: content },
-            ];
-            exportToExcel(sheets, "always-on-data");
-            toast.success("Data exported to Excel");
-          }}
-          className="rounded-[35px]"
-        >
-          <Download className="w-4 h-4 mr-2" />
-          Export Excel
-        </Button>
+        <div className="flex items-center gap-2">
+          {canEdit && (
+            <Button
+              variant="outline"
+              onClick={() => setImportMediaPlanOpen(true)}
+              className="rounded-[35px]"
+            >
+              <Upload className="w-4 h-4 mr-2" />
+              Import Media Plan
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            onClick={() => {
+              const sheets = [
+                { name: "Planning", columns: planningColumns, data: planning },
+                { name: "Content", columns: contentColumns, data: content },
+                { name: "Media Plan", columns: mediaPlanColumns, data: mediaPlanItems },
+              ];
+              exportToExcel(sheets, "always-on-data");
+              toast.success("Data exported to Excel");
+            }}
+            className="rounded-[35px]"
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Export Excel
+          </Button>
+        </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="mb-6">
           <TabsTrigger value="planning">Planning</TabsTrigger>
           <TabsTrigger value="content">Content Details</TabsTrigger>
+          <TabsTrigger value="media_plan">Media Plan</TabsTrigger>
         </TabsList>
 
         <TabsContent value="planning" className="space-y-4">
@@ -240,7 +282,37 @@ export const AlwaysOnDataTab = ({ reportId, spaceId, onImportSuccess }: AlwaysOn
             />
           )}
         </TabsContent>
+
+        <TabsContent value="media_plan" className="space-y-4">
+          <div className="mb-4">
+            <h3 className="text-lg font-semibold">Media Plan</h3>
+            <p className="text-sm text-muted-foreground">
+              Imported media plan data with placements, budgets, and forecasted metrics
+            </p>
+          </div>
+          <EditableDataTable
+            columns={mediaPlanColumns}
+            data={mediaPlanItems}
+            canEdit={canEdit}
+            onUpdate={(id, field, value) => handleUpdate("media_plan_items", id, field, value)}
+            onDelete={canEdit ? (id) => handleDelete("media_plan_items", id) : undefined}
+            loading={loading}
+          />
+          {mediaPlanItems.length === 0 && !loading && (
+            <div className="text-center py-8 text-muted-foreground">
+              <p>No media plan data. Use "Import Media Plan" to upload.</p>
+            </div>
+          )}
+        </TabsContent>
       </Tabs>
+
+      <ImportMediaPlanDialog
+        open={importMediaPlanOpen}
+        onOpenChange={setImportMediaPlanOpen}
+        reportId={reportId}
+        spaceId={spaceId}
+        onSuccess={() => { fetchMediaPlan(); onImportSuccess?.(); }}
+      />
     </Card>
   );
 };

@@ -4,13 +4,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { FileUploadStep } from "./FileUploadStep";
 import { ColumnMappingStep } from "./ColumnMappingStep";
 import { ImportReviewStep } from "./ImportReviewStep";
-import { parseFile, type ParsedFile } from "./fileParser";
+import { parseFile, getSheetNames, type ParsedFile } from "./fileParser";
 import { parseMappingTarget, MAPPING_FIELDS } from "./mappingConfig";
 
 interface ImportWizardProps {
   reportId: string;
+  spaceId?: string;
   onComplete: (result: ImportResult) => void;
   onCancel: () => void;
+  showSheetSelector?: boolean;
 }
 
 export interface ImportResult {
@@ -23,12 +25,14 @@ export interface ImportResult {
 
 type WizardStep = "upload" | "mapping" | "review";
 
-export const ImportWizard = ({ reportId, onComplete, onCancel }: ImportWizardProps) => {
+export const ImportWizard = ({ reportId, spaceId, onComplete, onCancel, showSheetSelector }: ImportWizardProps) => {
   const [step, setStep] = useState<WizardStep>("upload");
   const [file, setFile] = useState<File | null>(null);
   const [parsedFile, setParsedFile] = useState<ParsedFile | null>(null);
   const [mappings, setMappings] = useState<Record<string, string | null>>({});
   const [isLoading, setIsLoading] = useState(false);
+  const [sheetNames, setSheetNames] = useState<string[]>([]);
+  const [selectedSheet, setSelectedSheet] = useState<string | null>(null);
 
   // Handle file selection and parse
   const handleFileSelect = useCallback(async (selectedFile: File | null) => {
@@ -36,8 +40,19 @@ export const ImportWizard = ({ reportId, onComplete, onCancel }: ImportWizardPro
     if (!selectedFile) {
       setParsedFile(null);
       setMappings({});
+      setSheetNames([]);
+      setSelectedSheet(null);
+    } else if (showSheetSelector) {
+      // Pre-load sheet names for XLSX files
+      try {
+        const names = await getSheetNames(selectedFile);
+        setSheetNames(names);
+        if (names.length > 0) setSelectedSheet(names[0]);
+      } catch {
+        setSheetNames([]);
+      }
     }
-  }, []);
+  }, [showSheetSelector]);
 
   // Parse file and move to mapping step
   const handleAnalyze = useCallback(async () => {
@@ -45,7 +60,7 @@ export const ImportWizard = ({ reportId, onComplete, onCancel }: ImportWizardPro
 
     setIsLoading(true);
     try {
-      const parsed = await parseFile(file);
+      const parsed = await parseFile(file, selectedSheet || undefined);
       setParsedFile(parsed);
 
       // Initialize mappings with suggestions
@@ -61,7 +76,7 @@ export const ImportWizard = ({ reportId, onComplete, onCancel }: ImportWizardPro
     } finally {
       setIsLoading(false);
     }
-  }, [file]);
+  }, [file, selectedSheet]);
 
   // Handle mapping change
   const handleMappingChange = useCallback((column: string, value: string | null) => {
@@ -111,6 +126,7 @@ export const ImportWizard = ({ reportId, onComplete, onCancel }: ImportWizardPro
           },
           body: JSON.stringify({
             reportId,
+            spaceId,
             fileName: parsedFile.fileName,
             mappings: mappingsList,
             rows: parsedFile.rows,
@@ -199,6 +215,9 @@ export const ImportWizard = ({ reportId, onComplete, onCancel }: ImportWizardPro
           onNext={handleAnalyze}
           onCancel={onCancel}
           isLoading={isLoading}
+          sheetNames={showSheetSelector ? sheetNames : undefined}
+          selectedSheet={selectedSheet}
+          onSheetChange={setSelectedSheet}
         />
       )}
 

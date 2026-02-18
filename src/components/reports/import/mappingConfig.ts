@@ -1,6 +1,6 @@
 // Configuration for column mapping in the import wizard
 
-export type TargetTable = "creators" | "content" | "promo_codes";
+export type TargetTable = "creators" | "content" | "promo_codes" | "media_plan_items";
 
 export interface MappingField {
   key: string;
@@ -59,6 +59,17 @@ export const MAPPING_FIELDS: MappingField[] = [
   { key: "purchases", label: "Purchases", table: "promo_codes", required: false, type: "number" },
   { key: "revenue", label: "Revenue", table: "promo_codes", required: false, type: "number" },
   { key: "conversion_rate", label: "Conversion Rate", table: "promo_codes", required: false, type: "number" },
+
+  // Media Plan fields
+  { key: "type", label: "Type", table: "media_plan_items", required: false, type: "text" },
+  { key: "placements", label: "Placements", table: "media_plan_items", required: false, type: "text" },
+  { key: "media_buying_type", label: "Media Buying Type / Optimization", table: "media_plan_items", required: false, type: "text" },
+  { key: "creatives", label: "Creatives", table: "media_plan_items", required: false, type: "text" },
+  { key: "mp_impressions", label: "Impressions", table: "media_plan_items", required: false, type: "number" },
+  { key: "mp_reach", label: "Reach", table: "media_plan_items", required: false, type: "number" },
+  { key: "mp_frequency", label: "Frequency", table: "media_plan_items", required: false, type: "number" },
+  { key: "mp_cpm", label: "CPM", table: "media_plan_items", required: false, type: "number" },
+  { key: "budget", label: "Budget", table: "media_plan_items", required: false, type: "number" },
 ];
 
 // Get fields grouped by table
@@ -67,6 +78,7 @@ export const getFieldsByTable = () => {
     creators: [],
     content: [],
     promo_codes: [],
+    media_plan_items: [],
   };
 
   MAPPING_FIELDS.forEach((field) => {
@@ -177,6 +189,23 @@ export const AUTO_SUGGESTIONS: Record<string, string> = {
   "conversion": "promo_codes.conversion_rate",
   "conversion rate": "promo_codes.conversion_rate",
   "konverze": "promo_codes.conversion_rate",
+
+  // Media Plan
+  "placements": "media_plan_items.placements",
+  "umístění": "media_plan_items.placements",
+  "placement": "media_plan_items.placements",
+  "media buying": "media_plan_items.media_buying_type",
+  "media buying type": "media_plan_items.media_buying_type",
+  "optimization": "media_plan_items.media_buying_type",
+  "optimalizace": "media_plan_items.media_buying_type",
+  "creatives": "media_plan_items.creatives",
+  "kreativy": "media_plan_items.creatives",
+  "kreativa": "media_plan_items.creatives",
+  "budget": "media_plan_items.budget",
+  "rozpočet": "media_plan_items.budget",
+  "cpm": "media_plan_items.mp_cpm",
+  "frequency": "media_plan_items.mp_frequency",
+  "frekvence": "media_plan_items.mp_frequency",
 };
 
 // Suggest mapping based on column name
@@ -221,6 +250,7 @@ export const getMappingLabel = (mapping: string): string => {
     creators: "Creators",
     content: "Content",
     promo_codes: "Promo Codes",
+    media_plan_items: "Media Plan",
   };
   
   return `${tableLabels[parsed.table]}: ${field.label}`;
@@ -288,6 +318,7 @@ export const getTableLabel = (table: TargetTable): string => {
     creators: "Creators",
     content: "Content",
     promo_codes: "Promo Codes",
+    media_plan_items: "Media Plan",
   };
   return labels[table];
 };
