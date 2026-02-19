@@ -370,7 +370,6 @@ Deno.serve(async (req) => {
         const insightsData = await insightsRes.json();
 
         const insightRows: MetaInsight[] = insightsData.data || [];
-        const insightRows: MetaInsight[] = insightsData.data || [];
         
         if (insightRows.length === 0) {
           // No data - still upsert the campaign with no metrics
