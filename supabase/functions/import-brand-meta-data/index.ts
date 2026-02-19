@@ -360,15 +360,16 @@ Deno.serve(async (req) => {
       console.log(`Found ${campaigns.length} campaigns`);
     }
 
-    const insightFields = "date_start,date_stop,spend,reach,impressions,frequency,cpm,ctr,cpc,cost_per_thruplay,video_avg_time_watched_actions,video_thruplay_watched_actions,actions,publisher_platform";
+    const insightFields = "date_start,date_stop,spend,reach,impressions,frequency,cpm,ctr,cpc,cost_per_thruplay,video_avg_time_watched_actions,video_thruplay_watched_actions,actions";
 
     for (const campaign of campaigns) {
       try {
         // Get campaign insights with publisher_platform breakdown
-        const insightsUrl = `https://graph.facebook.com/v21.0/${campaign.id}/insights?fields=${insightFields}&date_preset=maximum&action_breakdowns=action_type&breakdowns=publisher_platform&access_token=${metaAccessToken}`;
+        const insightsUrl = `https://graph.facebook.com/v21.0/${campaign.id}/insights?fields=${insightFields}&date_preset=maximum&breakdowns=publisher_platform&access_token=${metaAccessToken}`;
         const insightsRes = await fetch(insightsUrl);
         const insightsData = await insightsRes.json();
 
+        const insightRows: MetaInsight[] = insightsData.data || [];
         const insightRows: MetaInsight[] = insightsData.data || [];
         
         if (insightRows.length === 0) {
@@ -460,7 +461,7 @@ Deno.serve(async (req) => {
 
         for (const adSet of adSets) {
           try {
-            const asInsightsUrl = `https://graph.facebook.com/v21.0/${adSet.id}/insights?fields=${insightFields}&date_preset=maximum&action_breakdowns=action_type&breakdowns=publisher_platform&access_token=${metaAccessToken}`;
+            const asInsightsUrl = `https://graph.facebook.com/v21.0/${adSet.id}/insights?fields=${insightFields}&date_preset=maximum&breakdowns=publisher_platform&access_token=${metaAccessToken}`;
             const asInsightsRes = await fetch(asInsightsUrl);
             const asInsightsData = await asInsightsRes.json();
 
@@ -538,7 +539,7 @@ Deno.serve(async (req) => {
 
             for (const ad of (adsData.data || [])) {
               try {
-                const adInsightsUrl = `https://graph.facebook.com/v21.0/${ad.id}/insights?fields=${insightFields}&date_preset=maximum&action_breakdowns=action_type&breakdowns=publisher_platform&access_token=${metaAccessToken}`;
+                const adInsightsUrl = `https://graph.facebook.com/v21.0/${ad.id}/insights?fields=${insightFields}&date_preset=maximum&breakdowns=publisher_platform&access_token=${metaAccessToken}`;
                 const adInsightsRes = await fetch(adInsightsUrl);
                 const adInsightsData = await adInsightsRes.json();
 
