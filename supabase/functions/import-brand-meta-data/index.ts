@@ -37,6 +37,7 @@ interface MetaInsight {
   cpm?: string;
   ctr?: string;
   cpc?: string;
+  publisher_platform?: string;
   cost_per_thruplay?: MetaCostAction[];
   video_avg_time_watched_actions?: MetaVideoAction[];
   video_thruplay_watched_actions?: MetaVideoAction[];
@@ -359,50 +360,91 @@ Deno.serve(async (req) => {
       console.log(`Found ${campaigns.length} campaigns`);
     }
 
-    const insightFields = "date_start,date_stop,spend,reach,impressions,frequency,cpm,ctr,cpc,cost_per_thruplay,video_avg_time_watched_actions,video_thruplay_watched_actions,actions";
+    const insightFields = "date_start,date_stop,spend,reach,impressions,frequency,cpm,ctr,cpc,cost_per_thruplay,video_avg_time_watched_actions,video_thruplay_watched_actions,actions,publisher_platform";
 
     for (const campaign of campaigns) {
       try {
-        // Get campaign insights
-        const insightsUrl = `https://graph.facebook.com/v21.0/${campaign.id}/insights?fields=${insightFields}&date_preset=maximum&action_breakdowns=action_type&access_token=${metaAccessToken}`;
+        // Get campaign insights with publisher_platform breakdown
+        const insightsUrl = `https://graph.facebook.com/v21.0/${campaign.id}/insights?fields=${insightFields}&date_preset=maximum&action_breakdowns=action_type&breakdowns=publisher_platform&access_token=${metaAccessToken}`;
         const insightsRes = await fetch(insightsUrl);
         const insightsData = await insightsRes.json();
 
-        const insight: MetaInsight | undefined = insightsData.data?.[0];
-        const metrics = insight ? calculateMetrics(insight) : null;
+        const insightRows: MetaInsight[] = insightsData.data || [];
+        
+        if (insightRows.length === 0) {
+          // No data - still upsert the campaign with no metrics
+          const campaignRecord = {
+            space_id: spaceId,
+            campaign_id: campaign.id,
+            campaign_name: campaign.name,
+            status: campaign.status,
+            objective: campaign.objective || null,
+            daily_budget: campaign.daily_budget ? parseFloat(campaign.daily_budget) / 100 : null,
+            lifetime_budget: campaign.lifetime_budget ? parseFloat(campaign.lifetime_budget) / 100 : null,
+            publisher_platform: "unknown",
+          };
 
-        // Upsert campaign
-        const campaignRecord = {
-          space_id: spaceId,
-          campaign_id: campaign.id,
-          campaign_name: campaign.name,
-          status: campaign.status,
-          objective: campaign.objective || null,
-          daily_budget: campaign.daily_budget ? parseFloat(campaign.daily_budget) / 100 : null,
-          lifetime_budget: campaign.lifetime_budget ? parseFloat(campaign.lifetime_budget) / 100 : null,
-          amount_spent: metrics?.spend || 0,
-          reach: insight?.reach ? parseInt(insight.reach) : 0,
-          impressions: metrics?.impressions || 0,
-          frequency: insight?.frequency ? parseFloat(insight.frequency) : 0,
-          cpm: insight?.cpm ? parseFloat(insight.cpm) : 0,
-          cpc: insight?.cpc ? parseFloat(insight.cpc) : 0,
-          ctr: insight?.ctr ? parseFloat(insight.ctr) : 0,
-          clicks: metrics?.linkClicks || 0,
-          date_start: insight?.date_start || null,
-          date_stop: insight?.date_stop || null,
-        };
+          const { error: campError } = await supabase
+            .from("brand_campaigns")
+            .upsert(campaignRecord, { onConflict: "space_id,campaign_id,publisher_platform" })
+            .select("id")
+            .single();
 
-        const { data: upsertedCampaign, error: campError } = await supabase
-          .from("brand_campaigns")
-          .upsert(campaignRecord, { onConflict: "space_id,campaign_id" })
-          .select("id")
-          .single();
-
-        if (campError) {
-          errors.push(`Campaign ${campaign.id}: ${campError.message}`);
-          continue;
+          if (campError) errors.push(`Campaign ${campaign.id}: ${campError.message}`);
+          else importedCampaigns++;
         }
-        importedCampaigns++;
+
+        for (const insight of insightRows) {
+          const metrics = calculateMetrics(insight);
+          const publisherPlatform = insight.publisher_platform || "unknown";
+
+          const campaignRecord = {
+            space_id: spaceId,
+            campaign_id: campaign.id,
+            campaign_name: campaign.name,
+            status: campaign.status,
+            objective: campaign.objective || null,
+            daily_budget: campaign.daily_budget ? parseFloat(campaign.daily_budget) / 100 : null,
+            lifetime_budget: campaign.lifetime_budget ? parseFloat(campaign.lifetime_budget) / 100 : null,
+            amount_spent: metrics.spend,
+            reach: insight.reach ? parseInt(insight.reach) : 0,
+            impressions: metrics.impressions,
+            frequency: insight.frequency ? parseFloat(insight.frequency) : 0,
+            cpm: insight.cpm ? parseFloat(insight.cpm) : 0,
+            cpc: insight.cpc ? parseFloat(insight.cpc) : 0,
+            ctr: insight.ctr ? parseFloat(insight.ctr) : 0,
+            clicks: metrics.linkClicks,
+            date_start: insight.date_start || null,
+            date_stop: insight.date_stop || null,
+            publisher_platform: publisherPlatform,
+          };
+
+          const { error: campError } = await supabase
+            .from("brand_campaigns")
+            .upsert(campaignRecord, { onConflict: "space_id,campaign_id,publisher_platform" })
+            .select("id")
+            .single();
+
+          if (campError) {
+            errors.push(`Campaign ${campaign.id} [${publisherPlatform}]: ${campError.message}`);
+          } else {
+            importedCampaigns++;
+          }
+        }
+
+        // Build a map of publisher_platform -> campaign DB id for linking ad sets
+        const campaignDbIds: Record<string, string> = {};
+        // Re-fetch the campaign rows we just upserted to get their IDs
+        const { data: campRows } = await supabase
+          .from("brand_campaigns")
+          .select("id, publisher_platform")
+          .eq("space_id", spaceId)
+          .eq("campaign_id", campaign.id);
+        for (const row of (campRows || [])) {
+          campaignDbIds[row.publisher_platform || "unknown"] = row.id;
+        }
+        // Fallback: use any available campaign ID
+        const fallbackCampaignDbId = Object.values(campaignDbIds)[0];
 
         // Step 2: Get ad sets for this campaign
         const adSetsUrl = `https://graph.facebook.com/v21.0/${campaign.id}/adsets?fields=id,name,status&limit=500&access_token=${metaAccessToken}`;
@@ -418,51 +460,71 @@ Deno.serve(async (req) => {
 
         for (const adSet of adSets) {
           try {
-            const asInsightsUrl = `https://graph.facebook.com/v21.0/${adSet.id}/insights?fields=${insightFields}&date_preset=maximum&action_breakdowns=action_type&access_token=${metaAccessToken}`;
+            const asInsightsUrl = `https://graph.facebook.com/v21.0/${adSet.id}/insights?fields=${insightFields}&date_preset=maximum&action_breakdowns=action_type&breakdowns=publisher_platform&access_token=${metaAccessToken}`;
             const asInsightsRes = await fetch(asInsightsUrl);
             const asInsightsData = await asInsightsRes.json();
 
-            const asInsight: MetaInsight | undefined = asInsightsData.data?.[0];
-            const asMetrics = asInsight ? calculateMetrics(asInsight) : null;
+            const asInsightRows: MetaInsight[] = asInsightsData.data || [];
 
+            for (const asInsight of asInsightRows) {
+              const asMetrics = calculateMetrics(asInsight);
+              const publisherPlatform = asInsight.publisher_platform || "unknown";
+              const parentCampaignId = campaignDbIds[publisherPlatform] || fallbackCampaignDbId;
 
-            const adSetRecord = {
-              space_id: spaceId,
-              brand_campaign_id: upsertedCampaign.id,
-              adset_id: adSet.id,
-              adset_name: adSet.name,
-              status: adSet.status,
-              amount_spent: asMetrics?.spend || 0,
-              reach: asInsight?.reach ? parseInt(asInsight.reach) : 0,
-              impressions: asMetrics?.impressions || 0,
-              frequency: asInsight?.frequency ? parseFloat(asInsight.frequency) : 0,
-              cpm: asInsight?.cpm ? parseFloat(asInsight.cpm) : 0,
-              cpc: asInsight?.cpc ? parseFloat(asInsight.cpc) : 0,
-              ctr: asInsight?.ctr ? parseFloat(asInsight.ctr) : 0,
-              clicks: asMetrics?.linkClicks || 0,
-              thruplays: asMetrics?.thruplays || 0,
-              thruplay_rate: asMetrics?.thruplayRate || 0,
-              cost_per_thruplay: asInsight ? getCostValue(asInsight.cost_per_thruplay, "video_view") : 0,
-              video_3s_plays: asMetrics?.video3sPlays || 0,
-              view_rate_3s: asMetrics?.viewRate3s || 0,
-              cost_per_3s_play: asMetrics?.costPer3sPlay || 0,
-              engagement_rate: asMetrics?.engagementRate || 0,
-              cpe: asMetrics?.cpe || 0,
-              date_start: asInsight?.date_start || null,
-              date_stop: asInsight?.date_stop || null,
-            };
+              if (!parentCampaignId) {
+                errors.push(`Ad Set ${adSet.id} [${publisherPlatform}]: no parent campaign found`);
+                continue;
+              }
 
-            const { data: upsertedAdSet, error: asError } = await supabase
-              .from("brand_ad_sets")
-              .upsert(adSetRecord, { onConflict: "space_id,adset_id" })
-              .select("id")
-              .single();
+              const adSetRecord = {
+                space_id: spaceId,
+                brand_campaign_id: parentCampaignId,
+                adset_id: adSet.id,
+                adset_name: adSet.name,
+                status: adSet.status,
+                publisher_platform: publisherPlatform,
+                amount_spent: asMetrics.spend,
+                reach: asInsight.reach ? parseInt(asInsight.reach) : 0,
+                impressions: asMetrics.impressions,
+                frequency: asInsight.frequency ? parseFloat(asInsight.frequency) : 0,
+                cpm: asInsight.cpm ? parseFloat(asInsight.cpm) : 0,
+                cpc: asInsight.cpc ? parseFloat(asInsight.cpc) : 0,
+                ctr: asInsight.ctr ? parseFloat(asInsight.ctr) : 0,
+                clicks: asMetrics.linkClicks,
+                thruplays: asMetrics.thruplays,
+                thruplay_rate: asMetrics.thruplayRate,
+                cost_per_thruplay: getCostValue(asInsight.cost_per_thruplay, "video_view"),
+                video_3s_plays: asMetrics.video3sPlays,
+                view_rate_3s: asMetrics.viewRate3s,
+                cost_per_3s_play: asMetrics.costPer3sPlay,
+                engagement_rate: asMetrics.engagementRate,
+                cpe: asMetrics.cpe,
+                date_start: asInsight.date_start || null,
+                date_stop: asInsight.date_stop || null,
+              };
 
-            if (asError) {
-              errors.push(`Ad Set ${adSet.id}: ${asError.message}`);
-              continue;
+              const { error: asError } = await supabase
+                .from("brand_ad_sets")
+                .upsert(adSetRecord, { onConflict: "space_id,adset_id,publisher_platform" });
+
+              if (asError) {
+                errors.push(`Ad Set ${adSet.id} [${publisherPlatform}]: ${asError.message}`);
+              } else {
+                importedAdSets++;
+              }
             }
-            importedAdSets++;
+
+            // Build ad set DB IDs map for this ad set
+            const adSetDbIds: Record<string, string> = {};
+            const { data: asRows } = await supabase
+              .from("brand_ad_sets")
+              .select("id, publisher_platform")
+              .eq("space_id", spaceId)
+              .eq("adset_id", adSet.id);
+            for (const row of (asRows || [])) {
+              adSetDbIds[row.publisher_platform || "unknown"] = row.id;
+            }
+            const fallbackAdSetDbId = Object.values(adSetDbIds)[0];
 
             // Step 3: Get ads for this ad set
             const adsUrl = `https://graph.facebook.com/v21.0/${adSet.id}/ads?fields=id,name,status,creative{id,image_url,thumbnail_url,asset_feed_spec,object_story_spec}&limit=500&access_token=${metaAccessToken}`;
@@ -476,12 +538,11 @@ Deno.serve(async (req) => {
 
             for (const ad of (adsData.data || [])) {
               try {
-                const adInsightsUrl = `https://graph.facebook.com/v21.0/${ad.id}/insights?fields=${insightFields}&date_preset=maximum&action_breakdowns=action_type&access_token=${metaAccessToken}`;
+                const adInsightsUrl = `https://graph.facebook.com/v21.0/${ad.id}/insights?fields=${insightFields}&date_preset=maximum&action_breakdowns=action_type&breakdowns=publisher_platform&access_token=${metaAccessToken}`;
                 const adInsightsRes = await fetch(adInsightsUrl);
                 const adInsightsData = await adInsightsRes.json();
 
-                const adInsight: MetaInsight | undefined = adInsightsData.data?.[0];
-                const adMetrics = adInsight ? calculateMetrics(adInsight) : null;
+                const adInsightRows: MetaInsight[] = adInsightsData.data || [];
 
                 let previewUrl = getBestAdImage(ad.creative as MetaCreative);
                 if ((!previewUrl || previewUrl.includes("p64x64")) && ad.creative?.id) {
@@ -489,52 +550,63 @@ Deno.serve(async (req) => {
                   if (hiRes) previewUrl = hiRes;
                 }
 
-                // Persist thumbnail to Supabase Storage
                 if (previewUrl) {
                   const persistedUrl = await persistThumbnailToStorage(supabaseAdmin, previewUrl, spaceId, ad.id);
                   if (persistedUrl) previewUrl = persistedUrl;
                 }
 
-                const adRecord = {
-                  space_id: spaceId,
-                  brand_ad_set_id: upsertedAdSet.id,
-                  ad_id: ad.id,
-                  ad_name: ad.name,
-                  status: ad.status,
-                  thumbnail_url: previewUrl,
-                  amount_spent: adMetrics?.spend || 0,
-                  reach: adInsight?.reach ? parseInt(adInsight.reach) : 0,
-                  impressions: adMetrics?.impressions || 0,
-                  frequency: adInsight?.frequency ? parseFloat(adInsight.frequency) : 0,
-                  cpm: adInsight?.cpm ? parseFloat(adInsight.cpm) : 0,
-                  cpc: adInsight?.cpc ? parseFloat(adInsight.cpc) : 0,
-                  ctr: adInsight?.ctr ? parseFloat(adInsight.ctr) : 0,
-                  clicks: adMetrics?.linkClicks || 0,
-                  thruplays: adMetrics?.thruplays || 0,
-                  thruplay_rate: adMetrics?.thruplayRate || 0,
-                  cost_per_thruplay: adInsight ? getCostValue(adInsight.cost_per_thruplay, "video_view") : 0,
-                  video_3s_plays: adMetrics?.video3sPlays || 0,
-                  view_rate_3s: adMetrics?.viewRate3s || 0,
-                  cost_per_3s_play: adMetrics?.costPer3sPlay || 0,
-                  engagement_rate: adMetrics?.engagementRate || 0,
-                  cpe: adMetrics?.cpe || 0,
-                  post_reactions: adMetrics?.postReactions || 0,
-                  post_comments: adMetrics?.postComments || 0,
-                  post_shares: adMetrics?.postShares || 0,
-                  post_saves: adMetrics?.postSaves || 0,
-                  link_clicks: adMetrics?.linkClicks || 0,
-                  date_start: adInsight?.date_start || null,
-                  date_stop: adInsight?.date_stop || null,
-                };
+                for (const adInsight of adInsightRows) {
+                  const adMetrics = calculateMetrics(adInsight);
+                  const publisherPlatform = adInsight.publisher_platform || "unknown";
+                  const parentAdSetId = adSetDbIds[publisherPlatform] || fallbackAdSetDbId;
 
-                const { error: adError } = await supabase
-                  .from("brand_ads")
-                  .upsert(adRecord, { onConflict: "space_id,ad_id" });
+                  if (!parentAdSetId) {
+                    errors.push(`Ad ${ad.id} [${publisherPlatform}]: no parent ad set found`);
+                    continue;
+                  }
 
-                if (adError) {
-                  errors.push(`Ad ${ad.id}: ${adError.message}`);
-                } else {
-                  importedAds++;
+                  const adRecord = {
+                    space_id: spaceId,
+                    brand_ad_set_id: parentAdSetId,
+                    ad_id: ad.id,
+                    ad_name: ad.name,
+                    status: ad.status,
+                    thumbnail_url: previewUrl,
+                    publisher_platform: publisherPlatform,
+                    amount_spent: adMetrics.spend,
+                    reach: adInsight.reach ? parseInt(adInsight.reach) : 0,
+                    impressions: adMetrics.impressions,
+                    frequency: adInsight.frequency ? parseFloat(adInsight.frequency) : 0,
+                    cpm: adInsight.cpm ? parseFloat(adInsight.cpm) : 0,
+                    cpc: adInsight.cpc ? parseFloat(adInsight.cpc) : 0,
+                    ctr: adInsight.ctr ? parseFloat(adInsight.ctr) : 0,
+                    clicks: adMetrics.linkClicks,
+                    thruplays: adMetrics.thruplays,
+                    thruplay_rate: adMetrics.thruplayRate,
+                    cost_per_thruplay: getCostValue(adInsight.cost_per_thruplay, "video_view"),
+                    video_3s_plays: adMetrics.video3sPlays,
+                    view_rate_3s: adMetrics.viewRate3s,
+                    cost_per_3s_play: adMetrics.costPer3sPlay,
+                    engagement_rate: adMetrics.engagementRate,
+                    cpe: adMetrics.cpe,
+                    post_reactions: adMetrics.postReactions,
+                    post_comments: adMetrics.postComments,
+                    post_shares: adMetrics.postShares,
+                    post_saves: adMetrics.postSaves,
+                    link_clicks: adMetrics.linkClicks,
+                    date_start: adInsight.date_start || null,
+                    date_stop: adInsight.date_stop || null,
+                  };
+
+                  const { error: adError } = await supabase
+                    .from("brand_ads")
+                    .upsert(adRecord, { onConflict: "space_id,ad_id,publisher_platform" });
+
+                  if (adError) {
+                    errors.push(`Ad ${ad.id} [${publisherPlatform}]: ${adError.message}`);
+                  } else {
+                    importedAds++;
+                  }
                 }
               } catch (adErr) {
                 errors.push(`Ad ${ad.id}: ${adErr instanceof Error ? adErr.message : "Unknown error"}`);
