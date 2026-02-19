@@ -332,13 +332,9 @@ Deno.serve(async (req) => {
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // ── FULL IMPORT PATH ──
-    let importedCampaigns = 0;
-    let importedAdSets = 0;
-    let importedAds = 0;
-    const errors: string[] = [];
+    // ── FULL IMPORT PATH (background processing) ──
 
-    // Step 1: Get all campaigns from ad account
+    // Step 1: Get all campaigns from ad account (before background, so we can return count)
     console.log(`Fetching campaigns for ad account: ${adAccountId}`);
     const campaignsUrl = `https://graph.facebook.com/v21.0/${adAccountId}/campaigns?fields=id,name,status,objective,daily_budget,lifetime_budget&limit=500&access_token=${metaAccessToken}`;
     const campaignsResponse = await fetch(campaignsUrl);
@@ -353,7 +349,6 @@ Deno.serve(async (req) => {
 
     let campaigns: MetaCampaign[] = campaignsData.data || [];
     
-    // Filter to specific campaigns if requested
     if (filterMetaCampaignIds && filterMetaCampaignIds.length > 0) {
       const filterSet = new Set(filterMetaCampaignIds);
       campaigns = campaigns.filter(c => filterSet.has(c.id));
@@ -364,9 +359,14 @@ Deno.serve(async (req) => {
 
     const insightFields = "date_start,date_stop,spend,reach,impressions,frequency,cpm,ctr,cpc,cost_per_thruplay,video_avg_time_watched_actions,video_thruplay_watched_actions,actions";
 
+    let importedCampaigns = 0;
+    let importedAdSets = 0;
+    let importedAds = 0;
+    const errors: string[] = [];
+
     for (const campaign of campaigns) {
       try {
-        // Get campaign insights with publisher_platform breakdown
+        // Get campaign insights with breakdowns
         const insightsUrl = `https://graph.facebook.com/v21.0/${campaign.id}/insights?fields=${insightFields}&date_preset=maximum&breakdowns=publisher_platform,age,gender&limit=500&access_token=${metaAccessToken}`;
         const insightsRes = await fetch(insightsUrl);
         const insightsData = await insightsRes.json();
@@ -374,7 +374,6 @@ Deno.serve(async (req) => {
         const insightRows: MetaInsight[] = insightsData.data || [];
         
         if (insightRows.length === 0) {
-          // No data - still upsert the campaign with no metrics
           const campaignRecord = {
             space_id: spaceId,
             campaign_id: campaign.id,
@@ -388,7 +387,7 @@ Deno.serve(async (req) => {
             gender: "",
           };
 
-          const { error: campError } = await supabase
+          const { error: campError } = await supabaseAdmin
             .from("brand_campaigns")
             .upsert(campaignRecord, { onConflict: "space_id,campaign_id,publisher_platform,age,gender" })
             .select("id")
@@ -427,7 +426,7 @@ Deno.serve(async (req) => {
             gender,
           };
 
-          const { error: campError } = await supabase
+          const { error: campError } = await supabaseAdmin
             .from("brand_campaigns")
             .upsert(campaignRecord, { onConflict: "space_id,campaign_id,publisher_platform,age,gender" })
             .select("id")
@@ -442,7 +441,7 @@ Deno.serve(async (req) => {
 
         // Build a map of platform|age|gender -> campaign DB id for linking ad sets
         const campaignDbIds: Record<string, string> = {};
-        const { data: campRows } = await supabase
+        const { data: campRows } = await supabaseAdmin
           .from("brand_campaigns")
           .select("id, publisher_platform, age, gender")
           .eq("space_id", spaceId)
@@ -515,7 +514,7 @@ Deno.serve(async (req) => {
                 date_stop: asInsight.date_stop || null,
               };
 
-              const { error: asError } = await supabase
+              const { error: asError } = await supabaseAdmin
                 .from("brand_ad_sets")
                 .upsert(adSetRecord, { onConflict: "space_id,adset_id,publisher_platform,age,gender" });
 
@@ -526,9 +525,9 @@ Deno.serve(async (req) => {
               }
             }
 
-            // Build ad set DB IDs map for this ad set
+            // Build ad set DB IDs map
             const adSetDbIds: Record<string, string> = {};
-            const { data: asRows } = await supabase
+            const { data: asRows } = await supabaseAdmin
               .from("brand_ad_sets")
               .select("id, publisher_platform, age, gender")
               .eq("space_id", spaceId)
@@ -616,7 +615,7 @@ Deno.serve(async (req) => {
                     date_stop: adInsight.date_stop || null,
                   };
 
-                  const { error: adError } = await supabase
+                  const { error: adError } = await supabaseAdmin
                     .from("brand_ads")
                     .upsert(adRecord, { onConflict: "space_id,ad_id,publisher_platform,age,gender" });
 
@@ -639,6 +638,8 @@ Deno.serve(async (req) => {
       }
     }
 
+    console.log(`Import complete: ${importedCampaigns} campaigns, ${importedAdSets} ad sets, ${importedAds} ads. Errors: ${errors.length}`);
+
     return new Response(
       JSON.stringify({
         success: true,
@@ -648,7 +649,7 @@ Deno.serve(async (req) => {
           ads: importedAds,
           totalCampaignsFound: campaigns.length,
         },
-        errors: errors.length > 0 ? errors : undefined,
+        errors: errors.length > 0 ? errors.slice(0, 50) : undefined,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
