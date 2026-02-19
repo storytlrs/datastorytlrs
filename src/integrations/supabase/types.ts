@@ -86,6 +86,7 @@ export type Database = {
         Row: {
           adset_id: string
           adset_name: string | null
+          age: string
           amount_spent: number | null
           brand_campaign_id: string
           clicks: number | null
@@ -100,6 +101,7 @@ export type Database = {
           date_stop: string | null
           engagement_rate: number | null
           frequency: number | null
+          gender: string
           id: string
           impressions: number | null
           publisher_platform: string | null
@@ -115,6 +117,7 @@ export type Database = {
         Insert: {
           adset_id: string
           adset_name?: string | null
+          age?: string
           amount_spent?: number | null
           brand_campaign_id: string
           clicks?: number | null
@@ -129,6 +132,7 @@ export type Database = {
           date_stop?: string | null
           engagement_rate?: number | null
           frequency?: number | null
+          gender?: string
           id?: string
           impressions?: number | null
           publisher_platform?: string | null
@@ -144,6 +148,7 @@ export type Database = {
         Update: {
           adset_id?: string
           adset_name?: string | null
+          age?: string
           amount_spent?: number | null
           brand_campaign_id?: string
           clicks?: number | null
@@ -158,6 +163,7 @@ export type Database = {
           date_stop?: string | null
           engagement_rate?: number | null
           frequency?: number | null
+          gender?: string
           id?: string
           impressions?: number | null
           publisher_platform?: string | null
@@ -191,6 +197,7 @@ export type Database = {
         Row: {
           ad_id: string
           ad_name: string | null
+          age: string
           amount_spent: number | null
           brand_ad_set_id: string
           clicks: number | null
@@ -205,6 +212,7 @@ export type Database = {
           date_stop: string | null
           engagement_rate: number | null
           frequency: number | null
+          gender: string
           id: string
           impressions: number | null
           link_clicks: number | null
@@ -226,6 +234,7 @@ export type Database = {
         Insert: {
           ad_id: string
           ad_name?: string | null
+          age?: string
           amount_spent?: number | null
           brand_ad_set_id: string
           clicks?: number | null
@@ -240,6 +249,7 @@ export type Database = {
           date_stop?: string | null
           engagement_rate?: number | null
           frequency?: number | null
+          gender?: string
           id?: string
           impressions?: number | null
           link_clicks?: number | null
@@ -261,6 +271,7 @@ export type Database = {
         Update: {
           ad_id?: string
           ad_name?: string | null
+          age?: string
           amount_spent?: number | null
           brand_ad_set_id?: string
           clicks?: number | null
@@ -275,6 +286,7 @@ export type Database = {
           date_stop?: string | null
           engagement_rate?: number | null
           frequency?: number | null
+          gender?: string
           id?: string
           impressions?: number | null
           link_clicks?: number | null
@@ -312,6 +324,7 @@ export type Database = {
       }
       brand_campaigns: {
         Row: {
+          age: string
           amount_spent: number | null
           campaign_id: string
           campaign_name: string | null
@@ -324,6 +337,7 @@ export type Database = {
           date_start: string | null
           date_stop: string | null
           frequency: number | null
+          gender: string
           id: string
           impressions: number | null
           lifetime_budget: number | null
@@ -335,6 +349,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          age?: string
           amount_spent?: number | null
           campaign_id: string
           campaign_name?: string | null
@@ -347,6 +362,7 @@ export type Database = {
           date_start?: string | null
           date_stop?: string | null
           frequency?: number | null
+          gender?: string
           id?: string
           impressions?: number | null
           lifetime_budget?: number | null
@@ -358,6 +374,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          age?: string
           amount_spent?: number | null
           campaign_id?: string
           campaign_name?: string | null
@@ -370,6 +387,7 @@ export type Database = {
           date_start?: string | null
           date_stop?: string | null
           frequency?: number | null
+          gender?: string
           id?: string
           impressions?: number | null
           lifetime_budget?: number | null

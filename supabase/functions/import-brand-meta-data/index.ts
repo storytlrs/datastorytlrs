@@ -38,6 +38,8 @@ interface MetaInsight {
   ctr?: string;
   cpc?: string;
   publisher_platform?: string;
+  age?: string;
+  gender?: string;
   cost_per_thruplay?: MetaCostAction[];
   video_avg_time_watched_actions?: MetaVideoAction[];
   video_thruplay_watched_actions?: MetaVideoAction[];
@@ -365,7 +367,7 @@ Deno.serve(async (req) => {
     for (const campaign of campaigns) {
       try {
         // Get campaign insights with publisher_platform breakdown
-        const insightsUrl = `https://graph.facebook.com/v21.0/${campaign.id}/insights?fields=${insightFields}&date_preset=maximum&breakdowns=publisher_platform&access_token=${metaAccessToken}`;
+        const insightsUrl = `https://graph.facebook.com/v21.0/${campaign.id}/insights?fields=${insightFields}&date_preset=maximum&breakdowns=publisher_platform,age,gender&limit=500&access_token=${metaAccessToken}`;
         const insightsRes = await fetch(insightsUrl);
         const insightsData = await insightsRes.json();
 
@@ -382,11 +384,13 @@ Deno.serve(async (req) => {
             daily_budget: campaign.daily_budget ? parseFloat(campaign.daily_budget) / 100 : null,
             lifetime_budget: campaign.lifetime_budget ? parseFloat(campaign.lifetime_budget) / 100 : null,
             publisher_platform: "unknown",
+            age: "",
+            gender: "",
           };
 
           const { error: campError } = await supabase
             .from("brand_campaigns")
-            .upsert(campaignRecord, { onConflict: "space_id,campaign_id,publisher_platform" })
+            .upsert(campaignRecord, { onConflict: "space_id,campaign_id,publisher_platform,age,gender" })
             .select("id")
             .single();
 
@@ -397,6 +401,8 @@ Deno.serve(async (req) => {
         for (const insight of insightRows) {
           const metrics = calculateMetrics(insight);
           const publisherPlatform = insight.publisher_platform || "unknown";
+          const age = insight.age || "";
+          const gender = insight.gender || "";
 
           const campaignRecord = {
             space_id: spaceId,
@@ -417,11 +423,13 @@ Deno.serve(async (req) => {
             date_start: insight.date_start || null,
             date_stop: insight.date_stop || null,
             publisher_platform: publisherPlatform,
+            age,
+            gender,
           };
 
           const { error: campError } = await supabase
             .from("brand_campaigns")
-            .upsert(campaignRecord, { onConflict: "space_id,campaign_id,publisher_platform" })
+            .upsert(campaignRecord, { onConflict: "space_id,campaign_id,publisher_platform,age,gender" })
             .select("id")
             .single();
 
@@ -432,18 +440,17 @@ Deno.serve(async (req) => {
           }
         }
 
-        // Build a map of publisher_platform -> campaign DB id for linking ad sets
+        // Build a map of platform|age|gender -> campaign DB id for linking ad sets
         const campaignDbIds: Record<string, string> = {};
-        // Re-fetch the campaign rows we just upserted to get their IDs
         const { data: campRows } = await supabase
           .from("brand_campaigns")
-          .select("id, publisher_platform")
+          .select("id, publisher_platform, age, gender")
           .eq("space_id", spaceId)
           .eq("campaign_id", campaign.id);
         for (const row of (campRows || [])) {
-          campaignDbIds[row.publisher_platform || "unknown"] = row.id;
+          const key = `${row.publisher_platform || "unknown"}|${row.age || ""}|${row.gender || ""}`;
+          campaignDbIds[key] = row.id;
         }
-        // Fallback: use any available campaign ID
         const fallbackCampaignDbId = Object.values(campaignDbIds)[0];
 
         // Step 2: Get ad sets for this campaign
@@ -460,7 +467,7 @@ Deno.serve(async (req) => {
 
         for (const adSet of adSets) {
           try {
-            const asInsightsUrl = `https://graph.facebook.com/v21.0/${adSet.id}/insights?fields=${insightFields}&date_preset=maximum&breakdowns=publisher_platform&access_token=${metaAccessToken}`;
+            const asInsightsUrl = `https://graph.facebook.com/v21.0/${adSet.id}/insights?fields=${insightFields}&date_preset=maximum&breakdowns=publisher_platform,age,gender&limit=500&access_token=${metaAccessToken}`;
             const asInsightsRes = await fetch(asInsightsUrl);
             const asInsightsData = await asInsightsRes.json();
 
@@ -469,7 +476,10 @@ Deno.serve(async (req) => {
             for (const asInsight of asInsightRows) {
               const asMetrics = calculateMetrics(asInsight);
               const publisherPlatform = asInsight.publisher_platform || "unknown";
-              const parentCampaignId = campaignDbIds[publisherPlatform] || fallbackCampaignDbId;
+              const age = asInsight.age || "";
+              const gender = asInsight.gender || "";
+              const parentKey = `${publisherPlatform}|${age}|${gender}`;
+              const parentCampaignId = campaignDbIds[parentKey] || campaignDbIds[`${publisherPlatform}||`] || fallbackCampaignDbId;
 
               if (!parentCampaignId) {
                 errors.push(`Ad Set ${adSet.id} [${publisherPlatform}]: no parent campaign found`);
@@ -483,6 +493,8 @@ Deno.serve(async (req) => {
                 adset_name: adSet.name,
                 status: adSet.status,
                 publisher_platform: publisherPlatform,
+                age,
+                gender,
                 amount_spent: asMetrics.spend,
                 reach: asInsight.reach ? parseInt(asInsight.reach) : 0,
                 impressions: asMetrics.impressions,
@@ -505,7 +517,7 @@ Deno.serve(async (req) => {
 
               const { error: asError } = await supabase
                 .from("brand_ad_sets")
-                .upsert(adSetRecord, { onConflict: "space_id,adset_id,publisher_platform" });
+                .upsert(adSetRecord, { onConflict: "space_id,adset_id,publisher_platform,age,gender" });
 
               if (asError) {
                 errors.push(`Ad Set ${adSet.id} [${publisherPlatform}]: ${asError.message}`);
@@ -518,11 +530,12 @@ Deno.serve(async (req) => {
             const adSetDbIds: Record<string, string> = {};
             const { data: asRows } = await supabase
               .from("brand_ad_sets")
-              .select("id, publisher_platform")
+              .select("id, publisher_platform, age, gender")
               .eq("space_id", spaceId)
               .eq("adset_id", adSet.id);
             for (const row of (asRows || [])) {
-              adSetDbIds[row.publisher_platform || "unknown"] = row.id;
+              const key = `${row.publisher_platform || "unknown"}|${row.age || ""}|${row.gender || ""}`;
+              adSetDbIds[key] = row.id;
             }
             const fallbackAdSetDbId = Object.values(adSetDbIds)[0];
 
@@ -538,7 +551,7 @@ Deno.serve(async (req) => {
 
             for (const ad of (adsData.data || [])) {
               try {
-                const adInsightsUrl = `https://graph.facebook.com/v21.0/${ad.id}/insights?fields=${insightFields}&date_preset=maximum&breakdowns=publisher_platform&access_token=${metaAccessToken}`;
+                const adInsightsUrl = `https://graph.facebook.com/v21.0/${ad.id}/insights?fields=${insightFields}&date_preset=maximum&breakdowns=publisher_platform,age,gender&limit=500&access_token=${metaAccessToken}`;
                 const adInsightsRes = await fetch(adInsightsUrl);
                 const adInsightsData = await adInsightsRes.json();
 
@@ -558,7 +571,10 @@ Deno.serve(async (req) => {
                 for (const adInsight of adInsightRows) {
                   const adMetrics = calculateMetrics(adInsight);
                   const publisherPlatform = adInsight.publisher_platform || "unknown";
-                  const parentAdSetId = adSetDbIds[publisherPlatform] || fallbackAdSetDbId;
+                  const age = adInsight.age || "";
+                  const gender = adInsight.gender || "";
+                  const parentKey = `${publisherPlatform}|${age}|${gender}`;
+                  const parentAdSetId = adSetDbIds[parentKey] || adSetDbIds[`${publisherPlatform}||`] || fallbackAdSetDbId;
 
                   if (!parentAdSetId) {
                     errors.push(`Ad ${ad.id} [${publisherPlatform}]: no parent ad set found`);
@@ -573,6 +589,8 @@ Deno.serve(async (req) => {
                     status: ad.status,
                     thumbnail_url: previewUrl,
                     publisher_platform: publisherPlatform,
+                    age,
+                    gender,
                     amount_spent: adMetrics.spend,
                     reach: adInsight.reach ? parseInt(adInsight.reach) : 0,
                     impressions: adMetrics.impressions,
@@ -600,7 +618,7 @@ Deno.serve(async (req) => {
 
                   const { error: adError } = await supabase
                     .from("brand_ads")
-                    .upsert(adRecord, { onConflict: "space_id,ad_id,publisher_platform" });
+                    .upsert(adRecord, { onConflict: "space_id,ad_id,publisher_platform,age,gender" });
 
                   if (adError) {
                     errors.push(`Ad ${ad.id} [${publisherPlatform}]: ${adError.message}`);
