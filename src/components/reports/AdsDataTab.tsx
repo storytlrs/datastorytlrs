@@ -491,24 +491,30 @@ export const AdsDataTab = ({ reportId, spaceId, onImportSuccess, embedded = fals
     { key: "budget", label: "Budget", type: "number", width: "120px", editable: false, format: (val: number) => formatCurrencySimple(val, "CZK") },
   ];
 
-  // Initialize column orders from localStorage
+  // Merge new column keys into a stored list (appends any missing keys)
+  const mergeKeys = (stored: string[], allKeys: string[]) => {
+    const missing = allKeys.filter(k => !stored.includes(k));
+    return missing.length > 0 ? [...stored, ...missing] : stored;
+  };
+
+  // Initialize column orders from localStorage, merging in any new columns
   useEffect(() => {
     if (campaignColOrder.length === 0) {
       const defaultKeys = allCampaignColumns.map(c => c.key);
-      setCampaignColOrder(loadAdsStorage("campaigns", "order", defaultKeys));
+      setCampaignColOrder(mergeKeys(loadAdsStorage("campaigns", "order", defaultKeys), defaultKeys));
     }
     if (adSetColOrder.length === 0) {
       const defaultKeys = allAdSetsColumns.map(c => c.key);
-      setAdSetColOrder(loadAdsStorage("adsets", "order", defaultKeys));
+      setAdSetColOrder(mergeKeys(loadAdsStorage("adsets", "order", defaultKeys), defaultKeys));
     }
     if (adsColOrder.length === 0) {
       const defaultKeys = allAdsColumns.map(c => c.key);
-      setAdsColOrder(loadAdsStorage("ads", "order", defaultKeys));
+      setAdsColOrder(mergeKeys(loadAdsStorage("ads", "order", defaultKeys), defaultKeys));
     }
     if (mediaPlanColOrder.length === 0) {
       const defaultKeys = mediaPlanColumns.map(c => c.key);
-      setMediaPlanColOrder(loadAdsStorage("mediaplan", "order", defaultKeys));
-      setMediaPlanVisibleCols(loadAdsStorage("mediaplan", "visible", defaultKeys));
+      setMediaPlanColOrder(mergeKeys(loadAdsStorage("mediaplan", "order", defaultKeys), defaultKeys));
+      setMediaPlanVisibleCols(mergeKeys(loadAdsStorage("mediaplan", "visible", defaultKeys), defaultKeys));
     }
   }, []);
 
