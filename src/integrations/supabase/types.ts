@@ -102,6 +102,7 @@ export type Database = {
           frequency: number | null
           id: string
           impressions: number | null
+          publisher_platform: string | null
           reach: number | null
           space_id: string
           status: string | null
@@ -130,6 +131,7 @@ export type Database = {
           frequency?: number | null
           id?: string
           impressions?: number | null
+          publisher_platform?: string | null
           reach?: number | null
           space_id: string
           status?: string | null
@@ -158,6 +160,7 @@ export type Database = {
           frequency?: number | null
           id?: string
           impressions?: number | null
+          publisher_platform?: string | null
           reach?: number | null
           space_id?: string
           status?: string | null
@@ -209,6 +212,7 @@ export type Database = {
           post_reactions: number | null
           post_saves: number | null
           post_shares: number | null
+          publisher_platform: string | null
           reach: number | null
           space_id: string
           status: string | null
@@ -243,6 +247,7 @@ export type Database = {
           post_reactions?: number | null
           post_saves?: number | null
           post_shares?: number | null
+          publisher_platform?: string | null
           reach?: number | null
           space_id: string
           status?: string | null
@@ -277,6 +282,7 @@ export type Database = {
           post_reactions?: number | null
           post_saves?: number | null
           post_shares?: number | null
+          publisher_platform?: string | null
           reach?: number | null
           space_id?: string
           status?: string | null
@@ -322,6 +328,7 @@ export type Database = {
           impressions: number | null
           lifetime_budget: number | null
           objective: string | null
+          publisher_platform: string | null
           reach: number | null
           space_id: string
           status: string | null
@@ -344,6 +351,7 @@ export type Database = {
           impressions?: number | null
           lifetime_budget?: number | null
           objective?: string | null
+          publisher_platform?: string | null
           reach?: number | null
           space_id: string
           status?: string | null
@@ -366,6 +374,7 @@ export type Database = {
           impressions?: number | null
           lifetime_budget?: number | null
           objective?: string | null
+          publisher_platform?: string | null
           reach?: number | null
           space_id?: string
           status?: string | null
