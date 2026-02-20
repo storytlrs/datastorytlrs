@@ -357,7 +357,10 @@ Deno.serve(async (req) => {
       console.log(`Found ${campaigns.length} campaigns`);
     }
 
-    const insightFields = "date_start,date_stop,spend,reach,impressions,frequency,cpm,ctr,cpc,cost_per_thruplay,video_avg_time_watched_actions,video_thruplay_watched_actions,actions";
+    // Fields that work WITH breakdowns (no action_breakdowns needed)
+    const breakdownInsightFields = "date_start,date_stop,spend,reach,impressions,frequency,cpm,ctr,cpc,cost_per_thruplay,video_avg_time_watched_actions,video_thruplay_watched_actions";
+    // Full fields including actions (cannot be combined with breakdowns)
+    const fullInsightFields = "date_start,date_stop,spend,reach,impressions,frequency,cpm,ctr,cpc,cost_per_thruplay,video_avg_time_watched_actions,video_thruplay_watched_actions,actions";
 
     let importedCampaigns = 0;
     let importedAdSets = 0;
@@ -366,16 +369,25 @@ Deno.serve(async (req) => {
 
     for (const campaign of campaigns) {
       try {
-        // Get campaign insights with breakdowns
-        const insightsUrl = `https://graph.facebook.com/v21.0/${campaign.id}/insights?fields=${insightFields}&date_preset=maximum&breakdowns=publisher_platform,age,gender&limit=500&access_token=${metaAccessToken}`;
-        const insightsRes = await fetch(insightsUrl);
-        const insightsData = await insightsRes.json();
+        // Step 1a: Get campaign insights WITH breakdowns (no actions field)
+        const breakdownUrl = `https://graph.facebook.com/v21.0/${campaign.id}/insights?fields=${breakdownInsightFields}&date_preset=maximum&breakdowns=publisher_platform,age,gender&limit=500&access_token=${metaAccessToken}`;
+        const breakdownRes = await fetch(breakdownUrl);
+        const breakdownData = await breakdownRes.json();
 
-        const insightRows: MetaInsight[] = insightsData.data || [];
-        console.log(`Campaign ${campaign.id} insights: ${insightRows.length} rows. First row sample:`, insightRows.length > 0 ? JSON.stringify({ publisher_platform: insightRows[0].publisher_platform, age: insightRows[0].age, gender: insightRows[0].gender, keys: Object.keys(insightRows[0]) }) : 'none');
+        const breakdownRows: MetaInsight[] = breakdownData.data || [];
+        console.log(`Campaign ${campaign.id} breakdown insights: ${breakdownRows.length} rows`);
+        if (breakdownRows.length > 0) {
+          console.log(`First row sample:`, JSON.stringify({ publisher_platform: breakdownRows[0].publisher_platform, age: breakdownRows[0].age, gender: breakdownRows[0].gender }));
+        }
         
-        if (insightRows.length === 0) {
-          const campaignRecord = {
+        if (breakdownRows.length === 0) {
+          // No breakdown data — try without breakdowns to get at least basic metrics
+          const basicUrl = `https://graph.facebook.com/v21.0/${campaign.id}/insights?fields=${fullInsightFields}&date_preset=maximum&limit=500&access_token=${metaAccessToken}`;
+          const basicRes = await fetch(basicUrl);
+          const basicData = await basicRes.json();
+          const basicRows: MetaInsight[] = basicData.data || [];
+
+          const campaignRecord: Record<string, unknown> = {
             space_id: spaceId,
             campaign_id: campaign.id,
             campaign_name: campaign.name,
@@ -388,6 +400,22 @@ Deno.serve(async (req) => {
             gender: "",
           };
 
+          if (basicRows.length > 0) {
+            const metrics = calculateMetrics(basicRows[0]);
+            Object.assign(campaignRecord, {
+              amount_spent: metrics.spend,
+              reach: basicRows[0].reach ? parseInt(basicRows[0].reach) : 0,
+              impressions: metrics.impressions,
+              frequency: basicRows[0].frequency ? parseFloat(basicRows[0].frequency) : 0,
+              cpm: basicRows[0].cpm ? parseFloat(basicRows[0].cpm) : 0,
+              cpc: basicRows[0].cpc ? parseFloat(basicRows[0].cpc) : 0,
+              ctr: basicRows[0].ctr ? parseFloat(basicRows[0].ctr) : 0,
+              clicks: metrics.linkClicks,
+              date_start: basicRows[0].date_start || null,
+              date_stop: basicRows[0].date_stop || null,
+            });
+          }
+
           const { error: campError } = await supabaseAdmin
             .from("brand_campaigns")
             .upsert(campaignRecord, { onConflict: "space_id,campaign_id,publisher_platform,age,gender" })
@@ -398,7 +426,7 @@ Deno.serve(async (req) => {
           else importedCampaigns++;
         }
 
-        for (const insight of insightRows) {
+        for (const insight of breakdownRows) {
           const metrics = calculateMetrics(insight);
           const publisherPlatform = insight.publisher_platform || "unknown";
           const age = insight.age || "";
@@ -470,7 +498,7 @@ Deno.serve(async (req) => {
 
         for (const adSet of adSets) {
           try {
-            const asInsightsUrl = `https://graph.facebook.com/v21.0/${adSet.id}/insights?fields=${insightFields}&date_preset=maximum&breakdowns=publisher_platform,age,gender&limit=500&access_token=${metaAccessToken}`;
+            const asInsightsUrl = `https://graph.facebook.com/v21.0/${adSet.id}/insights?fields=${breakdownInsightFields}&date_preset=maximum&breakdowns=publisher_platform,age,gender&limit=500&access_token=${metaAccessToken}`;
             const asInsightsRes = await fetch(asInsightsUrl);
             const asInsightsData = await asInsightsRes.json();
 
@@ -573,7 +601,7 @@ Deno.serve(async (req) => {
 
             for (const ad of (adsData.data || [])) {
               try {
-                const adInsightsUrl = `https://graph.facebook.com/v21.0/${ad.id}/insights?fields=${insightFields}&date_preset=maximum&breakdowns=publisher_platform,age,gender&limit=500&access_token=${metaAccessToken}`;
+                const adInsightsUrl = `https://graph.facebook.com/v21.0/${ad.id}/insights?fields=${breakdownInsightFields}&date_preset=maximum&breakdowns=publisher_platform,age,gender&limit=500&access_token=${metaAccessToken}`;
                 const adInsightsRes = await fetch(adInsightsUrl);
                 const adInsightsData = await adInsightsRes.json();
 
