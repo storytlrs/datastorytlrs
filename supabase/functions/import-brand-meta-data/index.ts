@@ -372,6 +372,7 @@ Deno.serve(async (req) => {
         const insightsData = await insightsRes.json();
 
         const insightRows: MetaInsight[] = insightsData.data || [];
+        console.log(`Campaign ${campaign.id} insights: ${insightRows.length} rows. First row sample:`, insightRows.length > 0 ? JSON.stringify({ publisher_platform: insightRows[0].publisher_platform, age: insightRows[0].age, gender: insightRows[0].gender, keys: Object.keys(insightRows[0]) }) : 'none');
         
         if (insightRows.length === 0) {
           const campaignRecord = {
