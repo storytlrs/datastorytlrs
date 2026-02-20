@@ -369,13 +369,23 @@ Deno.serve(async (req) => {
 
     for (const campaign of campaigns) {
       try {
-        // Step 1a: Get campaign insights WITH breakdowns (no actions field)
-        const breakdownUrl = `https://graph.facebook.com/v21.0/${campaign.id}/insights?fields=${breakdownInsightFields}&date_preset=maximum&breakdowns=publisher_platform,age,gender&limit=500&access_token=${metaAccessToken}`;
-        const breakdownRes = await fetch(breakdownUrl);
-        const breakdownData = await breakdownRes.json();
+        // Step 1a: Try with full breakdowns first (publisher_platform, age, gender)
+        const fullBreakdownUrl = `https://graph.facebook.com/v21.0/${campaign.id}/insights?fields=${breakdownInsightFields}&date_preset=maximum&breakdowns=publisher_platform,age,gender&limit=500&access_token=${metaAccessToken}`;
+        const fullBreakdownRes = await fetch(fullBreakdownUrl);
+        const fullBreakdownData = await fullBreakdownRes.json();
 
-        const breakdownRows: MetaInsight[] = breakdownData.data || [];
-        console.log(`Campaign ${campaign.id} breakdown insights: ${breakdownRows.length} rows`);
+        let breakdownRows: MetaInsight[] = fullBreakdownData.data || [];
+        console.log(`Campaign ${campaign.id} full breakdown (platform+age+gender): ${breakdownRows.length} rows`, fullBreakdownData.error ? `Error: ${fullBreakdownData.error.message}` : '');
+
+        // If full breakdown fails or returns 0, try with just publisher_platform
+        if (breakdownRows.length === 0) {
+          const platformOnlyUrl = `https://graph.facebook.com/v21.0/${campaign.id}/insights?fields=${breakdownInsightFields}&date_preset=maximum&breakdowns=publisher_platform&limit=500&access_token=${metaAccessToken}`;
+          const platformOnlyRes = await fetch(platformOnlyUrl);
+          const platformOnlyData = await platformOnlyRes.json();
+          breakdownRows = platformOnlyData.data || [];
+          console.log(`Campaign ${campaign.id} platform-only breakdown: ${breakdownRows.length} rows`);
+        }
+
         if (breakdownRows.length > 0) {
           console.log(`First row sample:`, JSON.stringify({ publisher_platform: breakdownRows[0].publisher_platform, age: breakdownRows[0].age, gender: breakdownRows[0].gender }));
         }
@@ -498,11 +508,19 @@ Deno.serve(async (req) => {
 
         for (const adSet of adSets) {
           try {
-            const asInsightsUrl = `https://graph.facebook.com/v21.0/${adSet.id}/insights?fields=${breakdownInsightFields}&date_preset=maximum&breakdowns=publisher_platform,age,gender&limit=500&access_token=${metaAccessToken}`;
-            const asInsightsRes = await fetch(asInsightsUrl);
-            const asInsightsData = await asInsightsRes.json();
+            let asInsightsUrl = `https://graph.facebook.com/v21.0/${adSet.id}/insights?fields=${breakdownInsightFields}&date_preset=maximum&breakdowns=publisher_platform,age,gender&limit=500&access_token=${metaAccessToken}`;
+            let asInsightsRes = await fetch(asInsightsUrl);
+            let asInsightsData = await asInsightsRes.json();
 
-            const asInsightRows: MetaInsight[] = asInsightsData.data || [];
+            let asInsightRows: MetaInsight[] = asInsightsData.data || [];
+            
+            // If full breakdown returns 0, try platform-only
+            if (asInsightRows.length === 0) {
+              asInsightsUrl = `https://graph.facebook.com/v21.0/${adSet.id}/insights?fields=${breakdownInsightFields}&date_preset=maximum&breakdowns=publisher_platform&limit=500&access_token=${metaAccessToken}`;
+              asInsightsRes = await fetch(asInsightsUrl);
+              asInsightsData = await asInsightsRes.json();
+              asInsightRows = asInsightsData.data || [];
+            }
 
             if (asInsightRows.length === 0) {
               // No breakdown data — create a single record without breakdowns
@@ -601,11 +619,19 @@ Deno.serve(async (req) => {
 
             for (const ad of (adsData.data || [])) {
               try {
-                const adInsightsUrl = `https://graph.facebook.com/v21.0/${ad.id}/insights?fields=${breakdownInsightFields}&date_preset=maximum&breakdowns=publisher_platform,age,gender&limit=500&access_token=${metaAccessToken}`;
-                const adInsightsRes = await fetch(adInsightsUrl);
-                const adInsightsData = await adInsightsRes.json();
+                let adInsightsUrl = `https://graph.facebook.com/v21.0/${ad.id}/insights?fields=${breakdownInsightFields}&date_preset=maximum&breakdowns=publisher_platform,age,gender&limit=500&access_token=${metaAccessToken}`;
+                let adInsightsRes = await fetch(adInsightsUrl);
+                let adInsightsData = await adInsightsRes.json();
 
-                const adInsightRows: MetaInsight[] = adInsightsData.data || [];
+                let adInsightRows: MetaInsight[] = adInsightsData.data || [];
+                
+                // If full breakdown returns 0, try platform-only
+                if (adInsightRows.length === 0) {
+                  adInsightsUrl = `https://graph.facebook.com/v21.0/${ad.id}/insights?fields=${breakdownInsightFields}&date_preset=maximum&breakdowns=publisher_platform&limit=500&access_token=${metaAccessToken}`;
+                  adInsightsRes = await fetch(adInsightsUrl);
+                  adInsightsData = await adInsightsRes.json();
+                  adInsightRows = adInsightsData.data || [];
+                }
 
                 let previewUrl = getBestAdImage(ad.creative as MetaCreative);
                 if ((!previewUrl || previewUrl.includes("p64x64")) && ad.creative?.id) {
