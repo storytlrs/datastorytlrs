@@ -454,15 +454,18 @@ Deno.serve(async (req) => {
 
         // Step 2: Get ad sets for this campaign
         const adSetsUrl = `https://graph.facebook.com/v21.0/${campaign.id}/adsets?fields=id,name,status&limit=500&access_token=${metaAccessToken}`;
+        console.log(`Fetching ad sets for campaign ${campaign.id} (${campaign.name})`);
         const adSetsRes = await fetch(adSetsUrl);
         const adSetsData = await adSetsRes.json();
 
         if (adSetsData.error) {
+          console.error(`Ad sets error for campaign ${campaign.id}: ${adSetsData.error.message}`);
           errors.push(`Ad sets for campaign ${campaign.id}: ${adSetsData.error.message}`);
           continue;
         }
 
         const adSets = adSetsData.data || [];
+        console.log(`Found ${adSets.length} ad sets for campaign ${campaign.id}`);
 
         for (const adSet of adSets) {
           try {
@@ -471,6 +474,25 @@ Deno.serve(async (req) => {
             const asInsightsData = await asInsightsRes.json();
 
             const asInsightRows: MetaInsight[] = asInsightsData.data || [];
+
+            if (asInsightRows.length === 0) {
+              // No breakdown data — create a single record without breakdowns
+              const adSetRecord = {
+                space_id: spaceId,
+                brand_campaign_id: fallbackCampaignDbId,
+                adset_id: adSet.id,
+                adset_name: adSet.name,
+                status: adSet.status,
+                publisher_platform: "unknown",
+                age: "",
+                gender: "",
+              };
+              const { error: asError } = await supabaseAdmin
+                .from("brand_ad_sets")
+                .upsert(adSetRecord, { onConflict: "space_id,adset_id,publisher_platform,age,gender" });
+              if (asError) errors.push(`Ad Set ${adSet.id}: ${asError.message}`);
+              else importedAdSets++;
+            }
 
             for (const asInsight of asInsightRows) {
               const asMetrics = calculateMetrics(asInsight);
@@ -565,6 +587,28 @@ Deno.serve(async (req) => {
                 if (previewUrl) {
                   const persistedUrl = await persistThumbnailToStorage(supabaseAdmin, previewUrl, spaceId, ad.id);
                   if (persistedUrl) previewUrl = persistedUrl;
+                }
+
+                if (adInsightRows.length === 0) {
+                  // No breakdown data — create a single record without breakdowns
+                  const adRecord = {
+                    space_id: spaceId,
+                    brand_ad_set_id: fallbackAdSetDbId,
+                    ad_id: ad.id,
+                    ad_name: ad.name,
+                    status: ad.status,
+                    thumbnail_url: previewUrl,
+                    publisher_platform: "unknown",
+                    age: "",
+                    gender: "",
+                  };
+                  if (fallbackAdSetDbId) {
+                    const { error: adError } = await supabaseAdmin
+                      .from("brand_ads")
+                      .upsert(adRecord, { onConflict: "space_id,ad_id,publisher_platform,age,gender" });
+                    if (adError) errors.push(`Ad ${ad.id}: ${adError.message}`);
+                    else importedAds++;
+                  }
                 }
 
                 for (const adInsight of adInsightRows) {
