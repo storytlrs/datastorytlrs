@@ -60,7 +60,9 @@ export const CampaignSelectorStep = ({
       let metaQuery = supabase
         .from("brand_campaigns")
         .select("id, campaign_id, campaign_name, objective, status, date_start, date_stop")
-        .eq("space_id", spaceId);
+        .eq("space_id", spaceId)
+        .eq("age", "")
+        .eq("gender", "");
 
       if (startDate) {
         metaQuery = metaQuery.or(`date_stop.gte.${format(startDate, "yyyy-MM-dd")},date_stop.is.null`);
@@ -69,11 +71,18 @@ export const CampaignSelectorStep = ({
         metaQuery = metaQuery.or(`date_start.lte.${format(endDate, "yyyy-MM-dd")},date_start.is.null`);
       }
 
-      const { data: metaData, error: metaError } = await metaQuery.order("campaign_name", { ascending: true, nullsFirst: false });
+      const { data: metaRaw, error: metaError } = await metaQuery.order("campaign_name", { ascending: true, nullsFirst: false });
 
-      if (!metaError && metaData) {
+      if (!metaError && metaRaw) {
+        // Deduplicate by campaign_id — pick the first row per campaign
+        const seen = new Set<string>();
+        const dedupedMeta = metaRaw.filter((c) => {
+          if (seen.has(c.campaign_id)) return false;
+          seen.add(c.campaign_id);
+          return true;
+        });
         allCampaigns.push(
-          ...metaData.map((c) => ({
+          ...dedupedMeta.map((c) => ({
             id: c.id,
             campaign_id: c.campaign_id,
             campaign_name: c.campaign_name,
