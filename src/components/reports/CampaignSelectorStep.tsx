@@ -212,7 +212,7 @@ export const CampaignSelectorStep = ({
                       value={getDisplayName(campaign)}
                       onSelect={() => toggleCampaign(campaign)}
                       className={cn(
-                        "data-[selected='true']:bg-accent data-[selected='true']:text-accent-foreground",
+                        "data-[selected='true']:bg-muted data-[selected='true']:text-foreground",
                         isSelected && "!bg-foreground !text-background"
                       )}
                     >
