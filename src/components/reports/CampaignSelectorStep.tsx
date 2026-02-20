@@ -212,7 +212,8 @@ export const CampaignSelectorStep = ({
                       value={getDisplayName(campaign)}
                       onSelect={() => toggleCampaign(campaign)}
                       className={cn(
-                        isSelected && "bg-foreground text-background"
+                        "data-[selected='true']:bg-accent data-[selected='true']:text-accent-foreground",
+                        isSelected && "!bg-foreground !text-background"
                       )}
                     >
                       <Check
