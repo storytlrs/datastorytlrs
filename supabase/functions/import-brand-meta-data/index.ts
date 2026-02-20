@@ -369,29 +369,30 @@ Deno.serve(async (req) => {
 
     for (const campaign of campaigns) {
       try {
-        // Step 1a: Try with full breakdowns first (publisher_platform, age, gender)
-        const fullBreakdownUrl = `https://graph.facebook.com/v21.0/${campaign.id}/insights?fields=${breakdownInsightFields}&date_preset=maximum&breakdowns=publisher_platform,age,gender&limit=500&access_token=${metaAccessToken}`;
-        const fullBreakdownRes = await fetch(fullBreakdownUrl);
-        const fullBreakdownData = await fullBreakdownRes.json();
+        // Step 1a: Get campaign insights with publisher_platform breakdown
+        const platformUrl = `https://graph.facebook.com/v21.0/${campaign.id}/insights?fields=${breakdownInsightFields}&date_preset=maximum&breakdowns=publisher_platform&limit=500&access_token=${metaAccessToken}`;
+        const platformRes = await fetch(platformUrl);
+        const platformData = await platformRes.json();
+        const platformRows: MetaInsight[] = platformData.data || [];
+        console.log(`Campaign ${campaign.id} platform breakdown: ${platformRows.length} rows`);
 
-        let breakdownRows: MetaInsight[] = fullBreakdownData.data || [];
-        console.log(`Campaign ${campaign.id} full breakdown (platform+age+gender): ${breakdownRows.length} rows`, fullBreakdownData.error ? `Error: ${fullBreakdownData.error.message}` : '');
-
-        // If full breakdown fails or returns 0, try with just publisher_platform
-        if (breakdownRows.length === 0) {
-          const platformOnlyUrl = `https://graph.facebook.com/v21.0/${campaign.id}/insights?fields=${breakdownInsightFields}&date_preset=maximum&breakdowns=publisher_platform&limit=500&access_token=${metaAccessToken}`;
-          const platformOnlyRes = await fetch(platformOnlyUrl);
-          const platformOnlyData = await platformOnlyRes.json();
-          breakdownRows = platformOnlyData.data || [];
-          console.log(`Campaign ${campaign.id} platform-only breakdown: ${breakdownRows.length} rows`);
+        // Step 1b: Get campaign insights with age,gender breakdown
+        const ageGenderUrl = `https://graph.facebook.com/v21.0/${campaign.id}/insights?fields=${breakdownInsightFields}&date_preset=maximum&breakdowns=age,gender&limit=500&access_token=${metaAccessToken}`;
+        const ageGenderRes = await fetch(ageGenderUrl);
+        const ageGenderData = await ageGenderRes.json();
+        let ageGenderRows: MetaInsight[] = ageGenderData.data || [];
+        // Handle pagination for age,gender breakdown
+        let nextPageUrl = ageGenderData.paging?.next;
+        while (nextPageUrl) {
+          const nextRes = await fetch(nextPageUrl);
+          const nextData = await nextRes.json();
+          ageGenderRows = ageGenderRows.concat(nextData.data || []);
+          nextPageUrl = nextData.paging?.next;
         }
+        console.log(`Campaign ${campaign.id} age+gender breakdown: ${ageGenderRows.length} rows`);
 
-        if (breakdownRows.length > 0) {
-          console.log(`First row sample:`, JSON.stringify({ publisher_platform: breakdownRows[0].publisher_platform, age: breakdownRows[0].age, gender: breakdownRows[0].gender }));
-        }
-        
-        if (breakdownRows.length === 0) {
-          // No breakdown data — try without breakdowns to get at least basic metrics
+        // If neither breakdown returns data, fall back to basic query
+        if (platformRows.length === 0 && ageGenderRows.length === 0) {
           const basicUrl = `https://graph.facebook.com/v21.0/${campaign.id}/insights?fields=${fullInsightFields}&date_preset=maximum&limit=500&access_token=${metaAccessToken}`;
           const basicRes = await fetch(basicUrl);
           const basicData = await basicRes.json();
@@ -436,9 +437,47 @@ Deno.serve(async (req) => {
           else importedCampaigns++;
         }
 
-        for (const insight of breakdownRows) {
+        // Save platform breakdown rows (age="" gender="")
+        for (const insight of platformRows) {
           const metrics = calculateMetrics(insight);
           const publisherPlatform = insight.publisher_platform || "unknown";
+
+          const campaignRecord = {
+            space_id: spaceId,
+            campaign_id: campaign.id,
+            campaign_name: campaign.name,
+            status: campaign.status,
+            objective: campaign.objective || null,
+            daily_budget: campaign.daily_budget ? parseFloat(campaign.daily_budget) / 100 : null,
+            lifetime_budget: campaign.lifetime_budget ? parseFloat(campaign.lifetime_budget) / 100 : null,
+            amount_spent: metrics.spend,
+            reach: insight.reach ? parseInt(insight.reach) : 0,
+            impressions: metrics.impressions,
+            frequency: insight.frequency ? parseFloat(insight.frequency) : 0,
+            cpm: insight.cpm ? parseFloat(insight.cpm) : 0,
+            cpc: insight.cpc ? parseFloat(insight.cpc) : 0,
+            ctr: insight.ctr ? parseFloat(insight.ctr) : 0,
+            clicks: metrics.linkClicks,
+            date_start: insight.date_start || null,
+            date_stop: insight.date_stop || null,
+            publisher_platform: publisherPlatform,
+            age: "",
+            gender: "",
+          };
+
+          const { error: campError } = await supabaseAdmin
+            .from("brand_campaigns")
+            .upsert(campaignRecord, { onConflict: "space_id,campaign_id,publisher_platform,age,gender" })
+            .select("id")
+            .single();
+
+          if (campError) errors.push(`Campaign ${campaign.id} [${publisherPlatform}]: ${campError.message}`);
+          else importedCampaigns++;
+        }
+
+        // Save age+gender breakdown rows (publisher_platform="all")
+        for (const insight of ageGenderRows) {
+          const metrics = calculateMetrics(insight);
           const age = insight.age || "";
           const gender = insight.gender || "";
 
@@ -460,7 +499,7 @@ Deno.serve(async (req) => {
             clicks: metrics.linkClicks,
             date_start: insight.date_start || null,
             date_stop: insight.date_stop || null,
-            publisher_platform: publisherPlatform,
+            publisher_platform: "all",
             age,
             gender,
           };
@@ -471,11 +510,8 @@ Deno.serve(async (req) => {
             .select("id")
             .single();
 
-          if (campError) {
-            errors.push(`Campaign ${campaign.id} [${publisherPlatform}]: ${campError.message}`);
-          } else {
-            importedCampaigns++;
-          }
+          if (campError) errors.push(`Campaign ${campaign.id} [${age}/${gender}]: ${campError.message}`);
+          else importedCampaigns++;
         }
 
         // Build a map of platform|age|gender -> campaign DB id for linking ad sets
