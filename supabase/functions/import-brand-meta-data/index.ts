@@ -544,21 +544,29 @@ Deno.serve(async (req) => {
 
         for (const adSet of adSets) {
           try {
-            let asInsightsUrl = `https://graph.facebook.com/v21.0/${adSet.id}/insights?fields=${breakdownInsightFields}&date_preset=maximum&breakdowns=publisher_platform,age,gender&limit=500&access_token=${metaAccessToken}`;
-            let asInsightsRes = await fetch(asInsightsUrl);
-            let asInsightsData = await asInsightsRes.json();
+            // Step 2a: Get ad set insights with publisher_platform breakdown
+            const asPlatformUrl = `https://graph.facebook.com/v21.0/${adSet.id}/insights?fields=${breakdownInsightFields}&date_preset=maximum&breakdowns=publisher_platform&limit=500&access_token=${metaAccessToken}`;
+            const asPlatformRes = await fetch(asPlatformUrl);
+            const asPlatformData = await asPlatformRes.json();
+            const asPlatformRows: MetaInsight[] = asPlatformData.data || [];
 
-            let asInsightRows: MetaInsight[] = asInsightsData.data || [];
-            
-            // If full breakdown returns 0, try platform-only
-            if (asInsightRows.length === 0) {
-              asInsightsUrl = `https://graph.facebook.com/v21.0/${adSet.id}/insights?fields=${breakdownInsightFields}&date_preset=maximum&breakdowns=publisher_platform&limit=500&access_token=${metaAccessToken}`;
-              asInsightsRes = await fetch(asInsightsUrl);
-              asInsightsData = await asInsightsRes.json();
-              asInsightRows = asInsightsData.data || [];
+            // Step 2b: Get ad set insights with age,gender breakdown
+            const asAgeGenderUrl = `https://graph.facebook.com/v21.0/${adSet.id}/insights?fields=${breakdownInsightFields}&date_preset=maximum&breakdowns=age,gender&limit=500&access_token=${metaAccessToken}`;
+            const asAgeGenderRes = await fetch(asAgeGenderUrl);
+            const asAgeGenderData = await asAgeGenderRes.json();
+            let asAgeGenderRows: MetaInsight[] = asAgeGenderData.data || [];
+            // Handle pagination
+            let asNextPage = asAgeGenderData.paging?.next;
+            while (asNextPage) {
+              const nextRes = await fetch(asNextPage);
+              const nextData = await nextRes.json();
+              asAgeGenderRows = asAgeGenderRows.concat(nextData.data || []);
+              asNextPage = nextData.paging?.next;
             }
 
-            if (asInsightRows.length === 0) {
+            console.log(`Ad Set ${adSet.id}: platform=${asPlatformRows.length}, age+gender=${asAgeGenderRows.length}`);
+
+            if (asPlatformRows.length === 0 && asAgeGenderRows.length === 0) {
               // No breakdown data — create a single record without breakdowns
               const adSetRecord = {
                 space_id: spaceId,
@@ -577,13 +585,12 @@ Deno.serve(async (req) => {
               else importedAdSets++;
             }
 
-            for (const asInsight of asInsightRows) {
+            // Save platform breakdown rows (age="" gender="")
+            for (const asInsight of asPlatformRows) {
               const asMetrics = calculateMetrics(asInsight);
               const publisherPlatform = asInsight.publisher_platform || "unknown";
-              const age = asInsight.age || "";
-              const gender = asInsight.gender || "";
-              const parentKey = `${publisherPlatform}|${age}|${gender}`;
-              const parentCampaignId = campaignDbIds[parentKey] || campaignDbIds[`${publisherPlatform}||`] || fallbackCampaignDbId;
+              const parentKey = `${publisherPlatform}||`;
+              const parentCampaignId = campaignDbIds[parentKey] || fallbackCampaignDbId;
 
               if (!parentCampaignId) {
                 errors.push(`Ad Set ${adSet.id} [${publisherPlatform}]: no parent campaign found`);
@@ -597,6 +604,56 @@ Deno.serve(async (req) => {
                 adset_name: adSet.name,
                 status: adSet.status,
                 publisher_platform: publisherPlatform,
+                age: "",
+                gender: "",
+                amount_spent: asMetrics.spend,
+                reach: asInsight.reach ? parseInt(asInsight.reach) : 0,
+                impressions: asMetrics.impressions,
+                frequency: asInsight.frequency ? parseFloat(asInsight.frequency) : 0,
+                cpm: asInsight.cpm ? parseFloat(asInsight.cpm) : 0,
+                cpc: asInsight.cpc ? parseFloat(asInsight.cpc) : 0,
+                ctr: asInsight.ctr ? parseFloat(asInsight.ctr) : 0,
+                clicks: asMetrics.linkClicks,
+                thruplays: asMetrics.thruplays,
+                thruplay_rate: asMetrics.thruplayRate,
+                cost_per_thruplay: getCostValue(asInsight.cost_per_thruplay, "video_view"),
+                video_3s_plays: asMetrics.video3sPlays,
+                view_rate_3s: asMetrics.viewRate3s,
+                cost_per_3s_play: asMetrics.costPer3sPlay,
+                engagement_rate: asMetrics.engagementRate,
+                cpe: asMetrics.cpe,
+                date_start: asInsight.date_start || null,
+                date_stop: asInsight.date_stop || null,
+              };
+
+              const { error: asError } = await supabaseAdmin
+                .from("brand_ad_sets")
+                .upsert(adSetRecord, { onConflict: "space_id,adset_id,publisher_platform,age,gender" });
+
+              if (asError) errors.push(`Ad Set ${adSet.id} [${publisherPlatform}]: ${asError.message}`);
+              else importedAdSets++;
+            }
+
+            // Save age+gender breakdown rows (publisher_platform="all")
+            for (const asInsight of asAgeGenderRows) {
+              const asMetrics = calculateMetrics(asInsight);
+              const age = asInsight.age || "";
+              const gender = asInsight.gender || "";
+              const parentKey = `all|${age}|${gender}`;
+              const parentCampaignId = campaignDbIds[parentKey] || campaignDbIds[`all||`] || fallbackCampaignDbId;
+
+              if (!parentCampaignId) {
+                errors.push(`Ad Set ${adSet.id} [${age}/${gender}]: no parent campaign found`);
+                continue;
+              }
+
+              const adSetRecord = {
+                space_id: spaceId,
+                brand_campaign_id: parentCampaignId,
+                adset_id: adSet.id,
+                adset_name: adSet.name,
+                status: adSet.status,
+                publisher_platform: "all",
                 age,
                 gender,
                 amount_spent: asMetrics.spend,
@@ -623,11 +680,8 @@ Deno.serve(async (req) => {
                 .from("brand_ad_sets")
                 .upsert(adSetRecord, { onConflict: "space_id,adset_id,publisher_platform,age,gender" });
 
-              if (asError) {
-                errors.push(`Ad Set ${adSet.id} [${publisherPlatform}]: ${asError.message}`);
-              } else {
-                importedAdSets++;
-              }
+              if (asError) errors.push(`Ad Set ${adSet.id} [${age}/${gender}]: ${asError.message}`);
+              else importedAdSets++;
             }
 
             // Build ad set DB IDs map
@@ -655,20 +709,6 @@ Deno.serve(async (req) => {
 
             for (const ad of (adsData.data || [])) {
               try {
-                let adInsightsUrl = `https://graph.facebook.com/v21.0/${ad.id}/insights?fields=${breakdownInsightFields}&date_preset=maximum&breakdowns=publisher_platform,age,gender&limit=500&access_token=${metaAccessToken}`;
-                let adInsightsRes = await fetch(adInsightsUrl);
-                let adInsightsData = await adInsightsRes.json();
-
-                let adInsightRows: MetaInsight[] = adInsightsData.data || [];
-                
-                // If full breakdown returns 0, try platform-only
-                if (adInsightRows.length === 0) {
-                  adInsightsUrl = `https://graph.facebook.com/v21.0/${ad.id}/insights?fields=${breakdownInsightFields}&date_preset=maximum&breakdowns=publisher_platform&limit=500&access_token=${metaAccessToken}`;
-                  adInsightsRes = await fetch(adInsightsUrl);
-                  adInsightsData = await adInsightsRes.json();
-                  adInsightRows = adInsightsData.data || [];
-                }
-
                 let previewUrl = getBestAdImage(ad.creative as MetaCreative);
                 if ((!previewUrl || previewUrl.includes("p64x64")) && ad.creative?.id) {
                   const hiRes = await getHiResCreativeThumbnail(ad.creative.id, metaAccessToken);
@@ -680,8 +720,26 @@ Deno.serve(async (req) => {
                   if (persistedUrl) previewUrl = persistedUrl;
                 }
 
-                if (adInsightRows.length === 0) {
-                  // No breakdown data — create a single record without breakdowns
+                // Step 3a: Get ad insights with publisher_platform breakdown
+                const adPlatformUrl = `https://graph.facebook.com/v21.0/${ad.id}/insights?fields=${breakdownInsightFields}&date_preset=maximum&breakdowns=publisher_platform&limit=500&access_token=${metaAccessToken}`;
+                const adPlatformRes = await fetch(adPlatformUrl);
+                const adPlatformData = await adPlatformRes.json();
+                const adPlatformRows: MetaInsight[] = adPlatformData.data || [];
+
+                // Step 3b: Get ad insights with age,gender breakdown
+                const adAgeGenderUrl = `https://graph.facebook.com/v21.0/${ad.id}/insights?fields=${breakdownInsightFields}&date_preset=maximum&breakdowns=age,gender&limit=500&access_token=${metaAccessToken}`;
+                const adAgeGenderRes = await fetch(adAgeGenderUrl);
+                const adAgeGenderData = await adAgeGenderRes.json();
+                let adAgeGenderRows: MetaInsight[] = adAgeGenderData.data || [];
+                let adNextPage = adAgeGenderData.paging?.next;
+                while (adNextPage) {
+                  const nextRes = await fetch(adNextPage);
+                  const nextData = await nextRes.json();
+                  adAgeGenderRows = adAgeGenderRows.concat(nextData.data || []);
+                  adNextPage = nextData.paging?.next;
+                }
+
+                if (adPlatformRows.length === 0 && adAgeGenderRows.length === 0) {
                   const adRecord = {
                     space_id: spaceId,
                     brand_ad_set_id: fallbackAdSetDbId,
@@ -702,13 +760,12 @@ Deno.serve(async (req) => {
                   }
                 }
 
-                for (const adInsight of adInsightRows) {
+                // Save platform breakdown rows (age="" gender="")
+                for (const adInsight of adPlatformRows) {
                   const adMetrics = calculateMetrics(adInsight);
                   const publisherPlatform = adInsight.publisher_platform || "unknown";
-                  const age = adInsight.age || "";
-                  const gender = adInsight.gender || "";
-                  const parentKey = `${publisherPlatform}|${age}|${gender}`;
-                  const parentAdSetId = adSetDbIds[parentKey] || adSetDbIds[`${publisherPlatform}||`] || fallbackAdSetDbId;
+                  const parentKey = `${publisherPlatform}||`;
+                  const parentAdSetId = adSetDbIds[parentKey] || fallbackAdSetDbId;
 
                   if (!parentAdSetId) {
                     errors.push(`Ad ${ad.id} [${publisherPlatform}]: no parent ad set found`);
@@ -723,6 +780,62 @@ Deno.serve(async (req) => {
                     status: ad.status,
                     thumbnail_url: previewUrl,
                     publisher_platform: publisherPlatform,
+                    age: "",
+                    gender: "",
+                    amount_spent: adMetrics.spend,
+                    reach: adInsight.reach ? parseInt(adInsight.reach) : 0,
+                    impressions: adMetrics.impressions,
+                    frequency: adInsight.frequency ? parseFloat(adInsight.frequency) : 0,
+                    cpm: adInsight.cpm ? parseFloat(adInsight.cpm) : 0,
+                    cpc: adInsight.cpc ? parseFloat(adInsight.cpc) : 0,
+                    ctr: adInsight.ctr ? parseFloat(adInsight.ctr) : 0,
+                    clicks: adMetrics.linkClicks,
+                    thruplays: adMetrics.thruplays,
+                    thruplay_rate: adMetrics.thruplayRate,
+                    cost_per_thruplay: getCostValue(adInsight.cost_per_thruplay, "video_view"),
+                    video_3s_plays: adMetrics.video3sPlays,
+                    view_rate_3s: adMetrics.viewRate3s,
+                    cost_per_3s_play: adMetrics.costPer3sPlay,
+                    engagement_rate: adMetrics.engagementRate,
+                    cpe: adMetrics.cpe,
+                    post_reactions: adMetrics.postReactions,
+                    post_comments: adMetrics.postComments,
+                    post_shares: adMetrics.postShares,
+                    post_saves: adMetrics.postSaves,
+                    link_clicks: adMetrics.linkClicks,
+                    date_start: adInsight.date_start || null,
+                    date_stop: adInsight.date_stop || null,
+                  };
+
+                  const { error: adError } = await supabaseAdmin
+                    .from("brand_ads")
+                    .upsert(adRecord, { onConflict: "space_id,ad_id,publisher_platform,age,gender" });
+
+                  if (adError) errors.push(`Ad ${ad.id} [${publisherPlatform}]: ${adError.message}`);
+                  else importedAds++;
+                }
+
+                // Save age+gender breakdown rows (publisher_platform="all")
+                for (const adInsight of adAgeGenderRows) {
+                  const adMetrics = calculateMetrics(adInsight);
+                  const age = adInsight.age || "";
+                  const gender = adInsight.gender || "";
+                  const parentKey = `all|${age}|${gender}`;
+                  const parentAdSetId = adSetDbIds[parentKey] || adSetDbIds[`all||`] || fallbackAdSetDbId;
+
+                  if (!parentAdSetId) {
+                    errors.push(`Ad ${ad.id} [${age}/${gender}]: no parent ad set found`);
+                    continue;
+                  }
+
+                  const adRecord = {
+                    space_id: spaceId,
+                    brand_ad_set_id: parentAdSetId,
+                    ad_id: ad.id,
+                    ad_name: ad.name,
+                    status: ad.status,
+                    thumbnail_url: previewUrl,
+                    publisher_platform: "all",
                     age,
                     gender,
                     amount_spent: adMetrics.spend,
@@ -754,11 +867,8 @@ Deno.serve(async (req) => {
                     .from("brand_ads")
                     .upsert(adRecord, { onConflict: "space_id,ad_id,publisher_platform,age,gender" });
 
-                  if (adError) {
-                    errors.push(`Ad ${ad.id} [${publisherPlatform}]: ${adError.message}`);
-                  } else {
-                    importedAds++;
-                  }
+                  if (adError) errors.push(`Ad ${ad.id} [${age}/${gender}]: ${adError.message}`);
+                  else importedAds++;
                 }
               } catch (adErr) {
                 errors.push(`Ad ${ad.id}: ${adErr instanceof Error ? adErr.message : "Unknown error"}`);
