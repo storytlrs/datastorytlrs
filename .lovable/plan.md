@@ -1,44 +1,36 @@
 
 
-# Fix Chart Rendering and Grid Layout in AI Insights
+# Fix Vertical Gaps in AI Insights Tile Grid
 
-## Problems
-
-1. **Charts are empty**: `ResponsiveContainer` with `height="100%"` requires a parent with a computed pixel height. The current `flex-1` parent has no explicit height, so Recharts renders at 0px.
-
-2. **Uneven grid gaps**: The fixed `grid-cols-3` layout with `col-span-2` for large tiles creates orphan cells and visual gaps between rows of mixed-size tiles.
+## Problem
+CSS Grid aligns items in rows, so when tiles have different heights, the row height matches the tallest tile, leaving vertical gaps below shorter tiles. `items-start` prevents stretching but the empty space remains in the row.
 
 ## Solution
+Replace CSS Grid with CSS `columns` layout for a true masonry effect. This flows items top-to-bottom, left-to-right, eliminating vertical gaps entirely.
 
-### 1. Fix chart rendering (`InsightTile.tsx`)
+## Changes
 
-Replace the `flex-1` chart wrapper with an explicit height container. Use a fixed height (e.g., `h-[180px]`) for the chart area instead of relying on flex growth. This guarantees `ResponsiveContainer` gets a measurable parent.
+### `src/components/brands/BrandAIInsights.tsx`
+- Replace the `grid` container with a `columns-1 md:columns-2 lg:columns-3 gap-4` container
+- Each tile wrapper gets `break-inside-avoid mb-4` instead of grid column span classes
 
-### 2. Switch to masonry-style auto-flow layout (`BrandAIInsights.tsx`)
+### `src/components/brands/InsightTile.tsx`
+- Update `getTileSizeClass`: for "large" tiles, return `md:col-span-2` is no longer relevant in columns layout. Large tiles will simply span the full column width (they already do). Remove the helper or keep it as a no-op since columns layout doesn't support spanning multiple columns.
 
-Replace the rigid 3-column grid with `grid-auto-rows` approach:
-- Use `grid-cols-1 md:grid-cols-2 lg:grid-cols-3` with `auto-rows-auto` (default)
-- Remove the wrapper `<div>` around each tile so grid item sizing works directly
-- Each tile card will size itself based on content (no fixed row heights forcing gaps)
+**Trade-off**: CSS columns layout doesn't support multi-column spanning (large tiles spanning 2 columns). Large tiles will render at single-column width but with more content. This is acceptable because it eliminates vertical gaps entirely and keeps the layout tight.
 
-### 3. Tile size adjustments (`InsightTile.tsx`)
+### Technical detail
+```
+// Before (grid with gaps)
+<div className="grid grid-cols-3 gap-4 items-start">
 
-Update `getTileSizeClass` to return proper classes:
-- `small`: default (1 col)
-- `medium`: default (1 col)  
-- `large`: `md:col-span-2` (spans 2 cols on medium+)
+// After (columns, no vertical gaps)
+<div className="columns-1 md:columns-2 lg:columns-3 gap-4 space-y-4">
+```
 
-Remove `min-h` from metric and content_preview cards so they fit their content naturally without forcing uniform row heights.
+Each tile wrapper becomes just `<div className="break-inside-avoid">`.
 
 ## Files to modify
-
-1. **`src/components/brands/InsightTile.tsx`**
-   - Chart container: replace `flex-1` with `h-[180px]` explicit height
-   - Remove `min-h-[200px]` from chart card (content height is now explicit)
-   - Remove `min-h-[120px]` from metric and content_preview cards
-   - Adjust `getTileSizeClass`: large = `md:col-span-2`
-
-2. **`src/components/brands/BrandAIInsights.tsx`**
-   - Move `getTileSizeClass` className directly onto the wrapper div
-   - Add `items-start` to the grid to prevent stretch alignment (tiles only take the height they need)
+1. `src/components/brands/BrandAIInsights.tsx` -- switch to columns layout
+2. `src/components/brands/InsightTile.tsx` -- simplify `getTileSizeClass`
 
