@@ -44,3 +44,6 @@ verify_jwt = true
 
 [functions.generate-space-ai-insights]
 verify_jwt = false
+
+[functions.translate-text]
+verify_jwt = false
