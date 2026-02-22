@@ -15,6 +15,7 @@ import { MonthlyAdsInsightsContent, MonthlyStructuredInsights } from "./MonthlyA
 import { QuarterlyAdsInsightsContent, QuarterlyStructuredInsights } from "./QuarterlyAdsInsightsContent";
 import { YearlyAdsInsightsContent, YearlyStructuredInsights } from "./YearlyAdsInsightsContent";
 import { CampaignAdsInsightsContent, CampaignStructuredInsights } from "./CampaignAdsInsightsContent";
+import { useT } from "@/lib/translations";
 
 interface AdsAIInsightsTabProps {
   reportId: string;
@@ -22,6 +23,7 @@ interface AdsAIInsightsTabProps {
 
 export const AdsAIInsightsTab = ({ reportId }: AdsAIInsightsTabProps) => {
   const { canEdit } = useUserRole();
+  const t = useT();
   const contentRef = useRef<HTMLDivElement>(null);
   const pdfRef = useRef<HTMLDivElement>(null);
   const [aiInsights, setAiInsights] = useState("");
@@ -86,7 +88,7 @@ export const AdsAIInsightsTab = ({ reportId }: AdsAIInsightsTabProps) => {
       }
     } catch (error) {
       console.error("Error fetching report data:", error);
-      toast.error("Nepodařilo se načíst data");
+      toast.error(t("Nepodařilo se načíst data"));
     } finally {
       setIsLoading(false);
     }
@@ -103,9 +105,9 @@ export const AdsAIInsightsTab = ({ reportId }: AdsAIInsightsTabProps) => {
 
       if (data.error) {
         if (data.error.includes("Rate limit")) {
-          toast.error("Příliš mnoho požadavků. Zkuste to prosím později.");
+          toast.error(t("Příliš mnoho požadavků. Zkuste to prosím později."));
         } else if (data.error.includes("Payment required")) {
-          toast.error("Nedostatek kreditů. Doplňte prosím kredity ve workspace.");
+          toast.error(t("Nedostatek kreditů. Doplňte prosím kredity ve workspace."));
         } else {
           throw new Error(data.error);
         }
@@ -122,11 +124,11 @@ export const AdsAIInsightsTab = ({ reportId }: AdsAIInsightsTabProps) => {
         setEffectivenessParagraph(data.effectiveness_summary || "");
       }
 
-      toast.success("AI Insights vygenerovány úspěšně!");
+      toast.success(t("AI Insights vygenerovány úspěšně!"));
       setIsInputDialogOpen(false);
     } catch (error) {
       console.error("Error generating AI insights:", error);
-      toast.error("Nepodařilo se vygenerovat AI Insights");
+      toast.error(t("Nepodařilo se vygenerovat AI Insights"));
     } finally {
       setIsGenerating(false);
     }
@@ -134,7 +136,7 @@ export const AdsAIInsightsTab = ({ reportId }: AdsAIInsightsTabProps) => {
 
   const handleRegenerate = async () => {
     if (!structuredData?.campaign_context) {
-      toast.error("Chybí kontext kampaně. Použijte 'Generate AI Insights'.");
+      toast.error(t("Chybí kontext kampaně. Použijte 'Generate AI Insights'."));
       return;
     }
     await handleGenerateInsights(structuredData.campaign_context);
@@ -168,10 +170,10 @@ export const AdsAIInsightsTab = ({ reportId }: AdsAIInsightsTabProps) => {
       pdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, pdfHeight);
       pdf.save(`ads-insights-${new Date().toISOString().split("T")[0]}.pdf`);
 
-      toast.success("PDF exportováno úspěšně!");
+      toast.success(t("PDF exportováno úspěšně!"));
     } catch (error) {
       console.error("Error exporting PDF:", error);
-      toast.error("Nepodařilo se exportovat PDF");
+      toast.error(t("Nepodařilo se exportovat PDF"));
     } finally {
       setIsPdfMode(false);
       setIsExporting(false);
@@ -187,10 +189,10 @@ export const AdsAIInsightsTab = ({ reportId }: AdsAIInsightsTabProps) => {
         .eq("id", reportId);
 
       if (error) throw error;
-      toast.success("AI Insights uloženy");
+      toast.success(t("AI Insights uloženy"));
     } catch (error) {
       console.error("Error saving:", error);
-      toast.error("Nepodařilo se uložit");
+      toast.error(t("Nepodařilo se uložit"));
     } finally {
       setIsSaving(false);
     }
@@ -237,7 +239,7 @@ export const AdsAIInsightsTab = ({ reportId }: AdsAIInsightsTabProps) => {
               Export PDF
             </Button>
             {canEdit && (
-              <Button onClick={handleRegenerate} disabled={isGenerating} variant="outline" className="rounded-[35px] border-foreground" title="Regenerovat AI Insights s existujícím kontextem">
+              <Button onClick={handleRegenerate} disabled={isGenerating} variant="outline" className="rounded-[35px] border-foreground" title={t("Regenerovat AI Insights s existujícím kontextem")}>
                 {isGenerating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
                 Regenerate
               </Button>
@@ -363,7 +365,7 @@ export const AdsAIInsightsTab = ({ reportId }: AdsAIInsightsTabProps) => {
         {!structuredData && (
           <div className="mb-6 p-4 bg-muted/50 rounded-[20px] border border-muted-foreground/20">
             <p className="text-sm text-muted-foreground">
-              Klikněte na "Generate AI Insights" pro vygenerování AI analýzy ads kampaně.
+              {t("Klikněte na \"Generate AI Insights\" pro vygenerování AI analýzy ads kampaně.")}
             </p>
           </div>
         )}
@@ -371,17 +373,17 @@ export const AdsAIInsightsTab = ({ reportId }: AdsAIInsightsTabProps) => {
         <div className="space-y-4">
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label htmlFor="aiInsights">Obsah AI Insights (raw)</Label>
+              <Label htmlFor="aiInsights">{t("Obsah AI Insights (raw)")}</Label>
               <div className="flex items-center gap-2">
                 {canEdit && structuredData && (
                   <Button onClick={() => setIsEditing(false)} variant="ghost" size="sm" className="rounded-[35px]">
-                    <Eye className="w-4 h-4 mr-2" /> Strukturovaný náhled
+                    <Eye className="w-4 h-4 mr-2" /> {t("Strukturovaný náhled")}
                   </Button>
                 )}
                 {canEdit && (
                   <Button onClick={handleSaveInsights} disabled={isSaving} variant="outline" size="sm" className="rounded-[35px] border-foreground">
                     {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-                    Uložit změny
+                    {t("Uložit změny")}
                   </Button>
                 )}
               </div>

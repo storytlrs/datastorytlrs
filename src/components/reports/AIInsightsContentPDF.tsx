@@ -274,7 +274,7 @@ export const AIInsightsContentPDF = forwardRef<HTMLDivElement, AIInsightsContent
 
       {/* Campaign Overview */}
       <Card className="p-4 rounded-[20px] border-foreground" style={{ backgroundColor: '#E9E9E9' }}>
-        <h2 className="text-lg font-bold mb-2">Základní přehled kampaně</h2>
+        <h2 className="text-lg font-bold mb-2">Campaign Overview</h2>
         {overviewSummary && (
           <p className="text-xs leading-relaxed mb-3">{overviewSummary}</p>
         )}
@@ -312,7 +312,7 @@ export const AIInsightsContentPDF = forwardRef<HTMLDivElement, AIInsightsContent
 
       {/* Innovation Metrics */}
       <Card className="p-4 rounded-[20px] border-foreground" style={{ backgroundColor: '#E9E9E9' }}>
-        <h2 className="text-lg font-bold mb-2">Inovativní a kvalitativní metriky</h2>
+        <h2 className="text-lg font-bold mb-2">Innovation & Qualitative Metrics</h2>
         {innovationSummary && (
           <p className="text-xs leading-relaxed mb-3">{innovationSummary}</p>
         )}
@@ -349,7 +349,7 @@ export const AIInsightsContentPDF = forwardRef<HTMLDivElement, AIInsightsContent
 
       {/* Sentiment */}
       <Card className="p-4 rounded-[20px] border-foreground" style={{ backgroundColor: '#E9E9E9' }}>
-        <h2 className="text-lg font-bold mb-2">Sentiment kampaně</h2>
+        <h2 className="text-lg font-bold mb-2">Campaign Sentiment</h2>
         {sentimentSummary && (
           <p className="text-xs leading-relaxed mb-3">{sentimentSummary}</p>
         )}

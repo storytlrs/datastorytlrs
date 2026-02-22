@@ -18,6 +18,7 @@ import {
 import { AIInsightsInputDialog, CampaignContext } from "./AIInsightsInputDialog";
 import { AIInsightsContent } from "./AIInsightsContent";
 import { AIInsightsContentPDF } from "./AIInsightsContentPDF";
+import { useT } from "@/lib/translations";
 interface AIInsightsTabProps {
   reportId: string;
 }
@@ -97,6 +98,7 @@ interface StructuredInsights {
 
 export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
   const { isAdmin, canEdit } = useUserRole();
+  const t = useT();
   const contentRef = useRef<HTMLDivElement>(null);
   const pdfRef = useRef<HTMLDivElement>(null);
   const [aiInsights, setAiInsights] = useState<string>("");
@@ -168,7 +170,7 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
       });
     } catch (error) {
       console.error("Error fetching report data:", error);
-      toast.error("Nepodařilo se načíst data");
+      toast.error(t("Nepodařilo se načíst data"));
     } finally {
       setIsLoading(false);
     }
@@ -186,9 +188,9 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
 
       if (data.error) {
         if (data.error.includes("Rate limit")) {
-          toast.error("Příliš mnoho požadavků. Zkuste to prosím později.");
+          toast.error(t("Příliš mnoho požadavků. Zkuste to prosím později."));
         } else if (data.error.includes("Payment required")) {
-          toast.error("Nedostatek kreditů. Doplňte prosím kredity ve workspace.");
+          toast.error(t("Nedostatek kreditů. Doplňte prosím kredity ve workspace."));
         } else {
           throw new Error(data.error);
         }
@@ -201,11 +203,11 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
       setSentimentParagraph(data.sentiment_paragraph || "");
       setAiInsights(data.structured_data?.executive_summary || "");
       
-      toast.success("AI Insights vygenerovány úspěšně!");
+      toast.success(t("AI Insights vygenerovány úspěšně!"));
       setIsInputDialogOpen(false);
     } catch (error) {
       console.error("Error generating AI insights:", error);
-      toast.error("Nepodařilo se vygenerovat AI Insights");
+      toast.error(t("Nepodařilo se vygenerovat AI Insights"));
     } finally {
       setIsGenerating(false);
     }
@@ -213,7 +215,7 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
 
   const handleRegenerate = async () => {
     if (!structuredData?.campaign_context) {
-      toast.error("Chybí kontext kampaně. Použijte 'Generate AI Insights' pro první generování.");
+      toast.error(t("Chybí kontext kampaně. Použijte 'Generate AI Insights' pro první generování."));
       return;
     }
     await handleGenerateInsights(structuredData.campaign_context);
@@ -284,10 +286,10 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
       // Step 6: Save
       pdf.save(`insights-report-${new Date().toISOString().split('T')[0]}.pdf`);
       
-      toast.success("PDF exportováno úspěšně!");
+      toast.success(t("PDF exportováno úspěšně!"));
     } catch (error) {
       console.error("Error exporting PDF:", error);
-      toast.error("Nepodařilo se exportovat PDF");
+      toast.error(t("Nepodařilo se exportovat PDF"));
     } finally {
       setIsPdfMode(false);
       setIsExporting(false);
@@ -303,10 +305,10 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
         .eq("id", reportId);
 
       if (error) throw error;
-      toast.success("AI Insights uloženy");
+      toast.success(t("AI Insights uloženy"));
     } catch (error) {
       console.error("Error saving AI insights:", error);
-      toast.error("Nepodařilo se uložit AI Insights");
+      toast.error(t("Nepodařilo se uložit AI Insights"));
     } finally {
       setIsSaving(false);
     }
@@ -364,7 +366,7 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
                 disabled={isGenerating}
                 variant="outline"
                 className="rounded-[35px] border-foreground"
-                title="Regenerovat AI Insights s existujícím kontextem"
+                title={t("Regenerovat AI Insights s existujícím kontextem")}
               >
                 {isGenerating ? (
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -433,7 +435,7 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
         {!structuredData && (
           <div className="mb-6 p-4 bg-muted/50 rounded-[20px] border border-muted-foreground/20">
             <p className="text-sm text-muted-foreground">
-              Klikněte na "Generate AI Insights" pro vygenerování AI analýzy kampaně.
+              {t("Klikněte na \"Generate AI Insights\" pro vygenerování AI analýzy kampaně.")}
             </p>
           </div>
         )}
@@ -442,7 +444,7 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
         <div className="space-y-4">
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label htmlFor="aiInsights">Obsah AI Insights (raw)</Label>
+              <Label htmlFor="aiInsights">{t("Obsah AI Insights (raw)")}</Label>
               <div className="flex items-center gap-2">
                 {canEdit && structuredData && (
                   <Button
@@ -452,7 +454,7 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
                     className="rounded-[35px]"
                   >
                     <Eye className="w-4 h-4 mr-2" />
-                    Strukturovaný náhled
+                    {t("Strukturovaný náhled")}
                   </Button>
                 )}
                 {canEdit && (
@@ -468,7 +470,7 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
                     ) : (
                       <Save className="w-4 h-4 mr-2" />
                     )}
-                    Uložit změny
+                    {t("Uložit změny")}
                   </Button>
                 )}
               </div>

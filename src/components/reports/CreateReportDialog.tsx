@@ -39,6 +39,7 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { parseFile, type ParsedFile } from "./import/fileParser";
+import { useT } from "@/lib/translations";
 import { ColumnMappingStep } from "./import/ColumnMappingStep";
 import { ImportReviewStep } from "./import/ImportReviewStep";
 import { parseMappingTarget, MAPPING_FIELDS } from "./import/mappingConfig";
@@ -61,7 +62,7 @@ const reportTypeOptions = [
   { value: "always_on", label: "Always-on content" },
 ];
 
-const periodOptions = [
+const periodOptionsCZ = [
   { value: "campaign", label: "Campaign" },
   { value: "monthly", label: "Měsíční" },
   { value: "quarterly", label: "Kvartální" },
@@ -76,6 +77,7 @@ const CreateReportDialog = ({
 }: CreateReportDialogProps) => {
   const navigate = useNavigate();
   const { isAdmin } = useUserRole();
+  const t = useT();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
 
@@ -460,9 +462,9 @@ const CreateReportDialog = ({
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="bg-background border-foreground">
-              {periodOptions.map((option) => (
+              {periodOptionsCZ.map((option) => (
                 <SelectItem key={option.value} value={option.value}>
-                  {option.label}
+                  {t(option.label)}
                 </SelectItem>
               ))}
             </SelectContent>
