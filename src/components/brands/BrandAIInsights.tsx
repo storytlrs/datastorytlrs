@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { InsightTile, TileData } from "./InsightTile";
+import { InsightTile, TileData, getTileSizeClass } from "./InsightTile";
 import { useUserRole } from "@/hooks/useUserRole";
 import { toast } from "sonner";
 import { RefreshCw, Sparkles } from "lucide-react";
@@ -147,7 +147,9 @@ const BrandAIInsights = ({ spaceId }: BrandAIInsightsProps) => {
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {tiles.map((tile, index) => (
-          <InsightTile key={index} tile={tile} />
+          <div key={index} className={getTileSizeClass(tile.size)}>
+            <InsightTile tile={tile} />
+          </div>
         ))}
       </div>
     </div>

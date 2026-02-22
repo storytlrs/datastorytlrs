@@ -27,7 +27,7 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    // Fetch all reports for this space
+    // Fetch all active reports for this space
     const { data: reports } = await supabase
       .from("reports")
       .select("id, name, type, status, start_date, end_date, period")
@@ -43,12 +43,13 @@ serve(async (req) => {
       campaignsResult,
       tiktokCampaignsResult,
       promoCodesResult,
+      kpiTargetsResult,
     ] = await Promise.all([
       reportIds.length > 0
         ? supabase
             .from("content")
             .select(
-              "id, content_type, platform, views, impressions, likes, comments, shares, saves, engagement_rate, reach, url, thumbnail_url, creator_id, report_id, published_date, cost, cpm, cpv"
+              "id, content_type, platform, views, impressions, likes, comments, shares, saves, reposts, engagement_rate, reach, url, thumbnail_url, creator_id, report_id, published_date, cost, cpm, cpv, watch_time, avg_watch_time, sentiment"
             )
             .in("report_id", reportIds)
             .limit(500)
@@ -57,7 +58,7 @@ serve(async (req) => {
         ? supabase
             .from("creators")
             .select(
-              "id, handle, platform, followers, avg_engagement_rate, avg_reach, avg_views, posts_count, reels_count, stories_count, avatar_url, report_id"
+              "id, handle, platform, followers, avg_engagement_rate, avg_reach, avg_views, posts_count, reels_count, stories_count, posts_cost, reels_cost, stories_cost, avatar_url, report_id"
             )
             .in("report_id", reportIds)
             .limit(200)
@@ -84,9 +85,16 @@ serve(async (req) => {
       reportIds.length > 0
         ? supabase
             .from("promo_codes")
-            .select("id, code, clicks, purchases, revenue, conversion_rate, creator_id")
+            .select("id, code, clicks, purchases, revenue, conversion_rate, creator_id, report_id")
             .in("report_id", reportIds)
             .limit(100)
+        : { data: [] },
+      reportIds.length > 0
+        ? supabase
+            .from("kpi_targets")
+            .select("id, report_id, kpi_name, planned_value, actual_value, unit")
+            .in("report_id", reportIds)
+            .limit(200)
         : { data: [] },
     ]);
 
@@ -95,38 +103,128 @@ serve(async (req) => {
     const campaigns = campaignsResult.data || [];
     const tiktokCampaigns = tiktokCampaignsResult.data || [];
     const promoCodes = promoCodesResult.data || [];
+    const kpiTargets = kpiTargetsResult.data || [];
 
-    // Build summary for AI
+    // === TSWB calculation helper ===
+    const calcTSWB = (items: any[]) => {
+      return items.reduce((sum: number, c: any) => {
+        return sum + (c.watch_time || 0) + (c.likes || 0) * 3 + (c.comments || 0) * 5 + ((c.saves || 0) + (c.shares || 0) + (c.reposts || 0)) * 10;
+      }, 0);
+    };
+
+    // === Per-report breakdown ===
+    const reportBreakdowns = (reports || []).map((r: any) => {
+      const reportContent = content.filter((c: any) => c.report_id === r.id);
+      const reportCreators = creators.filter((c: any) => c.report_id === r.id);
+      const reportKPIs = kpiTargets.filter((k: any) => k.report_id === r.id);
+
+      const totalViews = reportContent.reduce((s: number, c: any) => s + (c.views || 0), 0);
+      const totalCost = reportContent.reduce((s: number, c: any) => s + (c.cost || 0), 0);
+      const avgER = reportContent.length > 0
+        ? reportContent.reduce((s: number, c: any) => s + (c.engagement_rate || 0), 0) / reportContent.length
+        : 0;
+      const totalWatchTime = reportContent.reduce((s: number, c: any) => s + (c.watch_time || 0), 0);
+      const tswb = calcTSWB(reportContent);
+      const tswbMinutes = tswb / 60;
+      const tswbCost = tswbMinutes > 0 ? totalCost / tswbMinutes : null;
+
+      // Sentiment breakdown
+      const sentimentCounts = { positive: 0, negative: 0, neutral: 0 };
+      reportContent.forEach((c: any) => {
+        if (c.sentiment && sentimentCounts[c.sentiment as keyof typeof sentimentCounts] !== undefined) {
+          sentimentCounts[c.sentiment as keyof typeof sentimentCounts]++;
+        }
+      });
+
+      // Creator planned budget for this report
+      const plannedBudget = reportCreators.reduce((s: number, cr: any) => {
+        return s + (cr.posts_cost || 0) + (cr.reels_cost || 0) + (cr.stories_cost || 0);
+      }, 0);
+
+      return {
+        name: r.name,
+        type: r.type,
+        period: r.period,
+        start_date: r.start_date,
+        end_date: r.end_date,
+        content_count: reportContent.length,
+        creators_count: reportCreators.length,
+        total_views: totalViews,
+        avg_engagement_rate: Math.round(avgER * 100) / 100,
+        total_cost: totalCost,
+        planned_budget: plannedBudget,
+        total_watch_time_seconds: totalWatchTime,
+        tswb,
+        tswb_cost: tswbCost ? Math.round(tswbCost * 100) / 100 : null,
+        sentiment: sentimentCounts,
+        kpi_targets: reportKPIs.map((k: any) => ({
+          kpi_name: k.kpi_name,
+          planned_value: k.planned_value,
+          actual_value: k.actual_value,
+          unit: k.unit,
+        })),
+      };
+    });
+
+    // === Per-creator stats ===
+    const creatorStats = creators.map((cr: any) => {
+      const report = (reports || []).find((r: any) => r.id === cr.report_id);
+      const creatorContent = content.filter((c: any) => c.creator_id === cr.id && c.report_id === cr.report_id);
+      const totalViews = creatorContent.reduce((s: number, c: any) => s + (c.views || 0), 0);
+      const totalCost = creatorContent.reduce((s: number, c: any) => s + (c.cost || 0), 0);
+      const avgER = creatorContent.length > 0
+        ? creatorContent.reduce((s: number, c: any) => s + (c.engagement_rate || 0), 0) / creatorContent.length
+        : cr.avg_engagement_rate || 0;
+      const tswb = calcTSWB(creatorContent);
+
+      return {
+        handle: cr.handle,
+        platform: cr.platform,
+        followers: cr.followers,
+        report_name: report?.name || "Unknown",
+        content_count: creatorContent.length,
+        total_views: totalViews,
+        total_cost: totalCost,
+        avg_engagement_rate: Math.round(avgER * 100) / 100,
+        tswb,
+      };
+    });
+
+    // === Per-campaign stats ===
+    const campaignStats = [...campaigns, ...tiktokCampaigns].map((c: any) => ({
+      campaign_name: c.campaign_name,
+      platform: campaigns.includes(c) ? "meta" : "tiktok",
+      amount_spent: c.amount_spent,
+      impressions: c.impressions,
+      reach: c.reach,
+      clicks: c.clicks,
+      cpm: c.cpm,
+      ctr: c.ctr,
+      status: c.status,
+    }));
+
+    // === Global aggregates ===
     const totalContent = content.length;
     const totalViews = content.reduce((s: number, c: any) => s + (c.views || 0), 0);
-    const totalImpressions = content.reduce((s: number, c: any) => s + (c.impressions || 0), 0);
-    const totalLikes = content.reduce((s: number, c: any) => s + (c.likes || 0), 0);
-    const totalComments = content.reduce((s: number, c: any) => s + (c.comments || 0), 0);
-    const totalShares = content.reduce((s: number, c: any) => s + (c.shares || 0), 0);
-    const totalSaves = content.reduce((s: number, c: any) => s + (c.saves || 0), 0);
-    const totalReach = content.reduce((s: number, c: any) => s + (c.reach || 0), 0);
     const totalCost = content.reduce((s: number, c: any) => s + (c.cost || 0), 0);
     const avgEngagement = content.length > 0
       ? content.reduce((s: number, c: any) => s + (c.engagement_rate || 0), 0) / content.length
       : 0;
+    const globalTSWB = calcTSWB(content);
+    const globalTSWBMinutes = globalTSWB / 60;
+    const globalTSWBCost = globalTSWBMinutes > 0 ? totalCost / globalTSWBMinutes : null;
+    const totalWatchTime = content.reduce((s: number, c: any) => s + (c.watch_time || 0), 0);
 
-    const totalCreators = creators.length;
-    const avgFollowers = creators.length > 0
-      ? creators.reduce((s: number, c: any) => s + (c.followers || 0), 0) / creators.length
-      : 0;
+    const globalSentiment = { positive: 0, negative: 0, neutral: 0 };
+    content.forEach((c: any) => {
+      if (c.sentiment && globalSentiment[c.sentiment as keyof typeof globalSentiment] !== undefined) {
+        globalSentiment[c.sentiment as keyof typeof globalSentiment]++;
+      }
+    });
 
     const totalAdSpend = [...campaigns, ...tiktokCampaigns].reduce(
       (s: number, c: any) => s + (c.amount_spent || 0), 0
     );
-    const totalAdReach = [...campaigns, ...tiktokCampaigns].reduce(
-      (s: number, c: any) => s + (c.reach || 0), 0
-    );
-    const totalAdImpressions = [...campaigns, ...tiktokCampaigns].reduce(
-      (s: number, c: any) => s + (c.impressions || 0), 0
-    );
-
-    const totalRevenue = promoCodes.reduce((s: number, p: any) => s + (p.revenue || 0), 0);
-    const totalPurchases = promoCodes.reduce((s: number, p: any) => s + (p.purchases || 0), 0);
 
     // Top content by views
     const topContent = [...content]
@@ -134,6 +232,7 @@ serve(async (req) => {
       .slice(0, 5)
       .map((c: any) => {
         const creator = creators.find((cr: any) => cr.id === c.creator_id);
+        const report = (reports || []).find((r: any) => r.id === c.report_id);
         return {
           views: c.views,
           likes: c.likes,
@@ -144,97 +243,78 @@ serve(async (req) => {
           thumbnail_url: c.thumbnail_url,
           url: c.url,
           creator_handle: creator?.handle || "Unknown",
-          content_id: c.id,
+          report_name: report?.name || "Unknown",
         };
       });
 
-    // Top creators by avg_engagement_rate
-    const topCreators = [...creators]
-      .sort((a: any, b: any) => (b.avg_engagement_rate || 0) - (a.avg_engagement_rate || 0))
-      .slice(0, 5)
-      .map((c: any) => ({
-        handle: c.handle,
-        platform: c.platform,
-        followers: c.followers,
-        avg_engagement_rate: c.avg_engagement_rate,
-        avg_reach: c.avg_reach,
-        avg_views: c.avg_views,
-        avatar_url: c.avatar_url,
-      }));
-
     // Platform breakdown
-    const platformBreakdown: Record<string, { count: number; views: number; engagement: number }> = {};
+    const platformBreakdown: Record<string, { count: number; views: number; avg_er: number }> = {};
     content.forEach((c: any) => {
       if (!platformBreakdown[c.platform]) {
-        platformBreakdown[c.platform] = { count: 0, views: 0, engagement: 0 };
+        platformBreakdown[c.platform] = { count: 0, views: 0, avg_er: 0 };
       }
       platformBreakdown[c.platform].count++;
       platformBreakdown[c.platform].views += c.views || 0;
-      platformBreakdown[c.platform].engagement += c.engagement_rate || 0;
+      platformBreakdown[c.platform].avg_er += c.engagement_rate || 0;
+    });
+    Object.keys(platformBreakdown).forEach((p) => {
+      if (platformBreakdown[p].count > 0) {
+        platformBreakdown[p].avg_er = Math.round((platformBreakdown[p].avg_er / platformBreakdown[p].count) * 100) / 100;
+      }
     });
 
-    // Content type breakdown
-    const contentTypeBreakdown: Record<string, { count: number; views: number }> = {};
-    content.forEach((c: any) => {
-      if (!contentTypeBreakdown[c.content_type]) {
-        contentTypeBreakdown[c.content_type] = { count: 0, views: 0 };
-      }
-      contentTypeBreakdown[c.content_type].count++;
-      contentTypeBreakdown[c.content_type].views += c.views || 0;
-    });
+    const totalRevenue = promoCodes.reduce((s: number, p: any) => s + (p.revenue || 0), 0);
+    const totalPurchases = promoCodes.reduce((s: number, p: any) => s + (p.purchases || 0), 0);
 
     const dataContext = {
       reports_count: reports?.length || 0,
-      reports: (reports || []).map((r: any) => ({ name: r.name, type: r.type, period: r.period })),
-      content_summary: {
-        total_pieces: totalContent,
+      reports: reportBreakdowns,
+      global_summary: {
+        total_content: totalContent,
         total_views: totalViews,
-        total_impressions: totalImpressions,
-        total_likes: totalLikes,
-        total_comments: totalComments,
-        total_shares: totalShares,
-        total_saves: totalSaves,
-        total_reach: totalReach,
         total_cost: totalCost,
         avg_engagement_rate: Math.round(avgEngagement * 100) / 100,
-      },
-      creators_summary: {
-        total_creators: totalCreators,
-        avg_followers: Math.round(avgFollowers),
-      },
-      ads_summary: {
+        total_watch_time_seconds: totalWatchTime,
+        tswb: globalTSWB,
+        tswb_cost: globalTSWBCost ? Math.round(globalTSWBCost * 100) / 100 : null,
+        sentiment: globalSentiment,
+        total_creators: creators.length,
         total_ad_spend: totalAdSpend,
-        total_ad_reach: totalAdReach,
-        total_ad_impressions: totalAdImpressions,
-        meta_campaigns: campaigns.length,
-        tiktok_campaigns: tiktokCampaigns.length,
+        meta_campaigns_count: campaigns.length,
+        tiktok_campaigns_count: tiktokCampaigns.length,
       },
+      creator_stats: creatorStats,
+      campaign_stats: campaignStats,
+      top_content: topContent,
+      platform_breakdown: platformBreakdown,
       promo_summary: {
         total_revenue: totalRevenue,
         total_purchases: totalPurchases,
         total_codes: promoCodes.length,
       },
-      top_content: topContent,
-      top_creators: topCreators,
-      platform_breakdown: platformBreakdown,
-      content_type_breakdown: contentTypeBreakdown,
     };
 
     // Call Lovable AI with tool calling
-    const systemPrompt = `You are an analytics expert for influencer marketing and social media campaigns. You analyze data across multiple reports within a brand/space and generate the most important insights as modular tiles.
+    const systemPrompt = `Jsi expert na analýzu influencer marketingu a sociálních sítí. Generuješ přehledové dlaždice (tiles) pro dashboard brandu. Tvým cílem je poskytnout "big picture" přehled aktivit a výsledků.
 
-Generate up to 9 tiles. Each tile should highlight something important, noteworthy, or actionable. Focus on:
-- Key performance metrics (views, engagement, reach, spend efficiency)
-- Top performers (creators, content)
-- Trends and comparisons across platforms
-- Recommendations and observations
-- Notable outliers or exceptional results
+PRAVIDLA:
+1. Každá dlaždice MUSÍ obsahovat konkrétní čísla, názvy reportů/kampaní/creatorů a období. Žádné obecné fráze.
+2. U metrik vždy uveď srovnání: např. "nejlepší report X dosáhl Y, průměr je Z" nebo "o X% nad průměrem".
+3. Prioritní metriky: Views, Engagement Rate, CPM, TSWB Cost, Sentiment.
+4. PRVNÍ dlaždice (priority 1) MUSÍ být typu "text", size "large" — přehled všech aktivit: kolik reportů, kolik creatorů, kolik kampaní, celkový budget, období.
+5. Zohledni KPI cíle (pokud existují) — prioritizuj dlaždice podle plnění/neplnění cílů. Pokud cíl nebyl splněn, zvýrazni to.
+6. Používej různé velikosti: "small" pro jednoduché metriky, "medium" pro grafy a content preview, "large" pro textová shrnutí nebo důležité grafy.
+7. Buď profesionální, stručný a srozumitelný. Každý text musí mít jasný informační přínos.
+8. Pro metrické dlaždice uveď v poli "benchmark" srovnávací údaj (např. "Průměr: 5.2%", "Nejhorší: 1.1K").
+9. Identifikuj nejlepšího influencera (podle TSWB nebo ER) a nejlepší kampaň (podle CPM nebo CTR).
+10. Pokud existují výjimečné výsledky (outliers), vytvoř pro ně dedikovanou dlaždici.
 
-Use Czech language for all tile titles and text content. Use standard metric abbreviations (CPM, CPC, CTR, ER) where appropriate.
+TSWB = watch_time + likes*3 + comments*5 + (saves+shares+reposts)*10
+TSWB Cost = celkový náklad / TSWB v minutách
 
-When creating chart tiles, provide simple data arrays suitable for recharts. For content_preview tiles, include the content details from the top content data provided.`;
+Používej český jazyk. Používej standardní zkratky (CPM, CPC, CTR, ER, TSWB).`;
 
-    const userPrompt = `Here is the aggregated data for this brand across ${dataContext.reports_count} active reports:\n\n${JSON.stringify(dataContext, null, 2)}\n\nGenerate the most impactful insight tiles (up to 9) based on this data. Focus on what matters most.`;
+    const userPrompt = `Data brandu napříč ${dataContext.reports_count} aktivními reporty:\n\n${JSON.stringify(dataContext, null, 2)}\n\nVygeneruj max 9 dlaždic. Začni přehledem aktivit (text, large), pak nejdůležitější metriky s benchmarky, top performer, a případné problémy/doporučení.`;
 
     const aiResponse = await fetch(
       "https://ai.gateway.lovable.dev/v1/chat/completions",
@@ -272,6 +352,11 @@ When creating chart tiles, provide simple data arrays suitable for recharts. For
                           title: { type: "string" },
                           value: { type: "string" },
                           subtitle: { type: "string" },
+                          benchmark: { type: "string" },
+                          size: {
+                            type: "string",
+                            enum: ["small", "medium", "large"],
+                          },
                           accent_color: {
                             type: "string",
                             enum: ["default", "orange", "green", "blue"],
@@ -312,7 +397,7 @@ When creating chart tiles, provide simple data arrays suitable for recharts. For
                           source_report_id: { type: "string" },
                           priority: { type: "number" },
                         },
-                        required: ["type", "title", "priority"],
+                        required: ["type", "title", "priority", "size"],
                         additionalProperties: false,
                       },
                     },
