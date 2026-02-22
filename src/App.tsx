@@ -12,6 +12,8 @@ import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 import MainLayout from "./components/MainLayout";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import { AIChatProvider } from "./components/chat/AIChatProvider";
+import AIChatButton from "./components/chat/AIChatButton";
 
 const queryClient = new QueryClient();
 
@@ -22,6 +24,7 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
+        <AIChatProvider>
         <Routes>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/auth" element={<Auth />} />
@@ -41,6 +44,8 @@ const App = () => (
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
+        <AIChatButton />
+        </AIChatProvider>
       </BrowserRouter>
     </TooltipProvider>
     </TranslationProvider>
