@@ -145,7 +145,7 @@ const BrandAIInsights = ({ spaceId }: BrandAIInsightsProps) => {
           </Button>
         )}
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-start">
         {tiles.map((tile, index) => (
           <div key={index} className={getTileSizeClass(tile.size)}>
             <InsightTile tile={tile} />

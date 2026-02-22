@@ -43,7 +43,7 @@ export interface TileData {
 }
 
 export const getTileSizeClass = (size?: string) => {
-  if (size === "large") return "lg:col-span-2";
+  if (size === "large") return "md:col-span-2";
   return "";
 };
 
@@ -73,11 +73,11 @@ export const InsightTile = ({ tile }: { tile: TileData }) => {
 
   if (tile.type === "metric") {
     return (
-      <Card className={cn("rounded-[20px] border-2 p-4 flex flex-col min-h-[120px]", accentClass)}>
+      <Card className={cn("rounded-[20px] border-2 p-4 flex flex-col", accentClass)}>
         <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
           {tile.title}
         </span>
-        <div className="flex-1 flex flex-col justify-end">
+        <div className="flex flex-col justify-end">
           <p className="text-2xl font-bold text-foreground">{tile.value}</p>
           {tile.benchmark && (
             <p className="text-xs font-medium text-muted-foreground mt-1">{tile.benchmark}</p>
@@ -92,11 +92,11 @@ export const InsightTile = ({ tile }: { tile: TileData }) => {
 
   if (tile.type === "chart" && tile.chart_data?.length) {
     return (
-      <Card className={cn("rounded-[20px] border-2 p-4 flex flex-col min-h-[200px]", accentClass)}>
+      <Card className={cn("rounded-[20px] border-2 p-4 flex flex-col", accentClass)}>
         <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
           {tile.title}
         </span>
-        <div className="flex-1">
+        <div className="h-[180px]">
           <ResponsiveContainer width="100%" height="100%">
             {tile.chart_type === "pie" ? (
               <PieChart>
@@ -145,11 +145,11 @@ export const InsightTile = ({ tile }: { tile: TileData }) => {
   if (tile.type === "content_preview" && tile.content) {
     const c = tile.content;
     return (
-      <Card className={cn("rounded-[20px] border-2 p-4 flex flex-col min-h-[120px]", accentClass)}>
+      <Card className={cn("rounded-[20px] border-2 p-4 flex flex-col", accentClass)}>
         <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
           {tile.title}
         </span>
-        <div className="flex gap-3 flex-1">
+        <div className="flex gap-3">
           {c.thumbnail_url && (
             <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-muted">
               <img
