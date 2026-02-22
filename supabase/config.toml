@@ -41,3 +41,6 @@ verify_jwt = true
 
 [functions.import-tiktok-demographics]
 verify_jwt = true
+
+[functions.generate-space-ai-insights]
+verify_jwt = false

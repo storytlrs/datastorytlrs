@@ -1116,6 +1116,44 @@ export type Database = {
           },
         ]
       }
+      space_ai_insights: {
+        Row: {
+          created_at: string
+          generated_at: string
+          generated_by: string
+          id: string
+          space_id: string
+          tiles: Json
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          generated_at?: string
+          generated_by?: string
+          id?: string
+          space_id: string
+          tiles?: Json
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          generated_at?: string
+          generated_by?: string
+          id?: string
+          space_id?: string
+          tiles?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "space_ai_insights_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: true
+            referencedRelation: "spaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       space_users: {
         Row: {
           created_at: string
