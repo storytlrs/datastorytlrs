@@ -1,105 +1,44 @@
 
 
-# Vylepšení AI Insights -- konkrétnost, benchmarky, big picture
+# Fix Chart Rendering and Grid Layout in AI Insights
 
-## Problem
-Aktualni AI Insights generuji genericke dlazdice bez kontextu (obdobi, zdroj reportu), bez srovnani (benchmark vs. aktualni), a neplni funkci "big picture" prehledu aktivit brandu. Prompt je prilis vseobecny a data posilana do AI postradi klicove informace (KPI cile, per-report breakdown, TSWB, sentiment, watch_time).
+## Problems
 
-## Zmeny
+1. **Charts are empty**: `ResponsiveContainer` with `height="100%"` requires a parent with a computed pixel height. The current `flex-1` parent has no explicit height, so Recharts renders at 0px.
 
-### 1. Edge Function: rozsirit data kontext
+2. **Uneven grid gaps**: The fixed `grid-cols-3` layout with `col-span-2` for large tiles creates orphan cells and visual gaps between rows of mixed-size tiles.
 
-Doplnit do datoveho kontextu posilaneho AI:
+## Solution
 
-- **Per-report breakdown**: u kazdeho reportu zahrnout jeho nazev, typ, obdobi (start_date -- end_date), a jeho agregovane metriky (views, ER, cost, TSWB, sentiment breakdown). AI tak muze rikat "v reportu X za obdobi Y..."
-- **KPI targets**: nacist z tabulky `kpi_targets` planovane vs. skutecne hodnoty a zahrnout je -- AI bude moci prioritizovat podle cilovych metrik
-- **TSWB vypocet**: watch_time + likes*3 + comments*5 + (saves+shares+reposts)*10, agregovat per report i celkove
-- **TSWB Cost**: total cost / TSWB v minutach
-- **Sentiment breakdown**: pocet positive/negative/neutral/mixed sentimentu per report
-- **Watch time**: celkovy a prumery, vcetne avg_watch_time
-- **Per-creator stats**: creator handle + report name + total views, total cost, content count, avg ER, TSWB -- aby AI mohl identifikovat "nejlepsiho influencera"
-- **Per-campaign stats**: campaign name + spend + impressions + CPM + CTR -- pro "nejlepsi kampan"
+### 1. Fix chart rendering (`InsightTile.tsx`)
 
-### 2. Edge Function: prepsat system prompt
+Replace the `flex-1` chart wrapper with an explicit height container. Use a fixed height (e.g., `h-[180px]`) for the chart area instead of relying on flex growth. This guarantees `ResponsiveContainer` gets a measurable parent.
 
-Novy prompt bude mnohem specificjsi:
+### 2. Switch to masonry-style auto-flow layout (`BrandAIInsights.tsx`)
 
-- Vyzadovat ze kazda dlazdice musi obsahovat konkretni cisla, nazvy reportu/kampani/creatoru a obdobi
-- Vyzadovat benchmarky: srovnani nejlepsiho vs. prumeru vs. nejhorsiho kde to dava smysl
-- Definovat prioritni metriky: **Views, ER, CPM, TSWB Cost, Sentiment**
-- Vyzadovat "big picture" dlazdici (typ text) jako prvni -- shrnuti vsech aktivit, kolik reportu, kolik creatoru, kolik kampani, celkovy budget
-- Vyzadovat profesionalni, strucny a srozumitelny jazyk
-- Vyzadovat ze AI musi zohlednit KPI cile (pokud existuji) a prioritizovat podle nich
-- Instruovat AI aby pouzival ruzne velikosti dlazdic (size field: "small", "medium", "large")
+Replace the rigid 3-column grid with `grid-auto-rows` approach:
+- Use `grid-cols-1 md:grid-cols-2 lg:grid-cols-3` with `auto-rows-auto` (default)
+- Remove the wrapper `<div>` around each tile so grid item sizing works directly
+- Each tile card will size itself based on content (no fixed row heights forcing gaps)
 
-### 3. Tile data model: pridat `size` field
+### 3. Tile size adjustments (`InsightTile.tsx`)
 
-Pridat do tile schematu novy field:
-- `size`: `"small"` (1 col), `"medium"` (1 col, vyssi), `"large"` (2 cols span)
+Update `getTileSizeClass` to return proper classes:
+- `small`: default (1 col)
+- `medium`: default (1 col)  
+- `large`: `md:col-span-2` (spans 2 cols on medium+)
 
-To umozni AI rozhodovat o velikosti dlazdic podle priority a mnozstvi obsahu.
+Remove `min-h` from metric and content_preview cards so they fit their content naturally without forcing uniform row heights.
 
-### 4. UI: InsightTile.tsx -- podpora ruznych velikosti
+## Files to modify
 
-- `small`: kompaktni metrika (soucasny vzhled)
-- `medium`: standardni (chart, content preview)
-- `large`: `col-span-2`, pro textove shrnuti nebo velke grafy
+1. **`src/components/brands/InsightTile.tsx`**
+   - Chart container: replace `flex-1` with `h-[180px]` explicit height
+   - Remove `min-h-[200px]` from chart card (content height is now explicit)
+   - Remove `min-h-[120px]` from metric and content_preview cards
+   - Adjust `getTileSizeClass`: large = `md:col-span-2`
 
-### 5. UI: BrandAIInsights.tsx -- grid layout
-
-Zmenit grid na auto-fill s podporou `col-span-2` pro large tiles.
-
-## Technicke detaily
-
-### Soubor: `supabase/functions/generate-space-ai-insights/index.ts`
-
-**Nove datove zdroje (pridano do Promise.all):**
-- `kpi_targets` -- nacist vsechny KPI targets pro vsechny reporty v space
-- Rozsirit content SELECT o `watch_time`, `avg_watch_time`, `sentiment`, `shares`, `saves`, `reposts`
-
-**Per-report agregace:**
-```text
-reports.map(report => ({
-  name, type, period, start_date, end_date,
-  content_count, total_views, avg_er, total_cost,
-  tswb, tswb_cost, sentiment: { positive, negative, neutral, mixed },
-  kpi_targets: [{ kpi_name, planned_value, actual_value }]
-}))
-```
-
-**Per-creator agregace:**
-```text
-creators.map(creator => ({
-  handle, platform, report_name,
-  content_count, total_views, total_cost, avg_er, tswb
-}))
-```
-
-**Novy system prompt (klicove casti):**
-- "Kazda dlazdice MUSI obsahovat konkretni cisla a nazvy (report, kampan, creator)"
-- "U metrik uvadej srovnani: hodnota vs. prumer vsech reportu"
-- "Prioritni metriky: Views, Engagement Rate, CPM, TSWB Cost, Sentiment"
-- "Prvni dlazdice (priority 1) musi byt 'Prehled aktivit' typu text, size large"
-- "Zohledni KPI cile pokud existuji -- prioritizuj dlazdice podle plneni/neplneni cilu"
-- "Pouzij ruzne velikosti: small pro jednoduche metriky, medium pro grafy, large pro shrnuti"
-- "Bud profesionalni, strucny, konkretni. Zadne vseobecne fraze."
-
-**Novy tool schema -- pridano:**
-- `size`: enum `["small", "medium", "large"]`
-- `benchmark`: string (volitelny, pro srovnavaci text pod hodnotou)
-
-### Soubor: `src/components/brands/InsightTile.tsx`
-
-- Pridat `size` a `benchmark` do `TileData` interface
-- Metric tile: zobrazit benchmark pod hodnotou (mensi font, sedy text)
-- Exportovat CSS tridu na zaklade `size` pro pouziti v gridu
-
-### Soubor: `src/components/brands/BrandAIInsights.tsx`
-
-- Zmenit grid renderovani: kazda dlazdice dostane `className` podle `tile.size` -- `lg:col-span-2` pro "large"
-
-### Upravovane soubory
-1. `supabase/functions/generate-space-ai-insights/index.ts` -- rozsireni dat + novy prompt
-2. `src/components/brands/InsightTile.tsx` -- size + benchmark podpora
-3. `src/components/brands/BrandAIInsights.tsx` -- grid layout s col-span
+2. **`src/components/brands/BrandAIInsights.tsx`**
+   - Move `getTileSizeClass` className directly onto the wrapper div
+   - Add `items-start` to the grid to prevent stretch alignment (tiles only take the height they need)
 
