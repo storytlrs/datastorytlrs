@@ -11,11 +11,11 @@ const AIChatButton = () => {
       {isOpen && <AIChatPanel />}
       <Button
         onClick={toggleChat}
-        className="fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full bg-accent-green text-accent-green-foreground shadow-lg hover:bg-accent-green/90 hover:scale-105 transition-transform border-none"
+        className="fixed bottom-6 right-6 z-50 h-16 w-16 rounded-full bg-black text-accent-orange shadow-lg hover:scale-105 transition-transform border-none"
         size="icon"
         aria-label={isOpen ? "Close chat" : "Open AI assistant"}
       >
-        {isOpen ? <X className="h-6 w-6" /> : <Bot className="h-6 w-6" />}
+        {isOpen ? <X className="h-8 w-8" /> : <Bot className="h-8 w-8" />}
       </Button>
     </>
   );
