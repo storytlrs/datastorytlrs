@@ -1,112 +1,80 @@
 
 
-# Translate All Czech Text in the Platform
+# Restructure Creator Performance Cards in Influencer Report Insights
 
-## Problem
-The platform has ~1057 Czech text occurrences across 28 files: toast messages, placeholders, section headers, button labels, tooltips, date range filters, etc. The current translate toggle only affects AI-generated content blocks.
+## What Changes
 
-## Solution
-Two-pronged approach:
+The content performance boxes in the AI Insights section of influencer reports will be reorganized from a 2-column layout to a 3-column layout.
 
-### 1. Static Translation Dictionary
-Create a dictionary file (`src/lib/translations.ts`) mapping all hardcoded Czech strings to their English equivalents. A `useT()` hook will return the correct string based on the current language toggle state.
-
-This avoids calling the AI translation API for static strings (which are known at build time).
-
-### 2. Keep AI Translation for Dynamic Content
-The existing `TranslatedText` / `useTranslatedText` mechanism continues to handle AI-generated text (insights, recommendations, summaries) via the edge function.
-
-## Translation Dictionary Structure
-
+## Current Layout
 ```text
-Key: Czech string -> Value: English string
-
-Examples:
-"Nepodařilo se načíst data" -> "Failed to load data"
-"Uložit změny" -> "Save changes"  
-"Zobrazit více" -> "Show more"
-"Zrušit" -> "Cancel"
-"Tento měsíc" -> "This month"
-"Minulý kvartál" -> "Last quarter"
-...~80-100 unique strings
++-----------------------------------------------------------+
+| Content Performance: @handle                    [headline] |
++-----------------------------------------------------------+
+| [avatar] @handle        [platform badges]      [header]   |
++-----------------------------------------------------------+
+| Content Preview Card  |  Key Insight                      |
+| (with summary inside) |  Positive Topics                  |
+| Sentiment Breakdown   |  Negative Topics                  |
+| Relevance             |                                   |
++-----------------------------------------------------------+
 ```
 
-## Files to Create
-1. `src/lib/translations.ts` -- Dictionary of all Czech-to-English mappings + `useT()` hook
+## New Layout
+```text
++-----------------------------------------------------------+
+| @handle              [platform badges]         [header]   |
++-----------------------------------------------------------+
+| Content Preview  | Content Summary     | Key Insight      |
+| (thumbnail only, | Sentiment Breakdown | Positive Topics  |
+|  no summary)     |                     | Negative Topics  |
+|                  |                     | Relevance        |
++-----------------------------------------------------------+
+```
 
-## Files to Modify (all 28 files with Czech text)
+### Summary of changes:
+1. **Remove** the "Content Performance: @handle" headline from the wrapper in `AIInsightsContent.tsx`
+2. **Change grid** from 2 columns to 3 columns in `CreatorPerformanceCard.tsx`
+3. **Left column**: Handle (with avatar) at top, content preview below (without the content summary text -- that moves to middle)
+4. **Middle column**: Content summary text + Sentiment breakdown (moved from left column)
+5. **Right column**: Key Insight + Topics + Relevance (stays as-is, with relevance moved here from left)
 
-### Core UI Components
-- `src/components/ui/date-range-filter.tsx` -- date range labels (Tento mesic, Minuly kvartal, etc.)
+## Files to Modify
 
-### Report Components
-- `src/components/reports/AIInsightsTab.tsx` -- toasts, labels, placeholders
-- `src/components/reports/AdsAIInsightsTab.tsx` -- toasts, labels, placeholders
-- `src/components/reports/AIInsightsInputDialog.tsx` -- dialog labels, placeholders, buttons
-- `src/components/reports/AIInsightsContent.tsx` -- section headers ("Zakladni prehled kampane"), placeholders
-- `src/components/reports/AIInsightsContentPDF.tsx` -- section headers
-- `src/components/reports/AdsAIInsightsContent.tsx` -- placeholders
-- `src/components/reports/MonthlyAdsInsightsContent.tsx` -- section headers, placeholders
-- `src/components/reports/QuarterlyAdsInsightsContent.tsx` -- section headers, placeholders
-- `src/components/reports/YearlyAdsInsightsContent.tsx` -- section headers, placeholders
-- `src/components/reports/CampaignAdsInsightsContent.tsx` -- section headers, placeholders
-- `src/components/reports/ContentPreviewCard.tsx` -- "Zobrazit obsah"
-- `src/components/reports/EditableDataTable.tsx` -- "Zobrazit vice"
-- `src/components/reports/CreateReportDialog.tsx` -- period options labels
-- `src/components/reports/CreateContentDialog.tsx` -- placeholders
-- `src/components/reports/EditContentDialog.tsx` -- placeholders
-- `src/components/reports/AdsOverviewTab.tsx` -- empty state text
-- `src/components/reports/CreatorPerformanceCard.tsx` -- AI-generated sentence fragments
-- `src/components/reports/OverviewTab.tsx` -- tooltips with Czech descriptions
+### 1. `src/components/reports/AIInsightsContent.tsx`
+- Remove the `<h2>Content Performance: @{creator.handle}</h2>` headline (line 796-798)
 
-### Admin Components
-- `src/components/admin/PromptsTab.tsx` -- toasts, labels, empty states
+### 2. `src/components/reports/AIInsightsContentPDF.tsx`
+- Same headline removal for PDF export consistency
 
-### Brand Components
-- `src/components/brands/BrandAIInsights.tsx` -- toasts, empty states
+### 3. `src/components/reports/CreatorPerformanceCard.tsx`
+Major layout restructure:
+- Keep the header row (handle + platform badges) at the top
+- Change `grid md:grid-cols-2` to `grid md:grid-cols-3`
+- **Left column**: Content preview card only (pass `contentSummary={null}` or remove the summary from the preview -- summary moves to middle)
+- **Middle column**: New section with content summary text + sentiment breakdown
+- **Right column**: Key Insight, Positive Topics, Negative Topics, Relevance (relevance moves here from the old left column)
 
-### Navigation
-- `src/components/MainNavigation.tsx` -- title attribute (minor)
+### 4. `src/components/reports/ContentPreviewCard.tsx`
+- No structural changes needed -- the `contentSummary` prop simply won't be passed from `CreatorPerformanceCard`, so it won't render there
 
 ## Technical Details
 
-### `useT()` Hook
-```typescript
-// src/lib/translations.ts
-import { useTranslation } from "@/contexts/TranslationContext";
+The `CreatorPerformanceCard` content section changes from:
 
-const dict: Record<string, string> = {
-  "Nepodařilo se načíst data": "Failed to load data",
-  "Uložit změny": "Save changes",
-  "Zobrazit více": "Show more",
-  "Zrušit": "Cancel",
-  "Tento měsíc": "This month",
-  // ... all other strings
-};
+```tsx
+// Before: 2-column grid
+<div className="grid md:grid-cols-2 gap-6">
+  {/* Left: Content Preview + Sentiment + Relevance */}
+  {/* Right: Key Insight + Topics */}
+</div>
 
-export const useT = () => {
-  const { isEnglish } = useTranslation();
-  return (czech: string) => isEnglish ? (dict[czech] || czech) : czech;
-};
+// After: 3-column grid
+<div className="grid md:grid-cols-3 gap-6">
+  {/* Left: Content Preview only (no summary) */}
+  {/* Middle: Content Summary + Sentiment Breakdown */}
+  {/* Right: Key Insight + Topics + Relevance */}
+</div>
 ```
 
-### Usage Pattern
-```typescript
-// Before
-toast.error("Nepodařilo se načíst data");
-<Button>Uložit změny</Button>
-
-// After
-const t = useT();
-toast.error(t("Nepodařilo se načíst data"));
-<Button>{t("Uložit změny")}</Button>
-```
-
-### For non-component contexts (toast callbacks inside async functions)
-The `t()` function will be called at the top of the component and used inside handlers, so it always reflects current language state.
-
-## Implementation Order
-1. Create `src/lib/translations.ts` with complete dictionary and `useT` hook
-2. Update all 28 files to import and use `useT()` for every Czech string
-3. Verify no Czech strings remain when toggle is set to EN
-
+The content summary that was previously rendered inside the `ContentPreviewCard` will be extracted and displayed as a standalone text block in the middle column. The `CreatorPerformanceCard` already has access to `creator.top_content.content_summary` so no data changes are needed.
