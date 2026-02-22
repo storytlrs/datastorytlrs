@@ -92,7 +92,7 @@ const MainNavigation = () => {
   const isOnAdminPage = location.pathname === "/admin";
 
   return (
-    <nav className="w-full py-4 bg-foreground">
+    <nav className="w-full py-4 bg-foreground sticky top-0 z-50">
       <div className="max-w-7xl mx-auto flex items-center justify-between px-6">
         {/* Logo/Brand */}
         <img src={logoWhite} alt="Story TLRS" className="h-8" />
