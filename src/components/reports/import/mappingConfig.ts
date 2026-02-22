@@ -48,9 +48,6 @@ export const MAPPING_FIELDS: MappingField[] = [
   { key: "link_clicks", label: "Link Clicks", table: "content", required: false, type: "number" },
   { key: "watch_time", label: "Watch Time (seconds)", table: "content", required: false, type: "number" },
   { key: "avg_watch_time", label: "Avg Watch Time (seconds)", table: "content", required: false, type: "number" },
-  { key: "engagement_rate", label: "Engagement Rate", table: "content", required: false, type: "number" },
-  { key: "sentiment", label: "Sentiment", table: "content", required: false, type: "enum", enumValues: ["positive", "negative", "neutral"] },
-  { key: "sentiment_summary", label: "Sentiment Summary", table: "content", required: false, type: "text" },
 
   // Promo Codes fields
   { key: "promo_creator_handle", label: "Creator Handle", table: "promo_codes", required: false, type: "text" },
@@ -163,16 +160,10 @@ export const AUTO_SUGGESTIONS: Record<string, string> = {
   "reposts": "content.reposts",
   "sticker clicks": "content.sticker_clicks",
   "link clicks": "content.link_clicks",
-  "er": "content.engagement_rate",
-  "engagement": "content.engagement_rate",
-  "engagement rate": "content.engagement_rate",
-  "míra zapojení": "content.engagement_rate",
   "watch time": "content.watch_time",
   "doba sledování": "content.watch_time",
   "avg watch time": "content.avg_watch_time",
   "průměrná doba sledování": "content.avg_watch_time",
-  "sentiment": "content.sentiment",
-  "sentiment summary": "content.sentiment_summary",
 
   // Promo Codes
   "promo code": "promo_codes.code",
