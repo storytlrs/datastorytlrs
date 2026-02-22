@@ -21,6 +21,8 @@ export interface TileData {
   title: string;
   value?: string;
   subtitle?: string;
+  benchmark?: string;
+  size?: "small" | "medium" | "large";
   accent_color?: "default" | "orange" | "green" | "blue";
   chart_data?: { name: string; value: number }[];
   chart_type?: "bar" | "line" | "pie";
@@ -39,6 +41,11 @@ export interface TileData {
   source_report_id?: string;
   priority: number;
 }
+
+export const getTileSizeClass = (size?: string) => {
+  if (size === "large") return "lg:col-span-2";
+  return "";
+};
 
 const ACCENT_CLASSES = {
   default: "border-accent",
@@ -72,8 +79,11 @@ export const InsightTile = ({ tile }: { tile: TileData }) => {
         </span>
         <div className="flex-1 flex flex-col justify-end">
           <p className="text-2xl font-bold text-foreground">{tile.value}</p>
+          {tile.benchmark && (
+            <p className="text-xs font-medium text-muted-foreground mt-1">{tile.benchmark}</p>
+          )}
           {tile.subtitle && (
-            <p className="text-xs font-medium text-muted-foreground mt-1">{tile.subtitle}</p>
+            <p className="text-xs font-medium text-muted-foreground mt-0.5">{tile.subtitle}</p>
           )}
         </div>
       </Card>
