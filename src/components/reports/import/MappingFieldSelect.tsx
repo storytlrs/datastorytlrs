@@ -9,6 +9,13 @@ import {
 } from "@/components/ui/select";
 import { getFieldsByTable, getTableLabel, type TargetTable, type MappingField } from "./mappingConfig";
 
+const TABLE_COLORS: Record<TargetTable, string> = {
+  creators: "bg-orange-500",
+  content: "bg-blue-500",
+  promo_codes: "bg-green-500",
+  media_plan_items: "bg-purple-500",
+};
+
 interface MappingFieldSelectProps {
   value: string | null;
   onChange: (value: string | null) => void;
@@ -19,7 +26,6 @@ interface MappingFieldSelectProps {
 export const MappingFieldSelect = ({ value, onChange, disabled, filterTable }: MappingFieldSelectProps) => {
   let fieldsByTable = getFieldsByTable();
   
-  // Filter to only show fields from a specific table
   if (filterTable) {
     const filtered: Partial<Record<TargetTable, MappingField[]>> = {};
     filtered[filterTable] = fieldsByTable[filterTable];
@@ -43,7 +49,10 @@ export const MappingFieldSelect = ({ value, onChange, disabled, filterTable }: M
         {(Object.keys(fieldsByTable) as TargetTable[]).map((table) => (
           <SelectGroup key={table}>
             <SelectLabel className="font-bold text-foreground">
-              {getTableLabel(table)}
+              <span className="flex items-center gap-2">
+                <span className={`w-2 h-2 rounded-full ${TABLE_COLORS[table]}`} />
+                {getTableLabel(table)}
+              </span>
             </SelectLabel>
             {fieldsByTable[table].map((field: MappingField) => (
               <SelectItem
@@ -51,6 +60,7 @@ export const MappingFieldSelect = ({ value, onChange, disabled, filterTable }: M
                 value={`${table}.${field.key}`}
               >
                 <span className="flex items-center gap-2">
+                  <span className={`w-2 h-2 rounded-full shrink-0 ${TABLE_COLORS[table]}`} />
                   {field.label}
                   {field.required && (
                     <span className="text-xs text-destructive">*</span>
