@@ -793,9 +793,6 @@ export const AIInsightsContent = forwardRef<HTMLDivElement, AIInsightsContentPro
 
           return (
             <Card key={creator.handle} className="p-6 rounded-[20px] border-foreground pdf-page-break" style={{ backgroundColor: '#E9E9E9' }}>
-              <h2 className="text-xl font-bold mb-4">
-                Content Performance: @{creator.handle}
-              </h2>
               <CreatorPerformanceCard
                 creator={transformedCreator}
                 canEdit={canEdit}
