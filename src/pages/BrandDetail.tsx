@@ -28,6 +28,7 @@ import { ReportContributors, Contributor } from "@/components/reports/ReportCont
 import BrandContentDashboard from "@/components/brands/BrandContentDashboard";
 import BrandAdsDashboard from "@/components/brands/BrandAdsDashboard";
 import BrandInfluencersDashboard from "@/components/brands/BrandInfluencersDashboard";
+import BrandAIInsights from "@/components/brands/BrandAIInsights";
 import { useUserRole } from "@/hooks/useUserRole";
 import { cn } from "@/lib/utils";
 
@@ -438,7 +439,7 @@ const BrandDetail = () => {
             <TabsTrigger value="content">Content</TabsTrigger>
             <TabsTrigger value="ads">Ads</TabsTrigger>
             <TabsTrigger value="influencers">Influencers</TabsTrigger>
-            <TabsTrigger value="insights">Insights</TabsTrigger>
+            <TabsTrigger value="insights">AI Insights</TabsTrigger>
             <TabsTrigger value="reports">Reports</TabsTrigger>
           </TabsList>
 
@@ -497,17 +498,7 @@ const BrandDetail = () => {
           </TabsContent>
 
           <TabsContent value="insights">
-            <Card className="p-8 rounded-[35px] border-foreground">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-2xl font-bold">Insights</h2>
-                <Button className="rounded-[35px]">
-                  Generate AI Insights
-                </Button>
-              </div>
-              <p className="text-muted-foreground">
-                AI-generated performance summaries and strategic recommendations for this brand will be displayed here.
-              </p>
-            </Card>
+            <BrandAIInsights spaceId={brandId!} />
           </TabsContent>
 
           <TabsContent value="reports">
