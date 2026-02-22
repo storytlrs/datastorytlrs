@@ -1,107 +1,112 @@
 
 
-# Translate Button for AI-Generated Text
+# Translate All Czech Text in the Platform
 
-## Overview
-Add a language toggle button (CZ/EN) in the header navigation, next to the profile button. When toggled to English, all AI-generated text blocks in insights are translated on the frontend. All UI labels, navigation, section headers, and metric names stay in English regardless. Only the editable AI-generated paragraphs (executive summaries, recommendations, sentiment summaries, etc.) are affected.
+## Problem
+The platform has ~1057 Czech text occurrences across 28 files: toast messages, placeholders, section headers, button labels, tooltips, date range filters, etc. The current translate toggle only affects AI-generated content blocks.
 
-## How It Works
-1. Content is always generated and stored in Czech
-2. The toggle is a visual frontend-only feature -- it does NOT change the stored data
-3. When toggled to EN, an edge function translates the Czech text blocks to English using an AI model
-4. Translations are cached in memory so toggling back and forth doesn't re-translate
+## Solution
+Two-pronged approach:
 
-## Architecture
+### 1. Static Translation Dictionary
+Create a dictionary file (`src/lib/translations.ts`) mapping all hardcoded Czech strings to their English equivalents. A `useT()` hook will return the correct string based on the current language toggle state.
 
-### 1. Translation Context (`src/contexts/TranslationContext.tsx`)
-- A React context providing `isEnglish`, `toggleLanguage()`, and a `translateText(text: string)` function
-- Wraps the app in `App.tsx`
-- Maintains an in-memory cache (`Map<string, string>`) of translated texts
-- Calls the edge function for uncached texts
+This avoids calling the AI translation API for static strings (which are known at build time).
 
-### 2. Translate Button in Header (`MainNavigation.tsx`)
-- Add a button with `Languages` icon (from lucide-react) between the profile and logout buttons
-- Shows "CZ" or "EN" label to indicate current display language
-- Toggles the context state on click
+### 2. Keep AI Translation for Dynamic Content
+The existing `TranslatedText` / `useTranslatedText` mechanism continues to handle AI-generated text (insights, recommendations, summaries) via the edge function.
 
-### 3. Edge Function (`supabase/functions/translate-text/index.ts`)
-- Accepts `{ texts: string[] }` body
-- Uses Lovable AI (gemini-2.5-flash) to batch-translate Czech texts to English
-- Returns `{ translations: string[] }`
-- Simple system prompt: "Translate the following Czech texts to English. Return only the translations."
+## Translation Dictionary Structure
 
-### 4. `useTranslatedText` Hook (`src/hooks/useTranslatedText.ts`)
-- Takes original Czech text, returns either original or English translation based on context
-- Handles loading state (shows original text while translating)
-- Uses the context's cache and translate function
+```text
+Key: Czech string -> Value: English string
 
-### 5. Update Insight Content Components
-All `EditableSection` components across insight files will use `useTranslatedText` to display translated text when `isEnglish` is true. When editing, always show and save the original Czech text. Affected components:
-- `AIInsightsContent.tsx` -- report content insights
-- `AdsAIInsightsContent.tsx` -- ads insights
-- `MonthlyAdsInsightsContent.tsx`
-- `QuarterlyAdsInsightsContent.tsx`
-- `YearlyAdsInsightsContent.tsx`
-- `CampaignAdsInsightsContent.tsx`
-- `InsightTile.tsx` -- brand AI insight tiles (text type)
+Examples:
+"Nepodařilo se načíst data" -> "Failed to load data"
+"Uložit změny" -> "Save changes"  
+"Zobrazit více" -> "Show more"
+"Zrušit" -> "Cancel"
+"Tento měsíc" -> "This month"
+"Minulý kvartál" -> "Last quarter"
+...~80-100 unique strings
+```
 
 ## Files to Create
-1. `src/contexts/TranslationContext.tsx` -- context provider with cache and edge function call
-2. `supabase/functions/translate-text/index.ts` -- AI translation edge function
-3. `src/hooks/useTranslatedText.ts` -- hook for consuming translated text
+1. `src/lib/translations.ts` -- Dictionary of all Czech-to-English mappings + `useT()` hook
 
-## Files to Modify
-1. `src/App.tsx` -- wrap with `TranslationProvider`
-2. `src/components/MainNavigation.tsx` -- add translate toggle button
-3. `src/components/reports/AdsAIInsightsContent.tsx` -- use `useTranslatedText` in EditableSection display mode
-4. `src/components/reports/AIInsightsContent.tsx` -- same
-5. `src/components/reports/MonthlyAdsInsightsContent.tsx` -- same
-6. `src/components/reports/QuarterlyAdsInsightsContent.tsx` -- same
-7. `src/components/reports/YearlyAdsInsightsContent.tsx` -- same
-8. `src/components/reports/CampaignAdsInsightsContent.tsx` -- same
-9. `src/components/brands/InsightTile.tsx` -- translate `text` type tiles
+## Files to Modify (all 28 files with Czech text)
+
+### Core UI Components
+- `src/components/ui/date-range-filter.tsx` -- date range labels (Tento mesic, Minuly kvartal, etc.)
+
+### Report Components
+- `src/components/reports/AIInsightsTab.tsx` -- toasts, labels, placeholders
+- `src/components/reports/AdsAIInsightsTab.tsx` -- toasts, labels, placeholders
+- `src/components/reports/AIInsightsInputDialog.tsx` -- dialog labels, placeholders, buttons
+- `src/components/reports/AIInsightsContent.tsx` -- section headers ("Zakladni prehled kampane"), placeholders
+- `src/components/reports/AIInsightsContentPDF.tsx` -- section headers
+- `src/components/reports/AdsAIInsightsContent.tsx` -- placeholders
+- `src/components/reports/MonthlyAdsInsightsContent.tsx` -- section headers, placeholders
+- `src/components/reports/QuarterlyAdsInsightsContent.tsx` -- section headers, placeholders
+- `src/components/reports/YearlyAdsInsightsContent.tsx` -- section headers, placeholders
+- `src/components/reports/CampaignAdsInsightsContent.tsx` -- section headers, placeholders
+- `src/components/reports/ContentPreviewCard.tsx` -- "Zobrazit obsah"
+- `src/components/reports/EditableDataTable.tsx` -- "Zobrazit vice"
+- `src/components/reports/CreateReportDialog.tsx` -- period options labels
+- `src/components/reports/CreateContentDialog.tsx` -- placeholders
+- `src/components/reports/EditContentDialog.tsx` -- placeholders
+- `src/components/reports/AdsOverviewTab.tsx` -- empty state text
+- `src/components/reports/CreatorPerformanceCard.tsx` -- AI-generated sentence fragments
+- `src/components/reports/OverviewTab.tsx` -- tooltips with Czech descriptions
+
+### Admin Components
+- `src/components/admin/PromptsTab.tsx` -- toasts, labels, empty states
+
+### Brand Components
+- `src/components/brands/BrandAIInsights.tsx` -- toasts, empty states
+
+### Navigation
+- `src/components/MainNavigation.tsx` -- title attribute (minor)
 
 ## Technical Details
 
-### Translation Context Core Logic
+### `useT()` Hook
 ```typescript
-const cache = useRef(new Map<string, string>());
+// src/lib/translations.ts
+import { useTranslation } from "@/contexts/TranslationContext";
 
-const translateText = async (text: string): Promise<string> => {
-  if (!text || text.trim().length === 0) return text;
-  if (cache.current.has(text)) return cache.current.get(text)!;
-  
-  const { data } = await supabase.functions.invoke("translate-text", {
-    body: { texts: [text] },
-  });
-  
-  const translated = data.translations[0];
-  cache.current.set(text, translated);
-  return translated;
+const dict: Record<string, string> = {
+  "Nepodařilo se načíst data": "Failed to load data",
+  "Uložit změny": "Save changes",
+  "Zobrazit více": "Show more",
+  "Zrušit": "Cancel",
+  "Tento měsíc": "This month",
+  // ... all other strings
+};
+
+export const useT = () => {
+  const { isEnglish } = useTranslation();
+  return (czech: string) => isEnglish ? (dict[czech] || czech) : czech;
 };
 ```
 
-### EditableSection Integration
-In display mode (not editing), wrap the text output:
-```tsx
+### Usage Pattern
+```typescript
 // Before
-<p>{value}</p>
+toast.error("Nepodařilo se načíst data");
+<Button>Uložit změny</Button>
 
 // After
-<p>{isEnglish ? translatedValue : value}</p>
+const t = useT();
+toast.error(t("Nepodařilo se načíst data"));
+<Button>{t("Uložit změny")}</Button>
 ```
 
-When `isEditing` is true, always show and save the original Czech value -- translation is display-only.
+### For non-component contexts (toast callbacks inside async functions)
+The `t()` function will be called at the top of the component and used inside handlers, so it always reflects current language state.
 
-### Header Button
-```tsx
-<Button
-  onClick={toggleLanguage}
-  variant="outline"
-  size="icon"
-  className="rounded-[35px] border-white text-white hover:bg-white hover:text-foreground"
-  title={isEnglish ? "Switch to Czech" : "Switch to English"}
->
-  <Languages className="h-4 w-4" />
-</Button>
-```
+## Implementation Order
+1. Create `src/lib/translations.ts` with complete dictionary and `useT` hook
+2. Update all 28 files to import and use `useT()` for every Czech string
+3. Verify no Czech strings remain when toggle is set to EN
+
