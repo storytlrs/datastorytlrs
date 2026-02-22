@@ -11,6 +11,7 @@ import {
 import { LogOut, User, Building2, ChevronDown, Check, ArrowLeft } from "lucide-react";
 import { useUserRole } from "@/hooks/useUserRole";
 import { EditProfileDialog } from "@/components/profile/EditProfileDialog";
+import logoWhite from "@/assets/logo-white.png";
 
 interface Brand {
   id: string;
@@ -89,10 +90,10 @@ const MainNavigation = () => {
   const isOnAdminPage = location.pathname === "/admin";
 
   return (
-    <nav className="w-full py-4 border-b border-foreground">
+    <nav className="w-full py-4 bg-foreground">
       <div className="max-w-7xl mx-auto flex items-center justify-between px-6">
         {/* Logo/Brand */}
-        <div className="text-xl font-bold">Story TLRS</div>
+        <img src={logoWhite} alt="Story TLRS" className="h-8" />
 
         {/* Brand Switcher Dropdown */}
         {!isOnAdminPage && brands.length > 0 && (
@@ -100,7 +101,7 @@ const MainNavigation = () => {
             <DropdownMenuTrigger asChild>
               <Button
                 variant="outline"
-                className="rounded-[35px] gap-2 border-foreground px-6"
+                className="rounded-[35px] gap-2 border-white text-white hover:bg-white hover:text-foreground px-6"
               >
                 <Building2 className="h-4 w-4" />
                 {currentBrand?.name || "Select brand"}
@@ -134,7 +135,7 @@ const MainNavigation = () => {
               onClick={() => navigate("/dashboard")}
               variant="outline"
               size="icon"
-              className="rounded-[35px] border-foreground"
+              className="rounded-[35px] border-white text-white hover:bg-white hover:text-foreground"
             >
               <ArrowLeft className="h-4 w-4" />
             </Button>
@@ -143,7 +144,7 @@ const MainNavigation = () => {
             onClick={handleSettingsClick}
             variant="outline"
             size="icon"
-            className="rounded-[35px] border-foreground"
+            className="rounded-[35px] border-white text-white hover:bg-white hover:text-foreground"
           >
             <User className="h-4 w-4" />
           </Button>
@@ -151,7 +152,7 @@ const MainNavigation = () => {
             onClick={handleSignOut}
             variant="outline"
             size="icon"
-            className="rounded-[35px] border-foreground"
+            className="rounded-[35px] border-white text-white hover:bg-white hover:text-foreground"
           >
             <LogOut className="h-4 w-4" />
           </Button>
