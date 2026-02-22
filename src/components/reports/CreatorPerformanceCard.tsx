@@ -178,8 +178,8 @@ export const CreatorPerformanceCard = ({
         </div>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-6">
-        {/* Left: Top Post & Sentiment Breakdown */}
+      <div className="grid md:grid-cols-3 gap-6">
+        {/* Left: Content Preview only */}
         <div className="space-y-4">
           {creator.top_content && (
             <div className="w-[180px] flex-shrink-0">
@@ -190,8 +190,19 @@ export const CreatorPerformanceCard = ({
                 views={creator.top_content.views}
                 engagementRate={creator.top_content.engagement_rate}
                 url={creator.top_content.url}
-                contentSummary={creator.top_content.content_summary}
               />
+            </div>
+          )}
+        </div>
+
+        {/* Middle: Content Summary + Sentiment Breakdown */}
+        <div className="space-y-4">
+          {creator.top_content?.content_summary && (
+            <div>
+              <span className="text-sm font-medium text-muted-foreground mb-2 block">
+                Content Summary:
+              </span>
+              <p className="text-sm leading-relaxed">{creator.top_content.content_summary}</p>
             </div>
           )}
 
@@ -216,20 +227,9 @@ export const CreatorPerformanceCard = ({
               </div>
             </div>
           )}
-
-          {/* Relevance */}
-          <div>
-            <span className="text-sm text-muted-foreground">Relevance: </span>
-            <span className={`font-bold ${getRelevanceColor(creator.relevance)}`}>
-              {creator.relevance}%
-            </span>
-            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-              {getRelevanceExplanation(creator, brandName)}
-            </p>
-          </div>
         </div>
 
-        {/* Right: Key Insight & Topics */}
+        {/* Right: Key Insight & Topics & Relevance */}
         <div className="space-y-4">
           {/* Key Insight */}
           <div>
@@ -365,6 +365,17 @@ export const CreatorPerformanceCard = ({
                 )}
               </div>
             )}
+          </div>
+
+          {/* Relevance */}
+          <div>
+            <span className="text-sm text-muted-foreground">Relevance: </span>
+            <span className={`font-bold ${getRelevanceColor(creator.relevance)}`}>
+              {creator.relevance}%
+            </span>
+            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+              {getRelevanceExplanation(creator, brandName)}
+            </p>
           </div>
         </div>
       </div>

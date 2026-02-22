@@ -392,8 +392,6 @@ export const AIInsightsContentPDF = forwardRef<HTMLDivElement, AIInsightsContent
           
           return (
             <Card key={creator.handle} className="p-4 rounded-[20px] border-foreground" style={{ backgroundColor: '#E9E9E9' }}>
-              <h2 className="text-lg font-bold mb-3">Content Performance: @{creator.handle}</h2>
-              
               {/* Header */}
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
@@ -430,9 +428,9 @@ export const AIInsightsContentPDF = forwardRef<HTMLDivElement, AIInsightsContent
                 </div>
               </div>
 
-              {/* Content: 2-column layout */}
-              <div className="grid grid-cols-2 gap-4">
-                {/* Left: Top Post & Sentiment */}
+              {/* Content: 3-column layout */}
+              <div className="grid grid-cols-3 gap-4">
+                {/* Left: Content Preview only */}
                 <div className="space-y-3">
                   {creator.top_content && (
                     <div className="w-[140px]">
@@ -443,8 +441,17 @@ export const AIInsightsContentPDF = forwardRef<HTMLDivElement, AIInsightsContent
                         views={creator.top_content.views}
                         engagementRate={creator.top_content.engagement_rate}
                         url={null}
-                        contentSummary={creator.top_content.content_summary}
                       />
+                    </div>
+                  )}
+                </div>
+
+                {/* Middle: Content Summary + Sentiment */}
+                <div className="space-y-3">
+                  {creator.top_content?.content_summary && (
+                    <div>
+                      <span className="text-xs font-medium text-muted-foreground mb-1 block">Content Summary:</span>
+                      <p className="text-xs leading-relaxed">{creator.top_content.content_summary}</p>
                     </div>
                   )}
 
@@ -468,16 +475,9 @@ export const AIInsightsContentPDF = forwardRef<HTMLDivElement, AIInsightsContent
                       </div>
                     </div>
                   )}
-
-                  <div>
-                    <span className="text-xs text-muted-foreground">Relevance: </span>
-                    <span className={`font-bold text-sm ${getRelevanceColor(relevanceNum)}`}>
-                      {relevanceNum}%
-                    </span>
-                  </div>
                 </div>
 
-                {/* Right: Key Insight & Topics */}
+                {/* Right: Key Insight + Topics + Relevance */}
                 <div className="space-y-3">
                   <div>
                     <span className="text-xs font-medium text-muted-foreground mb-1 block">Key Insight:</span>
@@ -508,6 +508,13 @@ export const AIInsightsContentPDF = forwardRef<HTMLDivElement, AIInsightsContent
                         <span className="text-xs text-muted-foreground italic">None</span>
                       )}
                     </div>
+                  </div>
+
+                  <div>
+                    <span className="text-xs text-muted-foreground">Relevance: </span>
+                    <span className={`font-bold text-sm ${getRelevanceColor(relevanceNum)}`}>
+                      {relevanceNum}%
+                    </span>
                   </div>
                 </div>
               </div>
