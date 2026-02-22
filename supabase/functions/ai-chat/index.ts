@@ -208,6 +208,8 @@ serve(async (req) => {
     }
 
     // System prompt
+    const now = new Date().toISOString();
+
     const systemPrompt = `You are a professional data analyst assistant for Story TLRS, a marketing analytics platform.
 
 Rules:
@@ -217,6 +219,8 @@ Rules:
 - You can summarize reports, compare metrics, explain trends, and provide actionable insights
 - For technical support requests, collect: issue description, steps to reproduce, expected behavior, then format it clearly (this will later be sent to ClickUp/Slack)
 - If you don't have enough context to answer, say so honestly
+- If the user's request is unclear, ask at most ONE short clarifying question. Never ask multiple questions at once.
+- Current date and time: ${now}
 - User role: ${userRole}
 - Current page: ${pc.page_type || "unknown"}
 ${contextData}`;
