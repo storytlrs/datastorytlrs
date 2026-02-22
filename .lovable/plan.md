@@ -1,116 +1,105 @@
 
 
-# AI Insights on Brand/Space Level
+# Vylepšení AI Insights -- konkrétnost, benchmarky, big picture
 
-## Overview
-Replace the current placeholder "Insights" tab with a fully functional "AI Insights" section that provides a high-level overview of the most important findings across all reports within the brand (space). The section consists of up to 9 modular tiles, each containing a metric, chart, content preview, or text insight.
+## Problem
+Aktualni AI Insights generuji genericke dlazdice bez kontextu (obdobi, zdroj reportu), bez srovnani (benchmark vs. aktualni), a neplni funkci "big picture" prehledu aktivit brandu. Prompt je prilis vseobecny a data posilana do AI postradi klicove informace (KPI cile, per-report breakdown, TSWB, sentiment, watch_time).
 
-## Data Model
+## Zmeny
 
-New table: `space_ai_insights`
+### 1. Edge Function: rozsirit data kontext
 
-| Column | Type | Description |
-|--------|------|-------------|
-| id | uuid (PK) | |
-| space_id | uuid (FK -> spaces) | Brand this belongs to |
-| tiles | jsonb | Array of up to 9 tile objects |
-| generated_at | timestamptz | When the insights were last generated |
-| generated_by | text | Trigger source: "report_publish", "weekly_cron", "manual" |
-| created_at | timestamptz | |
-| updated_at | timestamptz | |
+Doplnit do datoveho kontextu posilaneho AI:
 
-Each tile in the `tiles` JSON array:
+- **Per-report breakdown**: u kazdeho reportu zahrnout jeho nazev, typ, obdobi (start_date -- end_date), a jeho agregovane metriky (views, ER, cost, TSWB, sentiment breakdown). AI tak muze rikat "v reportu X za obdobi Y..."
+- **KPI targets**: nacist z tabulky `kpi_targets` planovane vs. skutecne hodnoty a zahrnout je -- AI bude moci prioritizovat podle cilovych metrik
+- **TSWB vypocet**: watch_time + likes*3 + comments*5 + (saves+shares+reposts)*10, agregovat per report i celkove
+- **TSWB Cost**: total cost / TSWB v minutach
+- **Sentiment breakdown**: pocet positive/negative/neutral/mixed sentimentu per report
+- **Watch time**: celkovy a prumery, vcetne avg_watch_time
+- **Per-creator stats**: creator handle + report name + total views, total cost, content count, avg ER, TSWB -- aby AI mohl identifikovat "nejlepsiho influencera"
+- **Per-campaign stats**: campaign name + spend + impressions + CPM + CTR -- pro "nejlepsi kampan"
 
+### 2. Edge Function: prepsat system prompt
+
+Novy prompt bude mnohem specificjsi:
+
+- Vyzadovat ze kazda dlazdice musi obsahovat konkretni cisla, nazvy reportu/kampani/creatoru a obdobi
+- Vyzadovat benchmarky: srovnani nejlepsiho vs. prumeru vs. nejhorsiho kde to dava smysl
+- Definovat prioritni metriky: **Views, ER, CPM, TSWB Cost, Sentiment**
+- Vyzadovat "big picture" dlazdici (typ text) jako prvni -- shrnuti vsech aktivit, kolik reportu, kolik creatoru, kolik kampani, celkovy budget
+- Vyzadovat profesionalni, strucny a srozumitelny jazyk
+- Vyzadovat ze AI musi zohlednit KPI cile (pokud existuji) a prioritizovat podle nich
+- Instruovat AI aby pouzival ruzne velikosti dlazdic (size field: "small", "medium", "large")
+
+### 3. Tile data model: pridat `size` field
+
+Pridat do tile schematu novy field:
+- `size`: `"small"` (1 col), `"medium"` (1 col, vyssi), `"large"` (2 cols span)
+
+To umozni AI rozhodovat o velikosti dlazdic podle priority a mnozstvi obsahu.
+
+### 4. UI: InsightTile.tsx -- podpora ruznych velikosti
+
+- `small`: kompaktni metrika (soucasny vzhled)
+- `medium`: standardni (chart, content preview)
+- `large`: `col-span-2`, pro textove shrnuti nebo velke grafy
+
+### 5. UI: BrandAIInsights.tsx -- grid layout
+
+Zmenit grid na auto-fill s podporou `col-span-2` pro large tiles.
+
+## Technicke detaily
+
+### Soubor: `supabase/functions/generate-space-ai-insights/index.ts`
+
+**Nove datove zdroje (pridano do Promise.all):**
+- `kpi_targets` -- nacist vsechny KPI targets pro vsechny reporty v space
+- Rozsirit content SELECT o `watch_time`, `avg_watch_time`, `sentiment`, `shares`, `saves`, `reposts`
+
+**Per-report agregace:**
 ```text
-{
-  "type": "metric" | "chart" | "content_preview" | "text",
-  "title": "Top performing creator",
-  "value": "12.4%",           // for metric tiles
-  "subtitle": "Engagement Rate",
-  "accent_color": "green",
-  "chart_data": [...],        // for chart tiles
-  "chart_type": "bar" | "line" | "pie",
-  "content": { ... },         // for content_preview tiles
-  "text": "...",              // for text tiles
-  "source_report_id": "uuid", // optional link to source report
-  "priority": 1               // ordering (1-9)
-}
+reports.map(report => ({
+  name, type, period, start_date, end_date,
+  content_count, total_views, avg_er, total_cost,
+  tswb, tswb_cost, sentiment: { positive, negative, neutral, mixed },
+  kpi_targets: [{ kpi_name, planned_value, actual_value }]
+}))
 ```
 
-## Generation Triggers
-
-1. **Report publication**: When a report status changes to "active", an Edge Function is triggered to regenerate the space's AI Insights.
-2. **Weekly cron**: A scheduled job runs once a week to refresh insights for all active spaces.
-3. **Manual**: Admin/analyst can click "Regenerate" button in the UI.
-
-## Architecture
-
+**Per-creator agregace:**
 ```text
-Trigger (report publish / cron / manual)
-  |
-  v
-Edge Function: generate-space-ai-insights
-  |
-  +-- Fetch all reports for the space
-  +-- Aggregate key metrics across reports
-  +-- Fetch top content, creators, ads data
-  +-- Call Lovable AI (gemini-3-flash-preview) with aggregated data
-  +-- AI returns structured tile definitions (via tool calling)
-  +-- Upsert into space_ai_insights table
+creators.map(creator => ({
+  handle, platform, report_name,
+  content_count, total_views, total_cost, avg_er, tswb
+}))
 ```
 
-## UI Design
+**Novy system prompt (klicove casti):**
+- "Kazda dlazdice MUSI obsahovat konkretni cisla a nazvy (report, kampan, creator)"
+- "U metrik uvadej srovnani: hodnota vs. prumer vsech reportu"
+- "Prioritni metriky: Views, Engagement Rate, CPM, TSWB Cost, Sentiment"
+- "Prvni dlazdice (priority 1) musi byt 'Prehled aktivit' typu text, size large"
+- "Zohledni KPI cile pokud existuji -- prioritizuj dlazdice podle plneni/neplneni cilu"
+- "Pouzij ruzne velikosti: small pro jednoduche metriky, medium pro grafy, large pro shrnuti"
+- "Bud profesionalni, strucny, konkretni. Zadne vseobecne fraze."
 
-The tab is renamed from "Insights" to "AI Insights". Content is a responsive grid of tiles (3 columns on desktop, 2 on tablet, 1 on mobile).
+**Novy tool schema -- pridano:**
+- `size`: enum `["small", "medium", "large"]`
+- `benchmark`: string (volitelny, pro srovnavaci text pod hodnotou)
 
-Tile types:
-- **Metric**: Large number with title, optional subtitle/comparison (reuses MetricTile-style design)
-- **Chart**: Small recharts visualization (bar, line, or pie)
-- **Content Preview**: Thumbnail + metrics for a standout piece of content
-- **Text**: AI-generated insight paragraph or recommendation
+### Soubor: `src/components/brands/InsightTile.tsx`
 
-When no insights exist yet, a placeholder with a "Generate AI Insights" button is shown (for admin/analyst).
+- Pridat `size` a `benchmark` do `TileData` interface
+- Metric tile: zobrazit benchmark pod hodnotou (mensi font, sedy text)
+- Exportovat CSS tridu na zaklade `size` pro pouziti v gridu
 
-## Technical Details
+### Soubor: `src/components/brands/BrandAIInsights.tsx`
 
-### Database migration
-- Create `space_ai_insights` table with RLS policies (SELECT for space members, ALL for admins)
+- Zmenit grid renderovani: kazda dlazdice dostane `className` podle `tile.size` -- `lg:col-span-2` pro "large"
 
-### New Edge Function: `generate-space-ai-insights`
-- Accepts `{ space_id, trigger: "manual" | "report_publish" | "weekly_cron" }`
-- Aggregates data from: `reports`, `content`, `creators`, `brand_campaigns`, `brand_ads`, `tiktok_campaigns`, `tiktok_ads`, `promo_codes`
-- Uses Lovable AI with tool calling to get structured tile output
-- Upserts result into `space_ai_insights`
-
-### Database trigger for auto-generation
-- A trigger on `reports` table fires when `status` changes to `'active'`
-- Uses `pg_net` to call the edge function asynchronously (follows existing pattern from `trigger_instagram_analysis`)
-
-### Weekly cron
-- `pg_cron` job calling the edge function for all spaces that have at least one active report
-
-### New UI components
-
-**File: `src/components/brands/BrandAIInsights.tsx`**
-- Main component for the AI Insights tab
-- Fetches data from `space_ai_insights`
-- Renders tile grid
-- Shows "Regenerate" button for admin/analyst
-- Shows loading/empty states
-
-**File: `src/components/brands/InsightTile.tsx`**
-- Renders a single tile based on its type
-- Metric tile: large value + title + accent color
-- Chart tile: small recharts chart
-- Content preview tile: thumbnail + key metrics
-- Text tile: markdown-rendered text block
-
-### Modified files
-
-**`src/pages/BrandDetail.tsx`**
-- Rename tab from "Insights" to "AI Insights"
-- Replace placeholder Card with `<BrandAIInsights spaceId={brandId} />`
-
-### RLS Policies
-- `space_ai_insights`: SELECT for space members (via `space_users` join), ALL for admins
+### Upravovane soubory
+1. `supabase/functions/generate-space-ai-insights/index.ts` -- rozsireni dat + novy prompt
+2. `src/components/brands/InsightTile.tsx` -- size + benchmark podpora
+3. `src/components/brands/BrandAIInsights.tsx` -- grid layout s col-span
 
