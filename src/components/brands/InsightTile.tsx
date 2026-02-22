@@ -15,6 +15,7 @@ import {
 } from "recharts";
 import { Eye, Heart, MessageCircle, ExternalLink } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+import { useTranslatedText } from "@/hooks/useTranslatedText";
 
 export interface TileData {
   type: "metric" | "chart" | "content_preview" | "text";
@@ -208,17 +209,22 @@ export const InsightTile = ({ tile }: { tile: TileData }) => {
   }
 
   if (tile.type === "text" && tile.text) {
-    return (
-      <Card className={cn("rounded-[20px] border-2 p-4 flex flex-col", accentClass)}>
-        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
-          {tile.title}
-        </span>
-        <div className="text-sm text-foreground prose prose-sm max-w-none dark:prose-invert">
-          <ReactMarkdown>{tile.text}</ReactMarkdown>
-        </div>
-      </Card>
-    );
+    return <TextTile tile={tile} accentClass={accentClass} />;
   }
 
   return null;
+};
+
+const TextTile = ({ tile, accentClass }: { tile: TileData; accentClass: string }) => {
+  const translatedText = useTranslatedText(tile.text || "");
+  return (
+    <Card className={cn("rounded-[20px] border-2 p-4 flex flex-col", accentClass)}>
+      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
+        {tile.title}
+      </span>
+      <div className="text-sm text-foreground prose prose-sm max-w-none dark:prose-invert">
+        <ReactMarkdown>{translatedText}</ReactMarkdown>
+      </div>
+    </Card>
+  );
 };

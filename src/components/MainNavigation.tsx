@@ -8,8 +8,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { LogOut, User, Building2, ChevronDown, Check, ArrowLeft } from "lucide-react";
+import { LogOut, User, Building2, ChevronDown, Check, ArrowLeft, Languages } from "lucide-react";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useTranslation } from "@/contexts/TranslationContext";
 import { EditProfileDialog } from "@/components/profile/EditProfileDialog";
 import logoWhite from "@/assets/logo-white.png";
 
@@ -23,6 +24,7 @@ const MainNavigation = () => {
   const location = useLocation();
   const { brandId, reportId } = useParams();
   const { isAdmin } = useUserRole();
+  const { isEnglish, toggleLanguage } = useTranslation();
   const [brands, setBrands] = useState<Brand[]>([]);
   const [currentBrand, setCurrentBrand] = useState<Brand | null>(null);
   const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
@@ -147,6 +149,15 @@ const MainNavigation = () => {
             className="rounded-[35px] border-white text-white hover:bg-white hover:text-foreground"
           >
             <User className="h-4 w-4" />
+          </Button>
+          <Button
+            onClick={toggleLanguage}
+            variant="outline"
+            className="rounded-[35px] border-white text-white hover:bg-white hover:text-foreground gap-1 px-3"
+            title={isEnglish ? "Switch to Czech" : "Switch to English"}
+          >
+            <Languages className="h-4 w-4" />
+            <span className="text-xs font-medium">{isEnglish ? "EN" : "CZ"}</span>
           </Button>
           <Button
             onClick={handleSignOut}

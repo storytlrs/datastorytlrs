@@ -3,6 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
+import { TranslatedText } from "@/components/ui/TranslatedText";
 import { MetricTile } from "./MetricTile";
 import { formatCurrencySimple, formatCurrency } from "@/lib/currencyUtils";
 import {
@@ -115,7 +116,7 @@ const EditableSection = ({
   }
   return (
     <div className="group relative">
-      <p className="text-foreground leading-relaxed whitespace-pre-line">{value || <span className="text-muted-foreground italic">{placeholder}</span>}</p>
+      <p className="text-foreground leading-relaxed whitespace-pre-line">{value ? <TranslatedText text={value} /> : <span className="text-muted-foreground italic">{placeholder}</span>}</p>
       {canEdit && (
         <Button variant="ghost" size="sm" onClick={onStartEdit} className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 p-0">
           <Pencil className="w-3 h-3" />
@@ -144,7 +145,7 @@ const EditableListSection = ({
     <div className="group relative">
       <ul className="space-y-2">
         {(items || []).map((item, i) => (
-          <li key={i} className="text-sm text-foreground flex items-start gap-2"><span className={bulletColor}>•</span>{item}</li>
+          <li key={i} className="text-sm text-foreground flex items-start gap-2"><span className={bulletColor}>•</span><TranslatedText text={item} /></li>
         ))}
         {(!items || items.length === 0) && <li className="text-sm text-muted-foreground italic">{placeholder}</li>}
       </ul>

@@ -2,6 +2,7 @@ import { useState, forwardRef } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { TranslatedText } from "@/components/ui/TranslatedText";
 import { Input } from "@/components/ui/input";
 import { MetricTile } from "./MetricTile";
 import { ContentPreviewCard } from "./ContentPreviewCard";
@@ -206,7 +207,7 @@ const EditableSection = ({
 
   return (
     <div className="group relative">
-      <p className="text-foreground leading-relaxed">{value || placeholder}</p>
+      <p className="text-foreground leading-relaxed">{value ? <TranslatedText text={value} /> : placeholder}</p>
       {canEdit && (
         <Button
           variant="ghost"
@@ -283,7 +284,7 @@ const EditableListSection = ({
         {(items || []).map((item, i) => (
           <li key={i} className="text-sm text-foreground flex items-start gap-2">
             <span className={bulletColor}>•</span>
-            {item}
+            <TranslatedText text={item} />
           </li>
         ))}
         {(!items || items.length === 0) && (
