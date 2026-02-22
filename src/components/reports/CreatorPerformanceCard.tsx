@@ -43,6 +43,7 @@ interface CreatorPerformanceCardProps {
   brandName?: string;
   onSaveKeyInsight?: (handle: string, insight: string) => void;
   onSaveTopics?: (handle: string, positiveTopics: string[], negativeTopics: string[]) => void;
+  onSaveContentSummary?: (handle: string, summary: string) => void;
 }
 
 const getRelevanceColor = (relevance: number) => {
@@ -98,6 +99,7 @@ export const CreatorPerformanceCard = ({
   brandName,
   onSaveKeyInsight,
   onSaveTopics,
+  onSaveContentSummary,
 }: CreatorPerformanceCardProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedInsight, setEditedInsight] = useState(creator.key_insight);
@@ -107,6 +109,10 @@ export const CreatorPerformanceCard = ({
   const [isEditingNegativeTopics, setIsEditingNegativeTopics] = useState(false);
   const [editedPositiveTopics, setEditedPositiveTopics] = useState(creator.positive_topics.join(', '));
   const [editedNegativeTopics, setEditedNegativeTopics] = useState(creator.negative_topics.join(', '));
+  
+  // Content summary editing state
+  const [isEditingContentSummary, setIsEditingContentSummary] = useState(false);
+  const [editedContentSummary, setEditedContentSummary] = useState(creator.top_content?.content_summary || '');
 
   const handleSave = () => {
     onSaveKeyInsight?.(creator.handle, editedInsight);
@@ -138,6 +144,16 @@ export const CreatorPerformanceCard = ({
   const handleCancelNegativeTopics = () => {
     setEditedNegativeTopics(creator.negative_topics.join(', '));
     setIsEditingNegativeTopics(false);
+  };
+
+  const handleSaveContentSummary = () => {
+    onSaveContentSummary?.(creator.handle, editedContentSummary);
+    setIsEditingContentSummary(false);
+  };
+
+  const handleCancelContentSummary = () => {
+    setEditedContentSummary(creator.top_content?.content_summary || '');
+    setIsEditingContentSummary(false);
   };
 
   const content = (
@@ -197,14 +213,46 @@ export const CreatorPerformanceCard = ({
 
         {/* Middle: Content Summary + Sentiment Breakdown */}
         <div className="space-y-4">
-          {creator.top_content?.content_summary && (
-            <div>
-              <span className="text-sm font-medium text-muted-foreground mb-2 block">
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-muted-foreground">
                 Content Summary:
               </span>
-              <p className="text-sm leading-relaxed">{creator.top_content.content_summary}</p>
+              {canEdit && !isEditingContentSummary && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsEditingContentSummary(true)}
+                  className="h-6 w-6 p-0"
+                >
+                  <Pencil className="w-3 h-3" />
+                </Button>
+              )}
             </div>
-          )}
+            {isEditingContentSummary ? (
+              <div className="space-y-2">
+                <Textarea
+                  value={editedContentSummary}
+                  onChange={(e) => setEditedContentSummary(e.target.value)}
+                  className="min-h-[80px] rounded-[15px] border-foreground text-sm"
+                />
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={handleSaveContentSummary} className="rounded-[35px]">
+                    <Save className="w-3 h-3 mr-1" />
+                    Save
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={handleCancelContentSummary} className="rounded-[35px] border-foreground">
+                    <X className="w-3 h-3 mr-1" />
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm leading-relaxed max-h-[300px] overflow-y-auto">
+                {creator.top_content?.content_summary || <span className="text-muted-foreground italic">No content summary</span>}
+              </p>
+            )}
+          </div>
 
           {/* Sentiment Breakdown */}
           {creator.sentiment_breakdown && (

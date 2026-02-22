@@ -814,6 +814,16 @@ export const AIInsightsContent = forwardRef<HTMLDivElement, AIInsightsContentPro
                     onSaveInsights({ creator_performance: updatedPerformance });
                   }
                 }}
+                onSaveContentSummary={(handle, summary) => {
+                  if (onSaveInsights) {
+                    const updatedPerformance = (insights.creator_performance || []).map((c) =>
+                      c.handle === handle
+                        ? { ...c, top_content: { ...c.top_content, content_summary: summary } }
+                        : c
+                    );
+                    onSaveInsights({ creator_performance: updatedPerformance });
+                  }
+                }}
               />
             </Card>
           );
