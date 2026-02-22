@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Pencil, Save, X } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { TranslatedText } from "@/components/ui/TranslatedText";
 
 interface TopContent {
   id: string;
@@ -249,7 +250,7 @@ export const CreatorPerformanceCard = ({
               </div>
             ) : (
               <p className="text-sm leading-relaxed max-h-[300px] overflow-y-auto">
-                {creator.top_content?.content_summary || <span className="text-muted-foreground italic">No content summary</span>}
+                {creator.top_content?.content_summary ? <TranslatedText text={creator.top_content.content_summary} /> : <span className="text-muted-foreground italic">No content summary</span>}
               </p>
             )}
           </div>
@@ -313,7 +314,7 @@ export const CreatorPerformanceCard = ({
                 </div>
               </div>
             ) : (
-              <p className="text-sm">{creator.key_insight || "No insight available"}</p>
+              <p className="text-sm">{creator.key_insight ? <TranslatedText text={creator.key_insight} /> : "No insight available"}</p>
             )}
           </div>
 
@@ -422,7 +423,7 @@ export const CreatorPerformanceCard = ({
               {creator.relevance}%
             </span>
             <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-              {getRelevanceExplanation(creator, brandName)}
+              <TranslatedText text={getRelevanceExplanation(creator, brandName)} />
             </p>
           </div>
         </div>
