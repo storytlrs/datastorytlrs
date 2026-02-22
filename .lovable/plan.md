@@ -1,45 +1,68 @@
 
+# Fix: AI Chat Not Detecting Current Space
 
-# Fix AI Assistant Context: Current Date, Space Name, and Question Behavior
+## Root Cause
+`AIChatProvider` is rendered **outside** any `<Route>` component (it wraps `<Routes>`), so `useParams()` always returns an empty object. This means `params.brandId` and `params.reportId` are always `undefined`, causing `page_type` to always be `"unknown"`.
 
-## Problems
-1. The system prompt does not include the current date/time, so the assistant cannot reference "today" or time-relative information.
-2. When on a brand page, the space name is fetched but might not be clearly communicated. On report pages, the space name is fetched via a second query but the assistant still sometimes lacks clarity about which space it's in.
-3. No instruction telling the assistant to ask at most one concise clarifying question at a time.
+## Solution
+Update `src/components/chat/usePageContext.ts` to parse the brand ID and report ID directly from `location.pathname` using regex, instead of relying on `useParams()`.
 
-## Changes
+## Technical Details
 
-### File: `supabase/functions/ai-chat/index.ts`
+### File: `src/components/chat/usePageContext.ts`
 
-**1. Add current date to system prompt (line ~211)**
-
-Add `new Date().toISOString()` to provide the current date/time context.
-
-**2. Update system prompt rules (lines 211-222)**
-
-Add these rules:
-- `- Current date and time: {ISO date}`
-- `- If the user's request is unclear, ask at most ONE short clarifying question. Never ask multiple questions at once.`
-
-Updated system prompt section:
+- Remove the `useParams` import and call
+- Parse IDs from pathname using regex patterns:
+  - `/brands/([uuid])` to extract `brandId`
+  - `/reports/([uuid])` to extract `reportId`
+- Keep the same `PageContext` interface and return structure
 
 ```typescript
-const now = new Date().toISOString();
+import { useLocation } from "react-router-dom";
+import { useMemo } from "react";
 
-const systemPrompt = `You are a professional data analyst assistant for Story TLRS, a marketing analytics platform.
+// UUID regex pattern
+const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 
-Rules:
-- Be concise, clear, and professional
-- Respond in the SAME LANGUAGE the user writes in
-- Only reference data from the current brand/space -- NEVER mix data between different brands/spaces
-- You can summarize reports, compare metrics, explain trends, and provide actionable insights
-- For technical support requests, collect: issue description, steps to reproduce, expected behavior, then format it clearly (this will later be sent to ClickUp/Slack)
-- If you don't have enough context to answer, say so honestly
-- If the user's request is unclear, ask at most ONE short clarifying question. Never ask multiple questions at once.
-- Current date and time: ${now}
-- User role: ${userRole}
-- Current page: ${pc.page_type || "unknown"}
-${contextData}`;
+export const usePageContext = (): PageContext => {
+  const location = useLocation();
+
+  return useMemo(() => {
+    const pathname = location.pathname;
+    const searchParams = new URLSearchParams(location.search);
+    const active_tab = searchParams.get("tab") || undefined;
+
+    const brandMatch = pathname.match(new RegExp(`^/brands/(${UUID})`));
+    const reportMatch = pathname.match(new RegExp(`^/reports/(${UUID})`));
+
+    if (pathname === "/dashboard") {
+      return { page_type: "dashboard", pathname, active_tab };
+    }
+
+    if (brandMatch) {
+      return {
+        page_type: "brand_detail",
+        brand_id: brandMatch[1],
+        space_id: brandMatch[1],
+        pathname,
+        active_tab,
+      };
+    }
+
+    if (reportMatch) {
+      return {
+        page_type: "report_detail",
+        report_id: reportMatch[1],
+        pathname,
+        active_tab,
+      };
+    }
+
+    if (pathname === "/admin") return { page_type: "admin", pathname };
+    if (pathname === "/auth") return { page_type: "auth", pathname };
+    return { page_type: "unknown", pathname };
+  }, [location.pathname, location.search]);
+};
 ```
 
-No other files need changes. The edge function will be redeployed automatically.
+No backend changes needed -- the edge function already handles `brand_detail` and `report_detail` page types correctly.
