@@ -16,6 +16,7 @@ import {
 import { Eye, Heart, MessageCircle, ExternalLink } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { useTranslatedText } from "@/hooks/useTranslatedText";
+import { TranslatedText } from "@/components/ui/TranslatedText";
 
 export interface TileData {
   type: "metric" | "chart" | "content_preview" | "text";
@@ -76,15 +77,19 @@ export const InsightTile = ({ tile }: { tile: TileData }) => {
     return (
       <Card className={cn("rounded-[20px] border-2 p-4 flex flex-col", accentClass)}>
         <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
-          {tile.title}
+          <TranslatedText text={tile.title} />
         </span>
         <div className="flex flex-col justify-end">
           <p className="text-2xl font-bold text-foreground">{tile.value}</p>
           {tile.benchmark && (
-            <p className="text-xs font-medium text-muted-foreground mt-1">{tile.benchmark}</p>
+            <p className="text-xs font-medium text-muted-foreground mt-1">
+              <TranslatedText text={tile.benchmark} />
+            </p>
           )}
           {tile.subtitle && (
-            <p className="text-xs font-medium text-muted-foreground mt-0.5">{tile.subtitle}</p>
+            <p className="text-xs font-medium text-muted-foreground mt-0.5">
+              <TranslatedText text={tile.subtitle} />
+            </p>
           )}
         </div>
       </Card>
@@ -92,55 +97,7 @@ export const InsightTile = ({ tile }: { tile: TileData }) => {
   }
 
   if (tile.type === "chart" && tile.chart_data?.length) {
-    return (
-      <Card className={cn("rounded-[20px] border-2 p-4 flex flex-col", accentClass)}>
-        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
-          {tile.title}
-        </span>
-        <div className="h-[180px]">
-          <ResponsiveContainer width="100%" height="100%">
-            {tile.chart_type === "pie" ? (
-              <PieChart>
-                <Pie
-                  data={tile.chart_data}
-                  dataKey="value"
-                  nameKey="name"
-                  cx="50%"
-                  cy="50%"
-                  outerRadius="70%"
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                >
-                  {tile.chart_data.map((_, i) => (
-                    <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            ) : tile.chart_type === "line" ? (
-              <LineChart data={tile.chart_data}>
-                <XAxis dataKey="name" tick={{ fontSize: 10 }} />
-                <YAxis tick={{ fontSize: 10 }} />
-                <Tooltip />
-                <Line
-                  type="monotone"
-                  dataKey="value"
-                  stroke={CHART_COLORS[0]}
-                  strokeWidth={2}
-                  dot={false}
-                />
-              </LineChart>
-            ) : (
-              <BarChart data={tile.chart_data}>
-                <XAxis dataKey="name" tick={{ fontSize: 10 }} />
-                <YAxis tick={{ fontSize: 10 }} />
-                <Tooltip />
-                <Bar dataKey="value" fill={CHART_COLORS[0]} radius={[4, 4, 0, 0]} />
-              </BarChart>
-            )}
-          </ResponsiveContainer>
-        </div>
-      </Card>
-    );
+    return <ChartTile tile={tile} accentClass={accentClass} />;
   }
 
   if (tile.type === "content_preview" && tile.content) {
@@ -148,7 +105,7 @@ export const InsightTile = ({ tile }: { tile: TileData }) => {
     return (
       <Card className={cn("rounded-[20px] border-2 p-4 flex flex-col", accentClass)}>
         <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
-          {tile.title}
+          <TranslatedText text={tile.title} />
         </span>
         <div className="flex gap-3">
           {c.thumbnail_url && (
@@ -215,12 +172,87 @@ export const InsightTile = ({ tile }: { tile: TileData }) => {
   return null;
 };
 
+/** Translates each chart_data name before rendering */
+const useTranslatedChartData = (data: { name: string; value: number }[]) => {
+  // Translate up to 10 label names; hooks must be called unconditionally
+  const t0 = useTranslatedText(data[0]?.name || "");
+  const t1 = useTranslatedText(data[1]?.name || "");
+  const t2 = useTranslatedText(data[2]?.name || "");
+  const t3 = useTranslatedText(data[3]?.name || "");
+  const t4 = useTranslatedText(data[4]?.name || "");
+  const t5 = useTranslatedText(data[5]?.name || "");
+  const t6 = useTranslatedText(data[6]?.name || "");
+  const t7 = useTranslatedText(data[7]?.name || "");
+  const t8 = useTranslatedText(data[8]?.name || "");
+  const t9 = useTranslatedText(data[9]?.name || "");
+  const translations = [t0, t1, t2, t3, t4, t5, t6, t7, t8, t9];
+
+  return data.map((item, i) => ({
+    ...item,
+    name: i < 10 ? (translations[i] || item.name) : item.name,
+  }));
+};
+
+const ChartTile = ({ tile, accentClass }: { tile: TileData; accentClass: string }) => {
+  const translatedData = useTranslatedChartData(tile.chart_data || []);
+
+  return (
+    <Card className={cn("rounded-[20px] border-2 p-4 flex flex-col", accentClass)}>
+      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
+        <TranslatedText text={tile.title} />
+      </span>
+      <div className="h-[180px]">
+        <ResponsiveContainer width="100%" height="100%">
+          {tile.chart_type === "pie" ? (
+            <PieChart>
+              <Pie
+                data={translatedData}
+                dataKey="value"
+                nameKey="name"
+                cx="50%"
+                cy="50%"
+                outerRadius="70%"
+                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+              >
+                {translatedData.map((_, i) => (
+                  <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip />
+            </PieChart>
+          ) : tile.chart_type === "line" ? (
+            <LineChart data={translatedData}>
+              <XAxis dataKey="name" tick={{ fontSize: 10 }} />
+              <YAxis tick={{ fontSize: 10 }} />
+              <Tooltip />
+              <Line
+                type="monotone"
+                dataKey="value"
+                stroke={CHART_COLORS[0]}
+                strokeWidth={2}
+                dot={false}
+              />
+            </LineChart>
+          ) : (
+            <BarChart data={translatedData}>
+              <XAxis dataKey="name" tick={{ fontSize: 10 }} />
+              <YAxis tick={{ fontSize: 10 }} />
+              <Tooltip />
+              <Bar dataKey="value" fill={CHART_COLORS[0]} radius={[4, 4, 0, 0]} />
+            </BarChart>
+          )}
+        </ResponsiveContainer>
+      </div>
+    </Card>
+  );
+};
+
 const TextTile = ({ tile, accentClass }: { tile: TileData; accentClass: string }) => {
   const translatedText = useTranslatedText(tile.text || "");
   return (
     <Card className={cn("rounded-[20px] border-2 p-4 flex flex-col", accentClass)}>
       <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
-        {tile.title}
+        <TranslatedText text={tile.title} />
       </span>
       <div className="text-sm text-foreground prose prose-sm max-w-none dark:prose-invert">
         <ReactMarkdown>{translatedText}</ReactMarkdown>
