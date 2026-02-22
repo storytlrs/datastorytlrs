@@ -1,27 +1,28 @@
 
-# Update AI Chat Button Style
 
-## What changes
-The floating chat button will be restyled to match the reference image:
-- **Black circular background** instead of green
-- **Orange robot icon** (`#FF8000` / accent-orange) instead of black
-- Larger size (~64px) for prominence
-- Shadow for depth
-- On hover: slight scale-up effect
+# Update AI Assistant Button Styling
 
-## Technical details
+## Changes
 
-### File: `src/components/chat/AIChatButton.tsx`
-Update the Button className:
-- Background: `bg-black` (black circle)
-- Icon color: `text-accent-orange` (orange, #FF8000)
-- Size: `h-16 w-16` (64px)
-- Border: `border-none`
-- Hover: `hover:scale-105`
-- Keep `rounded-full`, `shadow-lg`, `fixed bottom-6 right-6 z-50`
+**File: `src/components/chat/AIChatButton.tsx`** -- Update the Button element (lines 12-18):
 
-Update Bot icon size to `h-8 w-8` for better proportion in the larger button.
+- **Size**: `h-14 w-14` (56x56px)
+- **Background**: `bg-primary` (black #000000)
+- **Border**: `border border-primary` (white border in default state)
+- **Icon color**: `text-[#FF8000]` (orange)
+- **Icon size**: `!h-10 !w-10` (40x40px, with `!` to override SVG defaults)
+- **Shadow**: `shadow-lg`
+- **Hover**: `hover:bg-[#FF8000] hover:text-black hover:border-[#FF8000]` -- orange background, black icon
 
-When open (X icon): same black bg with orange X icon for consistency.
+### Updated className
+```tsx
+className="fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full bg-primary text-[#FF8000] shadow-lg border border-primary hover:bg-[#FF8000] hover:text-black hover:border-[#FF8000] transition-all duration-200"
+```
+
+### Updated icons
+```tsx
+{isOpen ? <X className="!h-10 !w-10" /> : <Bot className="!h-10 !w-10" />}
+```
 
 No other files need changes.
+
