@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
 import { DateRangeFilter } from "@/components/ui/date-range-filter";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -35,6 +36,7 @@ interface EditReportDialogProps {
   onOpenChange: (open: boolean) => void;
   report: Report;
   onSuccess: () => void;
+  onDelete?: () => void;
 }
 
 const reportTypeOptions = [
@@ -50,9 +52,11 @@ const periodOptions = [
   { value: "yearly", label: "Roční" },
 ];
 
-export const EditReportDialog = ({ open, onOpenChange, report, onSuccess }: EditReportDialogProps) => {
+export const EditReportDialog = ({ open, onOpenChange, report, onSuccess, onDelete }: EditReportDialogProps) => {
   const { isAdmin } = useUserRole();
   const [loading, setLoading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [projects, setProjects] = useState<Project[]>([]);
   
   const [name, setName] = useState(report.name);
@@ -184,6 +188,50 @@ export const EditReportDialog = ({ open, onOpenChange, report, onSuccess }: Edit
     }
   };
 
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      const isInfluencer = report.type === "influencer";
+
+      if (isInfluencer) {
+        // Get content IDs for this report to delete content_tags
+        const { data: contentData } = await supabase
+          .from("content")
+          .select("id")
+          .eq("report_id", report.id);
+        
+        if (contentData && contentData.length > 0) {
+          const contentIds = contentData.map((c) => c.id);
+          await supabase.from("content_tags").delete().in("content_id", contentIds);
+        }
+
+        await supabase.from("content").delete().eq("report_id", report.id);
+        await supabase.from("promo_codes").delete().eq("report_id", report.id);
+        await supabase.from("creators").delete().eq("report_id", report.id);
+      }
+
+      // Common deletes for all report types
+      await supabase.from("report_campaigns").delete().eq("report_id", report.id);
+      await supabase.from("report_tiktok_campaigns").delete().eq("report_id", report.id);
+      await supabase.from("kpi_targets").delete().eq("report_id", report.id);
+      await supabase.from("audit_log").delete().eq("report_id", report.id);
+      await supabase.from("data_imports").delete().eq("report_id", report.id);
+      await supabase.from("media_plan_items").delete().eq("report_id", report.id);
+
+      const { error } = await supabase.from("reports").delete().eq("id", report.id);
+      if (error) throw error;
+
+      toast.success("Report deleted successfully");
+      onOpenChange(false);
+      onDelete?.();
+    } catch (error) {
+      console.error("Error deleting report:", error);
+      toast.error("Failed to delete report");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px] rounded-[35px]">
@@ -292,6 +340,48 @@ export const EditReportDialog = ({ open, onOpenChange, report, onSuccess }: Edit
                 endDate={endDate}
               />
             </div>
+          )}
+          {isAdmin && (
+            <>
+              <Separator />
+              <div className="space-y-3">
+                {!showDeleteConfirm ? (
+                  <Button
+                    variant="destructive"
+                    onClick={() => setShowDeleteConfirm(true)}
+                    className="w-full rounded-[35px]"
+                  >
+                    Delete Report
+                  </Button>
+                ) : (
+                  <div className="space-y-3">
+                    <p className="text-sm text-destructive">
+                      {report.type === "influencer"
+                        ? "This will permanently delete the report and all its data (creators, content, promo codes). This action cannot be undone."
+                        : "This will permanently delete the report. Imported ad data will not be affected. This action cannot be undone."}
+                    </p>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => setShowDeleteConfirm(false)}
+                        className="flex-1 rounded-[35px]"
+                        disabled={deleting}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        onClick={handleDelete}
+                        disabled={deleting}
+                        className="flex-1 rounded-[35px]"
+                      >
+                        {deleting ? "Deleting..." : "Confirm Delete"}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
           )}
         </div>
 

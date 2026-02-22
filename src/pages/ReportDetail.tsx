@@ -354,6 +354,7 @@ const ReportDetail = () => {
           onOpenChange={setIsEditDialogOpen}
           report={report}
           onSuccess={() => { fetchReport(); setRefreshKey(k => k + 1); }}
+          onDelete={() => navigate(`/brands/${report.space_id}?tab=reports`)}
         />
       )}
     </div>
