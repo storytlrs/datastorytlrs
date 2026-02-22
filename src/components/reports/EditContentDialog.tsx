@@ -323,7 +323,7 @@ export const EditContentDialog = ({ content, open, onOpenChange, onSuccess }: Ed
               <Label htmlFor="content_summary">Content Summary</Label>
               <Textarea
                 id="content_summary"
-                placeholder="Stručný popis obsahu..."
+                placeholder="Brief content description..."
                 {...register("content_summary")}
                 className="rounded-[35px] min-h-[80px] resize-none overflow-hidden"
                 onInput={(e) => {

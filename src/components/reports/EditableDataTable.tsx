@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Trash2, Loader2, Pencil, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
+import { useT } from "@/lib/translations";
 
 export type ColumnType = "text" | "number" | "select" | "date";
 
@@ -44,6 +45,7 @@ export const EditableDataTable = ({
   onEdit,
   loading = false,
 }: EditableDataTableProps) => {
+  const t = useT();
   const [editingCell, setEditingCell] = useState<{ id: string; field: string } | null>(null);
   const [editValue, setEditValue] = useState<any>("");
   const [savingCell, setSavingCell] = useState<string | null>(null);
@@ -171,7 +173,7 @@ export const EditableDataTable = ({
                 onClick={(e) => e.stopPropagation()}
               >
                 <ChevronDown className="w-3 h-3 mr-1" />
-                Zobrazit více
+                {t("Zobrazit více")}
               </Button>
             </PopoverTrigger>
             <PopoverContent 

@@ -11,6 +11,7 @@ import { DateRangeFilter } from "@/components/ui/date-range-filter";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useT } from "@/lib/translations";
 import { useUserRole } from "@/hooks/useUserRole";
 import { CampaignSelectorStep } from "./CampaignSelectorStep";
 
@@ -45,7 +46,7 @@ const reportTypeOptions = [
   { value: "always_on", label: "Always-on content" },
 ];
 
-const periodOptions = [
+const periodOptionsCZ = [
   { value: "campaign", label: "Campaign" },
   { value: "monthly", label: "Měsíční" },
   { value: "quarterly", label: "Kvartální" },
@@ -54,6 +55,7 @@ const periodOptions = [
 
 export const EditReportDialog = ({ open, onOpenChange, report, onSuccess, onDelete }: EditReportDialogProps) => {
   const { isAdmin } = useUserRole();
+  const t = useT();
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -302,9 +304,9 @@ export const EditReportDialog = ({ open, onOpenChange, report, onSuccess, onDele
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {periodOptions.map((option) => (
+                  {periodOptionsCZ.map((option) => (
                     <SelectItem key={option.value} value={option.value}>
-                      {option.label}
+                      {t(option.label)}
                     </SelectItem>
                   ))}
                 </SelectContent>

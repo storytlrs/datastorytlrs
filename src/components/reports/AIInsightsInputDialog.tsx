@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useT } from "@/lib/translations";
 import {
   Dialog,
   DialogContent,
@@ -30,6 +31,7 @@ export const AIInsightsInputDialog = ({
   onSubmit,
   isGenerating,
 }: AIInsightsInputDialogProps) => {
+  const t = useT();
   const [mainGoal, setMainGoal] = useState("");
   const [actions, setActions] = useState("");
   const [highlights, setHighlights] = useState("");
@@ -52,20 +54,20 @@ export const AIInsightsInputDialog = ({
             Generate AI Insights
           </DialogTitle>
           <DialogDescription>
-            Odpovězte na následující otázky pro vygenerování AI analýzy kampaně.
+            {t("Odpovězte na následující otázky pro vygenerování AI analýzy kampaně.")}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6 py-4">
           <div className="space-y-2">
             <Label htmlFor="mainGoal" className="text-base font-semibold">
-              Co bylo hlavním cílem kampaně?
+              {t("Co bylo hlavním cílem kampaně?")}
             </Label>
             <Textarea
               id="mainGoal"
               value={mainGoal}
               onChange={(e) => setMainGoal(e.target.value)}
-              placeholder="Např. Zvýšení povědomí o značce, launch nového produktu, zvýšení prodejů..."
+              placeholder={t("Např. Zvýšení povědomí o značce, launch nového produktu, zvýšení prodejů...")}
               className="rounded-[20px] min-h-[100px] border-foreground"
               disabled={isGenerating}
             />
@@ -73,13 +75,13 @@ export const AIInsightsInputDialog = ({
 
           <div className="space-y-2">
             <Label htmlFor="actions" className="text-base font-semibold">
-              Co jsme udělali pro dosažení cíle?
+              {t("Co jsme udělali pro dosažení cíle?")}
             </Label>
             <Textarea
               id="actions"
               value={actions}
               onChange={(e) => setActions(e.target.value)}
-              placeholder="Např. Spolupráce s 10 influencery, vytvoření video obsahu, promo kódy..."
+              placeholder={t("Např. Spolupráce s 10 influencery, vytvoření video obsahu, promo kódy...")}
               className="rounded-[20px] min-h-[100px] border-foreground"
               disabled={isGenerating}
             />
@@ -87,13 +89,13 @@ export const AIInsightsInputDialog = ({
 
           <div className="space-y-2">
             <Label htmlFor="highlights" className="text-base font-semibold">
-              Co se povedlo nejvíce?
+              {t("Co se povedlo nejvíce?")}
             </Label>
             <Textarea
               id="highlights"
               value={highlights}
               onChange={(e) => setHighlights(e.target.value)}
-              placeholder="Např. Virální video od @influencer, vysoká engagement rate, překročení cílů..."
+              placeholder={t("Např. Virální video od @influencer, vysoká engagement rate, překročení cílů...")}
               className="rounded-[20px] min-h-[100px] border-foreground"
               disabled={isGenerating}
             />
@@ -107,7 +109,7 @@ export const AIInsightsInputDialog = ({
             className="rounded-[35px] border-foreground"
             disabled={isGenerating}
           >
-            Zrušit
+            {t("Zrušit")}
           </Button>
           <Button
             onClick={handleSubmit}
@@ -117,7 +119,7 @@ export const AIInsightsInputDialog = ({
             {isGenerating ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Generuji...
+                {t("Generuji...")}
               </>
             ) : (
               "Continue"

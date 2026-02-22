@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/translations";
 
 interface DateRange {
   start: Date | null;
@@ -53,6 +54,7 @@ const findActivePreset = (dateRange: DateRange, presets: PresetOption[]): string
 };
 
 export function DateRangeFilter({ dateRange, onDateRangeChange, className }: DateRangeFilterProps) {
+  const t = useT();
   const [open, setOpen] = React.useState(false);
   const [startMonth, setStartMonth] = React.useState<Date>(dateRange.start || new Date());
   const [endMonth, setEndMonth] = React.useState<Date>(dateRange.end || addMonths(new Date(), 1));
@@ -67,13 +69,13 @@ export function DateRangeFilter({ dateRange, onDateRangeChange, className }: Dat
   }, [dateRange.start, dateRange.end]);
 
   const getLabel = () => {
-    if (activePreset) return activePreset;
+    if (activePreset) return t(activePreset);
     if (dateRange.start && dateRange.end) {
       return `${format(dateRange.start, "d. M. yyyy")} – ${format(dateRange.end, "d. M. yyyy")}`;
     }
-    if (dateRange.start) return `Od ${format(dateRange.start, "d. M. yyyy")}`;
-    if (dateRange.end) return `Do ${format(dateRange.end, "d. M. yyyy")}`;
-    return "Vybrat datum";
+    if (dateRange.start) return `${t("Od")} ${format(dateRange.start, "d. M. yyyy")}`;
+    if (dateRange.end) return `${t("Do")} ${format(dateRange.end, "d. M. yyyy")}`;
+    return t("Vybrat datum");
   };
 
   const handlePresetClick = (preset: PresetOption) => {
@@ -85,7 +87,6 @@ export function DateRangeFilter({ dateRange, onDateRangeChange, className }: Dat
   const handleStartSelect = (date: Date | undefined) => {
     if (!date) return;
     const newStart = date;
-    // If start > end, swap
     if (dateRange.end && date > dateRange.end) {
       onDateRangeChange({ start: dateRange.end, end: date });
     } else {
@@ -95,7 +96,6 @@ export function DateRangeFilter({ dateRange, onDateRangeChange, className }: Dat
 
   const handleEndSelect = (date: Date | undefined) => {
     if (!date) return;
-    // If end < start, swap
     if (dateRange.start && date < dateRange.start) {
       onDateRangeChange({ start: date, end: dateRange.start });
     } else {
@@ -126,11 +126,9 @@ export function DateRangeFilter({ dateRange, onDateRangeChange, className }: Dat
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0 rounded-[20px]" align="start">
         <div className="flex flex-col">
-          {/* Two calendars side by side */}
           <div className="flex">
-            {/* Start calendar */}
             <div className="p-3 border-r border-border">
-              <p className="text-center text-sm font-medium text-muted-foreground mb-2">Od</p>
+              <p className="text-center text-sm font-medium text-muted-foreground mb-2">{t("Od")}</p>
               <Calendar
                 mode="single"
                 selected={dateRange.start || undefined}
@@ -141,9 +139,8 @@ export function DateRangeFilter({ dateRange, onDateRangeChange, className }: Dat
                 className="pointer-events-auto"
               />
             </div>
-            {/* End calendar */}
             <div className="p-3">
-              <p className="text-center text-sm font-medium text-muted-foreground mb-2">Do</p>
+              <p className="text-center text-sm font-medium text-muted-foreground mb-2">{t("Do")}</p>
               <Calendar
                 mode="single"
                 selected={dateRange.end || undefined}
@@ -154,7 +151,6 @@ export function DateRangeFilter({ dateRange, onDateRangeChange, className }: Dat
               />
             </div>
           </div>
-          {/* Presets grid 3x3 below */}
           <div className="border-t border-border p-3">
             <div className="grid grid-cols-3 gap-2">
               {presets.map((preset) => (
@@ -168,7 +164,7 @@ export function DateRangeFilter({ dateRange, onDateRangeChange, className }: Dat
                   )}
                   onClick={() => handlePresetClick(preset)}
                 >
-                  {preset.label}
+                  {t(preset.label)}
                 </Button>
               ))}
             </div>
@@ -180,7 +176,7 @@ export function DateRangeFilter({ dateRange, onDateRangeChange, className }: Dat
                   className="text-sm h-8 rounded-full text-muted-foreground"
                   onClick={handleClear}
                 >
-                  Vymazat
+                  {t("Vymazat")}
                 </Button>
               </div>
             )}

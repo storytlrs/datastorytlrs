@@ -7,6 +7,7 @@ import { InsightTile, TileData } from "./InsightTile";
 import { useUserRole } from "@/hooks/useUserRole";
 import { toast } from "sonner";
 import { RefreshCw, Sparkles } from "lucide-react";
+import { useT } from "@/lib/translations";
 
 interface BrandAIInsightsProps {
   spaceId: string;
@@ -16,6 +17,7 @@ const BrandAIInsights = ({ spaceId }: BrandAIInsightsProps) => {
   const { canEdit } = useUserRole();
   const queryClient = useQueryClient();
   const [generating, setGenerating] = useState(false);
+  const t = useT();
 
   const { data: insights, isLoading } = useQuery({
     queryKey: ["space-ai-insights", spaceId],
@@ -53,10 +55,10 @@ const BrandAIInsights = ({ spaceId }: BrandAIInsightsProps) => {
         throw new Error(err.error || "Failed to generate insights");
       }
 
-      toast.success("AI Insights vygenerovány");
+      toast.success(t("AI Insights vygenerovány"));
       queryClient.invalidateQueries({ queryKey: ["space-ai-insights", spaceId] });
     } catch (e: any) {
-      toast.error(e.message || "Chyba při generování insights");
+      toast.error(e.message || t("Chyba při generování insights"));
     } finally {
       setGenerating(false);
     }
@@ -87,9 +89,9 @@ const BrandAIInsights = ({ spaceId }: BrandAIInsightsProps) => {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center">
         <Sparkles className="w-12 h-12 text-muted-foreground mb-4" />
-        <h3 className="text-lg font-semibold mb-2">Žádné AI Insights</h3>
+        <h3 className="text-lg font-semibold mb-2">{t("Žádné AI Insights")}</h3>
         <p className="text-muted-foreground mb-6 max-w-md">
-          AI Insights budou automaticky generovány po publikaci reportu, nebo je můžete vygenerovat ručně.
+          {t("AI Insights budou automaticky generovány po publikaci reportu, nebo je můžete vygenerovat ručně.")}
         </p>
         {canEdit && (
           <Button
@@ -100,12 +102,12 @@ const BrandAIInsights = ({ spaceId }: BrandAIInsightsProps) => {
             {generating ? (
               <>
                 <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                Generuji...
+                {t("Generuji...")}
               </>
             ) : (
               <>
                 <Sparkles className="w-4 h-4 mr-2" />
-                Vygenerovat AI Insights
+                {t("Vygenerovat AI Insights")}
               </>
             )}
           </Button>
@@ -120,7 +122,7 @@ const BrandAIInsights = ({ spaceId }: BrandAIInsightsProps) => {
         <div>
           {generatedAt && (
             <p className="text-sm text-muted-foreground">
-              Poslední aktualizace: {generatedAt}
+              {t("Poslední aktualizace:")} {generatedAt}
             </p>
           )}
         </div>
@@ -134,12 +136,12 @@ const BrandAIInsights = ({ spaceId }: BrandAIInsightsProps) => {
             {generating ? (
               <>
                 <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                Generuji...
+                {t("Generuji...")}
               </>
             ) : (
               <>
                 <RefreshCw className="w-4 h-4 mr-2" />
-                Přegenerovat
+                {t("Přegenerovat")}
               </>
             )}
           </Button>

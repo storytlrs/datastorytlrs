@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { TranslatedText } from "@/components/ui/TranslatedText";
 import { Input } from "@/components/ui/input";
+import { useT } from "@/lib/translations";
 import { MetricTile } from "./MetricTile";
 import { ContentPreviewCard } from "./ContentPreviewCard";
 import { LeaderboardTable, LeaderboardEntry, Benchmarks } from "./LeaderboardTable";
@@ -315,6 +316,7 @@ export const AIInsightsContent = forwardRef<HTMLDivElement, AIInsightsContentPro
   brandName,
   onSaveInsights,
 }, ref) => {
+  const t = useT();
   const [editingSections, setEditingSections] = useState<Set<string>>(new Set());
   const [selectedTopContentIds, setSelectedTopContentIds] = useState<string[]>(
     insights.selected_top_content_ids || (insights.top_content || []).map((c) => c.id)
@@ -585,7 +587,7 @@ export const AIInsightsContent = forwardRef<HTMLDivElement, AIInsightsContentPro
       {/* Campaign Overview Block - Page 3 */}
       <Card className="p-6 rounded-[20px] border-foreground pdf-page-break" style={{ backgroundColor: '#E9E9E9' }}>
         <h2 className="text-xl font-bold mb-4">
-          Základní přehled kampaně
+          {t("Základní přehled kampaně")}
         </h2>
         <div className="mb-4">
           <EditableSection
@@ -595,7 +597,7 @@ export const AIInsightsContent = forwardRef<HTMLDivElement, AIInsightsContentPro
             onSave={(v) => handleSaveSection("overview_summary", v)}
             onCancel={() => stopEditing("overview_summary")}
             canEdit={canEdit}
-            placeholder="AI shrnutí základních metrik kampaně..."
+            placeholder={t("AI shrnutí základních metrik kampaně...")}
           />
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -633,7 +635,7 @@ export const AIInsightsContent = forwardRef<HTMLDivElement, AIInsightsContentPro
       {/* Innovation Metrics Block - Page 4 */}
       <Card className="p-6 rounded-[20px] border-foreground pdf-page-break" style={{ backgroundColor: '#E9E9E9' }}>
         <h2 className="text-xl font-bold mb-4">
-          Inovativní a kvalitativní metriky
+          {t("Inovativní a kvalitativní metriky")}
         </h2>
         <div className="mb-4">
           <EditableSection
@@ -643,7 +645,7 @@ export const AIInsightsContent = forwardRef<HTMLDivElement, AIInsightsContentPro
             onSave={(v) => handleSaveSection("innovation_summary", v)}
             onCancel={() => stopEditing("innovation_summary")}
             canEdit={canEdit}
-            placeholder="AI shrnutí inovativních a kvalitativních metrik..."
+            placeholder={t("AI shrnutí inovativních a kvalitativních metrik...")}
           />
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -681,7 +683,7 @@ export const AIInsightsContent = forwardRef<HTMLDivElement, AIInsightsContentPro
       {/* Campaign Sentiment Block - Page 5 */}
       <Card className="p-6 rounded-[20px] border-foreground pdf-page-break" style={{ backgroundColor: '#E9E9E9' }}>
         <h2 className="text-xl font-bold mb-4">
-          Sentiment kampaně
+          {t("Sentiment kampaně")}
         </h2>
         
         <div className="mb-4">

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useT } from "@/lib/translations";
 import { Loader2, Save, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -22,6 +23,7 @@ interface AIPrompt {
 }
 
 export const PromptsTab = () => {
+  const t = useT();
   const [prompts, setPrompts] = useState<AIPrompt[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [savingId, setSavingId] = useState<string | null>(null);
@@ -51,7 +53,7 @@ export const PromptsTab = () => {
       setEditedPrompts(initial);
     } catch (error) {
       console.error("Error fetching prompts:", error);
-      toast.error("Nepodařilo se načíst prompty");
+      toast.error(t("Nepodařilo se načíst prompty"));
     } finally {
       setIsLoading(false);
     }
@@ -60,7 +62,7 @@ export const PromptsTab = () => {
   const handleSave = async (prompt: AIPrompt) => {
     const newText = editedPrompts[prompt.id];
     if (newText === prompt.prompt_text) {
-      toast.info("Žádné změny k uložení");
+      toast.info(t("Žádné změny k uložení"));
       return;
     }
 
@@ -79,10 +81,10 @@ export const PromptsTab = () => {
           p.id === prompt.id ? { ...p, prompt_text: newText } : p
         )
       );
-      toast.success("Prompt uložen");
+      toast.success(t("Prompt uložen"));
     } catch (error) {
       console.error("Error saving prompt:", error);
-      toast.error("Nepodařilo se uložit prompt");
+      toast.error(t("Nepodařilo se uložit prompt"));
     } finally {
       setSavingId(null);
     }
@@ -111,16 +113,16 @@ export const PromptsTab = () => {
     <div className="space-y-4">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-xl font-semibold">AI Prompty</h2>
+          <h2 className="text-xl font-semibold">{t("AI Prompty")}</h2>
           <p className="text-sm text-muted-foreground">
-            Zde můžete upravit prompty používané pro AI analýzy
+            {t("Zde můžete upravit prompty používané pro AI analýzy")}
           </p>
         </div>
       </div>
 
       {prompts.length === 0 ? (
         <Card className="p-8 text-center text-muted-foreground">
-          Žádné prompty nenalezeny
+          {t("Žádné prompty nenalezeny")}
         </Card>
       ) : (
         <div className="space-y-3">
@@ -142,7 +144,7 @@ export const PromptsTab = () => {
                         <h3 className="font-medium">{prompt.name}</h3>
                         {hasChanges(prompt) && (
                           <span className="text-xs bg-accent-orange text-foreground px-2 py-0.5 rounded-full">
-                            Neuloženo
+                            {t("Neuloženo")}
                           </span>
                         )}
                       </div>
@@ -162,7 +164,7 @@ export const PromptsTab = () => {
                 <CollapsibleContent>
                   <div className="px-4 pb-4 space-y-3">
                     <div className="text-xs text-muted-foreground">
-                      Klíč: <code className="bg-muted px-1 rounded">{prompt.key}</code>
+                      {t("Klíč:")} <code className="bg-muted px-1 rounded">{prompt.key}</code>
                     </div>
                     <Textarea
                       value={editedPrompts[prompt.id] || ""}
@@ -173,7 +175,7 @@ export const PromptsTab = () => {
                         }))
                       }
                       className="min-h-[300px] font-mono text-sm"
-                      placeholder="Zadejte prompt..."
+                      placeholder={t("Zadejte prompt...")}
                     />
                     <div className="flex justify-end">
                       <Button
@@ -186,7 +188,7 @@ export const PromptsTab = () => {
                         ) : (
                           <Save className="w-4 h-4 mr-2" />
                         )}
-                        Uložit změny
+                        {t("Uložit změny")}
                       </Button>
                     </div>
                   </div>

@@ -1,4 +1,5 @@
 import { Card } from "@/components/ui/card";
+import { useT } from "@/lib/translations";
 import { ExternalLink, Play } from "lucide-react";
 import { StatusBadge, StatusType } from "./StatusBadge";
 import { cn } from "@/lib/utils";
@@ -37,14 +38,14 @@ const getSentimentColor = (sentiment: string | null | undefined): string => {
   }
 };
 
-const getSentimentLabel = (sentiment: string | null | undefined): string => {
+const getSentimentLabel = (sentiment: string | null | undefined, t: (s: string) => string): string => {
   switch (sentiment) {
     case "positive":
-      return "Pozitivní";
+      return t("Pozitivní");
     case "negative":
-      return "Negativní";
+      return t("Negativní");
     default:
-      return "Neutrální";
+      return t("Neutrální");
   }
 };
 
@@ -60,6 +61,7 @@ export const ContentPreviewCard = ({
   sentimentSummary,
   creatorHandle,
 }: ContentPreviewCardProps) => {
+  const t = useT();
   return (
     <Card className="rounded-[20px] border-foreground overflow-hidden hover:shadow-lg transition-shadow">
       {/* Thumbnail */}
@@ -127,7 +129,7 @@ export const ContentPreviewCard = ({
             <div className="flex items-center gap-2">
               <span className="text-xs text-muted-foreground">Sentiment:</span>
               <span className={`text-xs font-medium ${getSentimentColor(sentiment)}`}>
-                {getSentimentLabel(sentiment)}
+                {getSentimentLabel(sentiment, t)}
               </span>
             </div>
             {sentimentSummary && (
@@ -147,7 +149,7 @@ export const ContentPreviewCard = ({
             className="inline-flex items-center gap-1 text-xs text-accent-cyan hover:text-accent-purple transition-colors"
           >
             <ExternalLink className="w-3 h-3" />
-            Zobrazit obsah
+            {t("Zobrazit obsah")}
           </a>
         )}
       </div>
