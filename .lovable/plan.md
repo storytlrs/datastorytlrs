@@ -1,36 +1,35 @@
 
 
-# Fix Vertical Gaps in AI Insights Tile Grid
-
-## Problem
-CSS Grid aligns items in rows, so when tiles have different heights, the row height matches the tallest tile, leaving vertical gaps below shorter tiles. `items-start` prevents stretching but the empty space remains in the row.
-
-## Solution
-Replace CSS Grid with CSS `columns` layout for a true masonry effect. This flows items top-to-bottom, left-to-right, eliminating vertical gaps entirely.
+# Header: Black Background + Logo
 
 ## Changes
 
-### `src/components/brands/BrandAIInsights.tsx`
-- Replace the `grid` container with a `columns-1 md:columns-2 lg:columns-3 gap-4` container
-- Each tile wrapper gets `break-inside-avoid mb-4` instead of grid column span classes
+### 1. Copy logo to project
+Copy `user-uploads://StoryTLRS-white-01_1.png` to `src/assets/logo-white.png`.
 
-### `src/components/brands/InsightTile.tsx`
-- Update `getTileSizeClass`: for "large" tiles, return `md:col-span-2` is no longer relevant in columns layout. Large tiles will simply span the full column width (they already do). Remove the helper or keep it as a no-op since columns layout doesn't support spanning multiple columns.
+### 2. Update `src/components/MainNavigation.tsx`
+- Add black background to the `<nav>` element: `bg-foreground` (which is black in the design system)
+- Replace the `<div className="text-xl font-bold">Story TLRS</div>` text with an `<img>` tag importing the logo from `src/assets/logo-white.png`
+- Update border color to match (e.g., `border-foreground` stays or becomes subtle)
+- Buttons for brand selector, profile, and logout remain unchanged (they already have `border-foreground` outline styling which will look fine on black background since foreground = black in light mode)
 
-**Trade-off**: CSS columns layout doesn't support multi-column spanning (large tiles spanning 2 columns). Large tiles will render at single-column width but with more content. This is acceptable because it eliminates vertical gaps entirely and keeps the layout tight.
+**Button color adjustment**: Since the nav background is now black, the outline buttons (white/transparent bg with black border) need to invert for contrast. Update their classes to use white borders and white icon colors on the dark nav: `border-white text-white hover:bg-white hover:text-black`.
 
 ### Technical detail
+
+```tsx
+import logoWhite from "@/assets/logo-white.png";
+
+// nav element
+<nav className="w-full py-4 bg-foreground">
+
+// Logo
+<img src={logoWhite} alt="Story TLRS" className="h-8" />
+
+// Buttons: add explicit white border/text overrides
+className="rounded-[35px] border-white text-white hover:bg-white hover:text-foreground"
 ```
-// Before (grid with gaps)
-<div className="grid grid-cols-3 gap-4 items-start">
 
-// After (columns, no vertical gaps)
-<div className="columns-1 md:columns-2 lg:columns-3 gap-4 space-y-4">
-```
-
-Each tile wrapper becomes just `<div className="break-inside-avoid">`.
-
-## Files to modify
-1. `src/components/brands/BrandAIInsights.tsx` -- switch to columns layout
-2. `src/components/brands/InsightTile.tsx` -- simplify `getTileSizeClass`
+### Files to modify
+1. `src/components/MainNavigation.tsx` -- black bg, logo image, button color overrides
 
