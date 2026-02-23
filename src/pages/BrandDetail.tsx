@@ -54,6 +54,7 @@ interface Report {
   end_date: string | null;
   created_at: string;
   project_id: string | null;
+  period: string | null;
   project?: { id: string; name: string } | null;
 }
 
@@ -656,6 +657,7 @@ const BrandDetail = () => {
                       <TableHead className="w-[60px]"></TableHead>
                       <TableHead>Name</TableHead>
                       <TableHead>Type</TableHead>
+                      <TableHead>Period</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Start Date</TableHead>
                       <TableHead>End Date</TableHead>
@@ -685,6 +687,11 @@ const BrandDetail = () => {
                             <Badge variant="outline">
                               {reportTypeLabels[report.type as keyof typeof reportTypeLabels]}
                             </Badge>
+                          </TableCell>
+                          <TableCell className="capitalize">
+                            {(report.type === "ads" || report.type === "always_on" || report.type === "social") && report.period
+                              ? report.period === "campaign" ? "Campaign" : report.period === "monthly" ? "Monthly" : report.period === "quarterly" ? "Quarterly" : report.period === "yearly" ? "Yearly" : "-"
+                              : "-"}
                           </TableCell>
                           <TableCell className="capitalize">{report.status}</TableCell>
                           <TableCell>
