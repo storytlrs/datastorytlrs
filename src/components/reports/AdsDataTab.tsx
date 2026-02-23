@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Loader2, RefreshCw, Download, Upload } from "lucide-react";
 import { exportToExcel } from "@/lib/exportToExcel";
@@ -574,52 +575,11 @@ export const AdsDataTab = ({ reportId, spaceId, onImportSuccess, embedded = fals
   const Wrapper = embedded ? 'div' : Card;
   const wrapperProps = embedded ? {} : { className: "p-8 rounded-[35px] border-foreground" };
 
-  return (
-    <Wrapper {...wrapperProps as any}>
-      {!embedded && (
-        <div className="flex items-start justify-between mb-6">
-          <div>
-            <h2 className="text-2xl font-bold mb-2">Campaign Data</h2>
-            <p className="text-muted-foreground">
-              Hierarchical campaign data {canEdit ? "(Click rows to edit)" : "(Read-only)"}
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className="rounded-[35px]"
-              onClick={() => {
-                const sheets = [
-                  { name: "Campaigns", columns: allCampaignColumns, data: displayCampaigns },
-                  { name: "Ad Sets", columns: allAdSetsColumns.filter(c => c.key !== "thumbnail_url"), data: displayAdSets },
-                  { name: "Ads", columns: allAdsColumns.filter(c => c.key !== "thumbnail_url"), data: displayAds },
-                ];
-                exportToExcel(sheets, "ads-campaign-data");
-                toast.success("Data exported to Excel");
-              }}
-            >
-              <Download className="mr-2 h-4 w-4" />
-              Export Excel
-            </Button>
-            {canEdit && (
-              <>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="rounded-[35px]"
-                  onClick={() => setImportMediaPlanOpen(true)}
-                >
-                  <Upload className="mr-2 h-4 w-4" />
-                  Import Media Plan
-                </Button>
-                <CreatePlanningItemDialog reportId={reportId} onSuccess={fetchData} />
-              </>
-            )}
-          </div>
-        </div>
-      )}
+  const [activeSubTab, setActiveSubTab] = useState("ads_data");
 
+  // Render the ads data content (campaigns, ad sets, ads tables with filters)
+  const renderAdsDataContent = () => (
+    <>
       {/* Hierarchical Filters - hide in embedded mode */}
       {!embedded && (
         <div className="flex flex-wrap items-center gap-3 mb-6">
@@ -676,7 +636,7 @@ export const AdsDataTab = ({ reportId, spaceId, onImportSuccess, embedded = fals
             </Button>
           )}
 
-          {/* Ad Set Selector - only show when campaign is selected */}
+          {/* Ad Set Selector */}
           {selectedCampaignId && filteredAdSets.length > 0 && (
             <>
               <span className="text-muted-foreground">→</span>
@@ -733,7 +693,7 @@ export const AdsDataTab = ({ reportId, spaceId, onImportSuccess, embedded = fals
             </>
           )}
 
-          {/* Ad Selector - only show when ad set is selected */}
+          {/* Ad Selector */}
           {selectedAdSetId && filteredAds.length > 0 && (
             <>
               <span className="text-muted-foreground">→</span>
@@ -864,29 +824,6 @@ export const AdsDataTab = ({ reportId, spaceId, onImportSuccess, embedded = fals
           </div>
         )}
 
-        {/* Media Plan Table - hide in embedded mode */}
-        {!embedded && mediaPlanItems.length > 0 && (
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">Media Plan</h3>
-              <ColumnSelector
-                allColumns={orderedMediaPlanCols}
-                visibleColumns={mediaPlanVisibleCols}
-                onColumnToggle={makeToggle(setMediaPlanVisibleCols)}
-                onReorder={makeReorder(setMediaPlanColOrder)}
-              />
-            </div>
-            <EditableDataTable
-              columns={filteredMediaPlanCols}
-              data={mediaPlanItems}
-              canEdit={canEdit}
-              onUpdate={(id, field, value) => handleUpdate("media_plan_items", id, field, value)}
-              onDelete={canEdit ? (id) => handleDelete("media_plan_items", id) : undefined}
-              loading={loading}
-            />
-          </div>
-        )}
-
         {/* Empty state */}
         {campaignMeta.length === 0 && !loading && (
           <div className="text-center py-12 text-muted-foreground">
@@ -894,6 +831,108 @@ export const AdsDataTab = ({ reportId, spaceId, onImportSuccess, embedded = fals
           </div>
         )}
       </div>
+    </>
+  );
+
+  // Render media plan content
+  const renderMediaPlanContent = () => (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h3 className="text-lg font-semibold">Media Plan</h3>
+          <p className="text-sm text-muted-foreground">
+            Imported media plan data with placements, budgets, and forecasted metrics
+          </p>
+        </div>
+        <ColumnSelector
+          allColumns={orderedMediaPlanCols}
+          visibleColumns={mediaPlanVisibleCols}
+          onColumnToggle={makeToggle(setMediaPlanVisibleCols)}
+          onReorder={makeReorder(setMediaPlanColOrder)}
+        />
+      </div>
+      <EditableDataTable
+        columns={filteredMediaPlanCols}
+        data={mediaPlanItems}
+        canEdit={canEdit}
+        onUpdate={(id, field, value) => handleUpdate("media_plan_items", id, field, value)}
+        onDelete={canEdit ? (id) => handleDelete("media_plan_items", id) : undefined}
+        loading={loading}
+      />
+      {mediaPlanItems.length === 0 && !loading && (
+        <div className="text-center py-8 text-muted-foreground">
+          <p>No media plan data. Use "Import Media Plan" to upload.</p>
+        </div>
+      )}
+    </div>
+  );
+
+  return (
+    <Wrapper {...wrapperProps as any}>
+      {!embedded && (
+        <div className="flex items-start justify-between mb-6">
+          <div>
+            <h2 className="text-2xl font-bold mb-2">Campaign Data</h2>
+            <p className="text-muted-foreground">
+              Hierarchical campaign data and media plan {canEdit ? "(Click rows to edit)" : "(Read-only)"}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-[35px]"
+              onClick={() => {
+                const sheets = [
+                  { name: "Campaigns", columns: allCampaignColumns, data: displayCampaigns },
+                  { name: "Ad Sets", columns: allAdSetsColumns.filter(c => c.key !== "thumbnail_url"), data: displayAdSets },
+                  { name: "Ads", columns: allAdsColumns.filter(c => c.key !== "thumbnail_url"), data: displayAds },
+                  { name: "Media Plan", columns: mediaPlanColumns, data: mediaPlanItems },
+                ];
+                exportToExcel(sheets, "ads-campaign-data");
+                toast.success("Data exported to Excel");
+              }}
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Export Excel
+            </Button>
+            {canEdit && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="rounded-[35px]"
+                  onClick={() => setImportMediaPlanOpen(true)}
+                >
+                  <Upload className="mr-2 h-4 w-4" />
+                  Import Media Plan
+                </Button>
+                <CreatePlanningItemDialog reportId={reportId} onSuccess={fetchData} />
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Sub-tabs layout for non-embedded mode, flat layout for embedded */}
+      {embedded ? (
+        renderAdsDataContent()
+      ) : (
+        <Tabs value={activeSubTab} onValueChange={setActiveSubTab}>
+          <TabsList className="mb-6">
+            <TabsTrigger value="ads_data">Ads Data</TabsTrigger>
+            <TabsTrigger value="media_plan">Media Plan</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="ads_data">
+            {renderAdsDataContent()}
+          </TabsContent>
+
+          <TabsContent value="media_plan">
+            {renderMediaPlanContent()}
+          </TabsContent>
+        </Tabs>
+      )}
 
       {editingCampaign && (
         <EditPlanningItemDialog
