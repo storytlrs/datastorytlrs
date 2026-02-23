@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatCurrency as formatCurrencyUtil } from "@/lib/currencyUtils";
+import { SnapshotTrendChart } from "./SnapshotTrendChart";
 
 interface AdsOverviewTabProps {
   reportId: string;
@@ -836,6 +837,15 @@ export const AdsOverviewTab = ({ reportId, spaceId }: AdsOverviewTabProps) => {
             Vyber kampaň pro zobrazení KPI.
           </p>
         </Card>
+      )}
+
+      {/* Snapshot Trend Chart */}
+      {campaignMeta.length > 0 && (
+        <SnapshotTrendChart
+          spaceId={spaceId}
+          campaignIds={campaignMeta.map((c: any) => c.campaign_id).filter(Boolean)}
+          entityType="meta_campaign"
+        />
       )}
     </div>
   );

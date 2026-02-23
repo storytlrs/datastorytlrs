@@ -20,7 +20,7 @@ import { ImportMediaPlanDialog } from "./ImportMediaPlanDialog";
 import { formatCurrencySimple } from "@/lib/currencyUtils";
 import { Check, ChevronDown, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { SnapshotTrendChart } from "./SnapshotTrendChart";
+
 
 interface AdsDataTabProps {
   reportId: string;
@@ -815,14 +815,6 @@ export const AdsDataTab = ({ reportId, spaceId, onImportSuccess, embedded = fals
           </div>
         )}
 
-        {/* Snapshot Trend Chart - show below campaigns when no deeper selection */}
-        {!embedded && !selectedAdSetId && !selectedAdId && campaignMeta.length > 0 && (
-          <SnapshotTrendChart
-            spaceId={spaceId}
-            campaignIds={campaignMeta.map((c: any) => c.campaign_id).filter(Boolean)}
-            entityType="meta_campaign"
-          />
-        )}
 
         {/* Ad Sets Table - hide in embedded mode */}
         {!embedded && selectedAdSetId && !selectedAdId && displayAdSets.length > 0 && (
