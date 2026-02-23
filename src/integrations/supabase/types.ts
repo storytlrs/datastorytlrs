@@ -14,6 +14,50 @@ export type Database = {
   }
   public: {
     Tables: {
+      ads_metric_snapshots: {
+        Row: {
+          created_at: string
+          entity_id: string
+          entity_name: string | null
+          entity_type: string
+          id: string
+          metrics: Json
+          parent_entity_id: string | null
+          snapshot_date: string
+          space_id: string
+        }
+        Insert: {
+          created_at?: string
+          entity_id: string
+          entity_name?: string | null
+          entity_type: string
+          id?: string
+          metrics?: Json
+          parent_entity_id?: string | null
+          snapshot_date?: string
+          space_id: string
+        }
+        Update: {
+          created_at?: string
+          entity_id?: string
+          entity_name?: string | null
+          entity_type?: string
+          id?: string
+          metrics?: Json
+          parent_entity_id?: string | null
+          snapshot_date?: string
+          space_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ads_metric_snapshots_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "spaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_prompts: {
         Row: {
           category: string | null

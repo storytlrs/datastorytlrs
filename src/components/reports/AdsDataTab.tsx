@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Loader2, RefreshCw, Download, Upload } from "lucide-react";
+import { Loader2, RefreshCw, Download, Upload, Camera, Clock } from "lucide-react";
 import { exportToExcel } from "@/lib/exportToExcel";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { supabase } from "@/integrations/supabase/client";
@@ -53,6 +53,8 @@ export const AdsDataTab = ({ reportId, spaceId, onImportSuccess, embedded = fals
   const [syncingMetaData, setSyncingMetaData] = useState(false);
   const [importMediaPlanOpen, setImportMediaPlanOpen] = useState(false);
   const [mediaPlanItems, setMediaPlanItems] = useState<any[]>([]);
+  const [snapshotSyncing, setSnapshotSyncing] = useState(false);
+  const [lastSnapshotDate, setLastSnapshotDate] = useState<string | null>(null);
 
   const handleSyncMetaData = async () => {
     setSyncingMetaData(true);
@@ -129,9 +131,45 @@ export const AdsDataTab = ({ reportId, spaceId, onImportSuccess, embedded = fals
     }
   };
 
+  const fetchLastSnapshot = async () => {
+    const { data } = await supabase
+      .from("ads_metric_snapshots" as any)
+      .select("snapshot_date")
+      .eq("space_id", spaceId)
+      .order("snapshot_date", { ascending: false })
+      .limit(1);
+    if (data && data.length > 0) {
+      setLastSnapshotDate((data[0] as any).snapshot_date);
+    }
+  };
+
+  const handleSyncAndSnapshot = async () => {
+    setSnapshotSyncing(true);
+    try {
+      const response = await supabase.functions.invoke("sync-and-snapshot", {
+        body: { spaceId },
+      });
+      if (response.error) throw response.error;
+      const result = response.data;
+      if (result?.success) {
+        toast.success(`Snapshot created: ${result.snapshots_created} entities captured on ${result.snapshot_date}`);
+        fetchData();
+        fetchLastSnapshot();
+      } else {
+        toast.error(result?.error || "Snapshot failed");
+      }
+    } catch (error) {
+      console.error("Sync and snapshot error:", error);
+      toast.error("Failed to sync and create snapshot");
+    } finally {
+      setSnapshotSyncing(false);
+    }
+  };
+
   useEffect(() => {
     fetchData();
     fetchMediaPlan();
+    fetchLastSnapshot();
   }, [reportId, spaceId]);
 
   const fetchMediaPlan = async () => {
@@ -898,6 +936,26 @@ export const AdsDataTab = ({ reportId, spaceId, onImportSuccess, embedded = fals
             </Button>
             {canEdit && (
               <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="rounded-[35px]"
+                  onClick={handleSyncAndSnapshot}
+                  disabled={snapshotSyncing}
+                >
+                  {snapshotSyncing ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Camera className="mr-2 h-4 w-4" />
+                  )}
+                  {snapshotSyncing ? "Syncing..." : "Differential Sync"}
+                </Button>
+                {lastSnapshotDate && (
+                  <span className="text-xs text-muted-foreground flex items-center gap-1">
+                    <Clock className="h-3 w-3" />
+                    Last: {new Date(lastSnapshotDate).toLocaleDateString()}
+                  </span>
+                )}
                 <Button
                   variant="outline"
                   size="sm"
