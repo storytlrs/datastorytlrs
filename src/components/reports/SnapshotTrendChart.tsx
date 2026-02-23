@@ -21,16 +21,16 @@ const METRIC_OPTIONS = [
 ];
 
 const COLORS = [
-  "hsl(var(--chart-1))",
-  "hsl(var(--chart-2))",
-  "hsl(var(--chart-3))",
-  "hsl(var(--chart-4))",
-  "hsl(var(--chart-5))",
-  "#8884d8",
-  "#82ca9d",
-  "#ffc658",
-  "#ff7300",
-  "#0088fe",
+  "#22c55e",
+  "#3b82f6",
+  "#f59e0b",
+  "#ef4444",
+  "#8b5cf6",
+  "#06b6d4",
+  "#ec4899",
+  "#14b8a6",
+  "#f97316",
+  "#6366f1",
 ];
 
 const formatValue = (value: number, format: string) => {
@@ -178,7 +178,10 @@ export const SnapshotTrendChart = ({ spaceId, campaignIds, entityType = "meta_ca
                 borderRadius: "8px",
                 fontSize: "12px",
               }}
-              formatter={(value: number) => [formatValue(value, metricConfig?.format || "number"), ""]}
+              formatter={(value: number, name: string) => {
+                const campaignName = campaignNames.get(name) || name;
+                return [formatValue(value, metricConfig?.format || "number"), campaignName];
+              }}
               labelStyle={{ color: "hsl(var(--foreground))" }}
             />
             <Legend
@@ -194,9 +197,9 @@ export const SnapshotTrendChart = ({ spaceId, campaignIds, entityType = "meta_ca
                 dataKey={entityId}
                 name={entityId}
                 stroke={COLORS[i % COLORS.length]}
-                strokeWidth={2}
-                dot={{ r: 4 }}
-                activeDot={{ r: 6 }}
+                strokeWidth={3}
+                dot={{ r: 5, fill: COLORS[i % COLORS.length] }}
+                activeDot={{ r: 7 }}
                 connectNulls
               />
             ))}
