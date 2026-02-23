@@ -50,3 +50,6 @@ verify_jwt = false
 
 [functions.ai-chat]
 verify_jwt = false
+
+[functions.sync-and-snapshot]
+verify_jwt = true
