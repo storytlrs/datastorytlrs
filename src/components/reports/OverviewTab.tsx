@@ -29,6 +29,7 @@ import {
 import { cn } from "@/lib/utils";
 import { secondsToReadableTime } from "@/lib/watchTimeUtils";
 import { formatCurrency as formatCurrencyUtil, DEFAULT_CURRENCY } from "@/lib/currencyUtils";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
 interface OverviewTabProps {
   reportId: string;
@@ -93,6 +94,18 @@ const KPISection = ({ title, icon: Icon, children }: KPISectionProps) => (
   </div>
 );
 
+const OVERVIEW_TREND_METRICS = [
+  { value: "reach", label: "Reach" },
+  { value: "views", label: "Views" },
+  { value: "likes", label: "Likes" },
+  { value: "comments", label: "Comments" },
+  { value: "shares", label: "Shares" },
+  { value: "saves", label: "Saves" },
+  { value: "watch_time", label: "Watch Time (s)" },
+];
+
+const TREND_COLORS = ["#22c55e", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6"];
+
 export const OverviewTab = ({ reportId }: OverviewTabProps) => {
   const [creators, setCreators] = useState<Creator[]>([]);
   const [content, setContent] = useState<Content[]>([]);
@@ -110,6 +123,7 @@ export const OverviewTab = ({ reportId }: OverviewTabProps) => {
   });
   const [selectedCreator, setSelectedCreator] = useState<string>("all");
   const [selectedPlatform, setSelectedPlatform] = useState<string>("all");
+  const [trendMetric, setTrendMetric] = useState("reach");
 
   useEffect(() => {
     const fetchData = async () => {
@@ -288,6 +302,21 @@ export const OverviewTab = ({ reportId }: OverviewTabProps) => {
       cpc,
     };
   }, [relevantCreators, awarenessKPIs, engagementKPIs, filteredContent]);
+
+  // Trend chart data: group filtered content by published_date
+  const trendData = useMemo(() => {
+    const grouped: Record<string, number> = {};
+    filteredContent.forEach((item) => {
+      const date = item.published_date;
+      if (!date) return;
+      const key = date.substring(0, 10); // YYYY-MM-DD
+      const val = (item as any)[trendMetric] || 0;
+      grouped[key] = (grouped[key] || 0) + val;
+    });
+    return Object.entries(grouped)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, value]) => ({ date, value }));
+  }, [filteredContent, trendMetric]);
 
   // Space benchmarks calculation
   const benchmarks = useMemo(() => {
@@ -486,6 +515,64 @@ export const OverviewTab = ({ reportId }: OverviewTabProps) => {
         <KPICard title="CPM" value={formatCurrency(effectivenessKPIs.cpm)} icon={DollarSign} accentColor="orange" tooltip="CPM (Cost per Mille) = (Budget Spent / Views) × 1000. Náklad na 1000 zobrazení." benchmark={benchmarks ? formatCurrency(benchmarks.cpm) : undefined} />
         <KPICard title="CPC" value={formatCurrency(effectivenessKPIs.cpc)} icon={MousePointer} accentColor="orange" tooltip="CPC (Cost per Click) = Budget Spent / Link Clicks. Náklad na jeden proklik." benchmark={benchmarks ? formatCurrency(benchmarks.cpc) : undefined} />
       </KPISection>
+      {/* Trend Chart */}
+      {trendData.length > 1 && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="w-5 h-5" />
+              <h3 className="font-bold text-lg uppercase tracking-wide">Performance Over Time</h3>
+            </div>
+            <Select value={trendMetric} onValueChange={setTrendMetric}>
+              <SelectTrigger className="w-[180px] rounded-[35px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="rounded-[20px]">
+                {OVERVIEW_TREND_METRICS.map((m) => (
+                  <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <Card className="p-6 rounded-[35px] border-foreground">
+            <ResponsiveContainer width="100%" height={350}>
+              <LineChart data={trendData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis
+                  dataKey="date"
+                  stroke="hsl(var(--muted-foreground))"
+                  fontSize={12}
+                  tickFormatter={(v) => format(new Date(v), "d MMM")}
+                />
+                <YAxis
+                  stroke="hsl(var(--muted-foreground))"
+                  fontSize={12}
+                  tickFormatter={(v) => formatNumber(v)}
+                />
+                <Tooltip
+                  contentStyle={{
+                    background: "hsl(var(--card))",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: "8px",
+                    fontSize: "12px",
+                  }}
+                  labelFormatter={(v) => format(new Date(v), "d MMMM yyyy")}
+                  formatter={(value: number) => [formatNumber(value), OVERVIEW_TREND_METRICS.find(m => m.value === trendMetric)?.label || trendMetric]}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="value"
+                  stroke="#22c55e"
+                  strokeWidth={3}
+                  dot={{ r: 5, fill: "#22c55e" }}
+                  activeDot={{ r: 7 }}
+                  connectNulls
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </Card>
+        </div>
+      )}
     </div>
   );
 };
