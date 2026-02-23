@@ -10,6 +10,7 @@ interface SnapshotTrendChartProps {
   spaceId: string;
   campaignIds?: string[]; // entity_ids to filter (campaign_id not DB id)
   entityType?: string;
+  entityTypes?: string[]; // support multiple entity types (e.g. meta + tiktok)
 }
 
 const METRIC_OPTIONS = [
@@ -18,6 +19,8 @@ const METRIC_OPTIONS = [
   { value: "reach", label: "Reach", format: "number" },
   { value: "ctr", label: "CTR %", format: "percent" },
   { value: "cpm", label: "CPM", format: "currency" },
+  { value: "clicks", label: "Clicks", format: "number" },
+  { value: "frequency", label: "Frequency", format: "number" },
 ];
 
 const COLORS = [
@@ -49,34 +52,45 @@ const formatValue = (value: number, format: string) => {
   }
 };
 
-export const SnapshotTrendChart = ({ spaceId, campaignIds, entityType = "meta_campaign" }: SnapshotTrendChartProps) => {
+export const SnapshotTrendChart = ({ spaceId, campaignIds, entityType = "meta_campaign", entityTypes }: SnapshotTrendChartProps) => {
   const [snapshots, setSnapshots] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedMetric, setSelectedMetric] = useState("amount_spent");
 
+  // Resolve which entity types to query
+  const resolvedEntityTypes = entityTypes && entityTypes.length > 0 ? entityTypes : [entityType];
+
   useEffect(() => {
     const fetchSnapshots = async () => {
       setLoading(true);
-      let query = supabase
-        .from("ads_metric_snapshots" as any)
-        .select("*")
-        .eq("space_id", spaceId)
-        .eq("entity_type", entityType)
-        .order("snapshot_date", { ascending: true });
+      
+      // Fetch snapshots for all entity types in parallel
+      const allSnapshots: any[] = [];
+      
+      await Promise.all(resolvedEntityTypes.map(async (et) => {
+        let query = supabase
+          .from("ads_metric_snapshots" as any)
+          .select("*")
+          .eq("space_id", spaceId)
+          .eq("entity_type", et)
+          .order("snapshot_date", { ascending: true });
 
-      if (campaignIds && campaignIds.length > 0) {
-        query = query.in("entity_id", campaignIds);
-      }
+        if (campaignIds && campaignIds.length > 0) {
+          query = query.in("entity_id", campaignIds);
+        }
 
-      const { data, error } = await query;
-      if (!error && data) {
-        setSnapshots(data as any[]);
-      }
+        const { data, error } = await query;
+        if (!error && data) {
+          allSnapshots.push(...(data as any[]));
+        }
+      }));
+      
+      setSnapshots(allSnapshots);
       setLoading(false);
     };
 
     fetchSnapshots();
-  }, [spaceId, entityType, campaignIds?.join(",")]);
+  }, [spaceId, resolvedEntityTypes.join(","), campaignIds?.join(",")]);
 
   // Transform data for recharts: each date becomes a row, each campaign a column
   const { chartData, campaignNames } = useMemo(() => {

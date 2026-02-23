@@ -839,12 +839,12 @@ export const AdsOverviewTab = ({ reportId, spaceId }: AdsOverviewTabProps) => {
         </Card>
       )}
 
-      {/* Snapshot Trend Chart */}
+      {/* Snapshot Trend Chart - Meta + TikTok */}
       {campaignMeta.length > 0 && (
         <SnapshotTrendChart
           spaceId={spaceId}
           campaignIds={campaignMeta.map((c: any) => c.campaign_id).filter(Boolean)}
-          entityType="meta_campaign"
+          entityTypes={["meta_campaign", "tiktok_campaign"]}
         />
       )}
     </div>
