@@ -1679,6 +1679,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      trigger_weekly_snapshot: { Args: never; Returns: undefined }
     }
     Enums: {
       app_role: "admin" | "analyst" | "client"
