@@ -516,7 +516,7 @@ export const OverviewTab = ({ reportId }: OverviewTabProps) => {
         <KPICard title="CPC" value={formatCurrency(effectivenessKPIs.cpc)} icon={MousePointer} accentColor="orange" tooltip="CPC (Cost per Click) = Budget Spent / Link Clicks. Náklad na jeden proklik." benchmark={benchmarks ? formatCurrency(benchmarks.cpc) : undefined} />
       </KPISection>
       {/* Trend Chart */}
-      {trendData.length > 1 && (
+      {trendData.length >= 1 && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
