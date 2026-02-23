@@ -373,24 +373,37 @@ export type Database = {
           campaign_id: string
           campaign_name: string | null
           clicks: number | null
+          cost_per_3s_play: number | null
+          cost_per_thruplay: number | null
           cpc: number | null
+          cpe: number | null
           cpm: number | null
           created_at: string
           ctr: number | null
           daily_budget: number | null
           date_start: string | null
           date_stop: string | null
+          engagement_rate: number | null
           frequency: number | null
           gender: string
           id: string
           impressions: number | null
           lifetime_budget: number | null
+          link_clicks: number | null
           objective: string | null
+          post_comments: number | null
+          post_reactions: number | null
+          post_saves: number | null
+          post_shares: number | null
           publisher_platform: string | null
           reach: number | null
           space_id: string
           status: string | null
+          thruplay_rate: number | null
+          thruplays: number | null
           updated_at: string
+          video_3s_plays: number | null
+          view_rate_3s: number | null
         }
         Insert: {
           age?: string
@@ -398,24 +411,37 @@ export type Database = {
           campaign_id: string
           campaign_name?: string | null
           clicks?: number | null
+          cost_per_3s_play?: number | null
+          cost_per_thruplay?: number | null
           cpc?: number | null
+          cpe?: number | null
           cpm?: number | null
           created_at?: string
           ctr?: number | null
           daily_budget?: number | null
           date_start?: string | null
           date_stop?: string | null
+          engagement_rate?: number | null
           frequency?: number | null
           gender?: string
           id?: string
           impressions?: number | null
           lifetime_budget?: number | null
+          link_clicks?: number | null
           objective?: string | null
+          post_comments?: number | null
+          post_reactions?: number | null
+          post_saves?: number | null
+          post_shares?: number | null
           publisher_platform?: string | null
           reach?: number | null
           space_id: string
           status?: string | null
+          thruplay_rate?: number | null
+          thruplays?: number | null
           updated_at?: string
+          video_3s_plays?: number | null
+          view_rate_3s?: number | null
         }
         Update: {
           age?: string
@@ -423,24 +449,37 @@ export type Database = {
           campaign_id?: string
           campaign_name?: string | null
           clicks?: number | null
+          cost_per_3s_play?: number | null
+          cost_per_thruplay?: number | null
           cpc?: number | null
+          cpe?: number | null
           cpm?: number | null
           created_at?: string
           ctr?: number | null
           daily_budget?: number | null
           date_start?: string | null
           date_stop?: string | null
+          engagement_rate?: number | null
           frequency?: number | null
           gender?: string
           id?: string
           impressions?: number | null
           lifetime_budget?: number | null
+          link_clicks?: number | null
           objective?: string | null
+          post_comments?: number | null
+          post_reactions?: number | null
+          post_saves?: number | null
+          post_shares?: number | null
           publisher_platform?: string | null
           reach?: number | null
           space_id?: string
           status?: string | null
+          thruplay_rate?: number | null
+          thruplays?: number | null
           updated_at?: string
+          video_3s_plays?: number | null
+          view_rate_3s?: number | null
         }
         Relationships: [
           {
