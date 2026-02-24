@@ -240,12 +240,23 @@ const EditableNumberField = ({
   );
 };
 
-const PostCard = ({ post }: { post: { name: string; spend: number; impressions: number; clicks: number; ctr: number; thumbnail_url?: string; reason?: string } }) => (
+const proxyThumbnailUrl = (url?: string): string | undefined => {
+  if (!url) return undefined;
+  if (/tiktokcdn/i.test(url)) {
+    const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID || 'rzetgajncoedibmlfyvl';
+    return `https://${projectId}.supabase.co/functions/v1/proxy-image?url=${encodeURIComponent(url)}`;
+  }
+  return url;
+};
+
+const PostCard = ({ post }: { post: { name: string; spend: number; impressions: number; clicks: number; ctr: number; thumbnail_url?: string; reason?: string } }) => {
+  const imgSrc = proxyThumbnailUrl(post.thumbnail_url);
+  return (
   <Card className="overflow-hidden rounded-[35px] border-foreground hover:shadow-lg transition-shadow">
     <div className="relative aspect-[9/12.8] bg-muted overflow-hidden">
-      {post.thumbnail_url ? (
+      {imgSrc ? (
         <img
-          src={post.thumbnail_url}
+          src={imgSrc}
           alt={post.name}
           className="w-full h-full object-cover"
           referrerPolicy="no-referrer"
@@ -255,7 +266,7 @@ const PostCard = ({ post }: { post: { name: string; spend: number; impressions: 
           }}
         />
       ) : null}
-      <div className={`w-full h-full flex flex-col items-center justify-center gap-2 placeholder ${post.thumbnail_url ? "hidden absolute inset-0" : ""}`}>
+      <div className={`w-full h-full flex flex-col items-center justify-center gap-2 placeholder ${imgSrc ? "hidden absolute inset-0" : ""}`}>
         <Eye className="w-8 h-8 text-muted-foreground/30" />
       </div>
     </div>
@@ -284,7 +295,8 @@ const PostCard = ({ post }: { post: { name: string; spend: number; impressions: 
       </div>
     </div>
   </Card>
-);
+  );
+};
 
 // Platform icon components
 const FacebookIcon = () => (

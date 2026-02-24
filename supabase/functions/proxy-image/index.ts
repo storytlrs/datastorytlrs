@@ -76,40 +76,27 @@ serve(async (req) => {
   }
 
   try {
-    // Verify authentication
+    // Authentication is optional for GET image requests (URL whitelist provides security)
+    // But we still validate if an auth header is provided
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      console.log('No authorization header provided');
-      return new Response(
-        JSON.stringify({ error: 'Authentication required' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const token = authHeader.replace('Bearer ', '');
-    
-    // Check if it's the service role key (server-to-server calls)
-    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    if (token === serviceRoleKey) {
-      console.log('Authenticated via service role key');
-    } else {
-      // Verify the JWT token for user requests
-      const supabaseClient = createClient(
-        Deno.env.get('SUPABASE_URL')!,
-        Deno.env.get('SUPABASE_ANON_KEY')!,
-        { global: { headers: { Authorization: authHeader } } }
-      );
-
-      const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
-      
-      if (userError || !userData?.user) {
-        console.log('Invalid or expired token');
-        return new Response(
-          JSON.stringify({ error: 'Invalid or expired token' }),
-          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    if (authHeader?.startsWith('Bearer ')) {
+      const token = authHeader.replace('Bearer ', '');
+      const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+      if (token !== serviceRoleKey) {
+        const supabaseClient = createClient(
+          Deno.env.get('SUPABASE_URL')!,
+          Deno.env.get('SUPABASE_ANON_KEY')!,
+          { global: { headers: { Authorization: authHeader } } }
         );
+        const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
+        if (userError || !userData?.user) {
+          console.log('Invalid or expired token');
+        } else {
+          console.log(`Authenticated image proxy request from user: ${userData.user.id}`);
+        }
+      } else {
+        console.log('Authenticated via service role key');
       }
-      console.log(`Authenticated image proxy request from user: ${userData.user.id}`);
     }
 
     const url = new URL(req.url);
