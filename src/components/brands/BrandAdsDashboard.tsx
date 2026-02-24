@@ -85,14 +85,14 @@ const BrandAdsDashboard = ({ spaceId, filters }: BrandAdsDashboardProps) => {
     try {
       // Fetch Meta data
       const [metaCampaigns, metaAdSets, metaAds] = await Promise.all([
-        supabase.from("brand_campaigns").select("id, campaign_name, campaign_id").eq("space_id", spaceId).order("campaign_name"),
-        supabase.from("brand_ad_sets" as any).select("id, adset_name, adset_id, brand_campaign_id, amount_spent, impressions, clicks, ctr, frequency, date_start").eq("space_id", spaceId),
-        supabase.from("brand_ads").select("id, ad_name, ad_id, brand_ad_set_id, amount_spent, impressions, clicks, ctr, frequency, link_clicks, post_reactions, post_comments, post_shares, post_saves, date_start, thumbnail_url").eq("space_id", spaceId),
+        supabase.from("brand_campaigns").select("id, campaign_name, campaign_id").eq("space_id", spaceId).eq("publisher_platform", "unknown").eq("age", "").eq("gender", "").order("campaign_name"),
+        supabase.from("brand_ad_sets" as any).select("id, adset_name, adset_id, brand_campaign_id, amount_spent, impressions, clicks, ctr, frequency, date_start").eq("space_id", spaceId).eq("age", "").eq("gender", ""),
+        supabase.from("brand_ads").select("id, ad_name, ad_id, brand_ad_set_id, amount_spent, impressions, clicks, ctr, frequency, link_clicks, post_reactions, post_comments, post_shares, post_saves, date_start, thumbnail_url").eq("space_id", spaceId).eq("age", "").eq("gender", ""),
       ]);
 
       // Fetch TikTok data
       const [ttCampaigns, ttAdGroups, ttAds] = await Promise.all([
-        supabase.from("tiktok_campaigns").select("id, campaign_name, campaign_id").eq("space_id", spaceId).order("campaign_name"),
+        supabase.from("tiktok_campaigns").select("id, campaign_name, campaign_id").eq("space_id", spaceId).eq("age", "").eq("gender", "").eq("location", "").order("campaign_name"),
         supabase.from("tiktok_ad_groups").select("id, adgroup_name, adgroup_id, tiktok_campaign_id, amount_spent, impressions, clicks, ctr, frequency").eq("space_id", spaceId),
         supabase.from("tiktok_ads").select("id, ad_name, ad_id, tiktok_ad_group_id, amount_spent, impressions, clicks, ctr, frequency, link_clicks, likes, comments, shares, thumbnail_url").eq("space_id", spaceId),
       ]);

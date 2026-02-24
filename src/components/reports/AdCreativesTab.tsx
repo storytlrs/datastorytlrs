@@ -95,7 +95,9 @@ export const AdCreativesTab = ({ reportId, spaceId }: AdCreativesTabProps) => {
         .from("brand_ad_sets" as any)
         .select("id, adset_name, brand_campaign_id")
         .eq("space_id", spaceId)
-        .in("brand_campaign_id", metaLinkedIds);
+        .in("brand_campaign_id", metaLinkedIds)
+        .eq("age", "")
+        .eq("gender", "");
 
       const adSetIds = (adSetsData || []).map((a: any) => a.id);
       const adSetMap = Object.fromEntries((adSetsData || []).map((a: any) => [a.id, { adset_name: a.adset_name, campaign_id: a.brand_campaign_id }]));
@@ -106,6 +108,8 @@ export const AdCreativesTab = ({ reportId, spaceId }: AdCreativesTabProps) => {
           .select("id, ad_id, ad_name, brand_ad_set_id, amount_spent, impressions, clicks, ctr, frequency, date_start, thumbnail_url")
           .eq("space_id", spaceId)
           .in("brand_ad_set_id", adSetIds)
+          .eq("age", "")
+          .eq("gender", "")
           .order("amount_spent", { ascending: false });
 
         if (!error && data) {
