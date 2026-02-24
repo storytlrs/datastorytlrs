@@ -926,7 +926,7 @@ export const AdsDataTab = ({ reportId, spaceId, onImportSuccess, embedded = fals
               Hierarchical campaign data and media plan {canEdit ? "(Click rows to edit)" : "(Read-only)"}
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-start gap-2">
             <Button
               variant="outline"
               size="sm"
