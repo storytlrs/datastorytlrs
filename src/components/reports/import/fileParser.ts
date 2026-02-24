@@ -17,14 +17,14 @@ export interface ParsedFile {
 }
 
 // Parse XLSX or CSV file
-export const parseFile = async (file: File, sheetName?: string): Promise<ParsedFile> => {
+export const parseFile = async (file: File, sheetName?: string, skipFirstRow = false, skipLastRow = false): Promise<ParsedFile> => {
   const fileName = file.name;
   const extension = fileName.split(".").pop()?.toLowerCase();
 
   if (extension === "csv") {
-    return parseCSV(file);
+    return parseCSV(file, skipFirstRow, skipLastRow);
   } else if (extension === "xlsx" || extension === "xls") {
-    return parseXLSX(file, sheetName);
+    return parseXLSX(file, sheetName, skipFirstRow, skipLastRow);
   } else {
     throw new Error("Unsupported file format. Please upload XLSX, XLS, or CSV file.");
   }
@@ -40,7 +40,7 @@ export const getSheetNames = async (file: File): Promise<string[]> => {
 };
 
 // Parse CSV file
-const parseCSV = async (file: File): Promise<ParsedFile> => {
+const parseCSV = async (file: File, skipFirstRow = false, skipLastRow = false): Promise<ParsedFile> => {
   const text = await file.text();
   
   // Detect delimiter (comma, semicolon, or tab)
@@ -57,18 +57,18 @@ const parseCSV = async (file: File): Promise<ParsedFile> => {
   const sheetName = workbook.SheetNames[0];
   const sheet = workbook.Sheets[sheetName];
   
-  return parseSheet(sheet, file.name);
+  return parseSheet(sheet, file.name, skipFirstRow, skipLastRow);
 };
 
 // Parse XLSX file
-const parseXLSX = async (file: File, targetSheet?: string): Promise<ParsedFile> => {
+const parseXLSX = async (file: File, targetSheet?: string, skipFirstRow = false, skipLastRow = false): Promise<ParsedFile> => {
   const arrayBuffer = await file.arrayBuffer();
   const workbook = XLSX.read(arrayBuffer, { type: "array" });
   
   // If a specific sheet is requested, use that
   if (targetSheet && workbook.SheetNames.includes(targetSheet)) {
     const sheet = workbook.Sheets[targetSheet];
-    const result = parseSheet(sheet, file.name);
+    const result = parseSheet(sheet, file.name, skipFirstRow, skipLastRow);
     result.sheetNames = workbook.SheetNames;
     result.selectedSheet = targetSheet;
     return result;
@@ -81,7 +81,7 @@ const parseXLSX = async (file: File, targetSheet?: string): Promise<ParsedFile> 
     
     // Skip empty sheets or sheets with less than 1 row
     if (data.length >= 1) {
-      const result = parseSheet(sheet, file.name);
+      const result = parseSheet(sheet, file.name, skipFirstRow, skipLastRow);
       result.sheetNames = workbook.SheetNames;
       result.selectedSheet = sheetName;
       return result;
@@ -92,7 +92,63 @@ const parseXLSX = async (file: File, targetSheet?: string): Promise<ParsedFile> 
 };
 
 // Parse a sheet into our format
-const parseSheet = (sheet: XLSX.WorkSheet, fileName: string): ParsedFile => {
+const parseSheet = (sheet: XLSX.WorkSheet, fileName: string, skipFirstRow = false, skipLastRow = false): ParsedFile => {
+  if (skipFirstRow) {
+    // When skipping the first row (title row), we need to use the second row as headers
+    // Read all rows as arrays (no header detection)
+    const rawData: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null });
+    
+    if (rawData.length < 2) {
+      throw new Error("Not enough data in the file");
+    }
+
+    // Row 0 is the title row (skip it), row 1 is the actual header row
+    const headerRow = rawData[1];
+    const columnNames = headerRow.map((h: any, i: number) => 
+      h !== null && h !== undefined ? String(h).trim() : `Column ${i + 1}`
+    );
+
+    // Data starts from row 2
+    let dataRows = rawData.slice(2);
+    
+    // Skip last row if requested (e.g. "Results" totals row)
+    if (skipLastRow && dataRows.length > 0) {
+      dataRows = dataRows.slice(0, -1);
+    }
+
+    // Filter out completely empty rows
+    dataRows = dataRows.filter(row => row.some((cell: any) => cell !== null && cell !== undefined && cell !== ""));
+
+    // Convert arrays to objects using header names
+    const rows = dataRows.map((row) => {
+      const obj: Record<string, any> = {};
+      columnNames.forEach((col, i) => {
+        obj[col] = row[i] !== undefined ? row[i] : null;
+      });
+      return obj;
+    });
+
+    // Build columns with sample values and suggestions
+    const columns: ParsedColumn[] = columnNames.map((name) => {
+      const sampleValues = rows
+        .slice(0, 3)
+        .map((row) => formatSampleValue(row[name]))
+        .filter((v) => v !== "" && v !== null);
+      
+      const suggestedMapping = suggestMapping(name);
+      
+      return { name, sampleValues, suggestedMapping };
+    });
+
+    return {
+      columns,
+      rows,
+      totalRows: rows.length,
+      fileName,
+    };
+  }
+
+  // Standard parsing (no skip)
   const data: any[] = XLSX.utils.sheet_to_json(sheet, { defval: null });
   
   if (data.length === 0) {
@@ -101,11 +157,17 @@ const parseSheet = (sheet: XLSX.WorkSheet, fileName: string): ParsedFile => {
 
   // Get column names from first row keys
   const columnNames = Object.keys(data[0]);
+
+  let rows = data;
+  // Skip last row if requested
+  if (skipLastRow && rows.length > 0) {
+    rows = rows.slice(0, -1);
+  }
   
   // Build columns with sample values and suggestions
   const columns: ParsedColumn[] = columnNames.map((name) => {
     // Get up to 3 sample values
-    const sampleValues = data
+    const sampleValues = rows
       .slice(0, 3)
       .map((row) => formatSampleValue(row[name]))
       .filter((v) => v !== "" && v !== null);
@@ -121,7 +183,7 @@ const parseSheet = (sheet: XLSX.WorkSheet, fileName: string): ParsedFile => {
   });
 
   // Clean up rows - convert to consistent format
-  const rows = data.map((row) => {
+  const cleanRows = rows.map((row) => {
     const cleanRow: Record<string, any> = {};
     columnNames.forEach((col) => {
       cleanRow[col] = row[col];
@@ -131,8 +193,8 @@ const parseSheet = (sheet: XLSX.WorkSheet, fileName: string): ParsedFile => {
 
   return {
     columns,
-    rows,
-    totalRows: rows.length,
+    rows: cleanRows,
+    totalRows: cleanRows.length,
     fileName,
   };
 };
