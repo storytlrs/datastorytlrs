@@ -1,4 +1,4 @@
-import { useState, forwardRef } from "react";
+import { useState, useEffect, forwardRef } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { TranslatedText } from "@/components/ui/TranslatedText";
 import { MetricTile } from "./MetricTile";
 import { formatCurrencySimple, formatCurrency } from "@/lib/currencyUtils";
+import { supabase } from "@/integrations/supabase/client";
+import { SnapshotTrendChart } from "./SnapshotTrendChart";
 import {
   Target,
   Rocket,
@@ -110,6 +112,7 @@ interface MonthlyAdsInsightsContentProps {
   onSaveInsights?: (updates: Partial<MonthlyStructuredInsights>) => Promise<void>;
   hasMetaPlatform?: boolean;
   hasTiktokPlatform?: boolean;
+  reportId?: string;
 }
 
 const formatNumber = (num: number): string => {
@@ -295,7 +298,7 @@ const TiktokIcon = () => (
 );
 
 export const MonthlyAdsInsightsContent = forwardRef<HTMLDivElement, MonthlyAdsInsightsContentProps>(
-  ({ insights: raw, canEdit = false, onSaveInsights, hasMetaPlatform, hasTiktokPlatform }, ref) => {
+  ({ insights: raw, canEdit = false, onSaveInsights, hasMetaPlatform, hasTiktokPlatform, reportId }, ref) => {
     const insights: MonthlyStructuredInsights = {
       executive_summary: raw.executive_summary || "",
       campaign_context: raw.campaign_context || { mainGoal: "", actions: "", highlights: "" },
@@ -325,6 +328,66 @@ export const MonthlyAdsInsightsContent = forwardRef<HTMLDivElement, MonthlyAdsIn
     const [worksItems, setWorksItems] = useState(insights.learnings.works);
     const [threatsItems, setThreatsItems] = useState(insights.learnings.threats_opportunities);
     const [improvementsItems, setImprovementsItems] = useState(insights.learnings.improvements);
+
+    // Fetch linked campaign IDs and spaceId for the trend chart
+    const [chartSpaceId, setChartSpaceId] = useState<string | null>(null);
+    const [chartCampaignIds, setChartCampaignIds] = useState<string[]>([]);
+    const [chartEntityTypes, setChartEntityTypes] = useState<string[]>([]);
+
+    useEffect(() => {
+      if (!reportId) return;
+      const fetchChartData = async () => {
+        // Get space_id from report
+        const { data: report } = await supabase
+          .from("reports")
+          .select("space_id")
+          .eq("id", reportId)
+          .single();
+        if (!report) return;
+        setChartSpaceId(report.space_id);
+
+        const entityTypes: string[] = [];
+        const campaignTextIds: string[] = [];
+
+        // Fetch linked Meta campaigns
+        const { data: metaLinks } = await supabase
+          .from("report_campaigns")
+          .select("brand_campaign_id")
+          .eq("report_id", reportId);
+        if (metaLinks && metaLinks.length > 0) {
+          const ids = metaLinks.map(l => l.brand_campaign_id);
+          const { data: campaigns } = await supabase
+            .from("brand_campaigns" as any)
+            .select("campaign_id")
+            .in("id", ids);
+          if (campaigns) {
+            campaignTextIds.push(...campaigns.map((c: any) => c.campaign_id));
+          }
+          entityTypes.push("meta_campaign");
+        }
+
+        // Fetch linked TikTok campaigns
+        const { data: tiktokLinks } = await supabase
+          .from("report_tiktok_campaigns")
+          .select("tiktok_campaign_id")
+          .eq("report_id", reportId);
+        if (tiktokLinks && tiktokLinks.length > 0) {
+          const ids = tiktokLinks.map(l => l.tiktok_campaign_id);
+          const { data: campaigns } = await supabase
+            .from("tiktok_campaigns" as any)
+            .select("campaign_id")
+            .in("id", ids);
+          if (campaigns) {
+            campaignTextIds.push(...campaigns.map((c: any) => c.campaign_id));
+          }
+          entityTypes.push("tiktok_campaign");
+        }
+
+        setChartCampaignIds([...new Set(campaignTextIds)]);
+        setChartEntityTypes(entityTypes);
+      };
+      fetchChartData();
+    }, [reportId]);
 
     const startEditing = (s: string) => setEditingSections((prev) => new Set([...prev, s]));
     const stopEditing = (s: string) => setEditingSections((prev) => { const next = new Set(prev); next.delete(s); return next; });
@@ -470,6 +533,15 @@ export const MonthlyAdsInsightsContent = forwardRef<HTMLDivElement, MonthlyAdsIn
             canEdit={canEdit}
             placeholder="AI popis vývoje metrik v průběhu měsíce..."
           />
+          {chartSpaceId && chartCampaignIds.length > 0 && (
+            <div className="mt-6">
+              <SnapshotTrendChart
+                spaceId={chartSpaceId}
+                campaignIds={chartCampaignIds}
+                entityTypes={chartEntityTypes}
+              />
+            </div>
+          )}
         </Card>
 
         {/* 5. Community Management */}
