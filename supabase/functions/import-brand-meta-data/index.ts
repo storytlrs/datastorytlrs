@@ -169,7 +169,7 @@ const calculateMetrics = (insight: MetaInsight) => {
   const postReactions = getActionValue(actions, "post_reaction");
   const postComments = getActionValue(actions, "comment");
   const postShares = getActionValue(actions, "post");
-  const postSaves = getActionValue(actions, "onsite_conversion.post_save");
+  const postSaves = getActionValue(actions, "onsite_conversion.post_net_save");
   const linkClicks = getActionValue(actions, "link_click");
 
   const thruplayRate = impressions > 0 ? (thruplays / impressions) * 100 : 0;
@@ -178,8 +178,11 @@ const calculateMetrics = (insight: MetaInsight) => {
   const totalEngagement = postReactions + postComments + postShares + postSaves;
   const engagementRate = impressions > 0 ? (totalEngagement / impressions) * 100 : 0;
   const cpe = totalEngagement > 0 ? spend / totalEngagement : 0;
-  const videoAvgPlayTime = insight.video_avg_time_watched_actions?.[0]?.value
-    ? parseFloat(insight.video_avg_time_watched_actions[0].value) : 0;
+  const videoAvgPlayTimeAction = insight.video_avg_time_watched_actions?.find(
+    (a) => a.action_type === "video_view"
+  );
+  const videoAvgPlayTime = videoAvgPlayTimeAction
+    ? parseFloat(videoAvgPlayTimeAction.value) : 0;
 
   return {
     impressions, spend, thruplays, video3sPlays,
