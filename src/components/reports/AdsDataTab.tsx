@@ -213,6 +213,9 @@ export const AdsDataTab = ({ reportId, spaceId, onImportSuccess, embedded = fals
         .select("*")
         .eq("space_id", spaceId)
         .in("id", metaIds)
+        .eq("publisher_platform", "unknown")
+        .eq("age", "")
+        .eq("gender", "")
         .order("created_at", { ascending: false });
       if (!error && data) {
         allCampaigns.push(...data.map((c: any) => ({ ...c, platform: "meta" })));
@@ -254,6 +257,8 @@ export const AdsDataTab = ({ reportId, spaceId, onImportSuccess, embedded = fals
         .select("*")
         .eq("space_id", spaceId)
         .in("brand_campaign_id", metaIds)
+        .eq("age", "")
+        .eq("gender", "")
         .order("created_at", { ascending: false });
       if (!error && data) {
         allAdSets.push(...data.map((as: any) => ({ ...as, platform: "meta" })));
@@ -306,7 +311,9 @@ export const AdsDataTab = ({ reportId, spaceId, onImportSuccess, embedded = fals
         .from("brand_ad_sets" as any)
         .select("id")
         .eq("space_id", spaceId)
-        .in("brand_campaign_id", metaIds);
+        .in("brand_campaign_id", metaIds)
+        .eq("age", "")
+        .eq("gender", "");
 
       const adSetIds = adSetData?.map((as: any) => as.id) || [];
       if (adSetIds.length > 0) {
@@ -315,6 +322,8 @@ export const AdsDataTab = ({ reportId, spaceId, onImportSuccess, embedded = fals
           .select("*")
           .eq("space_id", spaceId)
           .in("brand_ad_set_id", adSetIds)
+          .eq("age", "")
+          .eq("gender", "")
           .order("created_at", { ascending: false });
         if (!error && data) {
           allAds.push(...data.map((a: any) => ({ ...a, platform: "meta" })));

@@ -272,13 +272,15 @@ export const AdsOverviewTab = ({ reportId, spaceId }: AdsOverviewTabProps) => {
               .from("brand_ad_sets" as any)
               .select("*")
               .eq("space_id", spaceId)
-              .in("brand_campaign_id", allCampaignIdsForAdSets);
+              .in("brand_campaign_id", allCampaignIdsForAdSets)
+              .eq("age", "")
+              .eq("gender", "");
             metaAdSets = (adSetsRes.data || []).map((as: any) => ({ ...as, platform: "meta" }));
           }
 
           const adSetIds = metaAdSets.map((as: any) => as.id);
           if (adSetIds.length > 0) {
-            const adsRes = await supabase.from("brand_ads" as any).select("*").eq("space_id", spaceId).in("brand_ad_set_id", adSetIds);
+            const adsRes = await supabase.from("brand_ads" as any).select("*").eq("space_id", spaceId).in("brand_ad_set_id", adSetIds).eq("age", "").eq("gender", "");
             metaAds = (adsRes.data || []).map((a: any) => ({ ...a, platform: "meta" }));
           }
         }
