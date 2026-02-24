@@ -5,7 +5,7 @@ import { FileUploadStep } from "./FileUploadStep";
 import { ColumnMappingStep } from "./ColumnMappingStep";
 import { ImportReviewStep } from "./ImportReviewStep";
 import { parseFile, getSheetNames, type ParsedFile } from "./fileParser";
-import { parseMappingTarget, MAPPING_FIELDS } from "./mappingConfig";
+import { parseMappingTarget, MAPPING_FIELDS, type TargetTable } from "./mappingConfig";
 
 interface ImportWizardProps {
   reportId: string;
@@ -62,7 +62,8 @@ export const ImportWizard = ({ reportId, spaceId, onComplete, onCancel, showShee
 
     setIsLoading(true);
     try {
-      const parsed = await parseFile(file, selectedSheet || undefined, skipFirstRow, skipLastRow);
+      const preferTable: TargetTable | undefined = showSheetSelector ? "media_plan_items" : undefined;
+      const parsed = await parseFile(file, selectedSheet || undefined, skipFirstRow, skipLastRow, preferTable);
       setParsedFile(parsed);
 
       // Initialize mappings with suggestions

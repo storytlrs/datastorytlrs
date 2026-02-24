@@ -1,5 +1,5 @@
 import * as XLSX from "xlsx";
-import { suggestMapping } from "./mappingConfig";
+import { suggestMapping, type TargetTable } from "./mappingConfig";
 
 export interface ParsedColumn {
   name: string;
@@ -17,14 +17,14 @@ export interface ParsedFile {
 }
 
 // Parse XLSX or CSV file
-export const parseFile = async (file: File, sheetName?: string, skipFirstRow = false, skipLastRow = false): Promise<ParsedFile> => {
+export const parseFile = async (file: File, sheetName?: string, skipFirstRow = false, skipLastRow = false, preferTable?: TargetTable): Promise<ParsedFile> => {
   const fileName = file.name;
   const extension = fileName.split(".").pop()?.toLowerCase();
 
   if (extension === "csv") {
-    return parseCSV(file, skipFirstRow, skipLastRow);
+    return parseCSV(file, skipFirstRow, skipLastRow, preferTable);
   } else if (extension === "xlsx" || extension === "xls") {
-    return parseXLSX(file, sheetName, skipFirstRow, skipLastRow);
+    return parseXLSX(file, sheetName, skipFirstRow, skipLastRow, preferTable);
   } else {
     throw new Error("Unsupported file format. Please upload XLSX, XLS, or CSV file.");
   }
@@ -40,7 +40,7 @@ export const getSheetNames = async (file: File): Promise<string[]> => {
 };
 
 // Parse CSV file
-const parseCSV = async (file: File, skipFirstRow = false, skipLastRow = false): Promise<ParsedFile> => {
+const parseCSV = async (file: File, skipFirstRow = false, skipLastRow = false, preferTable?: TargetTable): Promise<ParsedFile> => {
   const text = await file.text();
   
   // Detect delimiter (comma, semicolon, or tab)
@@ -57,31 +57,28 @@ const parseCSV = async (file: File, skipFirstRow = false, skipLastRow = false): 
   const sheetName = workbook.SheetNames[0];
   const sheet = workbook.Sheets[sheetName];
   
-  return parseSheet(sheet, file.name, skipFirstRow, skipLastRow);
+  return parseSheet(sheet, file.name, skipFirstRow, skipLastRow, preferTable);
 };
 
 // Parse XLSX file
-const parseXLSX = async (file: File, targetSheet?: string, skipFirstRow = false, skipLastRow = false): Promise<ParsedFile> => {
+const parseXLSX = async (file: File, targetSheet?: string, skipFirstRow = false, skipLastRow = false, preferTable?: TargetTable): Promise<ParsedFile> => {
   const arrayBuffer = await file.arrayBuffer();
   const workbook = XLSX.read(arrayBuffer, { type: "array" });
   
-  // If a specific sheet is requested, use that
   if (targetSheet && workbook.SheetNames.includes(targetSheet)) {
     const sheet = workbook.Sheets[targetSheet];
-    const result = parseSheet(sheet, file.name, skipFirstRow, skipLastRow);
+    const result = parseSheet(sheet, file.name, skipFirstRow, skipLastRow, preferTable);
     result.sheetNames = workbook.SheetNames;
     result.selectedSheet = targetSheet;
     return result;
   }
 
-  // Find the first sheet with actual data
   for (const sheetName of workbook.SheetNames) {
     const sheet = workbook.Sheets[sheetName];
     const data = XLSX.utils.sheet_to_json(sheet, { defval: null });
     
-    // Skip empty sheets or sheets with less than 1 row
     if (data.length >= 1) {
-      const result = parseSheet(sheet, file.name, skipFirstRow, skipLastRow);
+      const result = parseSheet(sheet, file.name, skipFirstRow, skipLastRow, preferTable);
       result.sheetNames = workbook.SheetNames;
       result.selectedSheet = sheetName;
       return result;
@@ -91,8 +88,7 @@ const parseXLSX = async (file: File, targetSheet?: string, skipFirstRow = false,
   throw new Error("No valid data found in the file");
 };
 
-// Parse a sheet into our format
-const parseSheet = (sheet: XLSX.WorkSheet, fileName: string, skipFirstRow = false, skipLastRow = false): ParsedFile => {
+const parseSheet = (sheet: XLSX.WorkSheet, fileName: string, skipFirstRow = false, skipLastRow = false, preferTable?: TargetTable): ParsedFile => {
   if (skipFirstRow) {
     // When skipping the first row (title row), we need to use the second row as headers
     // Read all rows as arrays (no header detection)
@@ -135,7 +131,7 @@ const parseSheet = (sheet: XLSX.WorkSheet, fileName: string, skipFirstRow = fals
         .map((row) => formatSampleValue(row[name]))
         .filter((v) => v !== "" && v !== null);
       
-      const suggestedMapping = suggestMapping(name);
+      const suggestedMapping = suggestMapping(name, preferTable);
       
       return { name, sampleValues, suggestedMapping };
     });
@@ -173,7 +169,7 @@ const parseSheet = (sheet: XLSX.WorkSheet, fileName: string, skipFirstRow = fals
       .filter((v) => v !== "" && v !== null);
     
     // Suggest mapping based on column name
-    const suggestedMapping = suggestMapping(name);
+    const suggestedMapping = suggestMapping(name, preferTable);
     
     return {
       name,

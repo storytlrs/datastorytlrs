@@ -189,8 +189,12 @@ export const AUTO_SUGGESTIONS: Record<string, string> = {
   "placement": "media_plan_items.placements",
   "media buying": "media_plan_items.media_buying_type",
   "media buying type": "media_plan_items.media_buying_type",
+  "media buying typ": "media_plan_items.media_buying_type",
   "optimization": "media_plan_items.media_buying_type",
   "optimalizace": "media_plan_items.media_buying_type",
+  "typ optimalizace": "media_plan_items.media_buying_type",
+  "media buying type optimization": "media_plan_items.media_buying_type",
+  "media buying typ optimization": "media_plan_items.media_buying_type",
   "creatives": "media_plan_items.creatives",
   "kreativy": "media_plan_items.creatives",
   "kreativa": "media_plan_items.creatives",
@@ -203,24 +207,60 @@ export const AUTO_SUGGESTIONS: Record<string, string> = {
   "cílová skupina": "media_plan_items.target_group",
   "cílovka": "media_plan_items.target_group",
   "targeting": "media_plan_items.target_group",
+  // Media plan context-aware keys (used via preferTable matching)
+  "mp_type": "media_plan_items.type",
+  "mp_platform": "media_plan_items.mp_platform",
+  "mp_impressions": "media_plan_items.mp_impressions",
+  "mp_reach": "media_plan_items.mp_reach",
+  "mp_frequency": "media_plan_items.mp_frequency",
+  "mp_cpm": "media_plan_items.mp_cpm",
+  "mp_budget": "media_plan_items.budget",
 };
 
-// Suggest mapping based on column name
-export const suggestMapping = (columnName: string): string | null => {
+// Suggest mapping based on column name, optionally preferring a specific table
+export const suggestMapping = (columnName: string, preferTable?: TargetTable): string | null => {
   const normalizedName = columnName.toLowerCase().trim();
   
   // Direct match
   if (AUTO_SUGGESTIONS[normalizedName]) {
-    return AUTO_SUGGESTIONS[normalizedName];
+    const suggestion = AUTO_SUGGESTIONS[normalizedName];
+    // If we have a preferred table, check if there's a better match for that table
+    if (preferTable) {
+      const preferredMatch = findPreferredMatch(normalizedName, preferTable);
+      if (preferredMatch) return preferredMatch;
+    }
+    return suggestion;
   }
 
-  // Partial match
+  // Partial match - collect all matches
+  const matches: { key: string; value: string }[] = [];
   for (const [key, value] of Object.entries(AUTO_SUGGESTIONS)) {
     if (normalizedName.includes(key) || key.includes(normalizedName)) {
-      return value;
+      matches.push({ key, value });
     }
   }
 
+  if (matches.length > 0) {
+    // If we prefer a specific table, pick a match from that table first
+    if (preferTable) {
+      const preferred = matches.find(m => m.value.startsWith(preferTable + "."));
+      if (preferred) return preferred.value;
+    }
+    return matches[0].value;
+  }
+
+  return null;
+};
+
+// Find a mapping field for a given column name within a preferred table
+const findPreferredMatch = (normalizedName: string, preferTable: TargetTable): string | null => {
+  // Check direct match in preferred table
+  for (const [key, value] of Object.entries(AUTO_SUGGESTIONS)) {
+    if ((normalizedName === key || normalizedName.includes(key) || key.includes(normalizedName)) 
+        && value.startsWith(preferTable + ".")) {
+      return value;
+    }
+  }
   return null;
 };
 
