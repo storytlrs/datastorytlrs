@@ -161,8 +161,8 @@ Deno.serve(async (req) => {
     // ThruPlay rate = ThruPlays / Impressions
     const thruplayRate = impressions > 0 ? (thruplays / impressions) * 100 : 0;
     
-    // View rate (3s) = 3-second video plays / Impressions
-    const viewRate3s = impressions > 0 ? (video3sPlays / impressions) * 100 : 0;
+    // View rate (3s) = raw 3-second video plays count from video_view action
+    const viewRate3s = video3sPlays;
     
     // Cost per 3-second video play = Amount spent / 3-second video plays
     const costPer3sPlay = video3sPlays > 0 ? spend / video3sPlays : 0;
