@@ -286,6 +286,7 @@ export const AdsAIInsightsTab = ({ reportId }: AdsAIInsightsTabProps) => {
               onSaveInsights={handleSaveStructuredInsights}
               hasMetaPlatform={hasMetaCampaigns}
               hasTiktokPlatform={hasTiktokCampaigns}
+              reportId={reportId}
             />
           ) : (
             <AdsAIInsightsContent
@@ -331,6 +332,7 @@ export const AdsAIInsightsTab = ({ reportId }: AdsAIInsightsTabProps) => {
                 insights={structuredData as YearlyStructuredInsights}
                 hasMetaPlatform={hasMetaCampaigns}
                 hasTiktokPlatform={hasTiktokCampaigns}
+                reportId={reportId}
               />
             ) : (
               <AdsAIInsightsContent

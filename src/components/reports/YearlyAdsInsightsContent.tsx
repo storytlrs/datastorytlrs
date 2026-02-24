@@ -1,4 +1,4 @@
-import { useState, forwardRef } from "react";
+import { useState, useEffect, forwardRef } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { TranslatedText } from "@/components/ui/TranslatedText";
 import { MetricTile } from "./MetricTile";
 import { formatCurrencySimple, formatCurrency } from "@/lib/currencyUtils";
+import { supabase } from "@/integrations/supabase/client";
+import { SnapshotTrendChart } from "./SnapshotTrendChart";
 import {
   Target, Rocket, Star, DollarSign, Users, Pencil, Save, X,
   BarChart3, MessageCircle, Mail, Clock, Eye, TrendingUp, MousePointer,
@@ -86,6 +88,7 @@ interface YearlyAdsInsightsContentProps {
   onSaveInsights?: (updates: Partial<YearlyStructuredInsights>) => Promise<void>;
   hasMetaPlatform?: boolean;
   hasTiktokPlatform?: boolean;
+  reportId?: string;
 }
 
 // ── Helpers ──
@@ -180,15 +183,26 @@ const EditableNumberField = ({
   );
 };
 
-const PostCard = ({ post }: { post: PostData }) => (
+const proxyThumbnailUrl = (url?: string): string | undefined => {
+  if (!url) return undefined;
+  if (/tiktokcdn/i.test(url)) {
+    const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID || 'rzetgajncoedibmlfyvl';
+    return `https://${projectId}.supabase.co/functions/v1/proxy-image?url=${encodeURIComponent(url)}`;
+  }
+  return url;
+};
+
+const PostCard = ({ post }: { post: PostData }) => {
+  const imgSrc = proxyThumbnailUrl(post.thumbnail_url);
+  return (
   <Card className="overflow-hidden rounded-[35px] border-foreground hover:shadow-lg transition-shadow">
     <div className="relative aspect-[9/12.8] bg-muted overflow-hidden">
-      {post.thumbnail_url ? (
-        <img src={post.thumbnail_url} alt={post.name} className="w-full h-full object-cover" referrerPolicy="no-referrer"
+      {imgSrc ? (
+        <img src={imgSrc} alt={post.name} className="w-full h-full object-cover" referrerPolicy="no-referrer"
           onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).parentElement!.querySelector('.placeholder')?.classList.remove('hidden'); }}
         />
       ) : null}
-      <div className={`w-full h-full flex flex-col items-center justify-center gap-2 placeholder ${post.thumbnail_url ? "hidden absolute inset-0" : ""}`}>
+      <div className={`w-full h-full flex flex-col items-center justify-center gap-2 placeholder ${imgSrc ? "hidden absolute inset-0" : ""}`}>
         <Eye className="w-8 h-8 text-muted-foreground/30" />
       </div>
     </div>
@@ -205,7 +219,8 @@ const PostCard = ({ post }: { post: PostData }) => (
       </div>
     </div>
   </Card>
-);
+  );
+};
 
 // Platform icons
 const FacebookIcon = () => (
@@ -452,7 +467,7 @@ const YearlyPlatformSection = ({
 // ── Main Component ──
 
 export const YearlyAdsInsightsContent = forwardRef<HTMLDivElement, YearlyAdsInsightsContentProps>(
-  ({ insights: raw, canEdit = false, onSaveInsights, hasMetaPlatform, hasTiktokPlatform }, ref) => {
+  ({ insights: raw, canEdit = false, onSaveInsights, hasMetaPlatform, hasTiktokPlatform, reportId }, ref) => {
     const d = (obj: any, defaults: any) => ({ ...defaults, ...obj });
 
     const insights: YearlyStructuredInsights = {
@@ -517,6 +532,57 @@ export const YearlyAdsInsightsContent = forwardRef<HTMLDivElement, YearlyAdsInsi
     const [metricsOverTime, setMetricsOverTime] = useState(insights.metrics_over_time);
     const [brandAwareness, setBrandAwareness] = useState(insights.brand_awareness);
     const [competitionAnalysis, setCompetitionAnalysis] = useState(insights.competition_analysis);
+
+    // Fetch linked campaign IDs and spaceId for the trend chart
+    const [chartSpaceId, setChartSpaceId] = useState<string | null>(null);
+    const [chartCampaignIds, setChartCampaignIds] = useState<string[]>([]);
+    const [chartEntityTypes, setChartEntityTypes] = useState<string[]>([]);
+
+    useEffect(() => {
+      if (!reportId) return;
+      const fetchChartData = async () => {
+        const { data: report } = await supabase
+          .from("reports")
+          .select("space_id")
+          .eq("id", reportId)
+          .single();
+        if (!report) return;
+        setChartSpaceId(report.space_id);
+
+        const entityTypes: string[] = [];
+        const campaignTextIds: string[] = [];
+
+        const { data: metaLinks } = await supabase
+          .from("report_campaigns")
+          .select("brand_campaign_id")
+          .eq("report_id", reportId);
+        if (metaLinks && metaLinks.length > 0) {
+          const { data: campaigns } = await supabase
+            .from("brand_campaigns" as any)
+            .select("campaign_id")
+            .in("id", metaLinks.map(l => l.brand_campaign_id));
+          if (campaigns) campaignTextIds.push(...campaigns.map((c: any) => c.campaign_id));
+          entityTypes.push("meta_campaign");
+        }
+
+        const { data: tiktokLinks } = await supabase
+          .from("report_tiktok_campaigns")
+          .select("tiktok_campaign_id")
+          .eq("report_id", reportId);
+        if (tiktokLinks && tiktokLinks.length > 0) {
+          const { data: campaigns } = await supabase
+            .from("tiktok_campaigns" as any)
+            .select("campaign_id")
+            .in("id", tiktokLinks.map(l => l.tiktok_campaign_id));
+          if (campaigns) campaignTextIds.push(...campaigns.map((c: any) => c.campaign_id));
+          entityTypes.push("tiktok_campaign");
+        }
+
+        setChartCampaignIds([...new Set(campaignTextIds)]);
+        setChartEntityTypes(entityTypes);
+      };
+      fetchChartData();
+    }, [reportId]);
 
     // Platform text states
     const [fbMetricsOverTime, setFbMetricsOverTime] = useState(insights.facebook_metrics_over_time);
@@ -711,6 +777,15 @@ export const YearlyAdsInsightsContent = forwardRef<HTMLDivElement, YearlyAdsInsi
             canEdit={canEdit}
             placeholder="AI popis vývoje metrik v průběhu roku..."
           />
+          {chartSpaceId && chartCampaignIds.length > 0 && (
+            <div className="mt-6">
+              <SnapshotTrendChart
+                spaceId={chartSpaceId}
+                campaignIds={chartCampaignIds}
+                entityTypes={chartEntityTypes}
+              />
+            </div>
+          )}
         </Card>
 
         {/* Facebook Section (slides 6-19) */}

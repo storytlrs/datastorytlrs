@@ -302,7 +302,13 @@ export const AdCreativesTab = ({ reportId, spaceId }: AdCreativesTabProps) => {
   };
 
   const getPreviewIframeUrl = (item: AdCreative): string | null => {
-    return item.thumbnail_url || null;
+    if (!item.thumbnail_url) return null;
+    // Proxy TikTok CDN URLs (signed URLs that expire and have CORS issues)
+    if (/tiktokcdn/i.test(item.thumbnail_url)) {
+      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID || 'rzetgajncoedibmlfyvl';
+      return `https://${projectId}.supabase.co/functions/v1/proxy-image?url=${encodeURIComponent(item.thumbnail_url)}`;
+    }
+    return item.thumbnail_url;
   };
 
   if (loading) {
