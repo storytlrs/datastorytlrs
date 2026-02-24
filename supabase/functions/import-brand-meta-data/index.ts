@@ -397,9 +397,9 @@ Deno.serve(async (req) => {
         }
         console.log(`Campaign ${campaign.id} age+gender breakdown: ${ageGenderRows.length} rows`);
 
-        // If neither breakdown returns data, fall back to basic query
-        if (platformRows.length === 0 && ageGenderRows.length === 0) {
-          const basicUrl = `https://graph.facebook.com/v21.0/${campaign.id}/insights?fields=${fullInsightFields}&date_preset=maximum&limit=500&access_token=${metaAccessToken}`;
+        // Always fetch basic (no breakdown) insight with actions for the "total" row
+        {
+          const basicUrl = `https://graph.facebook.com/v21.0/${campaign.id}/insights?fields=${fullInsightFields}&date_preset=maximum&action_breakdowns=action_type&limit=500&access_token=${metaAccessToken}`;
           const basicRes = await fetch(basicUrl);
           const basicData = await basicRes.json();
           const basicRows: MetaInsight[] = basicData.data || [];
@@ -452,7 +452,7 @@ Deno.serve(async (req) => {
             .select("id")
             .single();
 
-          if (campError) errors.push(`Campaign ${campaign.id}: ${campError.message}`);
+          if (campError) errors.push(`Campaign ${campaign.id} total: ${campError.message}`);
           else importedCampaigns++;
         }
 
@@ -611,11 +611,19 @@ Deno.serve(async (req) => {
 
             console.log(`Ad Set ${adSet.id}: platform=${asPlatformRows.length}, age+gender=${asAgeGenderRows.length}`);
 
-            if (asPlatformRows.length === 0 && asAgeGenderRows.length === 0) {
-              // No breakdown data — create a single record without breakdowns
-              const adSetRecord = {
+            // Always fetch basic (no breakdown) insight with actions for ad set "total" row
+            {
+              const asBasicUrl = `https://graph.facebook.com/v21.0/${adSet.id}/insights?fields=${fullInsightFields}&date_preset=maximum&action_breakdowns=action_type&limit=500&access_token=${metaAccessToken}`;
+              const asBasicRes = await fetch(asBasicUrl);
+              const asBasicData = await asBasicRes.json();
+              const asBasicRows: MetaInsight[] = asBasicData.data || [];
+
+              const totalParentKey = `unknown||`;
+              const totalParentCampaignId = campaignDbIds[totalParentKey] || fallbackCampaignDbId;
+
+              const adSetRecord: Record<string, unknown> = {
                 space_id: spaceId,
-                brand_campaign_id: fallbackCampaignDbId,
+                brand_campaign_id: totalParentCampaignId,
                 adset_id: adSet.id,
                 adset_name: adSet.name,
                 status: adSet.status,
@@ -623,10 +631,35 @@ Deno.serve(async (req) => {
                 age: "",
                 gender: "",
               };
+
+              if (asBasicRows.length > 0) {
+                const asBasicMetrics = calculateMetrics(asBasicRows[0]);
+                Object.assign(adSetRecord, {
+                  amount_spent: asBasicMetrics.spend,
+                  reach: asBasicRows[0].reach ? parseInt(asBasicRows[0].reach) : 0,
+                  impressions: asBasicMetrics.impressions,
+                  frequency: asBasicRows[0].frequency ? parseFloat(asBasicRows[0].frequency) : 0,
+                  cpm: asBasicRows[0].cpm ? parseFloat(asBasicRows[0].cpm) : 0,
+                  cpc: asBasicRows[0].cpc ? parseFloat(asBasicRows[0].cpc) : 0,
+                  ctr: asBasicRows[0].ctr ? parseFloat(asBasicRows[0].ctr) : 0,
+                  clicks: asBasicMetrics.linkClicks,
+                  thruplays: asBasicMetrics.thruplays,
+                  thruplay_rate: asBasicMetrics.thruplayRate,
+                  cost_per_thruplay: getCostValue(asBasicRows[0].cost_per_thruplay, "video_view"),
+                  video_3s_plays: asBasicMetrics.video3sPlays,
+                  view_rate_3s: asBasicMetrics.viewRate3s,
+                  cost_per_3s_play: asBasicMetrics.costPer3sPlay,
+                  engagement_rate: asBasicMetrics.engagementRate,
+                  cpe: asBasicMetrics.cpe,
+                  date_start: asBasicRows[0].date_start || null,
+                  date_stop: asBasicRows[0].date_stop || null,
+                });
+              }
+
               const { error: asError } = await supabaseAdmin
                 .from("brand_ad_sets")
                 .upsert(adSetRecord, { onConflict: "space_id,adset_id,publisher_platform,age,gender" });
-              if (asError) errors.push(`Ad Set ${adSet.id}: ${asError.message}`);
+              if (asError) errors.push(`Ad Set ${adSet.id} total: ${asError.message}`);
               else importedAdSets++;
             }
 
@@ -784,23 +817,62 @@ Deno.serve(async (req) => {
                   adNextPage = nextData.paging?.next;
                 }
 
-                if (adPlatformRows.length === 0 && adAgeGenderRows.length === 0) {
-                  const adRecord = {
-                    space_id: spaceId,
-                    brand_ad_set_id: fallbackAdSetDbId,
-                    ad_id: ad.id,
-                    ad_name: ad.name,
-                    status: ad.status,
-                    thumbnail_url: previewUrl,
-                    publisher_platform: "unknown",
-                    age: "",
-                    gender: "",
-                  };
-                  if (fallbackAdSetDbId) {
+                // Always fetch basic (no breakdown) insight with actions for ad "total" row
+                {
+                  const adBasicUrl = `https://graph.facebook.com/v21.0/${ad.id}/insights?fields=${fullInsightFields}&date_preset=maximum&action_breakdowns=action_type&limit=500&access_token=${metaAccessToken}`;
+                  const adBasicRes = await fetch(adBasicUrl);
+                  const adBasicData = await adBasicRes.json();
+                  const adBasicRows: MetaInsight[] = adBasicData.data || [];
+
+                  const totalAdSetKey = `unknown||`;
+                  const totalAdSetId = adSetDbIds[totalAdSetKey] || fallbackAdSetDbId;
+
+                  if (totalAdSetId) {
+                    const adRecord: Record<string, unknown> = {
+                      space_id: spaceId,
+                      brand_ad_set_id: totalAdSetId,
+                      ad_id: ad.id,
+                      ad_name: ad.name,
+                      status: ad.status,
+                      thumbnail_url: previewUrl,
+                      publisher_platform: "unknown",
+                      age: "",
+                      gender: "",
+                    };
+
+                    if (adBasicRows.length > 0) {
+                      const adBasicMetrics = calculateMetrics(adBasicRows[0]);
+                      Object.assign(adRecord, {
+                        amount_spent: adBasicMetrics.spend,
+                        reach: adBasicRows[0].reach ? parseInt(adBasicRows[0].reach) : 0,
+                        impressions: adBasicMetrics.impressions,
+                        frequency: adBasicRows[0].frequency ? parseFloat(adBasicRows[0].frequency) : 0,
+                        cpm: adBasicRows[0].cpm ? parseFloat(adBasicRows[0].cpm) : 0,
+                        cpc: adBasicRows[0].cpc ? parseFloat(adBasicRows[0].cpc) : 0,
+                        ctr: adBasicRows[0].ctr ? parseFloat(adBasicRows[0].ctr) : 0,
+                        clicks: adBasicMetrics.linkClicks,
+                        thruplays: adBasicMetrics.thruplays,
+                        thruplay_rate: adBasicMetrics.thruplayRate,
+                        cost_per_thruplay: getCostValue(adBasicRows[0].cost_per_thruplay, "video_view"),
+                        video_3s_plays: adBasicMetrics.video3sPlays,
+                        view_rate_3s: adBasicMetrics.viewRate3s,
+                        cost_per_3s_play: adBasicMetrics.costPer3sPlay,
+                        engagement_rate: adBasicMetrics.engagementRate,
+                        cpe: adBasicMetrics.cpe,
+                        post_reactions: adBasicMetrics.postReactions,
+                        post_comments: adBasicMetrics.postComments,
+                        post_shares: adBasicMetrics.postShares,
+                        post_saves: adBasicMetrics.postSaves,
+                        link_clicks: adBasicMetrics.linkClicks,
+                        date_start: adBasicRows[0].date_start || null,
+                        date_stop: adBasicRows[0].date_stop || null,
+                      });
+                    }
+
                     const { error: adError } = await supabaseAdmin
                       .from("brand_ads")
                       .upsert(adRecord, { onConflict: "space_id,ad_id,publisher_platform,age,gender" });
-                    if (adError) errors.push(`Ad ${ad.id}: ${adError.message}`);
+                    if (adError) errors.push(`Ad ${ad.id} total: ${adError.message}`);
                     else importedAds++;
                   }
                 }
