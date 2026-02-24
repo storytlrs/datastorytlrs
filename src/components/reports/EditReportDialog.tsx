@@ -236,12 +236,12 @@ export const EditReportDialog = ({ open, onOpenChange, report, onSuccess, onDele
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px] rounded-[35px]">
+      <DialogContent className="sm:max-w-[500px] max-h-[85vh] flex flex-col rounded-[35px]">
         <DialogHeader>
           <DialogTitle>Edit Report Settings</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
+        <div className="space-y-4 py-4 overflow-y-auto flex-1 min-h-0">
           {isAdmin && (
             <div className="space-y-2">
               <Label>Project</Label>
