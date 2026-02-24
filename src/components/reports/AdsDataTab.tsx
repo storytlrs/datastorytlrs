@@ -947,26 +947,28 @@ export const AdsDataTab = ({ reportId, spaceId, onImportSuccess, embedded = fals
             </Button>
             {canEdit && (
               <>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="rounded-[35px]"
-                  onClick={handleSyncAndSnapshot}
-                  disabled={snapshotSyncing}
-                >
-                  {snapshotSyncing ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Camera className="mr-2 h-4 w-4" />
+                <div className="flex flex-col items-center">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="rounded-[35px]"
+                    onClick={handleSyncAndSnapshot}
+                    disabled={snapshotSyncing}
+                  >
+                    {snapshotSyncing ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Camera className="mr-2 h-4 w-4" />
+                    )}
+                    {snapshotSyncing ? "Syncing..." : "Differential Sync"}
+                  </Button>
+                  {lastSnapshotDate && (
+                    <span className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                      <Clock className="h-3 w-3" />
+                      {new Date(lastSnapshotDate).toLocaleDateString()}
+                    </span>
                   )}
-                  {snapshotSyncing ? "Syncing..." : "Differential Sync"}
-                </Button>
-                {lastSnapshotDate && (
-                  <span className="text-xs text-muted-foreground flex items-center gap-1">
-                    <Clock className="h-3 w-3" />
-                    Last: {new Date(lastSnapshotDate).toLocaleDateString()}
-                  </span>
-                )}
+                </div>
                 <Button
                   variant="outline"
                   size="sm"

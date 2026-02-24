@@ -53,3 +53,6 @@ verify_jwt = false
 
 [functions.sync-and-snapshot]
 verify_jwt = true
+
+[functions.extract-influencer-stats]
+verify_jwt = false
