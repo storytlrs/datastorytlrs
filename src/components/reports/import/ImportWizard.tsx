@@ -62,7 +62,7 @@ export const ImportWizard = ({ reportId, spaceId, onComplete, onCancel, showShee
 
     setIsLoading(true);
     try {
-      const parsed = await parseFile(file, selectedSheet || undefined);
+      const parsed = await parseFile(file, selectedSheet || undefined, skipFirstRow, skipLastRow);
       setParsedFile(parsed);
 
       // Initialize mappings with suggestions
@@ -78,7 +78,7 @@ export const ImportWizard = ({ reportId, spaceId, onComplete, onCancel, showShee
     } finally {
       setIsLoading(false);
     }
-  }, [file, selectedSheet]);
+  }, [file, selectedSheet, skipFirstRow, skipLastRow]);
 
   // Handle mapping change
   const handleMappingChange = useCallback((column: string, value: string | null) => {
@@ -112,14 +112,8 @@ export const ImportWizard = ({ reportId, spaceId, onComplete, onCancel, showShee
         fieldTypes[`${field.table}.${field.key}`] = field.type;
       });
 
-      // Filter rows based on skip settings
-      let rowsToImport = parsedFile.rows;
-      if (skipFirstRow && rowsToImport.length > 0) {
-        rowsToImport = rowsToImport.slice(1);
-      }
-      if (skipLastRow && rowsToImport.length > 0) {
-        rowsToImport = rowsToImport.slice(0, -1);
-      }
+      // Rows are already filtered during parsing (skipFirstRow/skipLastRow handled in parseFile)
+      const rowsToImport = parsedFile.rows;
 
       const { data: session } = await supabase.auth.getSession();
       if (!session?.session) {
