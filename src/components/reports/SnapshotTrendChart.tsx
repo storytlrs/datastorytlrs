@@ -55,10 +55,10 @@ const formatValue = (value: number, format: string) => {
 const formatAxisValue = (value: number, format: string) => {
   if (value === null || value === undefined) return "-";
   switch (format) {
-    case "currency":
-      if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M Kč`;
-      if (value >= 1000) return `${(value / 1000).toFixed(1)}K Kč`;
-      return `${Math.round(value)} Kč`;
+    case "currency": {
+      const formatted = value.toLocaleString("cs-CZ", { maximumFractionDigits: 0 });
+      return `${formatted} Kč`;
+    }
     case "percent":
       return `${value.toFixed(1)}%`;
     case "number":
