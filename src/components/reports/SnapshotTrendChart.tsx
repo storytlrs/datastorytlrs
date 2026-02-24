@@ -177,12 +177,12 @@ export const SnapshotTrendChart = ({ spaceId, campaignIds, entityType = "meta_ca
 
       <div className="h-[350px]">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+          <LineChart data={chartData} margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" className="stroke-border/30" />
-            <XAxis dataKey="date" className="text-xs" tick={{ fill: "hsl(var(--muted-foreground))" }} />
+            <XAxis dataKey="date" className="text-xs" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} />
             <YAxis
-              className="text-xs"
-              tick={{ fill: "hsl(var(--muted-foreground))" }}
+              width={90}
+              tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
               tickFormatter={(val) => formatValue(val, metricConfig?.format || "number")}
             />
             <Tooltip
