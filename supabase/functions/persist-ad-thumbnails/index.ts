@@ -337,15 +337,20 @@ Deno.serve(async (req) => {
         ];
 
         const resolveThumb = async (adName: string): Promise<string | null> => {
+          // Search for a row that already has a supabase-stored URL
           const { data: t } = await supabaseAdmin
             .from("tiktok_ads").select("thumbnail_url")
-            .eq("space_id", spaceId).eq("ad_name", adName).limit(1);
-          if (t?.[0]?.thumbnail_url?.includes("supabase")) return t[0].thumbnail_url;
+            .eq("space_id", spaceId).eq("ad_name", adName)
+            .like("thumbnail_url", "%supabase%")
+            .limit(1);
+          if (t?.[0]?.thumbnail_url) return t[0].thumbnail_url;
 
           const { data: m } = await supabaseAdmin
             .from("brand_ads").select("thumbnail_url")
-            .eq("space_id", spaceId).eq("ad_name", adName).limit(1);
-          if (m?.[0]?.thumbnail_url?.includes("supabase")) return m[0].thumbnail_url;
+            .eq("space_id", spaceId).eq("ad_name", adName)
+            .like("thumbnail_url", "%supabase%")
+            .limit(1);
+          if (m?.[0]?.thumbnail_url) return m[0].thumbnail_url;
           return null;
         };
 
