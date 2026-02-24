@@ -230,17 +230,44 @@ export const AdsOverviewTab = ({ reportId, spaceId }: AdsOverviewTabProps) => {
       let metaAds: any[] = [];
 
       if (metaLinkedIds.length > 0) {
-        const [campaignMetaRes, adSetsRes] = await Promise.all([
-          supabase.from("brand_campaigns" as any).select("*").eq("space_id", spaceId).in("id", metaLinkedIds).eq("publisher_platform", "unknown").eq("age", "").eq("gender", ""),
-          supabase.from("brand_ad_sets" as any).select("*").eq("space_id", spaceId).in("brand_campaign_id", metaLinkedIds).eq("publisher_platform", "unknown").eq("age", "").eq("gender", ""),
-        ]);
-        metaCampaigns = (campaignMetaRes.data || []).map((c: any) => ({ ...c, platform: "meta" }));
-        metaAdSets = (adSetsRes.data || []).map((as: any) => ({ ...as, platform: "meta" }));
+        // First get the campaign_id text values from linked rows
+        const linkedCampaignsRes = await supabase
+          .from("brand_campaigns" as any)
+          .select("campaign_id")
+          .in("id", metaLinkedIds);
+        const linkedCampaignTextIds = (linkedCampaignsRes.data || []).map((c: any) => c.campaign_id).filter(Boolean);
 
-        const adSetIds = metaAdSets.map((as: any) => as.id);
-        if (adSetIds.length > 0) {
-          const adsRes = await supabase.from("brand_ads" as any).select("*").eq("space_id", spaceId).in("brand_ad_set_id", adSetIds).eq("publisher_platform", "unknown").eq("age", "").eq("gender", "");
-          metaAds = (adsRes.data || []).map((a: any) => ({ ...a, platform: "meta" }));
+        if (linkedCampaignTextIds.length > 0) {
+          // Fetch "total" rows (publisher_platform=unknown) using campaign_id text match
+          const campaignMetaRes = await supabase
+            .from("brand_campaigns" as any)
+            .select("*")
+            .eq("space_id", spaceId)
+            .in("campaign_id", linkedCampaignTextIds)
+            .eq("publisher_platform", "unknown")
+            .eq("age", "")
+            .eq("gender", "");
+          metaCampaigns = (campaignMetaRes.data || []).map((c: any) => ({ ...c, platform: "meta" }));
+
+          // Use total campaign UUIDs to fetch ad sets and ads
+          const totalCampaignIds = metaCampaigns.map((c: any) => c.id);
+          if (totalCampaignIds.length > 0) {
+            const adSetsRes = await supabase
+              .from("brand_ad_sets" as any)
+              .select("*")
+              .eq("space_id", spaceId)
+              .in("brand_campaign_id", totalCampaignIds)
+              .eq("publisher_platform", "unknown")
+              .eq("age", "")
+              .eq("gender", "");
+            metaAdSets = (adSetsRes.data || []).map((as: any) => ({ ...as, platform: "meta" }));
+          }
+
+          const adSetIds = metaAdSets.map((as: any) => as.id);
+          if (adSetIds.length > 0) {
+            const adsRes = await supabase.from("brand_ads" as any).select("*").eq("space_id", spaceId).in("brand_ad_set_id", adSetIds).eq("publisher_platform", "unknown").eq("age", "").eq("gender", "");
+            metaAds = (adsRes.data || []).map((a: any) => ({ ...a, platform: "meta" }));
+          }
         }
       }
 
