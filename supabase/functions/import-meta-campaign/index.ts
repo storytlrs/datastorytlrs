@@ -154,7 +154,7 @@ Deno.serve(async (req) => {
     const postReactions = getActionValue(actions, "post_reaction");
     const postComments = getActionValue(actions, "comment");
     const postShares = getActionValue(actions, "post");
-    const postSaves = getActionValue(actions, "onsite_conversion.post_save");
+    const postSaves = getActionValue(actions, "onsite_conversion.post_net_save");
     const linkClicks = getActionValue(actions, "link_click");
     const instagramFollows = getActionValue(actions, "follow");
 
@@ -176,9 +176,12 @@ Deno.serve(async (req) => {
     // CPE = Amount spent / Engagement
     const cpe = totalEngagement > 0 ? spend / totalEngagement : 0;
 
-    // Get video avg time watched
-    const videoAvgPlayTime = insight.video_avg_time_watched_actions?.[0]?.value 
-      ? parseFloat(insight.video_avg_time_watched_actions[0].value) : 0;
+    // Get video avg time watched (filtered by video_view action_type)
+    const videoAvgPlayTimeAction = insight.video_avg_time_watched_actions?.find(
+      (a) => a.action_type === "video_view"
+    );
+    const videoAvgPlayTime = videoAvgPlayTimeAction
+      ? parseFloat(videoAvgPlayTimeAction.value) : 0;
 
     // Insert into campaign_meta with all metrics
     const campaignMetaData = {
