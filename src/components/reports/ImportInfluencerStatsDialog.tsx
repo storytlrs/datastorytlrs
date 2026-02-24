@@ -249,7 +249,7 @@ export const ImportInfluencerStatsDialog = ({
         avg_watch_time: entry.editableData.avg_watch_time ?? null,
       }));
 
-      const { error } = await supabase.from("content").insert(inserts as any);
+      const { error } = await supabase.from("screenshot_influencer" as any).insert(inserts as any);
       if (error) throw error;
 
       toast.success(`${inserts.length} content record${inserts.length > 1 ? "s" : ""} saved!`);

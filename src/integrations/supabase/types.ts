@@ -1199,6 +1199,96 @@ export type Database = {
           },
         ]
       }
+      screenshot_influencer: {
+        Row: {
+          avg_watch_time: number | null
+          comments: number | null
+          content_type: string | null
+          created_at: string
+          creator_id: string
+          id: string
+          impressions: number | null
+          likes: number | null
+          link_clicks: number | null
+          notes: string | null
+          platform: string
+          reach: number | null
+          report_id: string
+          reposts: number | null
+          saves: number | null
+          screenshot_url: string | null
+          shares: number | null
+          sticker_clicks: number | null
+          updated_at: string
+          views: number | null
+          views_3s: number | null
+          watch_time: number | null
+        }
+        Insert: {
+          avg_watch_time?: number | null
+          comments?: number | null
+          content_type?: string | null
+          created_at?: string
+          creator_id: string
+          id?: string
+          impressions?: number | null
+          likes?: number | null
+          link_clicks?: number | null
+          notes?: string | null
+          platform?: string
+          reach?: number | null
+          report_id: string
+          reposts?: number | null
+          saves?: number | null
+          screenshot_url?: string | null
+          shares?: number | null
+          sticker_clicks?: number | null
+          updated_at?: string
+          views?: number | null
+          views_3s?: number | null
+          watch_time?: number | null
+        }
+        Update: {
+          avg_watch_time?: number | null
+          comments?: number | null
+          content_type?: string | null
+          created_at?: string
+          creator_id?: string
+          id?: string
+          impressions?: number | null
+          likes?: number | null
+          link_clicks?: number | null
+          notes?: string | null
+          platform?: string
+          reach?: number | null
+          report_id?: string
+          reposts?: number | null
+          saves?: number | null
+          screenshot_url?: string | null
+          shares?: number | null
+          sticker_clicks?: number | null
+          updated_at?: string
+          views?: number | null
+          views_3s?: number | null
+          watch_time?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "screenshot_influencer_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "screenshot_influencer_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       space_ai_insights: {
         Row: {
           created_at: string
