@@ -265,6 +265,7 @@ export const AdsAIInsightsTab = ({ reportId }: AdsAIInsightsTabProps) => {
               onSaveInsights={handleSaveStructuredInsights}
               hasMetaPlatform={hasMetaCampaigns}
               hasTiktokPlatform={hasTiktokCampaigns}
+              reportId={reportId}
             />
           ) : isQuarterly ? (
             <QuarterlyAdsInsightsContent
@@ -315,6 +316,7 @@ export const AdsAIInsightsTab = ({ reportId }: AdsAIInsightsTabProps) => {
                 insights={structuredData as MonthlyStructuredInsights}
                 hasMetaPlatform={hasMetaCampaigns}
                 hasTiktokPlatform={hasTiktokCampaigns}
+                reportId={reportId}
               />
             ) : isQuarterly ? (
               <QuarterlyAdsInsightsContent
