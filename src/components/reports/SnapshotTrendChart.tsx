@@ -52,6 +52,24 @@ const formatValue = (value: number, format: string) => {
   }
 };
 
+const formatAxisValue = (value: number, format: string) => {
+  if (value === null || value === undefined) return "-";
+  switch (format) {
+    case "currency":
+      if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M Kč`;
+      if (value >= 1000) return `${(value / 1000).toFixed(1)}K Kč`;
+      return `${Math.round(value)} Kč`;
+    case "percent":
+      return `${value.toFixed(1)}%`;
+    case "number":
+      if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
+      if (value >= 1000) return `${(value / 1000).toFixed(1)}K`;
+      return value.toLocaleString();
+    default:
+      return value.toString();
+  }
+};
+
 export const SnapshotTrendChart = ({ spaceId, campaignIds, entityType = "meta_campaign", entityTypes }: SnapshotTrendChartProps) => {
   const [snapshots, setSnapshots] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -177,13 +195,13 @@ export const SnapshotTrendChart = ({ spaceId, campaignIds, entityType = "meta_ca
 
       <div className="h-[350px]">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={chartData} margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
+          <LineChart data={chartData} margin={{ top: 20, right: 30, left: 10, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" className="stroke-border/30" />
             <XAxis dataKey="date" className="text-xs" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} />
             <YAxis
-              width={90}
+              width={80}
               tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
-              tickFormatter={(val) => formatValue(val, metricConfig?.format || "number")}
+              tickFormatter={(val) => formatAxisValue(val, metricConfig?.format || "number")}
             />
             <Tooltip
               contentStyle={{
