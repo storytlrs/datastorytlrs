@@ -186,6 +186,8 @@ export const AdsOverviewTab = ({ reportId, spaceId }: AdsOverviewTabProps) => {
   const [adSets, setAdSets] = useState<AdSet[]>([]);
   const [ads, setAds] = useState<Ad[]>([]);
   const [loading, setLoading] = useState(true);
+  // Maps total campaign UUID -> all linked campaign UUIDs (original breakdown + total)
+  const [campaignIdMapping, setCampaignIdMapping] = useState<Record<string, string[]>>({});
 
   // Filter state
   const [dateRange, setDateRange] = useState<{ start: Date | null; end: Date | null }>({
@@ -249,14 +251,28 @@ export const AdsOverviewTab = ({ reportId, spaceId }: AdsOverviewTabProps) => {
             .eq("gender", "");
           metaCampaigns = (campaignMetaRes.data || []).map((c: any) => ({ ...c, platform: "meta" }));
 
-          // Use total campaign UUIDs to fetch ad sets and ads
+          // Build mapping: total campaign UUID -> all related UUIDs (original + total)
+          // so filtering by total campaign ID also matches ad sets linked to original IDs
           const totalCampaignIds = metaCampaigns.map((c: any) => c.id);
-          if (totalCampaignIds.length > 0) {
+          const mapping: Record<string, string[]> = {};
+          // For each total campaign, find original linked IDs with same campaign_id text
+          const linkedCampaignData = (linkedCampaignsRes.data || []) as any[];
+          metaCampaigns.forEach((tc: any) => {
+            const relatedOriginalIds = metaLinkedIds.filter((_id, idx) => 
+              linkedCampaignData[idx]?.campaign_id === tc.campaign_id
+            );
+            mapping[tc.id] = [...new Set([tc.id, ...relatedOriginalIds])];
+          });
+          setCampaignIdMapping(mapping);
+
+          // Use BOTH original linked IDs and total campaign IDs to fetch ad sets
+          const allCampaignIdsForAdSets = [...new Set([...metaLinkedIds, ...totalCampaignIds])];
+          if (allCampaignIdsForAdSets.length > 0) {
             const adSetsRes = await supabase
               .from("brand_ad_sets" as any)
               .select("*")
               .eq("space_id", spaceId)
-              .in("brand_campaign_id", totalCampaignIds);
+              .in("brand_campaign_id", allCampaignIdsForAdSets);
             metaAdSets = (adSetsRes.data || []).map((as: any) => ({ ...as, platform: "meta" }));
           }
 
@@ -377,11 +393,21 @@ export const AdsOverviewTab = ({ reportId, spaceId }: AdsOverviewTabProps) => {
   }, [campaignMeta]);
 
   // Get ad sets filtered by selected campaigns
+  // Uses campaignIdMapping to match ad sets that reference original breakdown UUIDs
   const filteredAdSets = useMemo(() => {
     let filtered = adSets;
     if (selectedCampaignIds.length > 0) {
-      const idSet = new Set(selectedCampaignIds);
-      filtered = adSets.filter(adSet => idSet.has(adSet.brand_campaign_id));
+      // Build set of all campaign UUIDs (total + original breakdown) for selected campaigns
+      const allRelatedIds = new Set<string>();
+      selectedCampaignIds.forEach(id => {
+        const related = campaignIdMapping[id];
+        if (related) {
+          related.forEach(rid => allRelatedIds.add(rid));
+        } else {
+          allRelatedIds.add(id); // TikTok or direct match
+        }
+      });
+      filtered = adSets.filter(adSet => allRelatedIds.has(adSet.brand_campaign_id));
     }
     if (dateRange.start) {
       filtered = filtered.filter(item => !item.date_start || new Date(item.date_start) >= dateRange.start!);
@@ -390,7 +416,7 @@ export const AdsOverviewTab = ({ reportId, spaceId }: AdsOverviewTabProps) => {
       filtered = filtered.filter(item => !item.date_stop || new Date(item.date_stop) <= dateRange.end!);
     }
     return filtered;
-  }, [adSets, selectedCampaignIds, dateRange]);
+  }, [adSets, selectedCampaignIds, campaignIdMapping, dateRange]);
 
   // Get ads filtered by selected ad set
   const filteredAds = useMemo(() => {
