@@ -173,7 +173,7 @@ const calculateMetrics = (insight: MetaInsight) => {
   const linkClicks = getActionValue(actions, "link_click");
 
   const thruplayRate = impressions > 0 ? (thruplays / impressions) * 100 : 0;
-  const viewRate3s = impressions > 0 ? (video3sPlays / impressions) * 100 : 0;
+  const viewRate3s = video3sPlays;
   const costPer3sPlay = video3sPlays > 0 ? spend / video3sPlays : 0;
   const totalEngagement = postReactions + postComments + postShares + postSaves;
   const engagementRate = impressions > 0 ? (totalEngagement / impressions) * 100 : 0;
