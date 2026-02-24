@@ -308,8 +308,8 @@ Deno.serve(async (req) => {
       results.forEach((ok) => (ok ? persisted++ : failed++));
     }
 
-    // Also update ai_insights_structured top_content thumbnails
-    if (reportId && persisted > 0) {
+    // Also update ai_insights_structured thumbnail URLs in all post arrays
+    if (reportId) {
       const { data: report } = await supabaseAdmin
         .from("reports")
         .select("ai_insights_structured")
@@ -318,45 +318,57 @@ Deno.serve(async (req) => {
 
       if (report?.ai_insights_structured) {
         const structured = report.ai_insights_structured as any;
-        const topContent = structured.top_content;
-        if (Array.isArray(topContent)) {
-          let updated = false;
-          for (const item of topContent) {
+        let updated = false;
+
+        // All possible keys that contain post arrays with thumbnail_url
+        const postArrayKeys = [
+          "top_content",
+          "tiktok_top_posts", "tiktok_improve_posts",
+          "tiktok_top_reach", "tiktok_improve_reach",
+          "tiktok_top_engagement", "tiktok_improve_engagement",
+          "facebook_top_posts", "facebook_improve_posts",
+          "facebook_top_reach", "facebook_improve_reach",
+          "facebook_top_engagement", "facebook_improve_engagement",
+          "instagram_top_posts", "instagram_improve_posts",
+          "instagram_top_reach", "instagram_improve_reach",
+          "instagram_top_engagement", "instagram_improve_engagement",
+          "meta_top_reach", "meta_improve_reach",
+          "meta_top_engagement", "meta_improve_engagement",
+        ];
+
+        const resolveThumb = async (adName: string): Promise<string | null> => {
+          const { data: t } = await supabaseAdmin
+            .from("tiktok_ads").select("thumbnail_url")
+            .eq("space_id", spaceId).eq("ad_name", adName).limit(1);
+          if (t?.[0]?.thumbnail_url?.includes("supabase")) return t[0].thumbnail_url;
+
+          const { data: m } = await supabaseAdmin
+            .from("brand_ads").select("thumbnail_url")
+            .eq("space_id", spaceId).eq("ad_name", adName).limit(1);
+          if (m?.[0]?.thumbnail_url?.includes("supabase")) return m[0].thumbnail_url;
+          return null;
+        };
+
+        for (const key of postArrayKeys) {
+          const arr = structured[key];
+          if (!Array.isArray(arr)) continue;
+          for (const item of arr) {
             if (item.thumbnail_url && !item.thumbnail_url.includes("supabase")) {
-              const adName = item.name;
-              const { data: matchedTiktok } = await supabaseAdmin
-                .from("tiktok_ads")
-                .select("thumbnail_url")
-                .eq("space_id", spaceId)
-                .eq("ad_name", adName)
-                .limit(1);
-              
-              if (matchedTiktok?.[0]?.thumbnail_url?.includes("supabase")) {
-                item.thumbnail_url = matchedTiktok[0].thumbnail_url;
+              const resolved = await resolveThumb(item.name);
+              if (resolved) {
+                item.thumbnail_url = resolved;
                 updated = true;
-              } else {
-                const { data: matchedMeta } = await supabaseAdmin
-                  .from("brand_ads")
-                  .select("thumbnail_url")
-                  .eq("space_id", spaceId)
-                  .eq("ad_name", adName)
-                  .limit(1);
-                
-                if (matchedMeta?.[0]?.thumbnail_url?.includes("supabase")) {
-                  item.thumbnail_url = matchedMeta[0].thumbnail_url;
-                  updated = true;
-                }
               }
             }
           }
+        }
 
-          if (updated) {
-            await supabaseAdmin
-              .from("reports")
-              .update({ ai_insights_structured: structured })
-              .eq("id", reportId);
-            console.log("Updated report top_content thumbnail URLs");
-          }
+        if (updated) {
+          await supabaseAdmin
+            .from("reports")
+            .update({ ai_insights_structured: structured })
+            .eq("id", reportId);
+          console.log("Updated report structured thumbnail URLs");
         }
       }
     }
