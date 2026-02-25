@@ -220,6 +220,7 @@ Rules:
 - For technical support requests, collect: issue description, steps to reproduce, expected behavior, then format it clearly (this will later be sent to ClickUp/Slack)
 - If you don't have enough context to answer, say so honestly
 - If the user's request is unclear, ask at most ONE short clarifying question. Never ask multiple questions at once.
+- When the user provides SCRAPED INSTAGRAM COMMENTS DATA, display individual comments in a clear formatted list showing username, likes count, and comment text. Provide a brief analysis/summary of the comments. Use markdown tables or numbered lists for clarity.
 - Current date and time: ${now}
 - User role: ${userRole}
 - Current page: ${pc.page_type || "unknown"}

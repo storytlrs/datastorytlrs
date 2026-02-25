@@ -71,7 +71,59 @@ export const AIChatProvider = ({ children }: { children: React.ReactNode }) => {
           return;
         }
 
+        // Detect Instagram URL in message and fetch comments if found
+        const igUrlMatch = input.match(/https?:\/\/(?:www\.)?instagram\.com\/\S+/i);
+        let commentsContext = "";
+        if (igUrlMatch) {
+          upsertAssistant("⏳ Načítám komentáře z Instagramu...\n\n");
+          try {
+            const commentsResp = await fetch(
+              `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/fetch-instagram-comments`,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${token}`,
+                  apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+                },
+                body: JSON.stringify({ url: igUrlMatch[0] }),
+                signal: controller.signal,
+              }
+            );
+            if (commentsResp.ok) {
+              const commentsData = await commentsResp.json();
+              if (commentsData.success && commentsData.data) {
+                const d = commentsData.data;
+                commentsContext = `\n\n--- SCRAPED INSTAGRAM COMMENTS DATA ---\nPost caption: ${d.caption}\nTotal likes: ${d.likes}\nComments count: ${d.comments_count}\n\nIndividual comments (sorted by likes, top first):\n`;
+                commentsContext += d.comments
+                  .map((c: any, i: number) => `${i + 1}. @${c.username} (❤️ ${c.likes}): ${c.text}`)
+                  .join("\n");
+                commentsContext += "\n--- END OF COMMENTS DATA ---";
+              }
+            } else {
+              const errData = await commentsResp.json().catch(() => ({}));
+              console.error("Comments fetch failed:", errData);
+            }
+          } catch (e: any) {
+            if (e.name !== "AbortError") {
+              console.error("Comments fetch error:", e);
+            }
+          }
+          // Reset assistant message for AI response
+          assistantSoFar = "";
+          setMessages((prev) => prev.filter((m, i) => !(i === prev.length - 1 && m.role === "assistant")));
+        }
+
         const allMessages = [...messages, userMsg];
+        
+        // If we have comments context, append it to the last user message for AI
+        const messagesForAI = commentsContext
+          ? allMessages.map((m, i) =>
+              i === allMessages.length - 1
+                ? { ...m, content: m.content + commentsContext }
+                : m
+            )
+          : allMessages;
 
         const resp = await fetch(
           `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-chat`,
@@ -83,7 +135,7 @@ export const AIChatProvider = ({ children }: { children: React.ReactNode }) => {
               apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
             },
             body: JSON.stringify({
-              messages: allMessages,
+              messages: messagesForAI,
               page_context: pageContext,
             }),
             signal: controller.signal,
