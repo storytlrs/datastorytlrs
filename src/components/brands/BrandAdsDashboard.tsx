@@ -83,12 +83,22 @@ const BrandAdsDashboard = ({ spaceId, filters }: BrandAdsDashboardProps) => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      // Fetch Meta data
-      const [metaCampaigns, metaAdSets, metaAds] = await Promise.all([
+      // Fetch Meta data (total rows for metrics + thumbnails from platform rows)
+      const [metaCampaigns, metaAdSets, metaAds, metaAdThumbnails] = await Promise.all([
         supabase.from("brand_campaigns").select("id, campaign_name, campaign_id").eq("space_id", spaceId).eq("publisher_platform", "unknown").eq("age", "").eq("gender", "").order("campaign_name"),
         supabase.from("brand_ad_sets" as any).select("id, adset_name, adset_id, brand_campaign_id, amount_spent, impressions, clicks, ctr, frequency, date_start").eq("space_id", spaceId).eq("publisher_platform", "unknown").eq("age", "").eq("gender", ""),
         supabase.from("brand_ads").select("id, ad_name, ad_id, brand_ad_set_id, amount_spent, impressions, clicks, ctr, frequency, link_clicks, post_reactions, post_comments, post_shares, post_saves, date_start, thumbnail_url").eq("space_id", spaceId).eq("publisher_platform", "unknown").eq("age", "").eq("gender", ""),
+        // Thumbnails are stored on platform-specific rows, not total rows
+        supabase.from("brand_ads").select("ad_id, thumbnail_url").eq("space_id", spaceId).neq("publisher_platform", "unknown").not("thumbnail_url", "is", null),
       ]);
+
+      // Build thumbnail lookup by ad_id from platform-specific rows
+      const metaThumbnailMap = new Map<string, string>();
+      (metaAdThumbnails.data || []).forEach((t: any) => {
+        if (t.thumbnail_url && !metaThumbnailMap.has(t.ad_id)) {
+          metaThumbnailMap.set(t.ad_id, t.thumbnail_url);
+        }
+      });
 
       // Fetch TikTok data
       const [ttCampaigns, ttAdGroups, ttAds] = await Promise.all([
@@ -165,7 +175,7 @@ const BrandAdsDashboard = ({ spaceId, filters }: BrandAdsDashboardProps) => {
         post_shares: a.post_shares,
         post_saves: a.post_saves,
         date_start: a.date_start,
-        thumbnail_url: a.thumbnail_url,
+        thumbnail_url: a.thumbnail_url || metaThumbnailMap.get(a.ad_id) || null,
         platform: "meta" as const,
       }));
 
