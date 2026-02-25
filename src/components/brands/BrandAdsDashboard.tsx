@@ -83,16 +83,28 @@ const BrandAdsDashboard = ({ spaceId, filters }: BrandAdsDashboardProps) => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      // Fetch Meta data (total rows for metrics + thumbnails from platform rows)
-      const [metaCampaigns, metaAdSets, metaAds, metaAdThumbnails] = await Promise.all([
+      // Fetch Meta data - use age='' & gender='' to get aggregate rows
+      // Campaigns use publisher_platform='unknown' for totals; ad sets/ads may use specific platforms
+      const [metaCampaigns, metaAllCampaigns, metaAdSets, metaAds, metaAdThumbnails] = await Promise.all([
+        // Total campaign rows (publisher_platform='unknown')
         supabase.from("brand_campaigns").select("id, campaign_name, campaign_id").eq("space_id", spaceId).eq("publisher_platform", "unknown").eq("age", "").eq("gender", "").order("campaign_name"),
-        supabase.from("brand_ad_sets" as any).select("id, adset_name, adset_id, brand_campaign_id, amount_spent, impressions, clicks, ctr, frequency, date_start").eq("space_id", spaceId).eq("publisher_platform", "unknown").eq("age", "").eq("gender", ""),
-        supabase.from("brand_ads").select("id, ad_name, ad_id, brand_ad_set_id, amount_spent, impressions, clicks, ctr, frequency, link_clicks, post_reactions, post_comments, post_shares, post_saves, date_start, thumbnail_url").eq("space_id", spaceId).eq("publisher_platform", "unknown").eq("age", "").eq("gender", ""),
-        // Thumbnails are stored on platform-specific rows, not total rows
-        supabase.from("brand_ads").select("ad_id, thumbnail_url").eq("space_id", spaceId).neq("publisher_platform", "unknown").not("thumbnail_url", "is", null),
+        // Also fetch platform-specific campaign rows (for ad set foreign key resolution)
+        supabase.from("brand_campaigns").select("id, campaign_name, campaign_id").eq("space_id", spaceId).neq("publisher_platform", "unknown").eq("age", "").eq("gender", ""),
+        // Ad sets & ads: filter only by age/gender (no publisher_platform filter)
+        supabase.from("brand_ad_sets" as any).select("id, adset_name, adset_id, brand_campaign_id, amount_spent, impressions, clicks, ctr, frequency, date_start, publisher_platform").eq("space_id", spaceId).eq("age", "").eq("gender", ""),
+        supabase.from("brand_ads").select("id, ad_name, ad_id, brand_ad_set_id, amount_spent, impressions, clicks, ctr, frequency, link_clicks, post_reactions, post_comments, post_shares, post_saves, date_start, thumbnail_url, publisher_platform").eq("space_id", spaceId).eq("age", "").eq("gender", ""),
+        // Thumbnails from any row that has one
+        supabase.from("brand_ads").select("ad_id, thumbnail_url").eq("space_id", spaceId).not("thumbnail_url", "is", null),
       ]);
 
-      // Build thumbnail lookup by ad_id from platform-specific rows
+      // Build a map from any campaign UUID to its campaign_id (platform ID)
+      // This resolves ad sets that reference platform-specific campaign rows
+      const campaignUuidToIdMap = new Map<string, string>();
+      [...(metaCampaigns.data || []), ...(metaAllCampaigns.data || [])].forEach((c: any) => {
+        campaignUuidToIdMap.set(c.id, c.campaign_id);
+      });
+
+      // Build thumbnail lookup by ad_id
       const metaThumbnailMap = new Map<string, string>();
       (metaAdThumbnails.data || []).forEach((t: any) => {
         if (t.thumbnail_url && !metaThumbnailMap.has(t.ad_id)) {
@@ -128,20 +140,46 @@ const BrandAdsDashboard = ({ spaceId, filters }: BrandAdsDashboardProps) => {
         }
       });
 
-      // Normalize Meta ad sets
-      const normMetaAdSets: NormalizedAdSet[] = (metaAdSets.data || []).map((a: any) => ({
-        id: a.id,
-        adset_name: a.adset_name,
-        adset_id: a.adset_id,
-        campaign_id: a.brand_campaign_id,
-        amount_spent: a.amount_spent,
-        impressions: a.impressions,
-        clicks: a.clicks,
-        ctr: a.ctr,
-        frequency: a.frequency,
-        date_start: a.date_start,
-        platform: "meta" as const,
-      }));
+      // Build a reverse map: campaign_id (platform) -> total campaign UUID
+      const campaignIdToTotalUuid = new Map<string, string>();
+      (metaCampaigns.data || []).forEach((c: any) => {
+        campaignIdToTotalUuid.set(c.campaign_id, c.id);
+      });
+
+      // Normalize Meta ad sets - deduplicate by adset_id (may have multiple platform rows)
+      const adSetMap = new Map<string, NormalizedAdSet>();
+      (metaAdSets.data || []).forEach((a: any) => {
+        // Resolve to total campaign UUID via campaign_id mapping
+        const platformCampaignId = campaignUuidToIdMap.get(a.brand_campaign_id);
+        const totalCampaignUuid = platformCampaignId ? (campaignIdToTotalUuid.get(platformCampaignId) || a.brand_campaign_id) : a.brand_campaign_id;
+
+        if (!adSetMap.has(a.adset_id)) {
+          adSetMap.set(a.adset_id, {
+            id: a.id,
+            adset_name: a.adset_name,
+            adset_id: a.adset_id,
+            campaign_id: totalCampaignUuid,
+            amount_spent: a.amount_spent || 0,
+            impressions: a.impressions || 0,
+            clicks: a.clicks || 0,
+            ctr: a.ctr || 0,
+            frequency: a.frequency || 0,
+            date_start: a.date_start,
+            platform: "meta" as const,
+          });
+        } else {
+          // Aggregate metrics from platform breakdown rows
+          const existing = adSetMap.get(a.adset_id)!;
+          existing.amount_spent = (existing.amount_spent || 0) + (a.amount_spent || 0);
+          existing.impressions = (existing.impressions || 0) + (a.impressions || 0);
+          existing.clicks = (existing.clicks || 0) + (a.clicks || 0);
+        }
+      });
+      // Recalculate CTR for aggregated ad sets
+      adSetMap.forEach(as => {
+        as.ctr = as.impressions > 0 ? (as.clicks / as.impressions) * 100 : 0;
+      });
+      const normMetaAdSets: NormalizedAdSet[] = Array.from(adSetMap.values());
 
       // Normalize TikTok ad groups -> ad sets
       const normTTAdSets: NormalizedAdSet[] = (ttAdGroups.data || []).map((a: any) => ({
@@ -158,26 +196,51 @@ const BrandAdsDashboard = ({ spaceId, filters }: BrandAdsDashboardProps) => {
         platform: "tiktok" as const,
       }));
 
-      // Normalize Meta ads
-      const normMetaAds: NormalizedAd[] = (metaAds.data || []).map((a: any) => ({
-        id: a.id,
-        ad_name: a.ad_name,
-        ad_id: a.ad_id,
-        adset_id: a.brand_ad_set_id,
-        amount_spent: a.amount_spent,
-        impressions: a.impressions,
-        clicks: a.clicks,
-        ctr: a.ctr,
-        frequency: a.frequency,
-        link_clicks: a.link_clicks,
-        post_reactions: a.post_reactions,
-        post_comments: a.post_comments,
-        post_shares: a.post_shares,
-        post_saves: a.post_saves,
-        date_start: a.date_start,
-        thumbnail_url: a.thumbnail_url || metaThumbnailMap.get(a.ad_id) || null,
-        platform: "meta" as const,
-      }));
+      // Normalize Meta ads - deduplicate by ad_id (may have multiple platform rows)
+      // Also resolve adset_id to the deduplicated adset
+      const adSetIdMap = new Map<string, string>(); // original UUID -> deduplicated UUID
+      (metaAdSets.data || []).forEach((a: any) => {
+        const deduped = adSetMap.get(a.adset_id);
+        if (deduped) adSetIdMap.set(a.id, deduped.id);
+      });
+
+      const adMap = new Map<string, NormalizedAd>();
+      (metaAds.data || []).forEach((a: any) => {
+        const resolvedAdSetId = adSetIdMap.get(a.brand_ad_set_id) || a.brand_ad_set_id;
+        if (!adMap.has(a.ad_id)) {
+          adMap.set(a.ad_id, {
+            id: a.id,
+            ad_name: a.ad_name,
+            ad_id: a.ad_id,
+            adset_id: resolvedAdSetId,
+            amount_spent: a.amount_spent || 0,
+            impressions: a.impressions || 0,
+            clicks: a.clicks || 0,
+            ctr: a.ctr || 0,
+            frequency: a.frequency || 0,
+            link_clicks: a.link_clicks || 0,
+            post_reactions: a.post_reactions || 0,
+            post_comments: a.post_comments || 0,
+            post_shares: a.post_shares || 0,
+            post_saves: a.post_saves || 0,
+            date_start: a.date_start,
+            thumbnail_url: a.thumbnail_url || metaThumbnailMap.get(a.ad_id) || null,
+            platform: "meta" as const,
+          });
+        } else {
+          const existing = adMap.get(a.ad_id)!;
+          existing.amount_spent = (existing.amount_spent || 0) + (a.amount_spent || 0);
+          existing.impressions = (existing.impressions || 0) + (a.impressions || 0);
+          existing.clicks = (existing.clicks || 0) + (a.clicks || 0);
+          if (!existing.thumbnail_url && a.thumbnail_url) {
+            existing.thumbnail_url = a.thumbnail_url;
+          }
+        }
+      });
+      adMap.forEach(ad => {
+        ad.ctr = ad.impressions > 0 ? (ad.clicks / ad.impressions) * 100 : 0;
+      });
+      const normMetaAds: NormalizedAd[] = Array.from(adMap.values());
 
       // Normalize TikTok ads
       const normTTAds: NormalizedAd[] = (ttAds.data || []).map((a: any) => ({
