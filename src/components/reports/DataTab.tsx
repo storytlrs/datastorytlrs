@@ -12,10 +12,9 @@ import { CreateContentDialog } from "./CreateContentDialog";
 import { EditContentDialog } from "./EditContentDialog";
 import { CreatePromoCodeDialog } from "./CreatePromoCodeDialog";
 import { ImportDataDialog } from "./ImportDataDialog";
-import { ImportInfluencerStatsDialog } from "./ImportInfluencerStatsDialog";
 import { formatWatchTimeDisplay } from "@/lib/watchTimeUtils";
 import { formatCurrencySimple } from "@/lib/currencyUtils";
-import { Upload, Download, ImageIcon } from "lucide-react";
+import { Upload, Download } from "lucide-react";
 import { exportToExcel } from "@/lib/exportToExcel";
 import { ColumnSelector } from "./ColumnSelector";
 
@@ -34,7 +33,7 @@ export const DataTab = ({ reportId, onImportSuccess }: DataTabProps) => {
   const [editingCreator, setEditingCreator] = useState<any>(null);
   const [editingContent, setEditingContent] = useState<any>(null);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
-  const [isInfluencerStatsOpen, setIsInfluencerStatsOpen] = useState(false);
+  
 
   // Column visibility & order state — persisted in localStorage
   const storageKey = (tab: string, type: string) => `dataTab_${reportId}_${tab}_${type}`;
@@ -393,15 +392,6 @@ export const DataTab = ({ reportId, onImportSuccess }: DataTabProps) => {
             Export Excel
           </Button>
           {canEdit && (
-            <>
-              <Button
-                variant="outline"
-                onClick={() => setIsInfluencerStatsOpen(true)}
-                className="rounded-[35px]"
-              >
-                <ImageIcon className="w-4 h-4 mr-2" />
-                Import Influencer Stats
-              </Button>
               <Button
                 onClick={() => setIsImportDialogOpen(true)}
                 className="rounded-[35px]"
@@ -409,7 +399,6 @@ export const DataTab = ({ reportId, onImportSuccess }: DataTabProps) => {
                 <Upload className="w-4 h-4 mr-2" />
                 Import Data
               </Button>
-            </>
           )}
         </div>
       </div>
@@ -513,14 +502,7 @@ export const DataTab = ({ reportId, onImportSuccess }: DataTabProps) => {
         onOpenChange={setIsImportDialogOpen}
         reportId={reportId}
         onSuccess={handleImportSuccess}
-      />
-
-      <ImportInfluencerStatsDialog
-        open={isInfluencerStatsOpen}
-        onOpenChange={setIsInfluencerStatsOpen}
-        reportId={reportId}
         creators={creators.map(c => ({ id: c.id, handle: c.handle }))}
-        onSuccess={handleImportSuccess}
       />
     </Card>
   );
