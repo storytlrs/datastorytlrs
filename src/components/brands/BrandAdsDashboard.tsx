@@ -348,6 +348,7 @@ const BrandAdsDashboard = ({ spaceId, filters }: BrandAdsDashboardProps) => {
         const storedPreviewUrl = "thumbnail_url" in a ? a.thumbnail_url || null : null;
         return {
           id: a.id,
+          name: "ad_name" in a ? a.ad_name : ("adset_name" in a ? (a as any).adset_name : null),
           thumbnailUrl: storedPreviewUrl,
           previewIframeUrl: null,
           contentType: "ad",

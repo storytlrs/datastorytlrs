@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 
 export interface TopContentItem {
   id: string;
+  name?: string;
   thumbnailUrl: string | null;
   previewIframeUrl?: string | null;
   contentType: string;
@@ -118,6 +119,12 @@ export const TopContentGrid = ({ items, title = "Top 5 Content", emptyMessage = 
 
             {/* Content info */}
             <div className="p-3 space-y-2">
+              {/* Ad name */}
+              {item.name && (
+                <p className="text-xs font-semibold truncate" title={item.name}>
+                  {item.name}
+                </p>
+              )}
               {/* Metrics */}
               <div className="flex items-center justify-between text-xs">
                 <div>
