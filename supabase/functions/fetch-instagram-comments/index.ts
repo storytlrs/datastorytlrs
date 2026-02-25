@@ -60,9 +60,9 @@ serve(async (req) => {
 
     console.log(`Fetching comments for: ${url}`);
 
-    // Start Apify scraper
+    // Start Apify scraper with waitForFinish to avoid polling timeout
     const startResponse = await fetch(
-      `https://api.apify.com/v2/acts/apify~instagram-scraper/runs?token=${apifyApiKey}`,
+      `https://api.apify.com/v2/acts/apify~instagram-scraper/runs?token=${apifyApiKey}&waitForFinish=120`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -83,22 +83,23 @@ serve(async (req) => {
     }
 
     const runData = await startResponse.json();
-    const runId = runData.data.id;
     let status = runData.data.status;
     let datasetId = runData.data.defaultDatasetId;
+    const runId = runData.data.id;
 
-    // Poll for completion
-    let attempts = 0;
-    const maxAttempts = 30;
-    while (status !== 'SUCCEEDED' && status !== 'FAILED' && status !== 'ABORTED' && attempts < maxAttempts) {
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      const statusResponse = await fetch(`https://api.apify.com/v2/actor-runs/${runId}?token=${apifyApiKey}`);
-      if (statusResponse.ok) {
-        const statusData = await statusResponse.json();
-        status = statusData.data.status;
-        datasetId = statusData.data.defaultDatasetId;
+    // If still not finished after waitForFinish, poll a few more times
+    if (status !== 'SUCCEEDED' && status !== 'FAILED' && status !== 'ABORTED') {
+      let attempts = 0;
+      while (status !== 'SUCCEEDED' && status !== 'FAILED' && status !== 'ABORTED' && attempts < 10) {
+        await new Promise(resolve => setTimeout(resolve, 5000));
+        const statusResponse = await fetch(`https://api.apify.com/v2/actor-runs/${runId}?token=${apifyApiKey}`);
+        if (statusResponse.ok) {
+          const statusData = await statusResponse.json();
+          status = statusData.data.status;
+          datasetId = statusData.data.defaultDatasetId;
+        }
+        attempts++;
       }
-      attempts++;
     }
 
     if (status !== 'SUCCEEDED') {
