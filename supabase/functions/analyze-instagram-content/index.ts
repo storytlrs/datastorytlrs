@@ -31,6 +31,7 @@ interface ApifyPostData {
   latestComments?: Array<{
     text: string;
     ownerUsername?: string;
+    likesCount?: number;
   }>;
   type?: string;
   alt?: string;
@@ -131,11 +132,15 @@ const scrapeInstagramPost = async (url: string, apiKey: string): Promise<{
   const post = results[0];
   console.log('Post data:', JSON.stringify(post, null, 2).substring(0, 500));
   
-  // Extract comments text
-  const comments = post.latestComments?.map(c => {
+  // Sort comments by likes (most liked = most relevant) and extract text
+  const sortedComments = [...(post.latestComments || [])].sort(
+    (a, b) => (b.likesCount || 0) - (a.likesCount || 0)
+  );
+  const comments = sortedComments.map(c => {
     const username = c.ownerUsername || 'anonymous';
-    return `@${username}: ${c.text}`;
-  }) || [];
+    const likes = c.likesCount || 0;
+    return `@${username} (${likes} likes): ${c.text}`;
+  });
 
   return {
     caption: post.caption || post.alt || '',
