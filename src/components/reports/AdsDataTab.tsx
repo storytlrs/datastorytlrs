@@ -208,17 +208,27 @@ export const AdsDataTab = ({ reportId, spaceId, onImportSuccess, embedded = fals
     let allCampaigns: any[] = [];
 
     if (metaIds.length > 0) {
-      const { data, error } = await supabase
+      // First get campaign_id text values from linked rows
+      const linkedRes = await supabase
         .from("brand_campaigns" as any)
-        .select("*")
-        .eq("space_id", spaceId)
-        .in("id", metaIds)
-        .eq("publisher_platform", "unknown")
-        .eq("age", "")
-        .eq("gender", "")
-        .order("created_at", { ascending: false });
-      if (!error && data) {
-        allCampaigns.push(...data.map((c: any) => ({ ...c, platform: "meta" })));
+        .select("campaign_id")
+        .in("id", metaIds);
+      const linkedCampaignTextIds = (linkedRes.data || []).map((c: any) => c.campaign_id).filter(Boolean);
+
+      if (linkedCampaignTextIds.length > 0) {
+        // Fetch "total" rows using campaign_id text match
+        const { data, error } = await supabase
+          .from("brand_campaigns" as any)
+          .select("*")
+          .eq("space_id", spaceId)
+          .in("campaign_id", linkedCampaignTextIds)
+          .eq("publisher_platform", "unknown")
+          .eq("age", "")
+          .eq("gender", "")
+          .order("created_at", { ascending: false });
+        if (!error && data) {
+          allCampaigns.push(...data.map((c: any) => ({ ...c, platform: "meta" })));
+        }
       }
     }
 
@@ -252,16 +262,54 @@ export const AdsDataTab = ({ reportId, spaceId, onImportSuccess, embedded = fals
     let allAdSets: any[] = [];
 
     if (metaIds.length > 0) {
-      const { data, error } = await supabase
-        .from("brand_ad_sets" as any)
-        .select("*")
-        .eq("space_id", spaceId)
-        .in("brand_campaign_id", metaIds)
-        .eq("age", "")
-        .eq("gender", "")
-        .order("created_at", { ascending: false });
-      if (!error && data) {
-        allAdSets.push(...data.map((as: any) => ({ ...as, platform: "meta" })));
+      // Get campaign_id text values to find ALL related campaign UUIDs
+      const linkedRes = await supabase
+        .from("brand_campaigns" as any)
+        .select("campaign_id")
+        .in("id", metaIds);
+      const linkedCampaignTextIds = (linkedRes.data || []).map((c: any) => c.campaign_id).filter(Boolean);
+
+      if (linkedCampaignTextIds.length > 0) {
+        // Get all campaign UUIDs (any publisher_platform) for these campaign_ids
+        const allCampaignsRes = await supabase
+          .from("brand_campaigns" as any)
+          .select("id")
+          .eq("space_id", spaceId)
+          .in("campaign_id", linkedCampaignTextIds)
+          .eq("age", "")
+          .eq("gender", "");
+        const allCampaignUuids = (allCampaignsRes.data || []).map((c: any) => c.id);
+
+        if (allCampaignUuids.length > 0) {
+          const { data, error } = await supabase
+            .from("brand_ad_sets" as any)
+            .select("*")
+            .eq("space_id", spaceId)
+            .in("brand_campaign_id", allCampaignUuids)
+            .eq("age", "")
+            .eq("gender", "")
+            .order("created_at", { ascending: false });
+          if (!error && data) {
+            // Deduplicate by adset_id, aggregate metrics
+            const adSetMap = new Map<string, any>();
+            data.forEach((as: any) => {
+              if (!adSetMap.has(as.adset_id)) {
+                adSetMap.set(as.adset_id, { ...as, platform: "meta" });
+              } else {
+                const existing = adSetMap.get(as.adset_id);
+                existing.amount_spent = (existing.amount_spent || 0) + (as.amount_spent || 0);
+                existing.impressions = (existing.impressions || 0) + (as.impressions || 0);
+                existing.clicks = (existing.clicks || 0) + (as.clicks || 0);
+                existing.reach = (existing.reach || 0) + (as.reach || 0);
+              }
+            });
+            adSetMap.forEach(as => {
+              as.ctr = as.impressions > 0 ? (as.clicks / as.impressions) * 100 : 0;
+              as.cpm = as.impressions > 0 ? (as.amount_spent / as.impressions) * 1000 : 0;
+            });
+            allAdSets.push(...Array.from(adSetMap.values()));
+          }
+        }
       }
     }
 
@@ -307,26 +355,64 @@ export const AdsDataTab = ({ reportId, spaceId, onImportSuccess, embedded = fals
     let allAds: any[] = [];
 
     if (metaIds.length > 0) {
-      const { data: adSetData } = await supabase
-        .from("brand_ad_sets" as any)
-        .select("id")
-        .eq("space_id", spaceId)
-        .in("brand_campaign_id", metaIds)
-        .eq("age", "")
-        .eq("gender", "");
+      // Get campaign_id text values to find ALL related campaign UUIDs
+      const linkedRes = await supabase
+        .from("brand_campaigns" as any)
+        .select("campaign_id")
+        .in("id", metaIds);
+      const linkedCampaignTextIds = (linkedRes.data || []).map((c: any) => c.campaign_id).filter(Boolean);
 
-      const adSetIds = adSetData?.map((as: any) => as.id) || [];
-      if (adSetIds.length > 0) {
-        const { data, error } = await supabase
-          .from("brand_ads" as any)
-          .select("*")
+      if (linkedCampaignTextIds.length > 0) {
+        const allCampaignsRes = await supabase
+          .from("brand_campaigns" as any)
+          .select("id")
           .eq("space_id", spaceId)
-          .in("brand_ad_set_id", adSetIds)
+          .in("campaign_id", linkedCampaignTextIds)
           .eq("age", "")
-          .eq("gender", "")
-          .order("created_at", { ascending: false });
-        if (!error && data) {
-          allAds.push(...data.map((a: any) => ({ ...a, platform: "meta" })));
+          .eq("gender", "");
+        const allCampaignUuids = (allCampaignsRes.data || []).map((c: any) => c.id);
+
+        if (allCampaignUuids.length > 0) {
+          const { data: adSetData } = await supabase
+            .from("brand_ad_sets" as any)
+            .select("id, adset_id")
+            .eq("space_id", spaceId)
+            .in("brand_campaign_id", allCampaignUuids)
+            .eq("age", "")
+            .eq("gender", "");
+
+          const adSetIds = adSetData?.map((as: any) => as.id) || [];
+          if (adSetIds.length > 0) {
+            const { data, error } = await supabase
+              .from("brand_ads" as any)
+              .select("*")
+              .eq("space_id", spaceId)
+              .in("brand_ad_set_id", adSetIds)
+              .eq("age", "")
+              .eq("gender", "")
+              .order("created_at", { ascending: false });
+            if (!error && data) {
+              // Deduplicate by ad_id, aggregate metrics
+              const adMap = new Map<string, any>();
+              data.forEach((a: any) => {
+                if (!adMap.has(a.ad_id)) {
+                  adMap.set(a.ad_id, { ...a, platform: "meta" });
+                } else {
+                  const existing = adMap.get(a.ad_id);
+                  existing.amount_spent = (existing.amount_spent || 0) + (a.amount_spent || 0);
+                  existing.impressions = (existing.impressions || 0) + (a.impressions || 0);
+                  existing.clicks = (existing.clicks || 0) + (a.clicks || 0);
+                  existing.reach = (existing.reach || 0) + (a.reach || 0);
+                  if (!existing.thumbnail_url && a.thumbnail_url) existing.thumbnail_url = a.thumbnail_url;
+                }
+              });
+              adMap.forEach(ad => {
+                ad.ctr = ad.impressions > 0 ? (ad.clicks / ad.impressions) * 100 : 0;
+                ad.cpm = ad.impressions > 0 ? (ad.amount_spent / ad.impressions) * 1000 : 0;
+              });
+              allAds.push(...Array.from(adMap.values()));
+            }
+          }
         }
       }
     }
