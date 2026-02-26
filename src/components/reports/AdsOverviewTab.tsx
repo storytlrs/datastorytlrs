@@ -24,7 +24,8 @@ import {
   Share2,
   Bookmark,
   ChevronDown,
-  Check
+  Check,
+  Clock
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatCurrency as formatCurrencyUtil } from "@/lib/currencyUtils";
@@ -119,19 +120,25 @@ interface KPISectionProps {
   title: string;
   icon: React.ElementType;
   children: React.ReactNode;
+  columns?: number;
 }
 
-const KPISection = ({ title, icon: Icon, children }: KPISectionProps) => (
-  <div className="space-y-4">
-    <div className="flex items-center gap-2">
-      <Icon className="w-5 h-5" />
-      <h3 className="font-bold text-lg uppercase tracking-wide">{title}</h3>
+const KPISection = ({ title, icon: Icon, children, columns }: KPISectionProps) => {
+  const gridClass = columns 
+    ? `grid gap-4 ${columns === 1 ? 'grid-cols-1 max-w-xs' : columns === 3 ? 'grid-cols-1 md:grid-cols-3' : columns === 4 ? 'grid-cols-2 md:grid-cols-4' : 'grid-cols-2 md:grid-cols-3 lg:grid-cols-5'}`
+    : "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4";
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-2">
+        <Icon className="w-5 h-5" />
+        <h3 className="font-bold text-lg uppercase tracking-wide">{title}</h3>
+      </div>
+      <div className={gridClass}>
+        {children}
+      </div>
     </div>
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-      {children}
-    </div>
-  </div>
-);
+  );
+};
 
 // Helper to calculate KPIs from data array
 const calculateKPIs = (data: any[]) => {
@@ -148,38 +155,109 @@ const calculateKPIs = (data: any[]) => {
   const totalSaves = data.reduce((sum, item) => sum + (item.post_saves || 0), 0);
   const totalInteractions = totalReactions + totalComments + totalShares + totalSaves;
   const totalSpend = data.reduce((sum, item) => sum + (item.amount_spent || 0), 0);
+
+  // Average watch time (weighted by impressions for proper averaging)
+  const totalWeightedWatchTime = data.reduce((sum, item) => sum + (item.average_video_play || 0) * (item.impressions || 1), 0);
+  const totalImpressionsForAvg = data.reduce((sum, item) => sum + ((item.average_video_play || 0) > 0 ? (item.impressions || 1) : 0), 0);
+  const avgWatchTime = totalImpressionsForAvg > 0 ? totalWeightedWatchTime / totalImpressionsForAvg : 0;
   
   return {
     awareness: {
+      spend: totalSpend,
       reach: totalReach,
-      impressions: totalImpressions,
-      thruplays: totalThruplays,
-      video3sPlays: total3sViews,
       frequency: avgFrequency,
+      cpm: totalImpressions > 0 ? (totalSpend / totalImpressions) * 1000 : 0,
+      impressions: totalImpressions,
     },
     engagement: {
-      linkClicks: totalLinkClicks,
       reactions: totalReactions,
       comments: totalComments,
       shares: totalShares,
       saves: totalSaves,
       interactions: totalInteractions,
-      ctr: totalImpressions > 0 ? (totalLinkClicks / totalImpressions) * 100 : 0,
       engagementRate: totalImpressions > 0 ? (totalInteractions / totalImpressions) * 100 : 0,
-      thruplayRate: totalImpressions > 0 ? (totalThruplays / totalImpressions) * 100 : 0,
-      viewRate3s: totalImpressions > 0 ? (total3sViews / totalImpressions) * 100 : 0,
-    },
-    effectiveness: {
-      spend: totalSpend,
-      cpm: totalImpressions > 0 ? (totalSpend / totalImpressions) * 1000 : 0,
-      cpc: totalLinkClicks > 0 ? totalSpend / totalLinkClicks : 0,
-      costPerThruplay: totalThruplays > 0 ? totalSpend / totalThruplays : 0,
-      costPer3sView: total3sViews > 0 ? totalSpend / total3sViews : 0,
       cpe: totalInteractions > 0 ? totalSpend / totalInteractions : 0,
-      count: data.length,
+    },
+    video: {
+      thruplays: totalThruplays,
+      thruplayRate: totalImpressions > 0 ? (totalThruplays / totalImpressions) * 100 : 0,
+      costPerThruplay: totalThruplays > 0 ? totalSpend / totalThruplays : 0,
+      video3sPlays: total3sViews,
+      viewRate3s: totalImpressions > 0 ? (total3sViews / totalImpressions) * 100 : 0,
+      costPer3sView: total3sViews > 0 ? totalSpend / total3sViews : 0,
+      avgWatchTime,
+    },
+    traffic: {
+      linkClicks: totalLinkClicks,
+      ctr: totalImpressions > 0 ? (totalLinkClicks / totalImpressions) * 100 : 0,
+      cpc: totalLinkClicks > 0 ? totalSpend / totalLinkClicks : 0,
     },
   };
 };
+// Reusable KPI display for the new layout
+const AdsKPIDisplay = ({ kpis, title, formatCurrency }: { kpis: ReturnType<typeof calculateKPIs>; title: string; formatCurrency: (n: number) => string }) => (
+  <div className="space-y-8">
+    <div className="border-b pb-2">
+      <h2 className="font-bold text-xl uppercase tracking-wide">{title}</h2>
+    </div>
+
+    {/* Awareness: Total Spend, Reach, Frequency, CPM, Impressions */}
+    <KPISection title="Awareness" icon={Eye} columns={5}>
+      <KPICard title="Total Spend" value={formatCurrency(kpis.awareness.spend)} icon={DollarSign} accentColor="blue" />
+      <KPICard title="Reach" value={formatNumber(kpis.awareness.reach)} icon={Users} accentColor="blue" />
+      <KPICard title="Frequency" value={kpis.awareness.frequency.toFixed(2)} icon={TrendingUp} accentColor="blue" />
+      <KPICard title="CPM" value={formatCurrency(kpis.awareness.cpm)} icon={DollarSign} accentColor="blue" tooltip="CPM = (Spend / Impressions) × 1000" />
+      <KPICard title="Impressions" value={formatNumber(kpis.awareness.impressions)} icon={Eye} accentColor="blue" />
+    </KPISection>
+
+    {/* Engagement: Row 1 (4 items) + Row 2 (3 items) */}
+    <div className="space-y-4">
+      <div className="flex items-center gap-2">
+        <MessageCircle className="w-5 h-5" />
+        <h3 className="font-bold text-lg uppercase tracking-wide">Engagement</h3>
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <KPICard title="Reactions" value={formatNumber(kpis.engagement.reactions)} icon={Heart} accentColor="green" />
+        <KPICard title="Comments" value={formatNumber(kpis.engagement.comments)} icon={MessageCircle} accentColor="green" />
+        <KPICard title="Shares" value={formatNumber(kpis.engagement.shares)} icon={Share2} accentColor="green" />
+        <KPICard title="Saves" value={formatNumber(kpis.engagement.saves)} icon={Bookmark} accentColor="green" />
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <KPICard title="Engagement" value={formatNumber(kpis.engagement.interactions)} icon={TrendingUp} accentColor="green" tooltip="Engagement = Reactions + Comments + Shares + Saves" />
+        <KPICard title="Engagement Rate" value={formatPercent(kpis.engagement.engagementRate)} icon={TrendingUp} accentColor="green" tooltip="Engagement Rate = (Engagement / Impressions) × 100" />
+        <KPICard title="CPE" value={formatCurrency(kpis.engagement.cpe)} icon={Target} accentColor="green" tooltip="CPE = Spend / Engagement" />
+      </div>
+    </div>
+
+    {/* Video: Row 1 (3) + Row 2 (3) + Row 3 (1) */}
+    <div className="space-y-4">
+      <div className="flex items-center gap-2">
+        <Play className="w-5 h-5" />
+        <h3 className="font-bold text-lg uppercase tracking-wide">Video</h3>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <KPICard title="ThruPlays" value={formatNumber(kpis.video.thruplays)} icon={Play} accentColor="orange" />
+        <KPICard title="ThruPlay Rate" value={formatPercent(kpis.video.thruplayRate)} icon={Play} accentColor="orange" tooltip="ThruPlay Rate = (ThruPlays / Impressions) × 100" />
+        <KPICard title="Cost per ThruPlay" value={formatCurrency(kpis.video.costPerThruplay)} icon={DollarSign} accentColor="orange" tooltip="Cost per ThruPlay = Spend / ThruPlays" />
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <KPICard title="3s Views" value={formatNumber(kpis.video.video3sPlays)} icon={Play} accentColor="orange" />
+        <KPICard title="3s View Rate" value={formatPercent(kpis.video.viewRate3s)} icon={Play} accentColor="orange" tooltip="3s View Rate = (3s Views / Impressions) × 100" />
+        <KPICard title="Cost per 3s View" value={formatCurrency(kpis.video.costPer3sView)} icon={DollarSign} accentColor="orange" tooltip="Cost per 3s View = Spend / 3s Views" />
+      </div>
+      <div className="grid grid-cols-1 max-w-xs gap-4">
+        <KPICard title="Avg Watch Time" value={`${kpis.video.avgWatchTime.toFixed(1)}s`} icon={Clock} accentColor="orange" />
+      </div>
+    </div>
+
+    {/* Traffic: 3 items */}
+    <KPISection title="Traffic" icon={MousePointer} columns={3}>
+      <KPICard title="Link Clicks" value={formatNumber(kpis.traffic.linkClicks)} icon={MousePointer} accentColor="blue" />
+      <KPICard title="CTR" value={formatPercent(kpis.traffic.ctr)} icon={Target} accentColor="blue" tooltip="CTR = (Link Clicks / Impressions) × 100" />
+      <KPICard title="CPC" value={formatCurrency(kpis.traffic.cpc)} icon={DollarSign} accentColor="blue" tooltip="CPC = Spend / Link Clicks" />
+    </KPISection>
+  </div>
+);
 
 export const AdsOverviewTab = ({ reportId, spaceId }: AdsOverviewTabProps) => {
   const [campaignMeta, setCampaignMeta] = useState<CampaignMeta[]>([]);
@@ -317,6 +395,7 @@ export const AdsOverviewTab = ({ reportId, spaceId }: AdsOverviewTabProps) => {
           post_comments: c.comments,
           post_shares: c.shares,
           post_saves: 0,
+          average_video_play: c.average_video_play || 0,
           date_start: null,
           date_stop: null,
         }));
@@ -341,6 +420,7 @@ export const AdsOverviewTab = ({ reportId, spaceId }: AdsOverviewTabProps) => {
           post_comments: ag.comments,
           post_shares: ag.shares,
           post_saves: 0,
+          average_video_play: ag.average_video_play || 0,
           date_start: null,
           date_stop: null,
           platform: "tiktok",
@@ -368,6 +448,7 @@ export const AdsOverviewTab = ({ reportId, spaceId }: AdsOverviewTabProps) => {
             post_comments: a.comments,
             post_shares: a.shares,
             post_saves: 0,
+            average_video_play: a.average_video_play || 0,
             link_clicks: a.link_clicks,
             date_start: null,
             date_stop: null,
@@ -743,143 +824,17 @@ export const AdsOverviewTab = ({ reportId, spaceId }: AdsOverviewTabProps) => {
 
       {/* Campaign KPIs - show only when campaign is selected but NOT ad set or ad */}
       {campaignKPIs && !selectedAdSetId && !selectedAdId && (
-        <div className="space-y-8">
-          <div className="border-b pb-2">
-            <h2 className="font-bold text-xl uppercase tracking-wide">Campaign</h2>
-          </div>
-          
-          {/* Awareness Section */}
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <Eye className="w-5 h-5" />
-              <h3 className="font-bold text-lg uppercase tracking-wide">Awareness</h3>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-              <KPICard title="Reach" value={formatNumber(campaignKPIs.awareness.reach)} icon={Users} accentColor="blue" />
-              <KPICard title="Impressions" value={formatNumber(campaignKPIs.awareness.impressions)} icon={Eye} accentColor="blue" />
-              <KPICard title="ThruPlays" value={formatNumber(campaignKPIs.awareness.thruplays)} icon={Play} accentColor="blue" />
-              <KPICard title="3s Views" value={formatNumber(campaignKPIs.awareness.video3sPlays)} icon={Play} accentColor="blue" />
-              <KPICard title="Frequency" value={campaignKPIs.awareness.frequency.toFixed(2)} icon={TrendingUp} accentColor="blue" />
-            </div>
-          </div>
-
-          {/* Engagement Section */}
-          <KPISection title="Engagement" icon={MessageCircle}>
-            <KPICard title="Link Clicks" value={formatNumber(campaignKPIs.engagement.linkClicks)} icon={MousePointer} accentColor="green" />
-            <KPICard title="Reactions" value={formatNumber(campaignKPIs.engagement.reactions)} icon={Heart} accentColor="green" />
-            <KPICard title="Comments" value={formatNumber(campaignKPIs.engagement.comments)} icon={MessageCircle} accentColor="green" />
-            <KPICard title="Shares" value={formatNumber(campaignKPIs.engagement.shares)} icon={Share2} accentColor="green" />
-            <KPICard title="Saves" value={formatNumber(campaignKPIs.engagement.saves)} icon={Bookmark} accentColor="green" />
-            <KPICard title="CTR" value={formatPercent(campaignKPIs.engagement.ctr)} icon={Target} accentColor="green" tooltip="CTR = (Link Clicks / Impressions) × 100" />
-            <KPICard title="Engagement Rate" value={formatPercent(campaignKPIs.engagement.engagementRate)} icon={TrendingUp} accentColor="green" tooltip="Engagement Rate = (Interactions / Impressions) × 100" />
-            <KPICard title="ThruPlay Rate" value={formatPercent(campaignKPIs.engagement.thruplayRate)} icon={Play} accentColor="green" tooltip="ThruPlay Rate = (ThruPlays / Impressions) × 100" />
-            <KPICard title="3s View Rate" value={formatPercent(campaignKPIs.engagement.viewRate3s)} icon={Play} accentColor="green" tooltip="3s View Rate = (3s Views / Impressions) × 100" />
-          </KPISection>
-
-          {/* Effectiveness Section */}
-          <KPISection title="Effectiveness" icon={BarChart3}>
-            <KPICard title="Total Spend" value={formatCurrency(campaignKPIs.effectiveness.spend)} icon={DollarSign} accentColor="orange" />
-            <KPICard title="CPM" value={formatCurrency(campaignKPIs.effectiveness.cpm)} icon={DollarSign} accentColor="orange" tooltip="CPM = (Spend / Impressions) × 1000" />
-            <KPICard title="CPC" value={formatCurrency(campaignKPIs.effectiveness.cpc)} icon={MousePointer} accentColor="orange" tooltip="CPC = Spend / Link Clicks" />
-            <KPICard title="Cost per ThruPlay" value={formatCurrency(campaignKPIs.effectiveness.costPerThruplay)} icon={Play} accentColor="orange" tooltip="Cost per ThruPlay = Spend / ThruPlays" />
-            <KPICard title="Cost per 3s View" value={formatCurrency(campaignKPIs.effectiveness.costPer3sView)} icon={Play} accentColor="orange" tooltip="Cost per 3s View = Spend / 3s Views" />
-            <KPICard title="CPE" value={formatCurrency(campaignKPIs.effectiveness.cpe)} icon={Target} accentColor="orange" tooltip="CPE (Cost per Engagement) = Spend / Total Interactions" />
-          </KPISection>
-        </div>
+        <AdsKPIDisplay kpis={campaignKPIs} title="Campaign" formatCurrency={formatCurrency} />
       )}
 
       {/* Ad Set KPIs - show only when ad set is selected but NOT ad */}
       {adSetKPIs && !selectedAdId && (
-        <div className="space-y-8">
-          <div className="border-b pb-2">
-            <h2 className="font-bold text-xl uppercase tracking-wide">Ad Set</h2>
-          </div>
-          
-          {/* Awareness Section */}
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <Eye className="w-5 h-5" />
-              <h3 className="font-bold text-lg uppercase tracking-wide">Awareness</h3>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-              <KPICard title="Reach" value={formatNumber(adSetKPIs.awareness.reach)} icon={Users} accentColor="blue" />
-              <KPICard title="Impressions" value={formatNumber(adSetKPIs.awareness.impressions)} icon={Eye} accentColor="blue" />
-              <KPICard title="ThruPlays" value={formatNumber(adSetKPIs.awareness.thruplays)} icon={Play} accentColor="blue" />
-              <KPICard title="3s Views" value={formatNumber(adSetKPIs.awareness.video3sPlays)} icon={Play} accentColor="blue" />
-              <KPICard title="Frequency" value={adSetKPIs.awareness.frequency.toFixed(2)} icon={TrendingUp} accentColor="blue" />
-            </div>
-          </div>
-
-          {/* Engagement Section */}
-          <KPISection title="Engagement" icon={MessageCircle}>
-            <KPICard title="Link Clicks" value={formatNumber(adSetKPIs.engagement.linkClicks)} icon={MousePointer} accentColor="green" />
-            <KPICard title="Reactions" value={formatNumber(adSetKPIs.engagement.reactions)} icon={Heart} accentColor="green" />
-            <KPICard title="Comments" value={formatNumber(adSetKPIs.engagement.comments)} icon={MessageCircle} accentColor="green" />
-            <KPICard title="Shares" value={formatNumber(adSetKPIs.engagement.shares)} icon={Share2} accentColor="green" />
-            <KPICard title="Saves" value={formatNumber(adSetKPIs.engagement.saves)} icon={Bookmark} accentColor="green" />
-            <KPICard title="CTR" value={formatPercent(adSetKPIs.engagement.ctr)} icon={Target} accentColor="green" />
-            <KPICard title="Engagement Rate" value={formatPercent(adSetKPIs.engagement.engagementRate)} icon={TrendingUp} accentColor="green" />
-            <KPICard title="ThruPlay Rate" value={formatPercent(adSetKPIs.engagement.thruplayRate)} icon={Play} accentColor="green" />
-            <KPICard title="3s View Rate" value={formatPercent(adSetKPIs.engagement.viewRate3s)} icon={Play} accentColor="green" />
-          </KPISection>
-
-          {/* Effectiveness Section */}
-          <KPISection title="Effectiveness" icon={BarChart3}>
-            <KPICard title="Total Spend" value={formatCurrency(adSetKPIs.effectiveness.spend)} icon={DollarSign} accentColor="orange" />
-            <KPICard title="CPM" value={formatCurrency(adSetKPIs.effectiveness.cpm)} icon={DollarSign} accentColor="orange" />
-            <KPICard title="CPC" value={formatCurrency(adSetKPIs.effectiveness.cpc)} icon={MousePointer} accentColor="orange" />
-            <KPICard title="Cost per ThruPlay" value={formatCurrency(adSetKPIs.effectiveness.costPerThruplay)} icon={Play} accentColor="orange" />
-            <KPICard title="Cost per 3s View" value={formatCurrency(adSetKPIs.effectiveness.costPer3sView)} icon={Play} accentColor="orange" />
-            <KPICard title="CPE" value={formatCurrency(adSetKPIs.effectiveness.cpe)} icon={Target} accentColor="orange" />
-          </KPISection>
-        </div>
+        <AdsKPIDisplay kpis={adSetKPIs} title="Ad Set" formatCurrency={formatCurrency} />
       )}
 
       {/* Ads KPIs - show only when ad is selected */}
       {adsKPIs && (
-        <div className="space-y-8">
-          <div className="border-b pb-2">
-            <h2 className="font-bold text-xl uppercase tracking-wide">Ad</h2>
-          </div>
-          
-          {/* Awareness Section */}
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <Eye className="w-5 h-5" />
-              <h3 className="font-bold text-lg uppercase tracking-wide">Awareness</h3>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-              <KPICard title="Reach" value={formatNumber(adsKPIs.awareness.reach)} icon={Users} accentColor="blue" />
-              <KPICard title="Impressions" value={formatNumber(adsKPIs.awareness.impressions)} icon={Eye} accentColor="blue" />
-              <KPICard title="ThruPlays" value={formatNumber(adsKPIs.awareness.thruplays)} icon={Play} accentColor="blue" />
-              <KPICard title="3s Views" value={formatNumber(adsKPIs.awareness.video3sPlays)} icon={Play} accentColor="blue" />
-              <KPICard title="Frequency" value={adsKPIs.awareness.frequency.toFixed(2)} icon={TrendingUp} accentColor="blue" />
-            </div>
-          </div>
-
-          {/* Engagement Section */}
-          <KPISection title="Engagement" icon={MessageCircle}>
-            <KPICard title="Link Clicks" value={formatNumber(adsKPIs.engagement.linkClicks)} icon={MousePointer} accentColor="green" />
-            <KPICard title="Reactions" value={formatNumber(adsKPIs.engagement.reactions)} icon={Heart} accentColor="green" />
-            <KPICard title="Comments" value={formatNumber(adsKPIs.engagement.comments)} icon={MessageCircle} accentColor="green" />
-            <KPICard title="Shares" value={formatNumber(adsKPIs.engagement.shares)} icon={Share2} accentColor="green" />
-            <KPICard title="Saves" value={formatNumber(adsKPIs.engagement.saves)} icon={Bookmark} accentColor="green" />
-            <KPICard title="CTR" value={formatPercent(adsKPIs.engagement.ctr)} icon={Target} accentColor="green" />
-            <KPICard title="Engagement Rate" value={formatPercent(adsKPIs.engagement.engagementRate)} icon={TrendingUp} accentColor="green" />
-            <KPICard title="ThruPlay Rate" value={formatPercent(adsKPIs.engagement.thruplayRate)} icon={Play} accentColor="green" />
-            <KPICard title="3s View Rate" value={formatPercent(adsKPIs.engagement.viewRate3s)} icon={Play} accentColor="green" />
-          </KPISection>
-
-          {/* Effectiveness Section */}
-          <KPISection title="Effectiveness" icon={BarChart3}>
-            <KPICard title="Total Spend" value={formatCurrency(adsKPIs.effectiveness.spend)} icon={DollarSign} accentColor="orange" />
-            <KPICard title="CPM" value={formatCurrency(adsKPIs.effectiveness.cpm)} icon={DollarSign} accentColor="orange" />
-            <KPICard title="CPC" value={formatCurrency(adsKPIs.effectiveness.cpc)} icon={MousePointer} accentColor="orange" />
-            <KPICard title="Cost per ThruPlay" value={formatCurrency(adsKPIs.effectiveness.costPerThruplay)} icon={Play} accentColor="orange" />
-            <KPICard title="Cost per 3s View" value={formatCurrency(adsKPIs.effectiveness.costPer3sView)} icon={Play} accentColor="orange" />
-            <KPICard title="CPE" value={formatCurrency(adsKPIs.effectiveness.cpe)} icon={Target} accentColor="orange" />
-          </KPISection>
-        </div>
+        <AdsKPIDisplay kpis={adsKPIs} title="Ad" formatCurrency={formatCurrency} />
       )}
 
       {/* No data message */}
