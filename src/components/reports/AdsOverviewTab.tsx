@@ -272,7 +272,7 @@ export const AdsOverviewTab = ({ reportId, spaceId }: AdsOverviewTabProps) => {
     start: null,
     end: null,
   });
-  const [selectedPlatform, setSelectedPlatform] = useState<"all" | "meta" | "tiktok">("all");
+  const [selectedPlatform, setSelectedPlatform] = useState<"meta" | "tiktok">("meta");
   
   // Hierarchical selection state
   const [selectedCampaignIds, setSelectedCampaignIds] = useState<string[]>([]);
@@ -476,17 +476,14 @@ export const AdsOverviewTab = ({ reportId, spaceId }: AdsOverviewTabProps) => {
 
   // Filter all data by selected platform
   const platformFilteredCampaigns = useMemo(() => {
-    if (selectedPlatform === "all") return campaignMeta;
     return campaignMeta.filter((c: any) => c.platform === selectedPlatform);
   }, [campaignMeta, selectedPlatform]);
 
   const platformFilteredAdSets = useMemo(() => {
-    if (selectedPlatform === "all") return adSets;
     return adSets.filter((as: any) => as.platform === selectedPlatform);
   }, [adSets, selectedPlatform]);
 
   const platformFilteredAds = useMemo(() => {
-    if (selectedPlatform === "all") return ads;
     return ads.filter((a: any) => a.platform === selectedPlatform);
   }, [ads, selectedPlatform]);
 
@@ -617,16 +614,27 @@ export const AdsOverviewTab = ({ reportId, spaceId }: AdsOverviewTabProps) => {
 
   const formatCurrency = (num: number): string => formatCurrencyUtil(num, "CZK");
 
-  const hasFilters = dateRange.start || dateRange.end || selectedCampaignIds.length > 0 || selectedPlatform !== "all";
+  const hasFilters = dateRange.start || dateRange.end || selectedCampaignIds.length > 0;
   const hasAnyKPIs = campaignKPIs || adSetKPIs || adsKPIs;
 
   // Reset selections when platform changes
-  const handlePlatformChange = (platform: "all" | "meta" | "tiktok") => {
+  const handlePlatformChange = (platform: "meta" | "tiktok") => {
     setSelectedPlatform(platform);
     setSelectedCampaignIds([]);
     setSelectedAdSetId(null);
     setSelectedAdId(null);
   };
+
+  // Auto-select default platform: prefer meta, fallback to first available
+  useEffect(() => {
+    if (availablePlatforms.length > 0) {
+      if (availablePlatforms.includes("meta")) {
+        setSelectedPlatform("meta");
+      } else {
+        setSelectedPlatform(availablePlatforms[0] as "meta" | "tiktok");
+      }
+    }
+  }, [availablePlatforms]);
 
   if (loading) {
     return (
@@ -655,17 +663,6 @@ export const AdsOverviewTab = ({ reportId, spaceId }: AdsOverviewTabProps) => {
         {/* Platform Toggle */}
         {availablePlatforms.length > 1 && (
           <div className="flex items-center rounded-[35px] border border-foreground overflow-hidden">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => handlePlatformChange("all")}
-              className={cn(
-                "rounded-none px-4 h-9 text-sm font-medium border-0",
-                selectedPlatform === "all" && "bg-foreground text-background"
-              )}
-            >
-              All
-            </Button>
             {availablePlatforms.includes("meta") && (
               <Button
                 variant="ghost"
