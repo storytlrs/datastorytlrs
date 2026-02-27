@@ -573,29 +573,39 @@ export const AdsOverviewTab = ({ reportId, spaceId }: AdsOverviewTabProps) => {
     clearCampaigns();
   };
 
-  // Calculate KPIs based on selection level
-  const campaignKPIs = useMemo(() => {
+  // Calculate KPIs based on selection level — split by platform
+  const campaignKPIsByPlatform = useMemo(() => {
     if (filteredCampaignMeta.length === 0) return null;
-    return calculateKPIs(filteredCampaignMeta);
+    const metaData = filteredCampaignMeta.filter((c: any) => c.platform === "meta");
+    const tiktokData = filteredCampaignMeta.filter((c: any) => c.platform === "tiktok");
+    const result: { platform: string; label: string; kpis: ReturnType<typeof calculateKPIs> }[] = [];
+    if (metaData.length > 0) result.push({ platform: "meta", label: "Meta (Facebook / Instagram)", kpis: calculateKPIs(metaData) });
+    if (tiktokData.length > 0) result.push({ platform: "tiktok", label: "TikTok", kpis: calculateKPIs(tiktokData) });
+    return result.length > 0 ? result : null;
   }, [filteredCampaignMeta]);
 
-  const adSetKPIs = useMemo(() => {
+  const adSetKPIsByPlatform = useMemo(() => {
     if (!selectedAdSetId) return null;
     const data = adSets.filter(as => as.id === selectedAdSetId);
     if (data.length === 0) return null;
-    return calculateKPIs(data);
+    const platform = (data[0] as any).platform;
+    const label = platform === "tiktok" ? "TikTok" : "Meta (Facebook / Instagram)";
+    return [{ platform, label, kpis: calculateKPIs(data) }];
   }, [adSets, selectedAdSetId]);
 
-  const adsKPIs = useMemo(() => {
+  const adsKPIsByPlatform = useMemo(() => {
     if (!selectedAdId) return null;
     const data = ads.filter(a => a.id === selectedAdId);
     if (data.length === 0) return null;
-    return calculateKPIs(data);
+    const platform = (data[0] as any).platform;
+    const label = platform === "tiktok" ? "TikTok" : "Meta (Facebook / Instagram)";
+    return [{ platform, label, kpis: calculateKPIs(data) }];
   }, [ads, selectedAdId]);
 
   const formatCurrency = (num: number): string => formatCurrencyUtil(num, "CZK");
 
   const hasFilters = dateRange.start || dateRange.end || selectedCampaignIds.length > 0;
+  const hasAnyKPIs = campaignKPIsByPlatform || adSetKPIsByPlatform || adsKPIsByPlatform;
 
   if (loading) {
     return (
@@ -822,31 +832,35 @@ export const AdsOverviewTab = ({ reportId, spaceId }: AdsOverviewTabProps) => {
         </div>
       )}
 
-      {/* Campaign KPIs - show only when campaign is selected but NOT ad set or ad */}
-      {campaignKPIs && !selectedAdSetId && !selectedAdId && (
-        <AdsKPIDisplay kpis={campaignKPIs} title="Campaign" formatCurrency={formatCurrency} />
+      {/* Campaign KPIs - split by platform */}
+      {campaignKPIsByPlatform && !selectedAdSetId && !selectedAdId && (
+        campaignKPIsByPlatform.map(({ platform, label, kpis }) => (
+          <AdsKPIDisplay key={platform} kpis={kpis} title={`Campaign — ${label}`} formatCurrency={formatCurrency} />
+        ))
       )}
 
-      {/* Ad Set KPIs - show only when ad set is selected but NOT ad */}
-      {adSetKPIs && !selectedAdId && (
-        <AdsKPIDisplay kpis={adSetKPIs} title="Ad Set" formatCurrency={formatCurrency} />
+      {/* Ad Set KPIs */}
+      {adSetKPIsByPlatform && !selectedAdId && (
+        adSetKPIsByPlatform.map(({ platform, label, kpis }) => (
+          <AdsKPIDisplay key={platform} kpis={kpis} title={`Ad Set — ${label}`} formatCurrency={formatCurrency} />
+        ))
       )}
 
-      {/* Ads KPIs - show only when ad is selected */}
-      {adsKPIs && (
-        <AdsKPIDisplay kpis={adsKPIs} title="Ad" formatCurrency={formatCurrency} />
+      {/* Ads KPIs */}
+      {adsKPIsByPlatform && (
+        adsKPIsByPlatform.map(({ platform, label, kpis }) => (
+          <AdsKPIDisplay key={platform} kpis={kpis} title={`Ad — ${label}`} formatCurrency={formatCurrency} />
+        ))
       )}
 
       {/* No data message */}
-      {!campaignKPIs && !adSetKPIs && !adsKPIs && (
+      {!hasAnyKPIs && (
         <Card className="p-8 rounded-[35px] border-foreground">
           <p className="text-muted-foreground text-center">
             Vyber kampaň pro zobrazení KPI.
           </p>
         </Card>
       )}
-
-      {/* Snapshot Trend Chart - temporarily hidden */}
     </div>
   );
 };
