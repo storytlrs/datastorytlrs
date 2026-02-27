@@ -36,6 +36,9 @@ export const AdsDataTab = ({ reportId, spaceId, onImportSuccess, embedded = fals
   const [ads, setAds] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
+  // Platform filter
+  const [selectedPlatform, setSelectedPlatform] = useState<"meta" | "tiktok">("meta");
+
   // Hierarchical selection state
   const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(null);
   const [selectedAdSetId, setSelectedAdSetId] = useState<string | null>(null);
@@ -466,30 +469,60 @@ export const AdsDataTab = ({ reportId, spaceId, onImportSuccess, embedded = fals
     setAds(allAds);
   };
 
-  // Get unique campaigns from brand_campaigns
+  // Detect available platforms
+  const availablePlatforms = useMemo(() => {
+    const platforms = new Set<string>();
+    campaignMeta.forEach((c: any) => { if (c.platform) platforms.add(c.platform); });
+    return Array.from(platforms);
+  }, [campaignMeta]);
+
+  // Auto-select default platform: prefer meta
+  useEffect(() => {
+    if (availablePlatforms.length > 0) {
+      if (availablePlatforms.includes("meta")) {
+        setSelectedPlatform("meta");
+      } else {
+        setSelectedPlatform(availablePlatforms[0] as "meta" | "tiktok");
+      }
+    }
+  }, [availablePlatforms]);
+
+  const handlePlatformChange = (platform: "meta" | "tiktok") => {
+    setSelectedPlatform(platform);
+    setSelectedCampaignId(null);
+    setSelectedAdSetId(null);
+    setSelectedAdId(null);
+  };
+
+  // Filter by platform
+  const platformCampaigns = useMemo(() => campaignMeta.filter((c: any) => c.platform === selectedPlatform), [campaignMeta, selectedPlatform]);
+  const platformAdSets = useMemo(() => adSets.filter((as: any) => as.platform === selectedPlatform), [adSets, selectedPlatform]);
+  const platformAds = useMemo(() => ads.filter((a: any) => a.platform === selectedPlatform), [ads, selectedPlatform]);
+
+  // Get unique campaigns from filtered data
   const campaigns = useMemo(() => {
-    return campaignMeta.map(cm => ({
+    return platformCampaigns.map(cm => ({
       id: cm.id,
       name: cm.campaign_name || "Unnamed Campaign",
       data: cm
     }));
-  }, [campaignMeta]);
+  }, [platformCampaigns]);
 
   // Get ad sets filtered by selected campaign
   const filteredAdSets = useMemo(() => {
-    if (!selectedCampaignId) return adSets;
-    return adSets.filter(adSet => adSet.brand_campaign_id === selectedCampaignId);
-  }, [adSets, selectedCampaignId]);
+    if (!selectedCampaignId) return platformAdSets;
+    return platformAdSets.filter(adSet => adSet.brand_campaign_id === selectedCampaignId);
+  }, [platformAdSets, selectedCampaignId]);
 
   // Get ads filtered by selected ad set
   const filteredAds = useMemo(() => {
     if (!selectedAdSetId) {
-      if (!selectedCampaignId) return ads;
+      if (!selectedCampaignId) return platformAds;
       const adSetIds = new Set(filteredAdSets.map(as => as.id));
-      return ads.filter(ad => adSetIds.has(ad.brand_ad_set_id));
+      return platformAds.filter(ad => adSetIds.has(ad.brand_ad_set_id));
     }
-    return ads.filter(ad => ad.brand_ad_set_id === selectedAdSetId);
-  }, [ads, selectedAdSetId, selectedCampaignId, filteredAdSets]);
+    return platformAds.filter(ad => ad.brand_ad_set_id === selectedAdSetId);
+  }, [platformAds, selectedAdSetId, selectedCampaignId, filteredAdSets]);
 
   // Selected items
   const selectedCampaign = campaigns.find(c => c.id === selectedCampaignId);
@@ -695,15 +728,15 @@ export const AdsDataTab = ({ reportId, spaceId, onImportSuccess, embedded = fals
 
   // Get data for display based on selection level
   const displayCampaigns = selectedCampaignId 
-    ? campaignMeta.filter(cm => cm.id === selectedCampaignId)
-    : campaignMeta;
+    ? platformCampaigns.filter(cm => cm.id === selectedCampaignId)
+    : platformCampaigns;
 
   const displayAdSets = selectedAdSetId
-    ? adSets.filter(as => as.id === selectedAdSetId)
+    ? platformAdSets.filter(as => as.id === selectedAdSetId)
     : filteredAdSets;
 
   const displayAds = selectedAdId
-    ? ads.filter(a => a.id === selectedAdId)
+    ? platformAds.filter(a => a.id === selectedAdId)
     : filteredAds;
 
   const Wrapper = embedded ? 'div' : Card;
@@ -717,6 +750,37 @@ export const AdsDataTab = ({ reportId, spaceId, onImportSuccess, embedded = fals
       {/* Hierarchical Filters - hide in embedded mode */}
       {!embedded && (
         <div className="flex flex-wrap items-center gap-3 mb-6">
+          {/* Platform Toggle */}
+          {availablePlatforms.length > 1 && (
+            <div className="flex items-center rounded-[35px] border border-foreground overflow-hidden">
+              {availablePlatforms.includes("meta") && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handlePlatformChange("meta")}
+                  className={cn(
+                    "rounded-none px-4 h-9 text-sm font-medium border-0",
+                    selectedPlatform === "meta" && "bg-foreground text-background"
+                  )}
+                >
+                  Meta
+                </Button>
+              )}
+              {availablePlatforms.includes("tiktok") && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handlePlatformChange("tiktok")}
+                  className={cn(
+                    "rounded-none px-4 h-9 text-sm font-medium border-0",
+                    selectedPlatform === "tiktok" && "bg-foreground text-background"
+                  )}
+                >
+                  TikTok
+                </Button>
+              )}
+            </div>
+          )}
           {/* Campaign Selector */}
           <Popover open={campaignOpen} onOpenChange={setCampaignOpen}>
             <PopoverTrigger asChild>
