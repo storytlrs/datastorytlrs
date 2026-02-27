@@ -272,6 +272,7 @@ export const AdsOverviewTab = ({ reportId, spaceId }: AdsOverviewTabProps) => {
     start: null,
     end: null,
   });
+  const [selectedPlatform, setSelectedPlatform] = useState<"all" | "meta" | "tiktok">("all");
   
   // Hierarchical selection state
   const [selectedCampaignIds, setSelectedCampaignIds] = useState<string[]>([]);
@@ -466,31 +467,52 @@ export const AdsOverviewTab = ({ reportId, spaceId }: AdsOverviewTabProps) => {
     fetchData();
   }, [reportId, spaceId]);
 
+  // Detect available platforms
+  const availablePlatforms = useMemo(() => {
+    const platforms = new Set<string>();
+    campaignMeta.forEach((c: any) => { if (c.platform) platforms.add(c.platform); });
+    return Array.from(platforms);
+  }, [campaignMeta]);
+
+  // Filter all data by selected platform
+  const platformFilteredCampaigns = useMemo(() => {
+    if (selectedPlatform === "all") return campaignMeta;
+    return campaignMeta.filter((c: any) => c.platform === selectedPlatform);
+  }, [campaignMeta, selectedPlatform]);
+
+  const platformFilteredAdSets = useMemo(() => {
+    if (selectedPlatform === "all") return adSets;
+    return adSets.filter((as: any) => as.platform === selectedPlatform);
+  }, [adSets, selectedPlatform]);
+
+  const platformFilteredAds = useMemo(() => {
+    if (selectedPlatform === "all") return ads;
+    return ads.filter((a: any) => a.platform === selectedPlatform);
+  }, [ads, selectedPlatform]);
+
   // Get campaigns for selector
   const campaigns = useMemo(() => {
-    return campaignMeta.map(cm => ({
+    return platformFilteredCampaigns.map(cm => ({
       id: cm.id,
       name: cm.campaign_name || "Unnamed Campaign",
       data: cm
     }));
-  }, [campaignMeta]);
+  }, [platformFilteredCampaigns]);
 
   // Get ad sets filtered by selected campaigns
-  // Uses campaignIdMapping to match ad sets that reference original breakdown UUIDs
   const filteredAdSets = useMemo(() => {
-    let filtered = adSets;
+    let filtered = platformFilteredAdSets;
     if (selectedCampaignIds.length > 0) {
-      // Build set of all campaign UUIDs (total + original breakdown) for selected campaigns
       const allRelatedIds = new Set<string>();
       selectedCampaignIds.forEach(id => {
         const related = campaignIdMapping[id];
         if (related) {
           related.forEach(rid => allRelatedIds.add(rid));
         } else {
-          allRelatedIds.add(id); // TikTok or direct match
+          allRelatedIds.add(id);
         }
       });
-      filtered = adSets.filter(adSet => allRelatedIds.has(adSet.brand_campaign_id));
+      filtered = filtered.filter(adSet => allRelatedIds.has(adSet.brand_campaign_id));
     }
     if (dateRange.start) {
       filtered = filtered.filter(item => !item.date_start || new Date(item.date_start) >= dateRange.start!);
@@ -499,16 +521,16 @@ export const AdsOverviewTab = ({ reportId, spaceId }: AdsOverviewTabProps) => {
       filtered = filtered.filter(item => !item.date_stop || new Date(item.date_stop) <= dateRange.end!);
     }
     return filtered;
-  }, [adSets, selectedCampaignIds, campaignIdMapping, dateRange]);
+  }, [platformFilteredAdSets, selectedCampaignIds, campaignIdMapping, dateRange]);
 
   // Get ads filtered by selected ad set
   const filteredAds = useMemo(() => {
-    let filtered = ads;
+    let filtered = platformFilteredAds;
     if (selectedAdSetId) {
-      filtered = ads.filter(ad => ad.brand_ad_set_id === selectedAdSetId);
+      filtered = filtered.filter(ad => ad.brand_ad_set_id === selectedAdSetId);
     } else if (selectedCampaignIds.length > 0) {
       const adSetIds = new Set(filteredAdSets.map(as => as.id));
-      filtered = ads.filter(ad => adSetIds.has(ad.brand_ad_set_id));
+      filtered = filtered.filter(ad => adSetIds.has(ad.brand_ad_set_id));
     }
     if (dateRange.start) {
       filtered = filtered.filter(item => !item.date_start || new Date(item.date_start) >= dateRange.start!);
@@ -517,11 +539,11 @@ export const AdsOverviewTab = ({ reportId, spaceId }: AdsOverviewTabProps) => {
       filtered = filtered.filter(item => !item.date_stop || new Date(item.date_stop) <= dateRange.end!);
     }
     return filtered;
-  }, [ads, selectedAdSetId, selectedCampaignIds, filteredAdSets, dateRange]);
+  }, [platformFilteredAds, selectedAdSetId, selectedCampaignIds, filteredAdSets, dateRange]);
 
   // Filter campaign meta by date
   const filteredCampaignMeta = useMemo(() => {
-    let filtered = campaignMeta;
+    let filtered = platformFilteredCampaigns;
     if (selectedCampaignIds.length > 0) {
       const idSet = new Set(selectedCampaignIds);
       filtered = filtered.filter(cm => idSet.has(cm.id));
@@ -533,7 +555,7 @@ export const AdsOverviewTab = ({ reportId, spaceId }: AdsOverviewTabProps) => {
       filtered = filtered.filter(item => !item.date_stop || new Date(item.date_stop) <= dateRange.end!);
     }
     return filtered;
-  }, [campaignMeta, selectedCampaignIds, dateRange]);
+  }, [platformFilteredCampaigns, selectedCampaignIds, dateRange]);
 
   const selectedAdSet = adSets.find(as => as.id === selectedAdSetId);
   const selectedAd = ads.find(a => a.id === selectedAdId);
@@ -573,39 +595,38 @@ export const AdsOverviewTab = ({ reportId, spaceId }: AdsOverviewTabProps) => {
     clearCampaigns();
   };
 
-  // Calculate KPIs based on selection level — split by platform
-  const campaignKPIsByPlatform = useMemo(() => {
+  // Calculate KPIs based on selection level
+  const campaignKPIs = useMemo(() => {
     if (filteredCampaignMeta.length === 0) return null;
-    const metaData = filteredCampaignMeta.filter((c: any) => c.platform === "meta");
-    const tiktokData = filteredCampaignMeta.filter((c: any) => c.platform === "tiktok");
-    const result: { platform: string; label: string; kpis: ReturnType<typeof calculateKPIs> }[] = [];
-    if (metaData.length > 0) result.push({ platform: "meta", label: "Meta (Facebook / Instagram)", kpis: calculateKPIs(metaData) });
-    if (tiktokData.length > 0) result.push({ platform: "tiktok", label: "TikTok", kpis: calculateKPIs(tiktokData) });
-    return result.length > 0 ? result : null;
+    return calculateKPIs(filteredCampaignMeta);
   }, [filteredCampaignMeta]);
 
-  const adSetKPIsByPlatform = useMemo(() => {
+  const adSetKPIs = useMemo(() => {
     if (!selectedAdSetId) return null;
-    const data = adSets.filter(as => as.id === selectedAdSetId);
+    const data = platformFilteredAdSets.filter(as => as.id === selectedAdSetId);
     if (data.length === 0) return null;
-    const platform = (data[0] as any).platform;
-    const label = platform === "tiktok" ? "TikTok" : "Meta (Facebook / Instagram)";
-    return [{ platform, label, kpis: calculateKPIs(data) }];
-  }, [adSets, selectedAdSetId]);
+    return calculateKPIs(data);
+  }, [platformFilteredAdSets, selectedAdSetId]);
 
-  const adsKPIsByPlatform = useMemo(() => {
+  const adsKPIs = useMemo(() => {
     if (!selectedAdId) return null;
-    const data = ads.filter(a => a.id === selectedAdId);
+    const data = platformFilteredAds.filter(a => a.id === selectedAdId);
     if (data.length === 0) return null;
-    const platform = (data[0] as any).platform;
-    const label = platform === "tiktok" ? "TikTok" : "Meta (Facebook / Instagram)";
-    return [{ platform, label, kpis: calculateKPIs(data) }];
-  }, [ads, selectedAdId]);
+    return calculateKPIs(data);
+  }, [platformFilteredAds, selectedAdId]);
 
   const formatCurrency = (num: number): string => formatCurrencyUtil(num, "CZK");
 
-  const hasFilters = dateRange.start || dateRange.end || selectedCampaignIds.length > 0;
-  const hasAnyKPIs = campaignKPIsByPlatform || adSetKPIsByPlatform || adsKPIsByPlatform;
+  const hasFilters = dateRange.start || dateRange.end || selectedCampaignIds.length > 0 || selectedPlatform !== "all";
+  const hasAnyKPIs = campaignKPIs || adSetKPIs || adsKPIs;
+
+  // Reset selections when platform changes
+  const handlePlatformChange = (platform: "all" | "meta" | "tiktok") => {
+    setSelectedPlatform(platform);
+    setSelectedCampaignIds([]);
+    setSelectedAdSetId(null);
+    setSelectedAdId(null);
+  };
 
   if (loading) {
     return (
@@ -631,6 +652,49 @@ export const AdsOverviewTab = ({ reportId, spaceId }: AdsOverviewTabProps) => {
     <div className="space-y-8">
       {/* Filter Bar */}
       <div className="flex flex-wrap gap-3 items-center">
+        {/* Platform Toggle */}
+        {availablePlatforms.length > 1 && (
+          <div className="flex items-center rounded-[35px] border border-foreground overflow-hidden">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => handlePlatformChange("all")}
+              className={cn(
+                "rounded-none px-4 h-9 text-sm font-medium border-0",
+                selectedPlatform === "all" && "bg-foreground text-background"
+              )}
+            >
+              All
+            </Button>
+            {availablePlatforms.includes("meta") && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handlePlatformChange("meta")}
+                className={cn(
+                  "rounded-none px-4 h-9 text-sm font-medium border-0",
+                  selectedPlatform === "meta" && "bg-foreground text-background"
+                )}
+              >
+                Meta
+              </Button>
+            )}
+            {availablePlatforms.includes("tiktok") && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handlePlatformChange("tiktok")}
+                className={cn(
+                  "rounded-none px-4 h-9 text-sm font-medium border-0",
+                  selectedPlatform === "tiktok" && "bg-foreground text-background"
+                )}
+              >
+                TikTok
+              </Button>
+            )}
+          </div>
+        )}
+
         <DateRangeFilter
           dateRange={dateRange}
           onDateRangeChange={setDateRange}
@@ -832,25 +896,19 @@ export const AdsOverviewTab = ({ reportId, spaceId }: AdsOverviewTabProps) => {
         </div>
       )}
 
-      {/* Campaign KPIs - split by platform */}
-      {campaignKPIsByPlatform && !selectedAdSetId && !selectedAdId && (
-        campaignKPIsByPlatform.map(({ platform, label, kpis }) => (
-          <AdsKPIDisplay key={platform} kpis={kpis} title={`Campaign — ${label}`} formatCurrency={formatCurrency} />
-        ))
+      {/* Campaign KPIs */}
+      {campaignKPIs && !selectedAdSetId && !selectedAdId && (
+        <AdsKPIDisplay kpis={campaignKPIs} title="Campaign" formatCurrency={formatCurrency} />
       )}
 
       {/* Ad Set KPIs */}
-      {adSetKPIsByPlatform && !selectedAdId && (
-        adSetKPIsByPlatform.map(({ platform, label, kpis }) => (
-          <AdsKPIDisplay key={platform} kpis={kpis} title={`Ad Set — ${label}`} formatCurrency={formatCurrency} />
-        ))
+      {adSetKPIs && !selectedAdId && (
+        <AdsKPIDisplay kpis={adSetKPIs} title="Ad Set" formatCurrency={formatCurrency} />
       )}
 
       {/* Ads KPIs */}
-      {adsKPIsByPlatform && (
-        adsKPIsByPlatform.map(({ platform, label, kpis }) => (
-          <AdsKPIDisplay key={platform} kpis={kpis} title={`Ad — ${label}`} formatCurrency={formatCurrency} />
-        ))
+      {adsKPIs && (
+        <AdsKPIDisplay kpis={adsKPIs} title="Ad" formatCurrency={formatCurrency} />
       )}
 
       {/* No data message */}
