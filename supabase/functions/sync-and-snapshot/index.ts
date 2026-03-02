@@ -48,17 +48,20 @@ Deno.serve(async (req) => {
 
     const token = authHeader.replace("Bearer ", "");
     const serviceRoleKeyEnv = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const anonKeyEnv = Deno.env.get("SUPABASE_ANON_KEY")!;
 
-    // Allow service role key for automated/cron calls
-    if (token !== serviceRoleKeyEnv) {
+    // Allow service role key or anon key for automated/cron/pg_net calls
+    const isSystemCall = token === serviceRoleKeyEnv || token === anonKeyEnv;
+    
+    if (!isSystemCall) {
       const authClient = createClient(
         Deno.env.get("SUPABASE_URL")!,
-        Deno.env.get("SUPABASE_ANON_KEY")!,
+        anonKeyEnv,
         { global: { headers: { Authorization: authHeader } } }
       );
 
-      const { data: userData, error: authError } = await authClient.auth.getUser(token);
-      if (authError || !userData?.user) {
+      const { data: claimsData, error: claimsError } = await authClient.auth.getClaims(token);
+      if (claimsError || !claimsData?.claims?.sub) {
         return new Response(JSON.stringify({ error: "Unauthorized" }), {
           status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
