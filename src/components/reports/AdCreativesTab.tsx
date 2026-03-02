@@ -57,7 +57,7 @@ export const AdCreativesTab = ({ reportId, spaceId }: AdCreativesTabProps) => {
   const [selectedCampaign, setSelectedCampaign] = useState<string>("all");
   const [selectedPlatform, setSelectedPlatform] = useState<string>("all");
   const [selectedAdType, setSelectedAdType] = useState<string>("all");
-  const [sortBy, setSortBy] = useState<string>("spend");
+  const [sortBy, setSortBy] = useState<string>("cpm");
 
   useEffect(() => {
     fetchAdCreatives();
@@ -236,17 +236,19 @@ export const AdCreativesTab = ({ reportId, spaceId }: AdCreativesTabProps) => {
     });
 
     return filtered.sort((a, b) => {
+      const cpmA = (a.impressions || 0) > 0 && a.spend ? (a.spend / a.impressions!) * 1000 : Infinity;
+      const cpmB = (b.impressions || 0) > 0 && b.spend ? (b.spend / b.impressions!) * 1000 : Infinity;
       switch (sortBy) {
-        case "ctr":
-          return (b.ctr || 0) - (a.ctr || 0);
+        case "cpm":
+          return cpmA - cpmB; // lowest first
         case "impressions":
           return (b.impressions || 0) - (a.impressions || 0);
-        case "clicks":
-          return (b.clicks || 0) - (a.clicks || 0);
-        case "engagement":
-          return (b.engagement || 0) - (a.engagement || 0);
         case "video_3s_plays":
           return (b.video_3s_plays || 0) - (a.video_3s_plays || 0);
+        case "engagement":
+          return (b.engagement || 0) - (a.engagement || 0);
+        case "link_clicks":
+          return (b.link_clicks || 0) - (a.link_clicks || 0);
         case "spend":
         default:
           return (b.spend || 0) - (a.spend || 0);
@@ -414,12 +416,12 @@ export const AdCreativesTab = ({ reportId, spaceId }: AdCreativesTabProps) => {
               <SelectValue placeholder="Sort by" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="spend">Spend (highest)</SelectItem>
+              <SelectItem value="cpm">CPM (lowest)</SelectItem>
               <SelectItem value="impressions">Impressions</SelectItem>
               <SelectItem value="video_3s_plays">3s Views</SelectItem>
               <SelectItem value="engagement">Engagement</SelectItem>
-              <SelectItem value="clicks">Clicks</SelectItem>
-              <SelectItem value="ctr">CTR (highest)</SelectItem>
+              <SelectItem value="link_clicks">Link Clicks</SelectItem>
+              <SelectItem value="spend">Spend (highest)</SelectItem>
             </SelectContent>
           </Select>
 
