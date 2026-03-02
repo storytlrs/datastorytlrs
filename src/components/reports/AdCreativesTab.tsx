@@ -21,7 +21,6 @@ import {
 import { cn } from "@/lib/utils";
 import { CalendarIcon } from "lucide-react";
 import { DateRange } from "react-day-picker";
-import { formatCurrencySimple } from "@/lib/currencyUtils";
 import { KPICard } from "./KPICard";
 
 interface AdCreativesTabProps {
@@ -208,6 +207,11 @@ export const AdCreativesTab = ({ reportId, spaceId }: AdCreativesTabProps) => {
     return num.toString();
   };
 
+  const formatCurrencyWhole = (amount: number | null) => {
+    if (amount === null || amount === undefined) return "-";
+    return `${Math.round(amount).toLocaleString("cs-CZ")} Kč`;
+  };
+
   const uniqueCampaigns = useMemo(() => {
     return Array.from(new Set(adCreatives.filter(item => item.campaign_name).map(item => item.campaign_name!)))
       .sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
@@ -298,11 +302,11 @@ export const AdCreativesTab = ({ reportId, spaceId }: AdCreativesTabProps) => {
     <div className="space-y-6">
       {/* KPI Summary */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        <KPICard title="Total Spend" value={formatCurrencySimple(kpis.totalSpend, "CZK")} icon={Wallet} accentColor="orange" />
+        <KPICard title="Total Spend" value={formatCurrencyWhole(kpis.totalSpend)} icon={Wallet} accentColor="orange" />
         <KPICard title="Impressions" value={formatNumber(kpis.totalImpressions)} icon={Eye} />
         <KPICard 
           title="Avg CPM" 
-          value={formatCurrencySimple(kpis.avgCpm, "CZK")} 
+          value={formatCurrencyWhole(kpis.avgCpm)} 
           icon={DollarSign} 
           accentColor="blue" 
           tooltip="CPM = (Total Spend / Impressions) × 1000" 
@@ -484,7 +488,7 @@ export const AdCreativesTab = ({ reportId, spaceId }: AdCreativesTabProps) => {
                     <div className="grid grid-cols-2 gap-1 text-xs">
                       <div className="flex items-center gap-1 text-muted-foreground">
                         <DollarSign className="w-3 h-3 flex-shrink-0" />
-                        <span>{formatCurrencySimple(item.spend || 0, "CZK")}</span>
+                        <span>{formatCurrencyWhole(item.spend || 0)}</span>
                       </div>
                       <div className="flex items-center gap-1 text-muted-foreground">
                         <Eye className="w-3 h-3 flex-shrink-0" />
@@ -492,7 +496,7 @@ export const AdCreativesTab = ({ reportId, spaceId }: AdCreativesTabProps) => {
                       </div>
                       <div className="flex items-center gap-1 text-muted-foreground">
                         <DollarSign className="w-3 h-3 flex-shrink-0" />
-                        <span className="text-[10px]">CPM {cpm !== null ? formatCurrencySimple(cpm, "CZK") : "-"}</span>
+                        <span className="text-[10px]">CPM {cpm !== null ? formatCurrencyWhole(cpm) : "-"}</span>
                       </div>
                       <div className="flex items-center gap-1 text-muted-foreground">
                         <Play className="w-3 h-3 flex-shrink-0" />
