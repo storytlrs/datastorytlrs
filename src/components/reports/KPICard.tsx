@@ -44,7 +44,7 @@ export const KPICard = ({
 
   return (
     <Card className={cn(
-      "p-6 rounded-[35px] border-2 transition-all hover:shadow-lg h-full flex flex-col min-h-[160px]",
+      "p-6 rounded-[35px] border-[3px] transition-all hover:shadow-lg h-full flex flex-col min-h-[160px]",
       accentClass
     )}>
       <div className="flex items-start justify-between">
@@ -75,7 +75,7 @@ export const KPICard = ({
       <div className="flex-1" />
       
       <div className="space-y-1 text-left">
-        <p className="text-3xl font-bold text-foreground whitespace-nowrap">
+        <p className="text-2xl lg:text-3xl font-bold text-foreground whitespace-nowrap">
           {value}
         </p>
         {benchmark !== undefined && (
