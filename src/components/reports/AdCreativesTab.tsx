@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Eye, MousePointer, DollarSign, ImageIcon, X, ArrowUpDown, Loader2, TrendingUp, Play, Link2, Wallet } from "lucide-react";
+import { Eye, MousePointer, ImageIcon, X, ArrowUpDown, Loader2, TrendingUp, Play, Link2, Wallet } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
@@ -307,8 +307,8 @@ export const AdCreativesTab = ({ reportId, spaceId }: AdCreativesTabProps) => {
         <KPICard 
           title="Avg CPM" 
           value={formatCurrencyWhole(kpis.avgCpm)} 
-          icon={DollarSign} 
-          accentColor="blue" 
+          icon={Wallet} 
+          accentColor="blue"
           tooltip="CPM = (Total Spend / Impressions) × 1000" 
         />
         <KPICard title="3s Views" value={formatNumber(kpis.total3sViews)} icon={Play} accentColor="orange" />
@@ -487,7 +487,7 @@ export const AdCreativesTab = ({ reportId, spaceId }: AdCreativesTabProps) => {
 
                     <div className="grid grid-cols-2 gap-1 text-xs">
                       <div className="flex items-center gap-1 text-muted-foreground">
-                        <DollarSign className="w-3 h-3 flex-shrink-0" />
+                        <Wallet className="w-3 h-3 flex-shrink-0" />
                         <span>{formatCurrencyWhole(item.spend || 0)}</span>
                       </div>
                       <div className="flex items-center gap-1 text-muted-foreground">
@@ -495,7 +495,7 @@ export const AdCreativesTab = ({ reportId, spaceId }: AdCreativesTabProps) => {
                         <span>{formatNumber(item.impressions)}</span>
                       </div>
                       <div className="flex items-center gap-1 text-muted-foreground">
-                        <DollarSign className="w-3 h-3 flex-shrink-0" />
+                        <Wallet className="w-3 h-3 flex-shrink-0" />
                         <span className="text-[10px]">CPM {cpm !== null ? formatCurrencyWhole(cpm) : "-"}</span>
                       </div>
                       <div className="flex items-center gap-1 text-muted-foreground">
