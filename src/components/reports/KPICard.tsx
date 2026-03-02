@@ -75,7 +75,7 @@ export const KPICard = ({
       <div className="flex-1" />
       
       <div className="space-y-1">
-        <p className="text-3xl font-bold text-foreground">
+        <p className="text-3xl font-bold text-foreground whitespace-nowrap">
           {value}
         </p>
         {benchmark !== undefined && (

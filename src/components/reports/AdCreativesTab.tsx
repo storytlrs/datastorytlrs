@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Eye, MousePointer, DollarSign, ImageIcon, X, ArrowUpDown, Loader2, TrendingUp, Play, Link2 } from "lucide-react";
+import { Eye, MousePointer, DollarSign, ImageIcon, X, ArrowUpDown, Loader2, TrendingUp, Play, Link2, Wallet } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
@@ -298,7 +298,7 @@ export const AdCreativesTab = ({ reportId, spaceId }: AdCreativesTabProps) => {
     <div className="space-y-6">
       {/* KPI Summary */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        <KPICard title="Total Spend" value={formatCurrencySimple(kpis.totalSpend, "CZK")} icon={DollarSign} accentColor="orange" />
+        <KPICard title="Total Spend" value={formatCurrencySimple(kpis.totalSpend, "CZK")} icon={Wallet} accentColor="orange" />
         <KPICard title="Impressions" value={formatNumber(kpis.totalImpressions)} icon={Eye} />
         <KPICard 
           title="Avg CPM" 
