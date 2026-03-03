@@ -1305,8 +1305,8 @@ KONTEXT OD UŽIVATELE:
     "recommendation": "Hlavní doporučení pro zlepšení v dalším kvartálu (max 100 slov)"
   },
   "goal_fulfillment": {
-    "goals_set": "Popis stanovených cílů, nových zavedení nebo změn v tomto kvartálu (max 150 slov)",
-    "results": "Detailní vyhodnocení plnění cílů a výsledků změn s konkrétními čísly (max 150 slov)"
+    "goals_set": ["3-5 krátkých bodů stanovených cílů, nových zavedení nebo změn v tomto kvartálu – každý bod max 10 slov"],
+    "results": ["3-5 krátkých bodů vyhodnocení plnění cílů s konkrétními čísly – každý bod max 15 slov"]
   },
   "metrics_over_time": "Popis celkového vývoje klíčových metrik za kvartál – trendy, sezónnost, výkyvy (max 150 slov)",
   "metric_commentary": {

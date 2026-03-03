@@ -46,8 +46,8 @@ export interface QuarterlyStructuredInsights {
     recommendation: string;
   };
   goal_fulfillment: {
-    goals_set: string;
-    results: string;
+    goals_set: string[];
+    results: string[];
   };
   key_metrics: {
     spend: number;
@@ -524,7 +524,7 @@ export const QuarterlyAdsInsightsContent = forwardRef<HTMLDivElement, QuarterlyA
   ({ insights: raw, canEdit = false, onSaveInsights, hasMetaPlatform, hasTiktokPlatform, reportId }, ref) => {
     const insights: QuarterlyStructuredInsights = {
       executive_summary: raw.executive_summary || { intro: "", media_insight: "", top_result: "", recommendation: "" },
-      goal_fulfillment: raw.goal_fulfillment || { goals_set: "", results: "" },
+      goal_fulfillment: { goals_set: Array.isArray(raw.goal_fulfillment?.goals_set) ? raw.goal_fulfillment.goals_set : raw.goal_fulfillment?.goals_set ? [raw.goal_fulfillment.goals_set] : [], results: Array.isArray(raw.goal_fulfillment?.results) ? raw.goal_fulfillment.results : raw.goal_fulfillment?.results ? [raw.goal_fulfillment.results] : [], },
       key_metrics: { spend: 0, reach: 0, frequency: 0, currency: "CZK", ...raw.key_metrics },
       detail_metrics: { cpm: 0, cpe: 0, cpv: 0, currency: "CZK", ...raw.detail_metrics },
       metrics_over_time: raw.metrics_over_time || "",
@@ -623,8 +623,8 @@ export const QuarterlyAdsInsightsContent = forwardRef<HTMLDivElement, QuarterlyA
     const [mediaInsight, setMediaInsight] = useState(insights.executive_summary.media_insight);
     const [topResult, setTopResult] = useState(insights.executive_summary.top_result);
     const [recommendation, setRecommendation] = useState(insights.executive_summary.recommendation);
-    const [goalsSet, setGoalsSet] = useState(insights.goal_fulfillment.goals_set);
-    const [results, setResults] = useState(insights.goal_fulfillment.results);
+    const [goalsSet, setGoalsSet] = useState<string[]>(insights.goal_fulfillment.goals_set);
+    const [results, setResults] = useState<string[]>(insights.goal_fulfillment.results);
     const [metricsOverTime, setMetricsOverTime] = useState(insights.metrics_over_time);
     const [brandAwareness, setBrandAwareness] = useState(insights.brand_awareness);
     const [fbMetricsOverTime, setFbMetricsOverTime] = useState(insights.facebook_metrics_over_time);
@@ -647,7 +647,6 @@ export const QuarterlyAdsInsightsContent = forwardRef<HTMLDivElement, QuarterlyA
     const handleSaveSection = async (section: string, value: string) => {
       const setters: Record<string, (v: string) => void> = {
         intro: setIntroSummary, media_insight: setMediaInsight, top_result: setTopResult, recommendation: setRecommendation,
-        goals_set: setGoalsSet, results: setResults,
         metrics_over_time: setMetricsOverTime, brand_awareness: setBrandAwareness,
         facebook_metrics_over_time: setFbMetricsOverTime,
         instagram_metrics_over_time: setIgMetricsOverTime,
@@ -664,11 +663,6 @@ export const QuarterlyAdsInsightsContent = forwardRef<HTMLDivElement, QuarterlyA
             media_insight: section === "media_insight" ? value : mediaInsight,
             top_result: section === "top_result" ? value : topResult,
             recommendation: section === "recommendation" ? value : recommendation,
-          };
-        } else if (["goals_set", "results"].includes(section)) {
-          updates.goal_fulfillment = {
-            goals_set: section === "goals_set" ? value : goalsSet,
-            results: section === "results" ? value : results,
           };
         } else if (section === "metrics_over_time") updates.metrics_over_time = value;
         else if (section === "brand_awareness") updates.brand_awareness = value;
@@ -688,13 +682,19 @@ export const QuarterlyAdsInsightsContent = forwardRef<HTMLDivElement, QuarterlyA
         what_worked: setWhatWorked, top_results: setTopResults,
         what_happened: setWhatHappened, what_we_solved: setWhatWeSolved, threats_opportunities: setThreatsOpps,
         improving: setImproving, focus_areas: setFocusAreas, changes: setChanges,
+        goals_set: setGoalsSet, results: setResults,
       };
       setters[section]?.(items);
       stopEditing(section);
 
       if (onSaveInsights) {
         const updates: Partial<QuarterlyStructuredInsights> = {};
-        if (["what_worked", "top_results"].includes(section)) {
+        if (["goals_set", "results"].includes(section)) {
+          updates.goal_fulfillment = {
+            goals_set: section === "goals_set" ? items : goalsSet,
+            results: section === "results" ? items : results,
+          };
+        } else if (["what_worked", "top_results"].includes(section)) {
           updates.summary_success = {
             what_worked: section === "what_worked" ? items : whatWorked,
             top_results: section === "top_results" ? items : topResults,
@@ -799,11 +799,11 @@ export const QuarterlyAdsInsightsContent = forwardRef<HTMLDivElement, QuarterlyA
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Card className="p-4 rounded-[15px] border-border bg-muted/30">
               <div className="flex items-center gap-2 mb-2"><Target className="w-5 h-5 text-accent-orange" /><span className="font-bold text-sm uppercase">Stanovené cíle / Nové zavedení / Změna</span></div>
-              <EditableSection value={goalsSet} isEditing={editingSections.has("goals_set")} onStartEdit={() => startEditing("goals_set")} onSave={(v) => handleSaveSection("goals_set", v)} onCancel={() => stopEditing("goals_set")} canEdit={canEdit} placeholder="Stanovené cíle za kvartál..." />
+              <EditableListSection items={goalsSet} isEditing={editingSections.has("goals_set")} onStartEdit={() => startEditing("goals_set")} onSave={(items) => handleSaveListSection("goals_set", items)} onCancel={() => stopEditing("goals_set")} canEdit={canEdit} bulletColor="text-accent-orange" placeholder="Stanovené cíle za kvartál..." />
             </Card>
             <Card className="p-4 rounded-[15px] border-border bg-muted/30">
               <div className="flex items-center gap-2 mb-2"><CheckCircle className="w-5 h-5 text-accent-green" /><span className="font-bold text-sm uppercase">Plnění cílů / Výsledky změny</span></div>
-              <EditableSection value={results} isEditing={editingSections.has("results")} onStartEdit={() => startEditing("results")} onSave={(v) => handleSaveSection("results", v)} onCancel={() => stopEditing("results")} canEdit={canEdit} placeholder="Výsledky a plnění..." />
+              <EditableListSection items={results} isEditing={editingSections.has("results")} onStartEdit={() => startEditing("results")} onSave={(items) => handleSaveListSection("results", items)} onCancel={() => stopEditing("results")} canEdit={canEdit} bulletColor="text-accent-green" placeholder="Výsledky a plnění..." />
             </Card>
           </div>
         </Card>
