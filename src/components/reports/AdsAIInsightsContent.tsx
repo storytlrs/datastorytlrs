@@ -9,7 +9,7 @@ import {
   Rocket,
   Star,
   Eye,
-  DollarSign,
+  Wallet,
   MousePointer,
   TrendingUp,
   Heart,
@@ -476,11 +476,11 @@ export const AdsAIInsightsContent = forwardRef<HTMLDivElement, AdsAIInsightsCont
             />
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            <MetricTile title="Total Spend" value={formatCurrency(insights.effectiveness_metrics.spend, cur)} icon={DollarSign} accentColor="orange" />
+            <MetricTile title="Total Spend" value={formatCurrency(insights.effectiveness_metrics.spend, cur)} icon={Wallet} accentColor="orange" />
             <MetricTile
               title="CPM"
               value={formatCurrency(insights.effectiveness_metrics.cpm, cur)}
-              icon={DollarSign}
+              icon={Wallet}
               accentColor="orange"
               benchmark={formatCurrency(insights.benchmarks.cpm, cur)}
             />

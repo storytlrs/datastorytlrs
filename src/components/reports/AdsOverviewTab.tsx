@@ -10,7 +10,7 @@ import { DateRangeFilter } from "@/components/ui/date-range-filter";
 import { format } from "date-fns";
 import { 
   Eye, 
-  DollarSign,
+  Wallet,
   MousePointer,
   BarChart3,
   CalendarIcon,
@@ -203,10 +203,10 @@ const AdsKPIDisplay = ({ kpis, title, formatCurrency }: { kpis: ReturnType<typeo
 
     {/* Awareness: Total Spend, Reach, Frequency, CPM, Impressions */}
     <KPISection title="Awareness" icon={Eye} columns={5}>
-      <KPICard title="Total Spend" value={formatCurrency(kpis.awareness.spend)} icon={DollarSign} accentColor="blue" />
+      <KPICard title="Total Spend" value={formatCurrency(kpis.awareness.spend)} icon={Wallet} accentColor="blue" />
       <KPICard title="Reach" value={formatNumber(kpis.awareness.reach)} icon={Users} accentColor="blue" />
       <KPICard title="Frequency" value={kpis.awareness.frequency.toFixed(2)} icon={TrendingUp} accentColor="blue" />
-      <KPICard title="CPM" value={formatCurrency(kpis.awareness.cpm)} icon={DollarSign} accentColor="blue" tooltip="CPM = (Spend / Impressions) × 1000" />
+      <KPICard title="CPM" value={formatCurrency(kpis.awareness.cpm)} icon={Wallet} accentColor="blue" tooltip="CPM = (Spend / Impressions) × 1000" />
       <KPICard title="Impressions" value={formatNumber(kpis.awareness.impressions)} icon={Eye} accentColor="blue" />
     </KPISection>
 
@@ -238,12 +238,12 @@ const AdsKPIDisplay = ({ kpis, title, formatCurrency }: { kpis: ReturnType<typeo
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <KPICard title="ThruPlays" value={formatNumber(kpis.video.thruplays)} icon={Play} accentColor="orange" />
         <KPICard title="ThruPlay Rate" value={formatPercent(kpis.video.thruplayRate)} icon={Play} accentColor="orange" tooltip="ThruPlay Rate = (ThruPlays / Impressions) × 100" />
-        <KPICard title="Cost per ThruPlay" value={formatCurrency(kpis.video.costPerThruplay)} icon={DollarSign} accentColor="orange" tooltip="Cost per ThruPlay = Spend / ThruPlays" />
+        <KPICard title="Cost per ThruPlay" value={formatCurrency(kpis.video.costPerThruplay)} icon={Wallet} accentColor="orange" tooltip="Cost per ThruPlay = Spend / ThruPlays" />
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <KPICard title="3s Views" value={formatNumber(kpis.video.video3sPlays)} icon={Play} accentColor="orange" />
         <KPICard title="3s View Rate" value={formatPercent(kpis.video.viewRate3s)} icon={Play} accentColor="orange" tooltip="3s View Rate = (3s Views / Impressions) × 100" />
-        <KPICard title="Cost per 3s View" value={formatCurrency(kpis.video.costPer3sView)} icon={DollarSign} accentColor="orange" tooltip="Cost per 3s View = Spend / 3s Views" />
+        <KPICard title="Cost per 3s View" value={formatCurrency(kpis.video.costPer3sView)} icon={Wallet} accentColor="orange" tooltip="Cost per 3s View = Spend / 3s Views" />
       </div>
       <div className="grid grid-cols-1 max-w-xs gap-4">
         <KPICard title="Avg Watch Time" value={`${kpis.video.avgWatchTime.toFixed(1)}s`} icon={Clock} accentColor="orange" />
@@ -254,7 +254,7 @@ const AdsKPIDisplay = ({ kpis, title, formatCurrency }: { kpis: ReturnType<typeo
     <KPISection title="Traffic" icon={MousePointer} columns={3}>
       <KPICard title="Link Clicks" value={formatNumber(kpis.traffic.linkClicks)} icon={MousePointer} accentColor="blue" />
       <KPICard title="CTR" value={formatPercent(kpis.traffic.ctr)} icon={Target} accentColor="blue" tooltip="CTR = (Link Clicks / Impressions) × 100" />
-      <KPICard title="CPC" value={formatCurrency(kpis.traffic.cpc)} icon={DollarSign} accentColor="blue" tooltip="CPC = Spend / Link Clicks" />
+      <KPICard title="CPC" value={formatCurrency(kpis.traffic.cpc)} icon={Wallet} accentColor="blue" tooltip="CPC = Spend / Link Clicks" />
     </KPISection>
   </div>
 );

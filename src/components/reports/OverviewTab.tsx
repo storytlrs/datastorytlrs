@@ -20,7 +20,7 @@ import {
   Link,
   Target,
   FileText,
-  DollarSign,
+  Wallet,
   MousePointer,
   BarChart3,
   CalendarIcon,
@@ -510,9 +510,9 @@ export const OverviewTab = ({ reportId }: OverviewTabProps) => {
       <KPISection title="Effectiveness" icon={BarChart3}>
         <KPICard title="Creators" value={effectivenessKPIs.creatorsCount.toString()} icon={Users} accentColor="orange" benchmark={benchmarks ? Math.round(benchmarks.creatorsCount).toString() : undefined} />
         <KPICard title="Content Pieces" value={effectivenessKPIs.contentPieces.toString()} icon={FileText} accentColor="orange" benchmark={benchmarks ? Math.round(benchmarks.contentPieces).toString() : undefined} />
-        <KPICard title="Budget Spent" value={formatCurrency(effectivenessKPIs.budgetSpent)} icon={DollarSign} accentColor="orange" benchmark={benchmarks ? formatCurrency(benchmarks.budgetSpent) : undefined} />
+        <KPICard title="Budget Spent" value={formatCurrency(effectivenessKPIs.budgetSpent)} icon={Wallet} accentColor="orange" benchmark={benchmarks ? formatCurrency(benchmarks.budgetSpent) : undefined} />
         <KPICard title="TSWB Cost per Minute" value={formatCurrency(effectivenessKPIs.tswbCostPerMinute)} icon={Clock} accentColor="orange" tooltip="TSWB Cost per Minute = Budget Spent / (TSWB v minutách). Kolik stojí jedna minuta pozornosti značce." benchmark={benchmarks ? formatCurrency(benchmarks.tswbCostPerMinute) : undefined} />
-        <KPICard title="CPM" value={formatCurrency(effectivenessKPIs.cpm)} icon={DollarSign} accentColor="orange" tooltip="CPM (Cost per Mille) = (Budget Spent / Views) × 1000. Náklad na 1000 zobrazení." benchmark={benchmarks ? formatCurrency(benchmarks.cpm) : undefined} />
+        <KPICard title="CPM" value={formatCurrency(effectivenessKPIs.cpm)} icon={Wallet} accentColor="orange" tooltip="CPM (Cost per Mille) = (Budget Spent / Views) × 1000. Náklad na 1000 zobrazení." benchmark={benchmarks ? formatCurrency(benchmarks.cpm) : undefined} />
         <KPICard title="CPC" value={formatCurrency(effectivenessKPIs.cpc)} icon={MousePointer} accentColor="orange" tooltip="CPC (Cost per Click) = Budget Spent / Link Clicks. Náklad na jeden proklik." benchmark={benchmarks ? formatCurrency(benchmarks.cpc) : undefined} />
       </KPISection>
       {/* Trend Chart - temporarily hidden */}

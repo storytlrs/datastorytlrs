@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Users, FileText, DollarSign, Eye, Clock, TrendingUp, Loader2, Heart, MessageSquare } from "lucide-react";
+import { Users, FileText, Wallet, Eye, Clock, TrendingUp, Loader2, Heart, MessageSquare } from "lucide-react";
 import MultiSelectFilter from "./MultiSelectFilter";
 import { MetricTile } from "@/components/reports/MetricTile";
 import { TopContentGrid, TopContentItem } from "./TopContentGrid";
@@ -524,7 +524,7 @@ const BrandInfluencersDashboard = ({ spaceId, filters }: BrandInfluencersDashboa
           <MetricTile
             title="Avg CPM"
             value={formatCurrency(kpis.cpm, kpis.currency)}
-            icon={DollarSign}
+            icon={Wallet}
             accentColor="blue"
           />
         </div>

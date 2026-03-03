@@ -9,7 +9,7 @@ import { formatCurrencySimple, formatCurrency } from "@/lib/currencyUtils";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import {
-  Target, Star, DollarSign, Users, Pencil, Save, X,
+  Target, Star, Wallet, Users, Pencil, Save, X,
   BarChart3, MessageCircle, Mail, Clock, Eye, TrendingUp,
   ThumbsUp, Lightbulb, CheckCircle, Zap, Play, MousePointer,
   UserCheck, Award, ClipboardList,
@@ -178,7 +178,7 @@ const PostCard = ({ post }: { post: PostData }) => (
         <p className="text-[10px] text-muted-foreground italic leading-tight">{post.reason}</p>
       )}
       <div className="grid grid-cols-2 gap-1 text-xs">
-        <div className="flex items-center gap-1 text-muted-foreground"><DollarSign className="w-3 h-3" /><span>{formatCurrencySimple(post.spend || 0, "CZK")}</span></div>
+        <div className="flex items-center gap-1 text-muted-foreground"><Wallet className="w-3 h-3" /><span>{formatCurrencySimple(post.spend || 0, "CZK")}</span></div>
         <div className="flex items-center gap-1 text-muted-foreground"><Eye className="w-3 h-3" /><span>{formatNumber(post.impressions)}</span></div>
         <div className="flex items-center gap-1 text-muted-foreground"><MousePointer className="w-3 h-3" /><span>{formatNumber(post.clicks)}</span></div>
         <div className="flex items-center gap-1 text-muted-foreground"><TrendingUp className="w-3 h-3" /><span>{post.ctr?.toFixed(2) || 0}%</span></div>
@@ -438,7 +438,7 @@ export const CampaignAdsInsightsContent = forwardRef<HTMLDivElement, CampaignAds
             </h2>
             <MetricCommentary text={insights.metric_commentary?.meta_key} />
             <div className="grid grid-cols-3 gap-4">
-              <MetricTile title="Spend" value={formatCurrency(insights.meta_key_metrics.spend, cur)} icon={DollarSign} accentColor="orange" planComparison={getSpendPlan(metaSpendRatio)} />
+              <MetricTile title="Spend" value={formatCurrency(insights.meta_key_metrics.spend, cur)} icon={Wallet} accentColor="orange" planComparison={getSpendPlan(metaSpendRatio)} />
               <MetricTile title="Reach" value={formatNumber(insights.meta_key_metrics.reach)} icon={Users} accentColor="blue" planComparison={getReachPlan(metaReachRatio)} />
               <MetricTile title="Frequency" value={insights.meta_key_metrics.frequency.toFixed(2)} icon={BarChart3} accentColor="blue" planComparison={getFrequencyPlan()} />
             </div>
@@ -456,7 +456,7 @@ export const CampaignAdsInsightsContent = forwardRef<HTMLDivElement, CampaignAds
             <MetricCommentary text={insights.metric_commentary?.meta_detail} />
             <div className="grid grid-cols-3 md:grid-cols-5 gap-4">
               <MetricTile title="Impressions" value={formatNumber(insights.meta_key_metrics.reach * insights.meta_key_metrics.frequency)} icon={Eye} accentColor="blue" planComparison={getImpressionsPlan(metaReachRatio)} />
-              <MetricTile title="CPM" value={formatCurrencySimple(insights.meta_key_metrics.spend / (insights.meta_key_metrics.reach * insights.meta_key_metrics.frequency) * 1000 || 0, cur)} icon={DollarSign} accentColor="orange" planComparison={getCpmPlan()} />
+              <MetricTile title="CPM" value={formatCurrencySimple(insights.meta_key_metrics.spend / (insights.meta_key_metrics.reach * insights.meta_key_metrics.frequency) * 1000 || 0, cur)} icon={Wallet} accentColor="orange" planComparison={getCpmPlan()} />
               <MetricTile title="ThruPlay Rate" value={formatPercent(insights.meta_detail_metrics.thruplay_rate)} icon={Play} accentColor="blue" />
               <MetricTile title="VV 3s Rate" value={formatPercent(insights.meta_detail_metrics.view_rate_3s)} icon={Eye} accentColor="blue" />
               <MetricTile title="Avg. Watch Time" value={`${insights.meta_detail_metrics.avg_watch_time.toFixed(1)}s`} icon={Clock} accentColor="blue" />
@@ -473,7 +473,7 @@ export const CampaignAdsInsightsContent = forwardRef<HTMLDivElement, CampaignAds
             </h2>
             <MetricCommentary text={insights.metric_commentary?.tiktok_key} />
             <div className="grid grid-cols-3 gap-4">
-              <MetricTile title="Spend" value={formatCurrency(insights.tiktok_key_metrics.spend, cur)} icon={DollarSign} accentColor="orange" planComparison={getSpendPlan(tiktokSpendRatio)} />
+              <MetricTile title="Spend" value={formatCurrency(insights.tiktok_key_metrics.spend, cur)} icon={Wallet} accentColor="orange" planComparison={getSpendPlan(tiktokSpendRatio)} />
               <MetricTile title="Reach" value={formatNumber(insights.tiktok_key_metrics.reach)} icon={Users} accentColor="blue" planComparison={getReachPlan(tiktokReachRatio)} />
               <MetricTile title="Frequency" value={insights.tiktok_key_metrics.frequency.toFixed(2)} icon={BarChart3} accentColor="blue" planComparison={getFrequencyPlan()} />
             </div>
@@ -490,7 +490,7 @@ export const CampaignAdsInsightsContent = forwardRef<HTMLDivElement, CampaignAds
             <MetricCommentary text={insights.metric_commentary?.tiktok_detail} />
             <div className="grid grid-cols-3 md:grid-cols-5 gap-4">
               <MetricTile title="Impressions" value={formatNumber(insights.tiktok_key_metrics.reach * insights.tiktok_key_metrics.frequency)} icon={Eye} accentColor="blue" planComparison={getImpressionsPlan(tiktokReachRatio)} />
-              <MetricTile title="CPM" value={formatCurrencySimple(insights.tiktok_key_metrics.spend / (insights.tiktok_key_metrics.reach * insights.tiktok_key_metrics.frequency) * 1000 || 0, cur)} icon={DollarSign} accentColor="orange" planComparison={getCpmPlan()} />
+              <MetricTile title="CPM" value={formatCurrencySimple(insights.tiktok_key_metrics.spend / (insights.tiktok_key_metrics.reach * insights.tiktok_key_metrics.frequency) * 1000 || 0, cur)} icon={Wallet} accentColor="orange" planComparison={getCpmPlan()} />
               <MetricTile title="ThruPlay Rate" value={formatPercent(insights.tiktok_detail_metrics.thruplay_rate)} icon={Play} accentColor="blue" />
               <MetricTile title="VV 3s Rate" value={formatPercent(insights.tiktok_detail_metrics.view_rate_3s)} icon={Eye} accentColor="blue" />
               <MetricTile title="Avg. Watch Time" value={`${insights.tiktok_detail_metrics.avg_watch_time.toFixed(1)}s`} icon={Clock} accentColor="blue" />

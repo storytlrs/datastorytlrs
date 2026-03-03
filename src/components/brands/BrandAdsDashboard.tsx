@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { DollarSign, Eye, MousePointer, TrendingUp, Target, Loader2 } from "lucide-react";
+import { Wallet, Eye, MousePointer, TrendingUp, Target, Loader2 } from "lucide-react";
 import { KPICard } from "@/components/reports/KPICard";
 import { TopContentGrid, TopContentItem } from "./TopContentGrid";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
@@ -520,7 +520,7 @@ const BrandAdsDashboard = ({ spaceId, filters }: BrandAdsDashboardProps) => {
       {!hasData ? (
         <Card className="p-12 rounded-[35px] border-foreground border-dashed">
           <div className="flex flex-col items-center justify-center text-center space-y-4">
-            <DollarSign className="w-12 h-12 text-muted-foreground" />
+            <Wallet className="w-12 h-12 text-muted-foreground" />
             <h3 className="text-lg font-semibold">No Ads Data Yet</h3>
             <p className="text-muted-foreground max-w-md">
               Ads data will appear here once you have Ads campaign reports with data,
@@ -601,12 +601,12 @@ const BrandAdsDashboard = ({ spaceId, filters }: BrandAdsDashboardProps) => {
           <div className="space-y-4">
             <h3 className="text-lg font-semibold">Key Metrics</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <KPICard title="Total Spend" value={formatCurrency(kpis.totalSpend, currency)} icon={DollarSign} accentColor="orange" tooltip="Total advertising spend" />
+              <KPICard title="Total Spend" value={formatCurrency(kpis.totalSpend, currency)} icon={Wallet} accentColor="orange" tooltip="Total advertising spend" />
               <KPICard title="Impressions" value={kpis.impressions.toLocaleString()} icon={Eye} tooltip="Total ad impressions" />
               <KPICard title="Clicks" value={kpis.clicks.toLocaleString()} icon={MousePointer} tooltip="Total ad clicks" />
               <KPICard title="CTR" value={`${kpis.ctr.toFixed(2)}%`} icon={TrendingUp} accentColor="green" tooltip="Click-through rate" />
               <KPICard title="Frequency" value={kpis.frequency.toFixed(2)} icon={Target} tooltip="Average frequency" />
-              <KPICard title="CPM" value={formatCurrency(kpis.cpm, currency)} icon={DollarSign} tooltip="Cost per 1000 impressions" />
+              <KPICard title="CPM" value={formatCurrency(kpis.cpm, currency)} icon={Wallet} tooltip="Cost per 1000 impressions" />
               <KPICard title="CPC" value={formatCurrency(kpis.cpc, currency)} icon={MousePointer} tooltip="Cost per click" />
             </div>
           </div>

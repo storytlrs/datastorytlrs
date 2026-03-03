@@ -10,7 +10,7 @@ import {
   Target,
   Rocket,
   Star,
-  DollarSign,
+  Wallet,
   Users,
   Pencil,
   Save,
@@ -286,7 +286,7 @@ const PostCard = ({ post }: { post: { name: string; spend: number; impressions: 
         <p className="text-[10px] text-muted-foreground italic leading-tight">{post.reason}</p>
       )}
       <div className="grid grid-cols-2 gap-1 text-xs">
-        <div className="flex items-center gap-1 text-muted-foreground"><DollarSign className="w-3 h-3" /><span>{formatCurrencySimple(post.spend || 0, "CZK")}</span></div>
+        <div className="flex items-center gap-1 text-muted-foreground"><Wallet className="w-3 h-3" /><span>{formatCurrencySimple(post.spend || 0, "CZK")}</span></div>
         <div className="flex items-center gap-1 text-muted-foreground"><Eye className="w-3 h-3" /><span>{formatNumber(post.impressions)}</span></div>
         <div className="flex items-center gap-1 text-muted-foreground"><MousePointer className="w-3 h-3" /><span>{formatNumber(post.clicks)}</span></div>
         <div className="flex items-center gap-1 text-muted-foreground"><TrendingUp className="w-3 h-3" /><span>{post.ctr?.toFixed(2) || 0}%</span></div>
@@ -352,7 +352,7 @@ const PlatformSection = ({
           <h2 className="text-xl font-bold">Klíčové metriky – {platformName}</h2>
         </div>
         <div className="grid grid-cols-3 gap-4">
-          <MetricTile title="Spend" value={formatCurrency(metrics.spend, cur)} icon={DollarSign} accentColor="orange" />
+          <MetricTile title="Spend" value={formatCurrency(metrics.spend, cur)} icon={Wallet} accentColor="orange" />
           <MetricTile title="Reach" value={formatNumber(metrics.reach)} icon={Users} accentColor="blue" />
           <MetricTile title="Frequency" value={metrics.frequency.toFixed(2)} icon={BarChart3} accentColor="blue" />
         </div>
@@ -365,9 +365,9 @@ const PlatformSection = ({
           <h2 className="text-xl font-bold">Detailní metriky – {platformName}</h2>
         </div>
         <div className="grid grid-cols-3 gap-4">
-          <MetricTile title="CPM" value={formatCurrency(detailMetrics.cpm, cur)} icon={DollarSign} accentColor="orange" />
-          <MetricTile title="CPE" value={formatCurrency(detailMetrics.cpe, cur)} icon={DollarSign} accentColor="orange" />
-          <MetricTile title="CPV" value={formatCurrency(detailMetrics.cpv, cur)} icon={DollarSign} accentColor="orange" />
+          <MetricTile title="CPM" value={formatCurrency(detailMetrics.cpm, cur)} icon={Wallet} accentColor="orange" />
+          <MetricTile title="CPE" value={formatCurrency(detailMetrics.cpe, cur)} icon={Wallet} accentColor="orange" />
+          <MetricTile title="CPV" value={formatCurrency(detailMetrics.cpv, cur)} icon={Wallet} accentColor="orange" />
         </div>
       </Card>
 
@@ -609,7 +609,7 @@ export const QuarterlyAdsInsightsContent = forwardRef<HTMLDivElement, QuarterlyA
             </span>
           </h2>
           <div className="grid grid-cols-3 gap-4">
-            <MetricTile title="Spend" value={formatCurrency(insights.key_metrics.spend, cur)} icon={DollarSign} accentColor="orange" />
+            <MetricTile title="Spend" value={formatCurrency(insights.key_metrics.spend, cur)} icon={Wallet} accentColor="orange" />
             <MetricTile title="Reach" value={formatNumber(insights.key_metrics.reach)} icon={Users} accentColor="blue" />
             <MetricTile title="Frequency" value={insights.key_metrics.frequency.toFixed(2)} icon={BarChart3} accentColor="blue" />
           </div>
@@ -626,9 +626,9 @@ export const QuarterlyAdsInsightsContent = forwardRef<HTMLDivElement, QuarterlyA
             </span>
           </h2>
           <div className="grid grid-cols-3 gap-4">
-            <MetricTile title="CPM" value={formatCurrency(insights.detail_metrics.cpm, cur)} icon={DollarSign} accentColor="orange" />
-            <MetricTile title="CPE" value={formatCurrency(insights.detail_metrics.cpe, cur)} icon={DollarSign} accentColor="orange" />
-            <MetricTile title="CPV" value={formatCurrency(insights.detail_metrics.cpv, cur)} icon={DollarSign} accentColor="orange" />
+            <MetricTile title="CPM" value={formatCurrency(insights.detail_metrics.cpm, cur)} icon={Wallet} accentColor="orange" />
+            <MetricTile title="CPE" value={formatCurrency(insights.detail_metrics.cpe, cur)} icon={Wallet} accentColor="orange" />
+            <MetricTile title="CPV" value={formatCurrency(insights.detail_metrics.cpv, cur)} icon={Wallet} accentColor="orange" />
           </div>
         </Card>
 
