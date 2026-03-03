@@ -481,22 +481,16 @@ const PlatformSection = ({
             <h2 className="text-xl font-bold">TOP příspěvky – {platformName}</h2>
           </div>
           {(topPostsAnalysis || canEdit) && (
-            <div className="mb-5 p-4 bg-background/60 rounded-[15px] border border-border/50">
-              <div className="flex items-start gap-2">
-                <Star className="w-4 h-4 mt-0.5 text-amber-500 shrink-0" />
-                <div className="flex-1">
-                  <p className="text-xs font-semibold text-muted-foreground mb-1 uppercase tracking-wide">AI analýza</p>
-                  <EditableSection
-                    value={topPostsAnalysis || ""}
-                    isEditing={editingSections.has(`${sectionPrefix}_top_posts_analysis`)}
-                    onStartEdit={() => startEditing(`${sectionPrefix}_top_posts_analysis`)}
-                    onSave={(v) => onSaveSection(`${sectionPrefix}_top_posts_analysis`, v)}
-                    onCancel={() => stopEditing(`${sectionPrefix}_top_posts_analysis`)}
-                    canEdit={canEdit}
-                    placeholder={`AI analýza: Co nám tento kvartál fungovalo na ${platformName}...`}
-                  />
-                </div>
-              </div>
+            <div className="mb-5">
+              <EditableSection
+                value={topPostsAnalysis || ""}
+                isEditing={editingSections.has(`${sectionPrefix}_top_posts_analysis`)}
+                onStartEdit={() => startEditing(`${sectionPrefix}_top_posts_analysis`)}
+                onSave={(v) => onSaveSection(`${sectionPrefix}_top_posts_analysis`, v)}
+                onCancel={() => stopEditing(`${sectionPrefix}_top_posts_analysis`)}
+                canEdit={canEdit}
+                placeholder={`AI analýza: Co nám tento kvartál fungovalo na ${platformName}...`}
+              />
             </div>
           )}
           {topPosts.length > 0 && <div>{postGrid(topPosts)}</div>}
@@ -511,22 +505,16 @@ const PlatformSection = ({
             <h2 className="text-xl font-bold">Příspěvky, na kterých pracovat – {platformName}</h2>
           </div>
           {(improvePostsAnalysis || canEdit) && (
-            <div className="mb-5 p-4 bg-background/60 rounded-[15px] border border-border/50">
-              <div className="flex items-start gap-2">
-                <AlertTriangle className="w-4 h-4 mt-0.5 text-orange-500 shrink-0" />
-                <div className="flex-1">
-                  <p className="text-xs font-semibold text-muted-foreground mb-1 uppercase tracking-wide">AI analýza</p>
-                  <EditableSection
-                    value={improvePostsAnalysis || ""}
-                    isEditing={editingSections.has(`${sectionPrefix}_improve_posts_analysis`)}
-                    onStartEdit={() => startEditing(`${sectionPrefix}_improve_posts_analysis`)}
-                    onSave={(v) => onSaveSection(`${sectionPrefix}_improve_posts_analysis`, v)}
-                    onCancel={() => stopEditing(`${sectionPrefix}_improve_posts_analysis`)}
-                    canEdit={canEdit}
-                    placeholder={`AI analýza: Co nám tento kvartál nefungovalo na ${platformName}...`}
-                  />
-                </div>
-              </div>
+            <div className="mb-5">
+              <EditableSection
+                value={improvePostsAnalysis || ""}
+                isEditing={editingSections.has(`${sectionPrefix}_improve_posts_analysis`)}
+                onStartEdit={() => startEditing(`${sectionPrefix}_improve_posts_analysis`)}
+                onSave={(v) => onSaveSection(`${sectionPrefix}_improve_posts_analysis`, v)}
+                onCancel={() => stopEditing(`${sectionPrefix}_improve_posts_analysis`)}
+                canEdit={canEdit}
+                placeholder={`AI analýza: Co nám tento kvartál nefungovalo na ${platformName}...`}
+              />
             </div>
           )}
           {improvePosts.length > 0 && <div>{postGrid(improvePosts)}</div>}
