@@ -39,6 +39,7 @@ export const UserList = () => {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [editUser, setEditUser] = useState<UserWithRole | null>(null);
   const [deleteUserDialog, setDeleteUserDialog] = useState<UserWithRole | null>(null);
+  const [resetPasswordUser, setResetPasswordUser] = useState<UserWithRole | null>(null);
   const [removeBrandDialog, setRemoveBrandDialog] = useState<{
     userId: string;
     brandId: string;
