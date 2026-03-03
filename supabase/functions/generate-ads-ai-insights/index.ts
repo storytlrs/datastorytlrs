@@ -1312,6 +1312,43 @@ async function handleQuarterlyReport(ctx: any) {
   const igPostSource = igAds.length > 0 ? igAds : igAdSets.length > 0 ? igAdSets : igCampaignRows;
   const tkPostSource = normalizedTiktokAds.length > 0 ? normalizedTiktokAds : (tiktokAdGroups || []).length > 0 ? tiktokAdGroups : tiktokCampaignsOnly;
 
+  // Pre-select post sets so we can both save thumbnails and generate platform analyses reliably
+  const fbTop = selectTopPosts(fbPostSource);
+  const fbImprove = selectImprovePosts(fbPostSource);
+  const igTop = selectTopPosts(igPostSource);
+  const igImprove = selectImprovePosts(igPostSource);
+  const tkTop = selectTopPosts(tkPostSource);
+  const tkImprove = selectImprovePosts(tkPostSource);
+
+  const hasNonEmptyText = (value: unknown): value is string =>
+    typeof value === "string" && value.trim().length > 0;
+
+  const formatAnalysisPostLine = (post: any, index: number) => {
+    const metricPart = post.highlight_metric && typeof post.highlight_value === "number"
+      ? ` | ${post.highlight_metric}: ${post.highlight_value.toFixed(2)} CZK`
+      : "";
+    const reasonPart = post.reason ? ` | Důvod: ${post.reason}` : "";
+    return `${index + 1}. ${post.name} | Spend ${Number(post.spend || 0).toFixed(2)} CZK | Impr ${(post.impressions || 0).toLocaleString()} | Clicks ${(post.clicks || 0).toLocaleString()} | CTR ${Number(post.ctr || 0).toFixed(2)}%${metricPart}${reasonPart}`;
+  };
+
+  const buildFallbackPostAnalysis = (platform: string, posts: any[], type: "top" | "improve") => {
+    if (!posts || posts.length === 0) {
+      return `Pro ${platform} nemáme v tomto období dostatek dat pro vyhodnocení příspěvků.`;
+    }
+
+    const withMetrics = posts.filter((p: any) => typeof p.highlight_value === "number" && !!p.highlight_metric);
+    const avgMetric = withMetrics.length > 0
+      ? withMetrics.reduce((sum: number, p: any) => sum + (p.highlight_value || 0), 0) / withMetrics.length
+      : null;
+    const reasons = posts.map((p: any) => p.reason).filter(Boolean);
+
+    if (type === "top") {
+      return `${platform} nejlépe fungovalo u kreativ, které měly silný výkon napříč dosahem, engagementem a video views. ${avgMetric != null ? `Průměrná zvýrazněná nákladová metrika (${withMetrics[0]?.highlight_metric || "náklad"}) vychází na ${avgMetric.toFixed(2)} CZK, což potvrzuje efektivní distribuci rozpočtu.` : "Výkon potvrzuje efektivní distribuci rozpočtu mezi nejlepší příspěvky."}${reasons.length > 0 ? ` Nejčastěji se opakovalo: ${reasons.slice(0, 2).join("; ")}.` : ""}`;
+    }
+
+    return `Na ${platform} měly slabší výsledky příspěvky s nižším dosahem, engagementem nebo video views vzhledem k investici. ${avgMetric != null ? `Průměrná zvýrazněná nákladová metrika (${withMetrics[0]?.highlight_metric || "náklad"}) je ${avgMetric.toFixed(2)} CZK, takže prostor ke zlepšení je hlavně v efektivitě spendu.` : "Prostor ke zlepšení je hlavně v efektivitě spendu a kreativy."}${reasons.length > 0 ? ` Typicky se opakovalo: ${reasons.slice(0, 2).join("; ")}.` : ""}`;
+  };
+
   const dataContext = `
 CELKOVÁ DATA KVARTÁLU:
 - Celkový spend: ${totalSpend.toFixed(2)} CZK
@@ -1408,8 +1445,20 @@ KONTEXT OD UŽIVATELE:
   }
 }`;
 
+  const enforcedPostAnalysisSchema = `
+
+DŮLEŽITÉ POVINNÉ POLE NAVÍC:
+V odpovědi MUSÍŠ vždy vyplnit i tato pole jako neprázdné texty (2-3 věty každé):
+- facebook_top_posts_analysis
+- facebook_improve_posts_analysis
+- instagram_top_posts_analysis
+- instagram_improve_posts_analysis
+- tiktok_top_posts_analysis
+- tiktok_improve_posts_analysis
+Pokud pro platformu není dost dat, napiš to explicitně, ale pole nikdy nenechávej prázdné.`;
+
   const systemPrompt = (promptMap["quarterly_ads_system"] || defaultSystemPrompt) + "\n" + dataContext + (ctx.mediaPlanContext || "");
-  const userPrompt = promptMap["quarterly_ads_user"] || defaultUserPrompt;
+  const userPrompt = (promptMap["quarterly_ads_user"] || defaultUserPrompt) + enforcedPostAnalysisSchema;
 
   console.log("Calling AI for quarterly Ads insights...");
 
@@ -1441,14 +1490,98 @@ KONTEXT OD UŽIVATELE:
   const aiData = await aiResponse.json();
   const aiContent = safeJsonParse(aiData.choices[0].message.content);
 
+  const postAnalysisFields = [
+    "facebook_top_posts_analysis",
+    "facebook_improve_posts_analysis",
+    "instagram_top_posts_analysis",
+    "instagram_improve_posts_analysis",
+    "tiktok_top_posts_analysis",
+    "tiktok_improve_posts_analysis",
+  ] as const;
+
+  const hasMissingPostAnalysis = postAnalysisFields.some((field) => !hasNonEmptyText(aiContent[field]));
+
+  if (hasMissingPostAnalysis) {
+    console.warn("Quarterly AI response missing post analysis fields, running targeted AI completion for post analyses.");
+
+    const postAnalysisContext = `
+TOP FACEBOOK:
+${fbTop.length > 0 ? fbTop.map((p: any, i: number) => formatAnalysisPostLine(p, i)).join("\n") : "Žádná data"}
+
+KE ZLEPŠENÍ FACEBOOK:
+${fbImprove.length > 0 ? fbImprove.map((p: any, i: number) => formatAnalysisPostLine(p, i)).join("\n") : "Žádná data"}
+
+TOP INSTAGRAM:
+${igTop.length > 0 ? igTop.map((p: any, i: number) => formatAnalysisPostLine(p, i)).join("\n") : "Žádná data"}
+
+KE ZLEPŠENÍ INSTAGRAM:
+${igImprove.length > 0 ? igImprove.map((p: any, i: number) => formatAnalysisPostLine(p, i)).join("\n") : "Žádná data"}
+
+TOP TIKTOK:
+${tkTop.length > 0 ? tkTop.map((p: any, i: number) => formatAnalysisPostLine(p, i)).join("\n") : "Žádná data"}
+
+KE ZLEPŠENÍ TIKTOK:
+${tkImprove.length > 0 ? tkImprove.map((p: any, i: number) => formatAnalysisPostLine(p, i)).join("\n") : "Žádná data"}`;
+
+    try {
+      const postAnalysisResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${lovableApiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "google/gemini-3-flash-preview",
+          messages: [
+            {
+              role: "system",
+              content: "Jsi senior marketing analytik. Vrať pouze validní JSON. Každé pole musí být 2-3 věty v češtině, konkrétně vysvětlující proč příspěvky fungovaly/nefungovaly na základě metrik.",
+            },
+            {
+              role: "user",
+              content: `${postAnalysisContext}\n\nVrať přesně tento JSON:\n{\n  \"facebook_top_posts_analysis\": \"...\",\n  \"facebook_improve_posts_analysis\": \"...\",\n  \"instagram_top_posts_analysis\": \"...\",\n  \"instagram_improve_posts_analysis\": \"...\",\n  \"tiktok_top_posts_analysis\": \"...\",\n  \"tiktok_improve_posts_analysis\": \"...\"\n}`,
+            },
+          ],
+          response_format: { type: "json_object" },
+        }),
+      });
+
+      if (postAnalysisResponse.ok) {
+        const postAnalysisData = await postAnalysisResponse.json();
+        const postAnalysisContent = safeJsonParse(postAnalysisData.choices[0].message.content);
+
+        postAnalysisFields.forEach((field) => {
+          if (hasNonEmptyText(postAnalysisContent[field])) {
+            aiContent[field] = postAnalysisContent[field];
+          }
+        });
+      } else {
+        const errText = await postAnalysisResponse.text();
+        console.warn("Targeted post analysis AI call failed:", postAnalysisResponse.status, errText);
+      }
+    } catch (postAnalysisError) {
+      console.warn("Targeted post analysis generation failed:", postAnalysisError);
+    }
+  }
+
+  aiContent.facebook_top_posts_analysis = hasNonEmptyText(aiContent.facebook_top_posts_analysis)
+    ? aiContent.facebook_top_posts_analysis
+    : buildFallbackPostAnalysis("Facebook", fbTop, "top");
+  aiContent.facebook_improve_posts_analysis = hasNonEmptyText(aiContent.facebook_improve_posts_analysis)
+    ? aiContent.facebook_improve_posts_analysis
+    : buildFallbackPostAnalysis("Facebook", fbImprove, "improve");
+  aiContent.instagram_top_posts_analysis = hasNonEmptyText(aiContent.instagram_top_posts_analysis)
+    ? aiContent.instagram_top_posts_analysis
+    : buildFallbackPostAnalysis("Instagram", igTop, "top");
+  aiContent.instagram_improve_posts_analysis = hasNonEmptyText(aiContent.instagram_improve_posts_analysis)
+    ? aiContent.instagram_improve_posts_analysis
+    : buildFallbackPostAnalysis("Instagram", igImprove, "improve");
+  aiContent.tiktok_top_posts_analysis = hasNonEmptyText(aiContent.tiktok_top_posts_analysis)
+    ? aiContent.tiktok_top_posts_analysis
+    : buildFallbackPostAnalysis("TikTok", tkTop, "top");
+  aiContent.tiktok_improve_posts_analysis = hasNonEmptyText(aiContent.tiktok_improve_posts_analysis)
+    ? aiContent.tiktok_improve_posts_analysis
+    : buildFallbackPostAnalysis("TikTok", tkImprove, "improve");
+
   // Persist thumbnails to permanent storage
 
-  const fbTop = selectTopPosts(fbPostSource);
-  const fbImprove = selectImprovePosts(fbPostSource);
-  const igTop = selectTopPosts(igPostSource);
-  const igImprove = selectImprovePosts(igPostSource);
-  const tkTop = selectTopPosts(tkPostSource);
-  const tkImprove = selectImprovePosts(tkPostSource);
 
   await persistThumbnails(supabase, report_id, [
     { key: "facebook_top_posts", posts: fbTop },
