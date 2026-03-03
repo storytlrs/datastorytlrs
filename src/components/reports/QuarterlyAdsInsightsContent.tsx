@@ -35,6 +35,7 @@ import {
 
 export interface QuarterlyStructuredInsights {
   executive_summary: {
+    intro?: string;
     media_insight: string;
     top_result: string;
     recommendation: string;
@@ -417,7 +418,7 @@ const PlatformSection = ({
 export const QuarterlyAdsInsightsContent = forwardRef<HTMLDivElement, QuarterlyAdsInsightsContentProps>(
   ({ insights: raw, canEdit = false, onSaveInsights, hasMetaPlatform, hasTiktokPlatform }, ref) => {
     const insights: QuarterlyStructuredInsights = {
-      executive_summary: raw.executive_summary || { media_insight: "", top_result: "", recommendation: "" },
+      executive_summary: raw.executive_summary || { intro: "", media_insight: "", top_result: "", recommendation: "" },
       goal_fulfillment: raw.goal_fulfillment || { goals_set: "", results: "" },
       key_metrics: { spend: 0, reach: 0, frequency: 0, currency: "CZK", ...raw.key_metrics },
       detail_metrics: { cpm: 0, cpe: 0, cpv: 0, currency: "CZK", ...raw.detail_metrics },
@@ -448,6 +449,7 @@ export const QuarterlyAdsInsightsContent = forwardRef<HTMLDivElement, QuarterlyA
     const [editingSections, setEditingSections] = useState<Set<string>>(new Set());
 
     // Text states
+    const [introSummary, setIntroSummary] = useState(insights.executive_summary.intro || "");
     const [mediaInsight, setMediaInsight] = useState(insights.executive_summary.media_insight);
     const [topResult, setTopResult] = useState(insights.executive_summary.top_result);
     const [recommendation, setRecommendation] = useState(insights.executive_summary.recommendation);
@@ -474,7 +476,7 @@ export const QuarterlyAdsInsightsContent = forwardRef<HTMLDivElement, QuarterlyA
 
     const handleSaveSection = async (section: string, value: string) => {
       const setters: Record<string, (v: string) => void> = {
-        media_insight: setMediaInsight, top_result: setTopResult, recommendation: setRecommendation,
+        intro: setIntroSummary, media_insight: setMediaInsight, top_result: setTopResult, recommendation: setRecommendation,
         goals_set: setGoalsSet, results: setResults,
         metrics_over_time: setMetricsOverTime, brand_awareness: setBrandAwareness,
         facebook_metrics_over_time: setFbMetricsOverTime,
@@ -486,8 +488,9 @@ export const QuarterlyAdsInsightsContent = forwardRef<HTMLDivElement, QuarterlyA
 
       if (onSaveInsights) {
         const updates: Partial<QuarterlyStructuredInsights> = {};
-        if (["media_insight", "top_result", "recommendation"].includes(section)) {
+        if (["intro", "media_insight", "top_result", "recommendation"].includes(section)) {
           updates.executive_summary = {
+            intro: section === "intro" ? value : introSummary,
             media_insight: section === "media_insight" ? value : mediaInsight,
             top_result: section === "top_result" ? value : topResult,
             recommendation: section === "recommendation" ? value : recommendation,
@@ -559,6 +562,11 @@ export const QuarterlyAdsInsightsContent = forwardRef<HTMLDivElement, QuarterlyA
         {/* 1. Executive Summary */}
         <Card className="p-6 rounded-[20px] border-foreground" style={{ backgroundColor: "#E9E9E9" }}>
           <h2 className="text-xl font-bold mb-4">Executive Summary</h2>
+          {(introSummary || canEdit) && (
+            <div className="mb-4">
+              <EditableSection value={introSummary} isEditing={editingSections.has("intro")} onStartEdit={() => startEditing("intro")} onSave={(v) => handleSaveSection("intro", v)} onCancel={() => stopEditing("intro")} canEdit={canEdit} placeholder="Úvodní shrnutí kvartálu..." />
+            </div>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card className="p-4 rounded-[15px] border-border bg-muted/30">
               <div className="flex items-center gap-2 mb-2"><Eye className="w-5 h-5 text-accent-blue" /><span className="font-bold text-sm uppercase">Media poznatek</span></div>
