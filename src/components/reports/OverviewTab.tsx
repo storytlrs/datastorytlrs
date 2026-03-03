@@ -31,6 +31,65 @@ import { secondsToReadableTime } from "@/lib/watchTimeUtils";
 import { formatCurrency as formatCurrencyUtil, DEFAULT_CURRENCY } from "@/lib/currencyUtils";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
+interface TrendDataPoint {
+  date: string;
+  value: number;
+}
+
+interface KPI {
+  reach: number;
+  impressionsViews: number;
+  watchTimeSeconds: number;
+}
+
+interface EngagementKPI {
+  interactions: number;
+  likes: number;
+  comments: number;
+  shares: number;
+  saves: number;
+  reposts: number;
+  engagementRate: number;
+  viralityRate: number;
+  utilityScore: number;
+  linkClicks: number;
+  stickerClicks: number;
+  tswb: number;
+}
+
+interface EffectivenessKPI {
+  contentPieces: number;
+  creatorsCount: number;
+  budgetSpent: number;
+  tswbCostPerMinute: number;
+  cpm: number;
+  cpc: number;
+}
+
+interface Benchmarks {
+  reach: number;
+  views: number;
+  watchTimeSeconds: number;
+  interactions: number;
+  likes: number;
+  comments: number;
+  shares: number;
+  saves: number;
+  reposts: number;
+  linkClicks: number;
+  stickerClicks: number;
+  tswb: number;
+  engagementRate: number;
+  viralityRate: number;
+  utilityScore: number;
+  creatorsCount: number;
+  contentPieces: number;
+  budgetSpent: number;
+  tswbCostPerMinute: number;
+  cpm: number;
+  cpc: number;
+}
+
 interface OverviewTabProps {
   reportId: string;
 }
@@ -71,7 +130,6 @@ const formatNumber = (num: number): string => {
   return num.toLocaleString();
 };
 
-
 const formatPercent = (num: number, decimals: number = 2): string => {
   return `${num.toFixed(decimals)}%`;
 };
@@ -111,12 +169,10 @@ export const OverviewTab = ({ reportId }: OverviewTabProps) => {
   const [content, setContent] = useState<Content[]>([]);
   const [loading, setLoading] = useState(true);
   
-  // Space benchmark data
   const [spaceContent, setSpaceContent] = useState<Content[]>([]);
   const [spaceCreators, setSpaceCreators] = useState<Creator[]>([]);
   const [spaceReportCount, setSpaceReportCount] = useState(0);
 
-  // Filter state
   const [dateRange, setDateRange] = useState<{ start: Date | null; end: Date | null }>({
     start: null,
     end: null,
@@ -129,7 +185,6 @@ export const OverviewTab = ({ reportId }: OverviewTabProps) => {
     const fetchData = async () => {
       setLoading(true);
       
-      // 1. Get current report to find space_id and type
       const { data: reportData } = await supabase
         .from("reports")
         .select("space_id, type")
@@ -139,7 +194,6 @@ export const OverviewTab = ({ reportId }: OverviewTabProps) => {
       const currentSpaceId = reportData?.space_id;
       const currentReportType = reportData?.type;
       
-      // 2. Get all reports in the same space WITH SAME TYPE
       const { data: spaceReports } = await supabase
         .from("reports")
         .select("id")
@@ -149,7 +203,6 @@ export const OverviewTab = ({ reportId }: OverviewTabProps) => {
       const allReportIds = spaceReports?.map(r => r.id) || [];
       setSpaceReportCount(allReportIds.length);
       
-      // 3. Fetch current report data AND space-wide data in parallel
       const [creatorsRes, contentRes, spaceCreatorsRes, spaceContentRes] = await Promise.all([
         supabase.from("creators").select("id, handle, currency, posts_count, reels_count, stories_count, posts_cost, reels_cost, stories_cost").eq("report_id", reportId),
         supabase.from("content").select("id, creator_id, platform, reach, impressions, views, watch_time, likes, comments, shares, saves, link_clicks, sticker_clicks, published_date, reposts").eq("report_id", reportId),
@@ -166,20 +219,17 @@ export const OverviewTab = ({ reportId }: OverviewTabProps) => {
     fetchData();
   }, [reportId]);
 
-  // Get available platforms from data
   const availablePlatforms = useMemo(() => {
     const platforms = [...new Set(content.map((c) => c.platform))];
     return platforms.sort();
   }, [content]);
 
-  // Sorted creators for filter dropdown
   const sortedCreators = useMemo(() => {
     return [...creators].sort((a, b) => 
       a.handle.toLowerCase().localeCompare(b.handle.toLowerCase())
     );
   }, [creators]);
 
-  // Filter content by date range, creator, and platform
   const filteredContent = useMemo(() => {
     return content.filter((item) => {
       if (selectedCreator !== "all" && item.creator_id !== selectedCreator) return false;
@@ -190,12 +240,10 @@ export const OverviewTab = ({ reportId }: OverviewTabProps) => {
     });
   }, [content, selectedCreator, selectedPlatform, dateRange]);
 
-  // Filter creators if specific one selected
   const relevantCreators = useMemo(() => {
     return selectedCreator === "all" ? creators : creators.filter((c) => c.id === selectedCreator);
   }, [creators, selectedCreator]);
 
-  // Determine report currency from creators (most common currency)
   const reportCurrency = useMemo(() => {
     if (creators.length === 0) return DEFAULT_CURRENCY;
     const currencyCounts = creators.reduce((acc, c) => {
@@ -206,10 +254,8 @@ export const OverviewTab = ({ reportId }: OverviewTabProps) => {
     return Object.entries(currencyCounts).sort((a, b) => b[1] - a[1])[0][0];
   }, [creators]);
 
-  // Format currency using the report's currency
   const formatCurrency = (num: number): string => formatCurrencyUtil(num, reportCurrency);
 
-  // Awareness KPIs
   const awarenessKPIs = useMemo(() => {
     const totalReach = filteredContent.reduce((sum, c) => sum + (c.reach || 0), 0);
     const totalImpressions = filteredContent.reduce((sum, c) => sum + (c.impressions || 0), 0);
@@ -223,7 +269,6 @@ export const OverviewTab = ({ reportId }: OverviewTabProps) => {
     };
   }, [filteredContent]);
 
-  // Engagement KPIs
   const engagementKPIs = useMemo(() => {
     const totalLikes = filteredContent.reduce((sum, c) => sum + (c.likes || 0), 0);
     const totalComments = filteredContent.reduce((sum, c) => sum + (c.comments || 0), 0);
@@ -240,7 +285,6 @@ export const OverviewTab = ({ reportId }: OverviewTabProps) => {
     const viralityRate = totalExposure > 0 ? (totalShares / totalExposure) * 100 : 0;
     const utilityScore = totalExposure > 0 ? (totalSaves / totalExposure) * 100 : 0;
 
-    // TSWB = watch_time + (likes×3) + (comments×5) + ((saves+shares+reposts)×10)
     const totalTSWB = filteredContent.reduce((sum, c) => {
       const watchTime = c.watch_time || 0;
       const likes = c.likes || 0;
@@ -267,12 +311,8 @@ export const OverviewTab = ({ reportId }: OverviewTabProps) => {
     };
   }, [filteredContent, awarenessKPIs]);
 
-  // Effectiveness KPIs
   const effectivenessKPIs = useMemo(() => {
-    // Content pieces from actual content table
     const contentPieces = filteredContent.length;
-
-    // Creators count
     const creatorsCount = relevantCreators.length;
 
     const budgetSpent = relevantCreators.reduce((sum, c) => {
@@ -284,13 +324,9 @@ export const OverviewTab = ({ reportId }: OverviewTabProps) => {
       );
     }, 0);
 
-    // TSWB Cost per Minute (TSWB je v sekundách, převedeme na minuty)
     const tswbMinutes = engagementKPIs.tswb / 60;
     const tswbCostPerMinute = tswbMinutes > 0 ? budgetSpent / tswbMinutes : 0;
-
-    // CPM: (budget / (impressions + views)) × 1000
     const cpm = awarenessKPIs.impressionsViews > 0 ? (budgetSpent / awarenessKPIs.impressionsViews) * 1000 : 0;
-
     const cpc = engagementKPIs.linkClicks > 0 ? budgetSpent / engagementKPIs.linkClicks : 0;
 
     return {
@@ -303,13 +339,12 @@ export const OverviewTab = ({ reportId }: OverviewTabProps) => {
     };
   }, [relevantCreators, awarenessKPIs, engagementKPIs, filteredContent]);
 
-  // Trend chart data: group filtered content by published_date
   const trendData = useMemo(() => {
     const grouped: Record<string, number> = {};
     filteredContent.forEach((item) => {
       const date = item.published_date;
       if (!date) return;
-      const key = date.substring(0, 10); // YYYY-MM-DD
+      const key = date.substring(0, 10);
       const val = (item as any)[trendMetric] || 0;
       grouped[key] = (grouped[key] || 0) + val;
     });
@@ -318,16 +353,13 @@ export const OverviewTab = ({ reportId }: OverviewTabProps) => {
       .map(([date, value]) => ({ date, value }));
   }, [filteredContent, trendMetric]);
 
-  // Space benchmarks calculation
   const benchmarks = useMemo(() => {
     if (spaceReportCount === 0) return null;
 
-    // Awareness benchmarks
     const totalReach = spaceContent.reduce((sum, c) => sum + (c.reach || 0), 0);
     const totalViews = spaceContent.reduce((sum, c) => sum + (c.impressions || 0) + (c.views || 0), 0);
     const totalWatchTimeSeconds = spaceContent.reduce((sum, c) => sum + (c.watch_time || 0), 0);
 
-    // Engagement benchmarks
     const totalLikes = spaceContent.reduce((sum, c) => sum + (c.likes || 0), 0);
     const totalComments = spaceContent.reduce((sum, c) => sum + (c.comments || 0), 0);
     const totalShares = spaceContent.reduce((sum, c) => sum + (c.shares || 0), 0);
@@ -337,7 +369,6 @@ export const OverviewTab = ({ reportId }: OverviewTabProps) => {
     const totalStickerClicks = spaceContent.reduce((sum, c) => sum + (c.sticker_clicks || 0), 0);
     const totalInteractions = totalLikes + totalComments + totalShares + totalSaves;
 
-    // TSWB calculation for space
     const totalTSWB = spaceContent.reduce((sum, c) => {
       const watchTime = c.watch_time || 0;
       const likes = c.likes || 0;
@@ -348,12 +379,10 @@ export const OverviewTab = ({ reportId }: OverviewTabProps) => {
       return sum + watchTime + (likes * 3) + (comments * 5) + ((saves + shares + reposts) * 10);
     }, 0);
 
-    // Rate calculations based on totals (not averages of averages)
     const engagementRate = totalViews > 0 ? (totalInteractions / totalViews) * 100 : 0;
     const viralityRate = totalViews > 0 ? (totalShares / totalViews) * 100 : 0;
     const utilityScore = totalViews > 0 ? (totalSaves / totalViews) * 100 : 0;
 
-    // Effectiveness benchmarks
     const totalBudget = spaceCreators.reduce((sum, c) => {
       return sum + 
         (c.posts_count || 0) * (c.posts_cost || 0) +
@@ -428,7 +457,6 @@ export const OverviewTab = ({ reportId }: OverviewTabProps) => {
           onDateRangeChange={setDateRange}
         />
 
-        {/* Creator Filter */}
         <Select value={selectedCreator} onValueChange={setSelectedCreator}>
           <SelectTrigger className={cn(
             "w-[180px] rounded-[35px]",
@@ -448,7 +476,6 @@ export const OverviewTab = ({ reportId }: OverviewTabProps) => {
           </SelectContent>
         </Select>
 
-        {/* Platform Filter */}
         <Select value={selectedPlatform} onValueChange={setSelectedPlatform}>
           <SelectTrigger className={cn(
             "w-[180px] rounded-[35px]",
@@ -468,7 +495,6 @@ export const OverviewTab = ({ reportId }: OverviewTabProps) => {
           </SelectContent>
         </Select>
 
-        {/* Clear Filters */}
         {hasFilters && (
           <Button variant="ghost" onClick={clearFilters} className="rounded-[35px]">
             <X className="w-4 h-4 mr-2" />
@@ -477,44 +503,39 @@ export const OverviewTab = ({ reportId }: OverviewTabProps) => {
         )}
       </div>
 
-      {/* Awareness Section - Full Width */}
+      {/* Základní metriky */}
       <div className="space-y-4">
         <div className="flex items-center gap-2">
-          <Eye className="w-5 h-5" />
-          <h3 className="font-bold text-lg uppercase tracking-wide">Awareness</h3>
+          <BarChart3 className="w-5 h-5" />
+          <h3 className="font-bold text-lg uppercase tracking-wide">Základní metriky</h3>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <KPICard title="Reach" value={formatNumber(awarenessKPIs.reach)} icon={Users} accentColor="blue" benchmark={benchmarks ? formatNumber(benchmarks.reach) : undefined} />
-          <KPICard title="Views" value={formatNumber(awarenessKPIs.impressionsViews)} icon={Eye} accentColor="blue" benchmark={benchmarks ? formatNumber(benchmarks.views) : undefined} />
-          <KPICard title="Watch Time" value={secondsToReadableTime(awarenessKPIs.watchTimeSeconds)} icon={Clock} accentColor="blue" benchmark={benchmarks ? secondsToReadableTime(benchmarks.watchTimeSeconds) : undefined} />
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <KPICard title="Influencers" value={effectivenessKPIs.creatorsCount.toString()} icon={Users} accentColor="blue" benchmark={benchmarks ? Math.round(benchmarks.creatorsCount).toString() : undefined} />
+          <KPICard title="Content Pieces" value={effectivenessKPIs.contentPieces.toString()} icon={FileText} accentColor="blue" benchmark={benchmarks ? Math.round(benchmarks.contentPieces).toString() : undefined} />
+          <KPICard title="Total Views" value={formatNumber(awarenessKPIs.impressionsViews)} icon={Eye} accentColor="blue" benchmark={benchmarks ? formatNumber(benchmarks.views) : undefined} />
+          <KPICard title="Avg CPM" value={formatCurrency(effectivenessKPIs.cpm)} icon={Wallet} accentColor="blue" tooltip="CPM (Cost per Mille) = (Budget Spent / Views) × 1000." benchmark={benchmarks ? formatCurrency(benchmarks.cpm) : undefined} />
         </div>
       </div>
 
-      {/* Engagement Section */}
-      <KPISection title="Engagement" icon={MessageCircle}>
-        <KPICard title="Interactions" value={formatNumber(engagementKPIs.interactions)} icon={TrendingUp} accentColor="green" benchmark={benchmarks ? formatNumber(benchmarks.interactions) : undefined} />
-        <KPICard title="Likes" value={formatNumber(engagementKPIs.likes)} icon={Heart} accentColor="green" benchmark={benchmarks ? formatNumber(benchmarks.likes) : undefined} />
-        <KPICard title="Comments" value={formatNumber(engagementKPIs.comments)} icon={MessageCircle} accentColor="green" benchmark={benchmarks ? formatNumber(benchmarks.comments) : undefined} />
-        <KPICard title="Shares" value={formatNumber(engagementKPIs.shares)} icon={Share2} accentColor="green" benchmark={benchmarks ? formatNumber(benchmarks.shares) : undefined} />
-        <KPICard title="Saves" value={formatNumber(engagementKPIs.saves)} icon={Bookmark} accentColor="green" benchmark={benchmarks ? formatNumber(benchmarks.saves) : undefined} />
-        <KPICard title="Reposts" value={formatNumber(engagementKPIs.reposts)} icon={Share2} accentColor="green" benchmark={benchmarks ? formatNumber(benchmarks.reposts) : undefined} />
-        <KPICard title="TSWB" value={secondsToReadableTime(engagementKPIs.tswb)} icon={Clock} accentColor="green" tooltip="TSWB (Time Spent With Brand) = Watch Time + (Likes × 3) + (Comments × 5) + ((Saves + Shares + Reposts) × 10). Výsledek je v sekundách." benchmark={benchmarks ? secondsToReadableTime(benchmarks.tswb) : undefined} />
-        <KPICard title="Engagement Rate" value={formatPercent(engagementKPIs.engagementRate)} icon={TrendingUp} accentColor="green" tooltip="Engagement Rate = (Interactions / Views) × 100. Interactions = Likes + Comments + Shares + Saves." benchmark={benchmarks ? formatPercent(benchmarks.engagementRate) : undefined} />
-        <KPICard title="Virality Rate" value={formatPercent(engagementKPIs.viralityRate, 3)} icon={Zap} accentColor="green" tooltip="Virality Rate = (Shares / Views) × 100. Měří podíl obsahu, který byl sdílen." benchmark={benchmarks ? formatPercent(benchmarks.viralityRate, 3) : undefined} />
-        <KPICard title="Utility Score" value={formatPercent(engagementKPIs.utilityScore, 3)} icon={Award} accentColor="green" tooltip="Utility Score = (Saves / Views) × 100. Měří podíl obsahu, který byl uložen." benchmark={benchmarks ? formatPercent(benchmarks.utilityScore, 3) : undefined} />
-        <KPICard title="Link Clicks" value={formatNumber(engagementKPIs.linkClicks)} icon={Link} accentColor="green" benchmark={benchmarks ? formatNumber(benchmarks.linkClicks) : undefined} />
-        <KPICard title="Sticker Clicks" value={formatNumber(engagementKPIs.stickerClicks)} icon={Target} accentColor="green" benchmark={benchmarks ? formatNumber(benchmarks.stickerClicks) : undefined} />
-      </KPISection>
-
-      {/* Effectiveness Section */}
-      <KPISection title="Effectiveness" icon={BarChart3}>
-        <KPICard title="Creators" value={effectivenessKPIs.creatorsCount.toString()} icon={Users} accentColor="orange" benchmark={benchmarks ? Math.round(benchmarks.creatorsCount).toString() : undefined} />
-        <KPICard title="Content Pieces" value={effectivenessKPIs.contentPieces.toString()} icon={FileText} accentColor="orange" benchmark={benchmarks ? Math.round(benchmarks.contentPieces).toString() : undefined} />
-        <KPICard title="Budget Spent" value={formatCurrency(effectivenessKPIs.budgetSpent)} icon={Wallet} accentColor="orange" benchmark={benchmarks ? formatCurrency(benchmarks.budgetSpent) : undefined} />
-        <KPICard title="TSWB Cost per Minute" value={formatCurrency(effectivenessKPIs.tswbCostPerMinute)} icon={Clock} accentColor="orange" tooltip="TSWB Cost per Minute = Budget Spent / (TSWB v minutách). Kolik stojí jedna minuta pozornosti značce." benchmark={benchmarks ? formatCurrency(benchmarks.tswbCostPerMinute) : undefined} />
-        <KPICard title="CPM" value={formatCurrency(effectivenessKPIs.cpm)} icon={Wallet} accentColor="orange" tooltip="CPM (Cost per Mille) = (Budget Spent / Views) × 1000. Náklad na 1000 zobrazení." benchmark={benchmarks ? formatCurrency(benchmarks.cpm) : undefined} />
-        <KPICard title="CPC" value={formatCurrency(effectivenessKPIs.cpc)} icon={MousePointer} accentColor="orange" tooltip="CPC (Cost per Click) = Budget Spent / Link Clicks. Náklad na jeden proklik." benchmark={benchmarks ? formatCurrency(benchmarks.cpc) : undefined} />
-      </KPISection>
+      {/* Inovativní a kvalitativní metriky */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <TrendingUp className="w-5 h-5" />
+          <h3 className="font-bold text-lg uppercase tracking-wide">Inovativní a kvalitativní metriky</h3>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <KPICard title="TSWB" value={secondsToReadableTime(engagementKPIs.tswb)} icon={Clock} accentColor="green" tooltip="TSWB (Time Spent With Brand) = Watch Time + (Likes × 3) + (Comments × 5) + ((Saves + Shares + Reposts) × 10)." benchmark={benchmarks ? secondsToReadableTime(benchmarks.tswb) : undefined} />
+          <KPICard title="Interactions" value={formatNumber(engagementKPIs.interactions)} icon={TrendingUp} accentColor="green" benchmark={benchmarks ? formatNumber(benchmarks.interactions) : undefined} />
+          <KPICard title="Engagement Rate" value={formatPercent(engagementKPIs.engagementRate)} icon={Zap} accentColor="green" tooltip="Engagement Rate = (Interactions / Views) × 100." benchmark={benchmarks ? formatPercent(benchmarks.engagementRate) : undefined} />
+          <KPICard title="Virality Avg" value={formatPercent(engagementKPIs.viralityRate, 3)} icon={Share2} accentColor="green" tooltip="Virality Rate = (Shares / Views) × 100." benchmark={benchmarks ? formatPercent(benchmarks.viralityRate, 3) : undefined} />
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <KPICard title="Likes" value={formatNumber(engagementKPIs.likes)} icon={Heart} accentColor="green" benchmark={benchmarks ? formatNumber(benchmarks.likes) : undefined} />
+          <KPICard title="Comments" value={formatNumber(engagementKPIs.comments)} icon={MessageCircle} accentColor="green" benchmark={benchmarks ? formatNumber(benchmarks.comments) : undefined} />
+          <KPICard title="Shares" value={formatNumber(engagementKPIs.shares)} icon={Share2} accentColor="green" benchmark={benchmarks ? formatNumber(benchmarks.shares) : undefined} />
+          <KPICard title="Saves" value={formatNumber(engagementKPIs.saves)} icon={Bookmark} accentColor="green" benchmark={benchmarks ? formatNumber(benchmarks.saves) : undefined} />
+        </div>
+      </div>
       {/* Trend Chart - temporarily hidden */}
     </div>
   );
