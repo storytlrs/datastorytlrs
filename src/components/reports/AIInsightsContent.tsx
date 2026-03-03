@@ -11,7 +11,7 @@ import { LeaderboardTable, LeaderboardEntry, Benchmarks } from "./LeaderboardTab
 import { CreatorPerformanceCard } from "./CreatorPerformanceCard";
 import { TopicBadge } from "./TopicBadge";
 import { ContentSelectorDialog, SelectedContentItem } from "./ContentSelectorDialog";
-import { Users, FileText, Eye, DollarSign, Clock, Heart, TrendingUp, MessageSquare, Target, Rocket, Star, Pencil, Save, X, Settings2 } from "lucide-react";
+import { Users, FileText, Eye, Wallet, Clock, Heart, TrendingUp, MessageSquare, Target, Rocket, Star, Pencil, Save, X, Settings2 } from "lucide-react";
 import { formatCurrency } from "@/lib/currencyUtils";
 
 interface TopContent {
@@ -625,7 +625,7 @@ export const AIInsightsContent = forwardRef<HTMLDivElement, AIInsightsContentPro
           <MetricTile
             title="Avg CPM"
             value={formatCurrency(insights.overview_metrics.avgCpm, insights.overview_metrics.currency)}
-            icon={DollarSign}
+            icon={Wallet}
             accentColor="blue"
             target={kpiTargets?.overview.avgCpm ? formatCurrency(kpiTargets.overview.avgCpm, insights.overview_metrics.currency) : undefined}
           />

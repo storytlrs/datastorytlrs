@@ -12,7 +12,7 @@ import {
   Target,
   Rocket,
   Star,
-  DollarSign,
+  Wallet,
   Users,
   Pencil,
   Save,
@@ -277,7 +277,7 @@ const PostCard = ({ post }: { post: { name: string; spend: number; impressions: 
       )}
       <div className="grid grid-cols-2 gap-1 text-xs">
         <div className="flex items-center gap-1 text-muted-foreground">
-          <DollarSign className="w-3 h-3" />
+          <Wallet className="w-3 h-3" />
           <span>{formatCurrencySimple(post.spend || 0, "CZK")}</span>
         </div>
         <div className="flex items-center gap-1 text-muted-foreground">
@@ -527,7 +527,7 @@ export const MonthlyAdsInsightsContent = forwardRef<HTMLDivElement, MonthlyAdsIn
             </span>
           </h2>
           <div className="grid grid-cols-3 gap-4">
-            <MetricTile title="Spend" value={formatCurrency(insights.key_metrics.spend, cur)} icon={DollarSign} accentColor="orange" />
+            <MetricTile title="Spend" value={formatCurrency(insights.key_metrics.spend, cur)} icon={Wallet} accentColor="orange" />
             <MetricTile title="Reach" value={formatNumber(insights.key_metrics.reach)} icon={Users} accentColor="blue" />
             <MetricTile title="Frequency" value={insights.key_metrics.frequency.toFixed(2)} icon={BarChart3} accentColor="blue" />
           </div>
@@ -597,7 +597,7 @@ export const MonthlyAdsInsightsContent = forwardRef<HTMLDivElement, MonthlyAdsIn
               <h2 className="text-xl font-bold">Klíčové metriky – Facebook</h2>
             </div>
             <div className="grid grid-cols-3 gap-4 mb-6">
-              <MetricTile title="Spend" value={formatCurrency(insights.facebook_metrics.spend, cur)} icon={DollarSign} accentColor="orange" />
+              <MetricTile title="Spend" value={formatCurrency(insights.facebook_metrics.spend, cur)} icon={Wallet} accentColor="orange" />
               <MetricTile title="Reach" value={formatNumber(insights.facebook_metrics.reach)} icon={Users} accentColor="blue" />
               <MetricTile title="Frequency" value={insights.facebook_metrics.frequency.toFixed(2)} icon={BarChart3} accentColor="blue" />
             </div>
@@ -626,7 +626,7 @@ export const MonthlyAdsInsightsContent = forwardRef<HTMLDivElement, MonthlyAdsIn
               <h2 className="text-xl font-bold">Klíčové metriky – Instagram</h2>
             </div>
             <div className="grid grid-cols-3 gap-4 mb-6">
-              <MetricTile title="Spend" value={formatCurrency(insights.instagram_metrics.spend, cur)} icon={DollarSign} accentColor="orange" />
+              <MetricTile title="Spend" value={formatCurrency(insights.instagram_metrics.spend, cur)} icon={Wallet} accentColor="orange" />
               <MetricTile title="Reach" value={formatNumber(insights.instagram_metrics.reach)} icon={Users} accentColor="blue" />
               <MetricTile title="Frequency" value={insights.instagram_metrics.frequency.toFixed(2)} icon={BarChart3} accentColor="blue" />
             </div>
@@ -655,7 +655,7 @@ export const MonthlyAdsInsightsContent = forwardRef<HTMLDivElement, MonthlyAdsIn
               <h2 className="text-xl font-bold">Klíčové metriky – TikTok</h2>
             </div>
             <div className="grid grid-cols-3 gap-4 mb-6">
-              <MetricTile title="Spend" value={formatCurrency(insights.tiktok_metrics.spend, cur)} icon={DollarSign} accentColor="orange" />
+              <MetricTile title="Spend" value={formatCurrency(insights.tiktok_metrics.spend, cur)} icon={Wallet} accentColor="orange" />
               <MetricTile title="Reach" value={formatNumber(insights.tiktok_metrics.reach)} icon={Users} accentColor="blue" />
               <MetricTile title="Frequency" value={insights.tiktok_metrics.frequency.toFixed(2)} icon={BarChart3} accentColor="blue" />
             </div>

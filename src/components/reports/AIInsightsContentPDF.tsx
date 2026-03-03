@@ -4,7 +4,7 @@ import { MetricTile } from "./MetricTile";
 import { ContentPreviewCard } from "./ContentPreviewCard";
 import { LeaderboardTable, LeaderboardEntry, Benchmarks } from "./LeaderboardTable";
 import { TopicBadge } from "./TopicBadge";
-import { Users, FileText, Eye, DollarSign, Clock, Heart, TrendingUp, MessageSquare, Target, Rocket, Star } from "lucide-react";
+import { Users, FileText, Eye, Wallet, Clock, Heart, TrendingUp, MessageSquare, Target, Rocket, Star } from "lucide-react";
 import { formatCurrency } from "@/lib/currencyUtils";
 import { cn } from "@/lib/utils";
 
@@ -303,7 +303,7 @@ export const AIInsightsContentPDF = forwardRef<HTMLDivElement, AIInsightsContent
           <MetricTile
             title="Avg CPM"
             value={formatCurrency(insights.overview_metrics.avgCpm, insights.overview_metrics.currency)}
-            icon={DollarSign}
+            icon={Wallet}
             accentColor="blue"
             target={kpiTargets?.overview.avgCpm ? formatCurrency(kpiTargets.overview.avgCpm, insights.overview_metrics.currency) : undefined}
           />

@@ -3,7 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { KPICard } from "./KPICard";
-import { TrendingUp, Eye, MousePointer, DollarSign, Users } from "lucide-react";
+import { TrendingUp, Eye, MousePointer, Wallet, Users } from "lucide-react";
 
 const mockCampaigns = [
   { id: 1, name: "Summer Collection 2024", spend: 15420, impressions: 2450000, clicks: 48500, conversions: 1240, frequency: 2.8, ctr: 1.98, roas: 4.2, status: "active" },
@@ -46,7 +46,7 @@ export const AdsTab = () => {
         <KPICard
           title="Total Spend"
           value={formatCurrency(totalSpend)}
-          icon={DollarSign}
+          icon={Wallet}
           accentColor="orange"
         />
         <KPICard
