@@ -522,17 +522,41 @@ const PlatformSection = ({
 
 export const QuarterlyAdsInsightsContent = forwardRef<HTMLDivElement, QuarterlyAdsInsightsContentProps>(
   ({ insights: raw, canEdit = false, onSaveInsights, hasMetaPlatform, hasTiktokPlatform, reportId }, ref) => {
+    const executiveSummary: Partial<QuarterlyStructuredInsights["executive_summary"]> = raw.executive_summary || {};
+    const legacyIntroSource = [
+      executiveSummary.media_insight,
+      executiveSummary.top_result,
+      executiveSummary.recommendation,
+    ]
+      .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+      .join(" ");
+    const legacyIntro = legacyIntroSource
+      ? legacyIntroSource
+          .split(/(?<=[.!?])\s+/)
+          .filter((sentence: string) => sentence.trim())
+          .slice(0, 3)
+          .join(" ")
+      : "";
+
     const insights: QuarterlyStructuredInsights = {
-      executive_summary: raw.executive_summary || { intro: "", media_insight: "", top_result: "", recommendation: "" },
+      executive_summary: {
+        intro:
+          typeof executiveSummary.intro === "string" && executiveSummary.intro.trim().length > 0
+            ? executiveSummary.intro
+            : legacyIntro,
+        media_insight: executiveSummary.media_insight || "",
+        top_result: executiveSummary.top_result || "",
+        recommendation: executiveSummary.recommendation || "",
+      },
       goal_fulfillment: {
         goals_set: Array.isArray(raw.goal_fulfillment?.goals_set)
           ? raw.goal_fulfillment.goals_set
-          : typeof raw.goal_fulfillment?.goals_set === 'string' && raw.goal_fulfillment.goals_set
+          : typeof raw.goal_fulfillment?.goals_set === "string" && raw.goal_fulfillment.goals_set
             ? (raw.goal_fulfillment.goals_set as string).split(/(?<=[.!?])\s+/).filter((s: string) => s.trim())
             : [],
         results: Array.isArray(raw.goal_fulfillment?.results)
           ? raw.goal_fulfillment.results
-          : typeof raw.goal_fulfillment?.results === 'string' && raw.goal_fulfillment.results
+          : typeof raw.goal_fulfillment?.results === "string" && raw.goal_fulfillment.results
             ? (raw.goal_fulfillment.results as string).split(/(?<=[.!?])\s+/).filter((s: string) => s.trim())
             : [],
       },
