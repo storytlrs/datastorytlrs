@@ -875,13 +875,19 @@ KONTEXT OD UŽIVATELE:
 
 {
   "executive_summary": {
-    "media_insight": "Klíčový media poznatek z kampaně (max 150 slov)",
-    "top_result": "Nejlepší výsledek kampaně (max 150 slov)",
-    "recommendation": "Hlavní doporučení pro příští kampaň (max 150 slov)"
+    "media_insight": "Klíčový media poznatek z kampaně – 2-3 krátké věty",
+    "top_result": "Nejlepší výsledek kampaně – 2-3 krátké věty",
+    "recommendation": "Hlavní doporučení pro příští kampaň – 2-3 krátké věty"
   },
   "goal_fulfillment": {
     "goals_set": "Popis stanovených cílů kampaně (max 200 slov)",
     "results": "Vyhodnocení plnění cílů s čísly (max 200 slov)"
+  },
+  "metric_commentary": {
+    "meta_key": "2-3 krátké věty hodnotící klíčové Meta metriky (spend, reach, frequency) – jak si kampaň vedla",
+    "meta_detail": "2-3 krátké věty hodnotící detailní Meta metriky (ThruPlay rate, 3s views, avg watch time)",
+    "tiktok_key": "2-3 krátké věty hodnotící klíčové TikTok metriky (spend, reach, frequency)",
+    "tiktok_detail": "2-3 krátké věty hodnotící detailní TikTok metriky (ThruPlay rate, 3s views, avg watch time)"
   },
   "target_audience": "Analýza oslovené cílové skupiny – kdo byl osloven, jak efektivně, demographické poznatky (max 200 slov)",
   "brand_awareness": "Analýza vlivu kampaně na brand awareness – celkový dosah, frekvence, dopad na povědomí o značce (max 200 slov)",
@@ -930,11 +936,35 @@ KONTEXT OD UŽIVATELE:
     { key: "top_content", posts: top5 },
   ]);
 
+  // Build media plan comparison
+  const mediaPlanItems = ctx.mediaPlanContext ? [] : [];
+  // Re-fetch media plan items for structured comparison
+  const { data: mpItems = [] } = await supabase
+    .from("media_plan_items")
+    .select("*")
+    .eq("report_id", report_id);
+
+  const plannedBudget = (mpItems || []).reduce((s: number, i: any) => s + (i.budget || 0), 0);
+  const plannedImpressions = (mpItems || []).reduce((s: number, i: any) => s + (i.impressions || 0), 0);
+  const plannedReach = (mpItems || []).reduce((s: number, i: any) => s + (i.reach || 0), 0);
+  const plannedCpm = (mpItems || []).reduce((s: number, i: any) => s + (i.cpm || 0), 0) / Math.max((mpItems || []).filter((i: any) => i.cpm).length, 1);
+  const plannedFrequency = (mpItems || []).reduce((s: number, i: any) => s + (i.frequency || 0), 0) / Math.max((mpItems || []).filter((i: any) => i.frequency).length, 1);
+
+  const mediaPlanComparison = (mpItems && mpItems.length > 0) ? {
+    budget: { planned: plannedBudget, actual: totalSpend },
+    impressions: { planned: plannedImpressions, actual: totalImpressions },
+    reach: { planned: plannedReach, actual: totalReach },
+    cpm: { planned: plannedCpm, actual: cpm },
+    frequency: { planned: plannedFrequency, actual: avgFrequency },
+  } : null;
+
   const structuredInsights = {
     report_period: "campaign",
     executive_summary: aiContent.executive_summary,
     campaign_context,
     goal_fulfillment: aiContent.goal_fulfillment,
+    metric_commentary: aiContent.metric_commentary || {},
+    media_plan_comparison: mediaPlanComparison,
     meta_key_metrics: { spend: metaSpend, reach: metaReach, frequency: metaFreq, currency: "CZK" },
     meta_detail_metrics: { thruplay_rate: metaThruplayRate, view_rate_3s: metaViewRate3s, avg_watch_time: metaAvgWatchTime },
     tiktok_key_metrics: { spend: tkSpend, reach: tkReach, frequency: tkFreq, currency: "CZK" },
