@@ -958,6 +958,59 @@ KONTEXT OD UŽIVATELE:
     frequency: { planned: plannedFrequency, actual: avgFrequency },
   } : null;
 
+  // Build audience demographics from breakdown rows
+  const audienceDemographics: { category: string; facebook: number; instagram: number; tiktok: number }[] = [];
+  const demoMap: Record<string, { facebook: number; instagram: number; tiktok: number }> = {};
+
+  // Meta campaigns breakdown rows (age != '' and gender != '')
+  for (const c of (campaigns || [])) {
+    if (c.age && c.gender && (c.age !== '' || c.gender !== '')) {
+      const label = `${c.gender === 'male' ? 'Muži' : c.gender === 'female' ? 'Ženy' : c.gender} ${c.age}`;
+      if (!demoMap[label]) demoMap[label] = { facebook: 0, instagram: 0, tiktok: 0 };
+      const platform = (c.publisher_platform || '').toLowerCase();
+      if (platform === 'facebook') demoMap[label].facebook += (c.reach || 0);
+      else if (platform === 'instagram') demoMap[label].instagram += (c.reach || 0);
+      else {
+        // unknown platform - split evenly or add to both
+        demoMap[label].facebook += Math.round((c.reach || 0) / 2);
+        demoMap[label].instagram += Math.round((c.reach || 0) / 2);
+      }
+    }
+  }
+
+  // Meta ad sets breakdown rows
+  for (const as of (adSets || [])) {
+    if (as.age && as.gender && (as.age !== '' || as.gender !== '')) {
+      const label = `${as.gender === 'male' ? 'Muži' : as.gender === 'female' ? 'Ženy' : as.gender} ${as.age}`;
+      if (!demoMap[label]) demoMap[label] = { facebook: 0, instagram: 0, tiktok: 0 };
+      const platform = (as.publisher_platform || '').toLowerCase();
+      if (platform === 'facebook') demoMap[label].facebook += (as.reach || 0);
+      else if (platform === 'instagram') demoMap[label].instagram += (as.reach || 0);
+    }
+  }
+
+  // TikTok campaigns breakdown rows
+  for (const tc of (tiktokCampaigns || [])) {
+    if (tc.age && tc.gender && (tc.age !== '' || tc.gender !== '')) {
+      const label = `${tc.gender === 'MALE' ? 'Muži' : tc.gender === 'FEMALE' ? 'Ženy' : tc.gender} ${tc.age}`;
+      if (!demoMap[label]) demoMap[label] = { facebook: 0, instagram: 0, tiktok: 0 };
+      demoMap[label].tiktok += (tc.reach || 0);
+    }
+  }
+
+  // Convert to array, sort by total reach, take top 4
+  const demoArray = Object.entries(demoMap).map(([category, platforms]) => ({
+    category,
+    facebook: platforms.facebook,
+    instagram: platforms.instagram,
+    tiktok: platforms.tiktok,
+    total: platforms.facebook + platforms.instagram + platforms.tiktok,
+  }));
+  demoArray.sort((a, b) => b.total - a.total);
+  const top4Demographics = demoArray.slice(0, 4).map(({ category, facebook, instagram, tiktok }) => ({
+    category, facebook, instagram, tiktok,
+  }));
+
   const structuredInsights = {
     report_period: "campaign",
     executive_summary: aiContent.executive_summary,
@@ -969,6 +1022,7 @@ KONTEXT OD UŽIVATELE:
     meta_detail_metrics: { thruplay_rate: metaThruplayRate, view_rate_3s: metaViewRate3s, avg_watch_time: metaAvgWatchTime },
     tiktok_key_metrics: { spend: tkSpend, reach: tkReach, frequency: tkFreq, currency: "CZK" },
     tiktok_detail_metrics: { thruplay_rate: tkThruplayRate, view_rate_3s: tkViewRate3s, avg_watch_time: tkAvgWatchTime },
+    audience_demographics: top4Demographics,
     target_audience: aiContent.target_audience || "",
     top_content: top5,
     community_management: { answered_comments: null, answered_dms: null, response_rate_24h: null },

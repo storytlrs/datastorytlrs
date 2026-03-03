@@ -14,6 +14,7 @@ import {
   ThumbsUp, Lightbulb, CheckCircle, Zap, Play, MousePointer,
   UserCheck, Award, ClipboardList,
 } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
 // ── Types ──
 
@@ -43,6 +44,7 @@ export interface CampaignStructuredInsights {
   meta_detail_metrics: { thruplay_rate: number; view_rate_3s: number; avg_watch_time: number };
   tiktok_key_metrics: { spend: number; reach: number; frequency: number; currency: string };
   tiktok_detail_metrics: { thruplay_rate: number; view_rate_3s: number; avg_watch_time: number };
+  audience_demographics?: { category: string; facebook: number; instagram: number; tiktok: number }[];
   target_audience: string;
   top_content: PostData[];
   community_management: { answered_comments: number | null; answered_dms: number | null; response_rate_24h: number | null };
@@ -254,6 +256,7 @@ export const CampaignAdsInsightsContent = forwardRef<HTMLDivElement, CampaignAds
       meta_detail_metrics: d(metaDetailSource, { thruplay_rate: 0, view_rate_3s: 0, avg_watch_time: 0 }),
       tiktok_key_metrics: d(tiktokKeySource, { spend: 0, reach: 0, frequency: 0, currency: "CZK" }),
       tiktok_detail_metrics: d(tiktokDetailSource, { thruplay_rate: 0, view_rate_3s: 0, avg_watch_time: 0 }),
+      audience_demographics: raw.audience_demographics || [],
       target_audience: raw.target_audience || "",
       top_content: raw.top_content || [],
       community_management: d(raw.community_management, { answered_comments: null, answered_dms: null, response_rate_24h: null }),
@@ -468,6 +471,31 @@ export const CampaignAdsInsightsContent = forwardRef<HTMLDivElement, CampaignAds
         {/* 7. Oslovená cílová skupina */}
         <Card className="p-6 rounded-[20px] border-foreground" style={{ backgroundColor: "#E9E9E9" }}>
           <h2 className="text-xl font-bold mb-4">Oslovená cílová skupina</h2>
+          
+          {/* Demographics bar chart */}
+          {insights.audience_demographics && insights.audience_demographics.length > 0 && (
+            <div className="mb-6">
+              <h3 className="text-sm font-semibold uppercase text-muted-foreground mb-3">TOP {insights.audience_demographics.length} oslovené kategorie dle platformy</h3>
+              <div className="h-[300px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={insights.audience_demographics} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="category" tick={{ fontSize: 12 }} />
+                    <YAxis tickFormatter={(v: number) => v >= 1000000 ? `${(v / 1000000).toFixed(1)}M` : v >= 1000 ? `${(v / 1000).toFixed(0)}K` : String(v)} tick={{ fontSize: 12 }} />
+                    <Tooltip
+                      formatter={(value: number, name: string) => [formatNumber(value), name === 'facebook' ? 'Facebook' : name === 'instagram' ? 'Instagram' : 'TikTok']}
+                      contentStyle={{ borderRadius: '12px', border: '1px solid hsl(var(--border))', backgroundColor: 'hsl(var(--background))' }}
+                    />
+                    <Legend formatter={(value: string) => value === 'facebook' ? 'Facebook' : value === 'instagram' ? 'Instagram' : 'TikTok'} />
+                    <Bar dataKey="facebook" fill="#1877F2" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="instagram" fill="#E4405F" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="tiktok" fill="#000000" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
+
           <EditableSection
             value={targetAudience}
             isEditing={editingSections.has("target_audience")}
