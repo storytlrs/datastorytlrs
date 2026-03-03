@@ -890,6 +890,11 @@ KONTEXT OD UŽIVATELE:
     "tiktok_detail": "2-3 krátké věty hodnotící detailní TikTok metriky (ThruPlay rate, 3s views, avg watch time)"
   },
   "target_audience": "Analýza oslovené cílové skupiny – kdo byl osloven, jak efektivně, demographické poznatky (max 200 slov)",
+  "content_analysis": {
+    "creative_comparison": "Pokud kampaň obsahovala více vizuálů/kreativ, porovnej je mezi sebou. Napiš jaký z nich fungoval nejvíce a proč (CTR, engagement, reach). 2-3 krátké věty.",
+    "platform_performance": "Na jaké síti se kampaň zobrazovala nejvíce a jakou skupinu uživatelů tam nejvíce zasáhla. 2-3 krátké věty.",
+    "improvement_suggestions": "Navrhni jak by vizuál nebo copy šlo příště zlepšit, aby reklama doručila lepší výsledky. 2-3 krátké věty."
+  },
   "brand_awareness": "Analýza vlivu kampaně na brand awareness – celkový dosah, frekvence, dopad na povědomí o značce (max 200 slov)",
   "learnings": {
     "what_worked": ["3-5 konkrétních bodů co se povedlo, s čísly"],
@@ -1024,6 +1029,7 @@ KONTEXT OD UŽIVATELE:
     tiktok_detail_metrics: { thruplay_rate: tkThruplayRate, view_rate_3s: tkViewRate3s, avg_watch_time: tkAvgWatchTime },
     audience_demographics: top4Demographics,
     target_audience: aiContent.target_audience || "",
+    content_analysis: aiContent.content_analysis || { creative_comparison: "", platform_performance: "", improvement_suggestions: "" },
     top_content: top5,
     community_management: { answered_comments: null, answered_dms: null, response_rate_24h: null },
     brand_awareness: aiContent.brand_awareness || "",
