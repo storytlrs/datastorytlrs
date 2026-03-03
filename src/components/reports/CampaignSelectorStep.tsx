@@ -64,12 +64,7 @@ export const CampaignSelectorStep = ({
         .eq("age", "")
         .eq("gender", "");
 
-      if (startDate) {
-        metaQuery = metaQuery.or(`date_stop.gte.${format(startDate, "yyyy-MM-dd")},date_stop.is.null`);
-      }
-      if (endDate) {
-        metaQuery = metaQuery.or(`date_start.lte.${format(endDate, "yyyy-MM-dd")},date_start.is.null`);
-      }
+      // No date filtering — show all campaigns so users can link any campaign to any report
 
       const { data: metaRaw, error: metaError } = await metaQuery.order("campaign_name", { ascending: true, nullsFirst: false });
 
