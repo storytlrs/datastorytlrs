@@ -1909,6 +1909,17 @@ KONTEXT OD UŽIVATELE:
     "results": "Vyhodnocení plnění cílů s čísly (max 200 slov)"
   },
   "metrics_over_time": "Vývoj klíčových metrik za rok (max 200 slov)",
+  "metric_commentary": {
+    "meta_key": "2-3 věty hodnotící klíčové META (FB+IG) metriky (spend, reach, frequency) s porovnáním s media plánem",
+    "meta_detail": "2-3 věty hodnotící detailní META metriky (ThruPlay rate, VV 3s rate, Avg Watch Time)",
+    "tiktok_key": "2-3 věty hodnotící klíčové TikTok metriky (spend, reach, frequency) s porovnáním s media plánem",
+    "tiktok_detail": "2-3 věty hodnotící detailní TikTok metriky"
+  },
+  "content_analysis": {
+    "creative_comparison": "Porovnání vizuálů a kreativ napříč platformami za rok (max 100 slov)",
+    "platform_performance": "Výkon jednotlivých platforem za rok (max 100 slov)",
+    "improvement_suggestions": "Doporučení pro zlepšení kreativ a obsahu (max 100 slov)"
+  },
   "brand_awareness": "Analýza vlivu na brand awareness za rok (max 200 slov)",
   "facebook_metrics_over_time": "Vývoj FB metrik (max 150 slov)",
   "facebook_reach_analysis": "Co fungovalo na zásah na FB (max 150 slov)",
@@ -2013,6 +2024,76 @@ KONTEXT OD UŽIVATELE:
     { key: "tk_improve_video", posts: tkBotV },
   ]);
 
+  // Calculate media plan comparison (like campaign/quarterly)
+  const mpItems = await supabase
+    .from("media_plan_items")
+    .select("*")
+    .eq("report_id", report_id);
+  const mediaPlanData = mpItems.data || [];
+
+  const plannedBudget = mediaPlanData.reduce((s: number, i: any) => s + (i.budget || 0), 0);
+  const plannedImpressions = mediaPlanData.reduce((s: number, i: any) => s + (i.impressions || 0), 0);
+  const plannedReach = mediaPlanData.reduce((s: number, i: any) => s + (i.reach || 0), 0);
+  const plannedCpm = mediaPlanData.reduce((s: number, i: any) => s + (i.cpm || 0), 0) / Math.max(mediaPlanData.filter((i: any) => i.cpm).length, 1);
+  const plannedFrequency = mediaPlanData.reduce((s: number, i: any) => s + (i.frequency || 0), 0) / Math.max(mediaPlanData.filter((i: any) => i.frequency).length, 1);
+
+  const mediaPlanComparison = (mediaPlanData.length > 0) ? {
+    budget: { planned: plannedBudget, actual: totalSpend },
+    impressions: { planned: plannedImpressions, actual: totalImpressions },
+    reach: { planned: plannedReach, actual: totalReach },
+    cpm: { planned: plannedCpm, actual: cpm },
+    frequency: { planned: plannedFrequency, actual: avgFrequency },
+  } : null;
+
+  // Calculate Meta combined metrics (FB + IG)
+  const metaSpend = fbM.spend + igM.spend;
+  const metaReach = fbM.reach + igM.reach;
+  const metaImpr = metaReach > 0 ? metaReach * ((fbM.frequency * fbM.reach + igM.frequency * igM.reach) / metaReach) : 0;
+  const metaFrequency = metaReach > 0 ? metaImpr / metaReach : 0;
+  
+  // Meta detail metrics
+  const metaAds = [...fbAds, ...igAds];
+  const metaThruplays = metaAds.reduce((s: number, a: any) => s + (a.thruplays || 0), 0);
+  const meta3sViews = metaAds.reduce((s: number, a: any) => s + (a.video_3s_plays || 0), 0);
+  const metaImpressions = metaAds.reduce((s: number, a: any) => s + (a.impressions || 0), 0);
+  const metaThruplayRate = metaImpressions > 0 ? (metaThruplays / metaImpressions) * 100 : 0;
+  const metaViewRate3s = metaImpressions > 0 ? (meta3sViews / metaImpressions) * 100 : 0;
+  // Avg watch time - weighted average
+  const metaAvgWatchTimeSum = metaAds.reduce((s: number, a: any) => s + ((a.average_video_play || 0) * (a.impressions || 1)), 0);
+  const metaAvgWatchTime = metaImpressions > 0 ? metaAvgWatchTimeSum / metaImpressions : 0;
+
+  // TikTok detail metrics
+  const tkThruplays = normalizedTiktokAds.reduce((s: number, a: any) => s + (a.thruplays || 0), 0);
+  const tk2sViews = normalizedTiktokAds.reduce((s: number, a: any) => s + (a.video_3s_plays || 0), 0);
+  const tkImpressions = normalizedTiktokAds.reduce((s: number, a: any) => s + (a.impressions || 0), 0);
+  const tkThruplayRate = tkImpressions > 0 ? (tkThruplays / tkImpressions) * 100 : 0;
+  const tkViewRate3s = tkImpressions > 0 ? (tk2sViews / tkImpressions) * 100 : 0;
+  const tkAvgWatchTimeSum = normalizedTiktokAds.reduce((s: number, a: any) => {
+    const avgPlay = a.average_video_play || 0;
+    return s + (avgPlay * (a.impressions || 1));
+  }, 0);
+  const tkAvgWatchTime = tkImpressions > 0 ? tkAvgWatchTimeSum / tkImpressions : 0;
+
+  // Top 5 content across all platforms (by impressions, like campaign)
+  const allAdsForTop = [...(fbAds || []), ...(igAds || []), ...normalizedTiktokAds];
+  const top5Content = [...allAdsForTop]
+    .sort((a, b) => (b.impressions || 0) - (a.impressions || 0))
+    .slice(0, 5)
+    .map((a: any) => ({
+      name: a.ad_name || "Unnamed",
+      spend: a.amount_spent || 0,
+      impressions: a.impressions || 0,
+      clicks: a.clicks || 0,
+      ctr: a.ctr || 0,
+      thumbnail_url: a.thumbnail_url || null,
+      reason: `${((a.impressions || 0) / 1000).toFixed(0)}K impressions`,
+    }));
+
+  // Persist top5 thumbnails too
+  await persistThumbnails(supabase, report_id, [
+    { key: "yearly_top5", posts: top5Content },
+  ]);
+
   const structuredInsights = {
     report_period: "yearly",
     executive_summary: aiContent.executive_summary,
@@ -2021,9 +2102,20 @@ KONTEXT OD UŽIVATELE:
     key_metrics: { spend: totalSpend, reach: totalReach, frequency: avgFrequency, currency: "CZK" },
     detail_metrics: { cpm, cpe, cpv: costPerThruplay, currency: "CZK" },
     metrics_over_time: aiContent.metrics_over_time,
+    metric_commentary: aiContent.metric_commentary || {},
+    media_plan_comparison: mediaPlanComparison,
+    // Meta combined metrics (like campaign report)
+    meta_key_metrics: { spend: metaSpend, reach: metaReach, frequency: metaFrequency, currency: "CZK" },
+    meta_detail_metrics: { thruplay_rate: metaThruplayRate, view_rate_3s: metaViewRate3s, avg_watch_time: metaAvgWatchTime },
+    // TikTok combined metrics (like campaign report)
+    tiktok_key_metrics: { spend: tkM.spend, reach: tkM.reach, frequency: tkM.frequency, currency: "CZK" },
+    tiktok_detail_metrics: { thruplay_rate: tkThruplayRate, view_rate_3s: tkViewRate3s, avg_watch_time: tkAvgWatchTime },
+    // Content analysis
+    content_analysis: aiContent.content_analysis || { creative_comparison: "", platform_performance: "", improvement_suggestions: "" },
+    top_content: top5Content,
     community_management: { answered_comments: null, answered_dms: null, response_rate_24h: null },
     brand_awareness: aiContent.brand_awareness,
-    // Facebook
+    // Facebook per-platform (kept for platform sections)
     facebook_metrics: { spend: fbM.spend, reach: fbM.reach, frequency: fbM.frequency },
     facebook_detail_metrics: { cpm: fbM.cpm, cpe: fbM.cpe, cpv: fbM.cpv },
     facebook_metrics_over_time: aiContent.facebook_metrics_over_time || "",
@@ -2049,9 +2141,9 @@ KONTEXT OD UŽIVATELE:
     instagram_top_video: igTopV,
     instagram_improve_video: igBotV,
     instagram_video_analysis: aiContent.instagram_video_analysis || "",
-    // TikTok
+    // TikTok per-platform
     tiktok_metrics: { spend: tkM.spend, reach: tkM.reach, frequency: tkM.frequency },
-    tiktok_detail_metrics: { cpm: tkM.cpm, cpe: tkM.cpe, cpv: tkM.cpv },
+    tiktok_detail_metrics_per_platform: { cpm: tkM.cpm, cpe: tkM.cpe, cpv: tkM.cpv },
     tiktok_metrics_over_time: aiContent.tiktok_metrics_over_time || "",
     tiktok_top_reach: tkTopR,
     tiktok_improve_reach: tkBotR,
