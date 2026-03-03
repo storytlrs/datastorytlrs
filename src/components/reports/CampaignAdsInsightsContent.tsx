@@ -30,7 +30,7 @@ interface PostData {
 }
 
 export interface CampaignStructuredInsights {
-  executive_summary: { media_insight: string; top_result: string; recommendation: string };
+  executive_summary: { intro?: string; media_insight: string; top_result: string; recommendation: string };
   goal_fulfillment: { goals_set: string; results: string };
   metric_commentary?: { meta_key?: string; meta_detail?: string; tiktok_key?: string; tiktok_detail?: string };
   media_plan_comparison?: {
@@ -253,7 +253,7 @@ export const CampaignAdsInsightsContent = forwardRef<HTMLDivElement, CampaignAds
     const tiktokDetailSource = raw.tiktok_detail_metrics ?? rawAny.tiktok_detail_metrics;
 
     const insights: CampaignStructuredInsights = {
-      executive_summary: d(raw.executive_summary, { media_insight: "", top_result: "", recommendation: "" }),
+      executive_summary: d(raw.executive_summary, { intro: "", media_insight: "", top_result: "", recommendation: "" }),
       goal_fulfillment: d(raw.goal_fulfillment, { goals_set: "", results: "" }),
       metric_commentary: raw.metric_commentary || {},
       media_plan_comparison: raw.media_plan_comparison || null,
@@ -273,6 +273,7 @@ export const CampaignAdsInsightsContent = forwardRef<HTMLDivElement, CampaignAds
     const [editingSections, setEditingSections] = useState<Set<string>>(new Set());
 
     // Text states
+    const [introSummary, setIntroSummary] = useState(insights.executive_summary.intro || "");
     const [mediaInsight, setMediaInsight] = useState(insights.executive_summary.media_insight);
     const [topResult, setTopResult] = useState(insights.executive_summary.top_result);
     const [recommendation, setRecommendation] = useState(insights.executive_summary.recommendation);
@@ -291,7 +292,7 @@ export const CampaignAdsInsightsContent = forwardRef<HTMLDivElement, CampaignAds
 
     const handleSaveSection = async (section: string, value: string) => {
       const setters: Record<string, (v: string) => void> = {
-        media_insight: setMediaInsight, top_result: setTopResult, recommendation: setRecommendation,
+        intro: setIntroSummary, media_insight: setMediaInsight, top_result: setTopResult, recommendation: setRecommendation,
         goals_set: setGoalsSet, results: setResults,
         target_audience: setTargetAudience, brand_awareness: setBrandAwareness,
       };
@@ -300,8 +301,9 @@ export const CampaignAdsInsightsContent = forwardRef<HTMLDivElement, CampaignAds
 
       if (onSaveInsights) {
         const updates: Partial<CampaignStructuredInsights> = {};
-        if (["media_insight", "top_result", "recommendation"].includes(section)) {
+        if (["intro", "media_insight", "top_result", "recommendation"].includes(section)) {
           updates.executive_summary = {
+            intro: section === "intro" ? value : introSummary,
             media_insight: section === "media_insight" ? value : mediaInsight,
             top_result: section === "top_result" ? value : topResult,
             recommendation: section === "recommendation" ? value : recommendation,
@@ -350,6 +352,11 @@ export const CampaignAdsInsightsContent = forwardRef<HTMLDivElement, CampaignAds
         {/* 1. Executive Summary */}
         <Card className="p-6 rounded-[20px] border-foreground" style={{ backgroundColor: "#E9E9E9" }}>
           <h2 className="text-xl font-bold mb-4">Executive Summary</h2>
+          {(introSummary || canEdit) && (
+            <div className="mb-4">
+              <EditableSection value={introSummary} isEditing={editingSections.has("intro")} onStartEdit={() => startEditing("intro")} onSave={(v) => handleSaveSection("intro", v)} onCancel={() => stopEditing("intro")} canEdit={canEdit} placeholder="Úvodní shrnutí kampaně..." />
+            </div>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card className="p-4 rounded-[15px] border-border bg-muted/30">
               <div className="flex items-center gap-2 mb-2"><Eye className="w-5 h-5 text-accent-blue" /><span className="font-bold text-sm uppercase">Media poznatek</span></div>

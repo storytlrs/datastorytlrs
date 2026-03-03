@@ -875,6 +875,7 @@ KONTEXT OD UŽIVATELE:
 
 {
   "executive_summary": {
+    "intro": "Úvodní shrnutí kampaně v 2-3 větách – stručný přehled co se dělo, jaké byly výsledky a hlavní závěr",
     "media_insight": "Klíčový media poznatek z kampaně – 2-3 krátké věty",
     "top_result": "Nejlepší výsledek kampaně – 2-3 krátké věty",
     "recommendation": "Hlavní doporučení pro příští kampaň – 2-3 krátké věty"
@@ -1207,6 +1208,7 @@ KONTEXT OD UŽIVATELE:
 
 {
   "executive_summary": {
+    "intro": "Úvodní shrnutí kvartálu v 2-3 větách – stručný přehled výsledků a hlavní závěr",
     "media_insight": "Klíčový media poznatek za kvartál s konkrétními čísly (max 100 slov)",
     "top_result": "Nejlepší výsledek kvartálu s konkrétními daty (max 100 slov)",
     "recommendation": "Hlavní doporučení pro zlepšení v dalším kvartálu (max 100 slov)"
@@ -1548,6 +1550,7 @@ KONTEXT OD UŽIVATELE:
 
 {
   "executive_summary": {
+    "intro": "Úvodní shrnutí roku v 2-3 větách – stručný přehled výsledků a hlavní závěr",
     "media_insight": "Klíčový media poznatek za rok (max 150 slov)",
     "top_result": "Nejlepší výsledek roku (max 150 slov)",
     "recommendation": "Hlavní doporučení pro zlepšení (max 150 slov)"
