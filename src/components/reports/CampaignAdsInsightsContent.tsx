@@ -6,11 +6,13 @@ import { Input } from "@/components/ui/input";
 import { TranslatedText } from "@/components/ui/TranslatedText";
 import { MetricTile } from "./MetricTile";
 import { formatCurrencySimple, formatCurrency } from "@/lib/currencyUtils";
+import { Progress } from "@/components/ui/progress";
+import { cn } from "@/lib/utils";
 import {
   Target, Star, DollarSign, Users, Pencil, Save, X,
   BarChart3, MessageCircle, Mail, Clock, Eye, TrendingUp,
   ThumbsUp, Lightbulb, CheckCircle, Zap, Play, MousePointer,
-  UserCheck, Award,
+  UserCheck, Award, ClipboardList,
 } from "lucide-react";
 
 // ── Types ──
@@ -29,6 +31,14 @@ interface PostData {
 export interface CampaignStructuredInsights {
   executive_summary: { media_insight: string; top_result: string; recommendation: string };
   goal_fulfillment: { goals_set: string; results: string };
+  metric_commentary?: { meta_key?: string; meta_detail?: string; tiktok_key?: string; tiktok_detail?: string };
+  media_plan_comparison?: {
+    budget?: { planned: number; actual: number };
+    impressions?: { planned: number; actual: number };
+    reach?: { planned: number; actual: number };
+    cpm?: { planned: number; actual: number };
+    frequency?: { planned: number; actual: number };
+  } | null;
   meta_key_metrics: { spend: number; reach: number; frequency: number; currency: string };
   meta_detail_metrics: { thruplay_rate: number; view_rate_3s: number; avg_watch_time: number };
   tiktok_key_metrics: { spend: number; reach: number; frequency: number; currency: string };
@@ -184,7 +194,45 @@ const postGrid = (posts: PostData[]) => (
   </div>
 );
 
-// ── Main Component ──
+// ── Media Plan Comparison ──
+
+const MediaPlanComparisonRow = ({ label, planned, actual, format = "number" }: { label: string; planned: number; actual: number; format?: "number" | "currency" | "percent" }) => {
+  const pct = planned > 0 ? (actual / planned) * 100 : 0;
+  const clampedPct = Math.min(pct, 100);
+  const isOver = pct > 100;
+  const formatVal = (v: number) => {
+    if (format === "currency") return formatCurrencySimple(v, "CZK");
+    if (format === "percent") return v.toFixed(2);
+    return formatNumber(v);
+  };
+
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between text-sm">
+        <span className="font-medium text-foreground">{label}</span>
+        <span className={cn("font-bold text-sm", isOver ? "text-accent-green" : pct >= 80 ? "text-foreground" : "text-accent-orange")}>
+          {pct.toFixed(0)}%
+        </span>
+      </div>
+      <Progress value={clampedPct} className="h-2.5" />
+      <div className="flex items-center justify-between text-xs text-muted-foreground">
+        <span>Plan: {formatVal(planned)}</span>
+        <span>Skutečnost: {formatVal(actual)}</span>
+      </div>
+    </div>
+  );
+};
+
+const MetricCommentary = ({ text }: { text?: string }) => {
+  if (!text) return null;
+  return (
+    <div className="mt-3 p-3 bg-muted/40 rounded-[12px]">
+      <p className="text-sm text-foreground leading-relaxed"><TranslatedText text={text} /></p>
+    </div>
+  );
+};
+
+
 
 export const CampaignAdsInsightsContent = forwardRef<HTMLDivElement, CampaignAdsInsightsContentProps>(
   ({ insights: raw, canEdit = false, onSaveInsights, hasMetaPlatform, hasTiktokPlatform }, ref) => {
@@ -200,6 +248,8 @@ export const CampaignAdsInsightsContent = forwardRef<HTMLDivElement, CampaignAds
     const insights: CampaignStructuredInsights = {
       executive_summary: d(raw.executive_summary, { media_insight: "", top_result: "", recommendation: "" }),
       goal_fulfillment: d(raw.goal_fulfillment, { goals_set: "", results: "" }),
+      metric_commentary: raw.metric_commentary || {},
+      media_plan_comparison: raw.media_plan_comparison || null,
       meta_key_metrics: d(metaKeySource, { spend: 0, reach: 0, frequency: 0, currency: "CZK" }),
       meta_detail_metrics: d(metaDetailSource, { thruplay_rate: 0, view_rate_3s: 0, avg_watch_time: 0 }),
       tiktok_key_metrics: d(tiktokKeySource, { spend: 0, reach: 0, frequency: 0, currency: "CZK" }),
@@ -322,7 +372,34 @@ export const CampaignAdsInsightsContent = forwardRef<HTMLDivElement, CampaignAds
           </div>
         </Card>
 
-        {/* 3. Klíčové metriky META */}
+        {/* 3. Media Plan Comparison */}
+        {insights.media_plan_comparison && (
+          <Card className="p-6 rounded-[20px] border-foreground" style={{ backgroundColor: "#E9E9E9" }}>
+            <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+              <ClipboardList className="w-6 h-6" />
+              Plnění Media Plánu
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {insights.media_plan_comparison.budget && insights.media_plan_comparison.budget.planned > 0 && (
+                <MediaPlanComparisonRow label="Budget" planned={insights.media_plan_comparison.budget.planned} actual={insights.media_plan_comparison.budget.actual} format="currency" />
+              )}
+              {insights.media_plan_comparison.impressions && insights.media_plan_comparison.impressions.planned > 0 && (
+                <MediaPlanComparisonRow label="Impressions" planned={insights.media_plan_comparison.impressions.planned} actual={insights.media_plan_comparison.impressions.actual} />
+              )}
+              {insights.media_plan_comparison.reach && insights.media_plan_comparison.reach.planned > 0 && (
+                <MediaPlanComparisonRow label="Reach" planned={insights.media_plan_comparison.reach.planned} actual={insights.media_plan_comparison.reach.actual} />
+              )}
+              {insights.media_plan_comparison.cpm && insights.media_plan_comparison.cpm.planned > 0 && (
+                <MediaPlanComparisonRow label="CPM" planned={insights.media_plan_comparison.cpm.planned} actual={insights.media_plan_comparison.cpm.actual} format="currency" />
+              )}
+              {insights.media_plan_comparison.frequency && insights.media_plan_comparison.frequency.planned > 0 && (
+                <MediaPlanComparisonRow label="Frequency" planned={insights.media_plan_comparison.frequency.planned} actual={insights.media_plan_comparison.frequency.actual} format="percent" />
+              )}
+            </div>
+          </Card>
+        )}
+
+        {/* 4. Klíčové metriky META */}
         {hasMeta && (
           <Card className="p-6 rounded-[20px] border-foreground" style={{ backgroundColor: "#E9E9E9" }}>
             <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
@@ -335,10 +412,11 @@ export const CampaignAdsInsightsContent = forwardRef<HTMLDivElement, CampaignAds
               <MetricTile title="Reach" value={formatNumber(insights.meta_key_metrics.reach)} icon={Users} accentColor="blue" />
               <MetricTile title="Frequency" value={insights.meta_key_metrics.frequency.toFixed(2)} icon={BarChart3} accentColor="blue" />
             </div>
+            <MetricCommentary text={insights.metric_commentary?.meta_key} />
           </Card>
         )}
 
-        {/* 4. Detailní metriky META */}
+        {/* 5. Detailní metriky META */}
         {hasMeta && (
           <Card className="p-6 rounded-[20px] border-foreground" style={{ backgroundColor: "#E9E9E9" }}>
             <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
@@ -351,10 +429,11 @@ export const CampaignAdsInsightsContent = forwardRef<HTMLDivElement, CampaignAds
               <MetricTile title="VV 3s Rate" value={formatPercent(insights.meta_detail_metrics.view_rate_3s)} icon={Eye} accentColor="blue" />
               <MetricTile title="Avg. Watch Time" value={`${insights.meta_detail_metrics.avg_watch_time.toFixed(1)}s`} icon={Clock} accentColor="blue" />
             </div>
+            <MetricCommentary text={insights.metric_commentary?.meta_detail} />
           </Card>
         )}
 
-        {/* 5. Klíčové metriky TikTok */}
+        {/* 6. Klíčové metriky TikTok */}
         {hasTiktok && (
           <Card className="p-6 rounded-[20px] border-foreground" style={{ backgroundColor: "#E9E9E9" }}>
             <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
@@ -366,10 +445,11 @@ export const CampaignAdsInsightsContent = forwardRef<HTMLDivElement, CampaignAds
               <MetricTile title="Reach" value={formatNumber(insights.tiktok_key_metrics.reach)} icon={Users} accentColor="blue" />
               <MetricTile title="Frequency" value={insights.tiktok_key_metrics.frequency.toFixed(2)} icon={BarChart3} accentColor="blue" />
             </div>
+            <MetricCommentary text={insights.metric_commentary?.tiktok_key} />
           </Card>
         )}
 
-        {/* 6. Detailní metriky TikTok */}
+        {/* 7. Detailní metriky TikTok */}
         {hasTiktok && (
           <Card className="p-6 rounded-[20px] border-foreground" style={{ backgroundColor: "#E9E9E9" }}>
             <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
@@ -381,6 +461,7 @@ export const CampaignAdsInsightsContent = forwardRef<HTMLDivElement, CampaignAds
               <MetricTile title="VV 3s Rate" value={formatPercent(insights.tiktok_detail_metrics.view_rate_3s)} icon={Eye} accentColor="blue" />
               <MetricTile title="Avg. Watch Time" value={`${insights.tiktok_detail_metrics.avg_watch_time.toFixed(1)}s`} icon={Clock} accentColor="blue" />
             </div>
+            <MetricCommentary text={insights.metric_commentary?.tiktok_detail} />
           </Card>
         )}
 
