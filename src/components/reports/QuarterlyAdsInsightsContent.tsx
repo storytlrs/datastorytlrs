@@ -345,6 +345,23 @@ const PlatformSection = ({
 
   return (
     <>
+      {/* Metrics over time + Key metrics */}
+      <Card className="p-6 rounded-[20px] border-foreground" style={{ backgroundColor: "#E9E9E9" }}>
+        <div className="flex items-center gap-3 mb-4">
+          {icon}
+          <h2 className="text-xl font-bold">Vývoj metrik v čase – {platformName}</h2>
+        </div>
+        <EditableSection
+          value={metricsOverTime}
+          isEditing={editingSections.has(`${sectionPrefix}_metrics_over_time`)}
+          onStartEdit={() => startEditing(`${sectionPrefix}_metrics_over_time`)}
+          onSave={(v) => onSaveSection(`${sectionPrefix}_metrics_over_time`, v)}
+          onCancel={() => stopEditing(`${sectionPrefix}_metrics_over_time`)}
+          canEdit={canEdit}
+          placeholder={`AI popis vývoje metrik – ${platformName}...`}
+        />
+      </Card>
+
       {/* Key metrics */}
       <Card className="p-6 rounded-[20px] border-foreground" style={{ backgroundColor: "#E9E9E9" }}>
         <div className="flex items-center gap-3 mb-4">
@@ -369,23 +386,6 @@ const PlatformSection = ({
           <MetricTile title="CPE" value={formatCurrency(detailMetrics.cpe, cur)} icon={Wallet} accentColor="orange" />
           <MetricTile title="CPV" value={formatCurrency(detailMetrics.cpv, cur)} icon={Wallet} accentColor="orange" />
         </div>
-      </Card>
-
-      {/* Metrics over time */}
-      <Card className="p-6 rounded-[20px] border-foreground" style={{ backgroundColor: "#E9E9E9" }}>
-        <div className="flex items-center gap-3 mb-4">
-          {icon}
-          <h2 className="text-xl font-bold">Vývoj metrik v čase – {platformName}</h2>
-        </div>
-        <EditableSection
-          value={metricsOverTime}
-          isEditing={editingSections.has(`${sectionPrefix}_metrics_over_time`)}
-          onStartEdit={() => startEditing(`${sectionPrefix}_metrics_over_time`)}
-          onSave={(v) => onSaveSection(`${sectionPrefix}_metrics_over_time`, v)}
-          onCancel={() => stopEditing(`${sectionPrefix}_metrics_over_time`)}
-          canEdit={canEdit}
-          placeholder={`AI popis vývoje metrik – ${platformName}...`}
-        />
       </Card>
 
       {/* TOP posts */}
