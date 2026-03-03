@@ -440,63 +440,6 @@ const BrandInfluencersDashboard = ({ spaceId, filters }: BrandInfluencersDashboa
         )}
       </div>
 
-      {/* Bar Chart */}
-      <Card className="p-6 rounded-[35px] border-foreground">
-        <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-          <h3 className="text-lg font-semibold">Monthly Performance</h3>
-          <div className="flex flex-wrap gap-2">
-            {(Object.keys(metricLabels) as MetricKey[]).map((key) => (
-              <Button
-                key={key}
-                variant="outline"
-                size="sm"
-                onClick={() => setSelectedMetric(key)}
-                className={cn(
-                  "rounded-[35px] hover:border-foreground hover:bg-foreground hover:text-background",
-                  selectedMetric === key
-                    ? "border-accent-orange bg-accent-orange text-foreground"
-                    : "border-foreground bg-card text-foreground"
-                )}
-              >
-                {metricLabels[key]}
-              </Button>
-            ))}
-          </div>
-        </div>
-
-        {chartData.length > 0 ? (
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-              <XAxis dataKey="month" stroke="hsl(var(--foreground))" />
-              <YAxis
-                stroke="hsl(var(--foreground))"
-                tickFormatter={(value) => formatChartValue(value, selectedMetric)}
-              />
-              <Tooltip
-                formatter={(value: number) => [
-                  formatChartValue(value, selectedMetric),
-                  metricLabels[selectedMetric]
-                ]}
-                contentStyle={{
-                  backgroundColor: "hsl(var(--background))",
-                  border: "1px solid hsl(var(--border))",
-                  borderRadius: "8px",
-                }}
-              />
-              <Bar dataKey={selectedMetric} fill="hsl(var(--accent-green))" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        ) : (
-          <div className="flex items-center justify-center h-[300px] text-muted-foreground">
-            No data available for the selected filters
-          </div>
-        )}
-      </Card>
-
-      {/* Top 5 Content */}
-      <TopContentGrid items={topContent} title="Top 5 Influencer Content" emptyMessage="No influencer content found" />
-
       {/* Key Metrics */}
       <div className="space-y-4">
         <h3 className="text-lg font-semibold">Key Metrics</h3>
@@ -557,6 +500,63 @@ const BrandInfluencersDashboard = ({ spaceId, filters }: BrandInfluencersDashboa
           />
         </div>
       </div>
+
+      {/* Bar Chart */}
+      <Card className="p-6 rounded-[35px] border-foreground">
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+          <h3 className="text-lg font-semibold">Monthly Performance</h3>
+          <div className="flex flex-wrap gap-2">
+            {(Object.keys(metricLabels) as MetricKey[]).map((key) => (
+              <Button
+                key={key}
+                variant="outline"
+                size="sm"
+                onClick={() => setSelectedMetric(key)}
+                className={cn(
+                  "rounded-[35px] hover:border-foreground hover:bg-foreground hover:text-background",
+                  selectedMetric === key
+                    ? "border-accent-orange bg-accent-orange text-foreground"
+                    : "border-foreground bg-card text-foreground"
+                )}
+              >
+                {metricLabels[key]}
+              </Button>
+            ))}
+          </div>
+        </div>
+
+        {chartData.length > 0 ? (
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={chartData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+              <XAxis dataKey="month" stroke="hsl(var(--foreground))" />
+              <YAxis
+                stroke="hsl(var(--foreground))"
+                tickFormatter={(value) => formatChartValue(value, selectedMetric)}
+              />
+              <Tooltip
+                formatter={(value: number) => [
+                  formatChartValue(value, selectedMetric),
+                  metricLabels[selectedMetric]
+                ]}
+                contentStyle={{
+                  backgroundColor: "hsl(var(--background))",
+                  border: "1px solid hsl(var(--border))",
+                  borderRadius: "8px",
+                }}
+              />
+              <Bar dataKey={selectedMetric} fill="hsl(var(--accent-green))" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        ) : (
+          <div className="flex items-center justify-center h-[300px] text-muted-foreground">
+            No data available for the selected filters
+          </div>
+        )}
+      </Card>
+
+      {/* Top 5 Content */}
+      <TopContentGrid items={topContent} title="Top 5 Influencer Content" emptyMessage="No influencer content found" />
     </div>
   );
 };
