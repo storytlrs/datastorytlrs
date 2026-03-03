@@ -4,13 +4,11 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Play, ArrowUpDown, ImageIcon } from "lucide-react";
+import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/currencyUtils";
 import { Label } from "@/components/ui/label";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
-import { format } from "date-fns";
-import { CalendarIcon } from "lucide-react";
+import { DateRangeFilter } from "@/components/ui/date-range-filter";
 
 interface OverviewFilters {
   dateRange: { start: Date | null; end: Date | null };
@@ -64,8 +62,7 @@ const BrandContentDashboard = ({ spaceId, filters }: BrandContentDashboardProps)
   const [platformFilter, setPlatformFilter] = useState<"all" | "meta" | "tiktok">("all");
   const [sortMetric, setSortMetric] = useState<SortMetric>("impressions");
   const [sortDirection, setSortDirection] = useState<SortDirection>("best");
-  const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
-  const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
+  const [dateRange, setDateRange] = useState<{ start: Date | null; end: Date | null }>({ start: null, end: null });
 
   useEffect(() => {
     fetchData();
@@ -162,16 +159,16 @@ const BrandContentDashboard = ({ spaceId, filters }: BrandContentDashboardProps)
     else all = [...tiktokAds];
 
     // Date filter
-    if (dateFrom) {
+    if (dateRange.start) {
       all = all.filter(a => {
         if (!a.date_start) return true;
-        return new Date(a.date_start) >= dateFrom;
+        return new Date(a.date_start) >= dateRange.start!;
       });
     }
-    if (dateTo) {
+    if (dateRange.end) {
       all = all.filter(a => {
         if (!a.date_start) return true;
-        return new Date(a.date_start) <= dateTo;
+        return new Date(a.date_start) <= dateRange.end!;
       });
     }
 
@@ -206,7 +203,7 @@ const BrandContentDashboard = ({ spaceId, filters }: BrandContentDashboardProps)
     });
 
     return all.slice(0, 15);
-  }, [metaAds, tiktokAds, platformFilter, sortMetric, sortDirection, dateFrom, dateTo]);
+  }, [metaAds, tiktokAds, platformFilter, sortMetric, sortDirection, dateRange]);
 
   const getSortMetricValue = (ad: AdCreative): string => {
     switch (sortMetric) {
@@ -294,45 +291,16 @@ const BrandContentDashboard = ({ spaceId, filters }: BrandContentDashboardProps)
             </Button>
           </div>
 
-          {/* Date from */}
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">From</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className="rounded-[35px] border-foreground gap-2 w-[140px] justify-start">
-                  <CalendarIcon className="w-4 h-4" />
-                  {dateFrom ? format(dateFrom, "dd.MM.yyyy") : "–"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar mode="single" selected={dateFrom} onSelect={setDateFrom} />
-              </PopoverContent>
-            </Popover>
-          </div>
-
-          {/* Date to */}
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">To</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className="rounded-[35px] border-foreground gap-2 w-[140px] justify-start">
-                  <CalendarIcon className="w-4 h-4" />
-                  {dateTo ? format(dateTo, "dd.MM.yyyy") : "–"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar mode="single" selected={dateTo} onSelect={setDateTo} />
-              </PopoverContent>
-            </Popover>
-          </div>
+          {/* Date range */}
+          <DateRangeFilter dateRange={dateRange} onDateRangeChange={setDateRange} />
 
           {/* Reset */}
-          {(dateFrom || dateTo || platformFilter !== "all") && (
+          {(dateRange.start || dateRange.end || platformFilter !== "all") && (
             <Button
               variant="ghost"
               size="sm"
               className="rounded-[35px] text-muted-foreground"
-              onClick={() => { setDateFrom(undefined); setDateTo(undefined); setPlatformFilter("all"); }}
+              onClick={() => { setDateRange({ start: null, end: null }); setPlatformFilter("all"); }}
             >
               Reset
             </Button>
