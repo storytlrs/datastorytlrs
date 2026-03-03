@@ -308,46 +308,45 @@ const BrandInfluencersDashboard = ({ spaceId, filters }: BrandInfluencersDashboa
       });
   }, [filteredContent, kpis]);
 
-  // Top 5 content by composite score
+  // Top 5 content sorted by selected metric
   const topContent: TopContentItem[] = useMemo(() => {
     if (filteredContent.length === 0) return [];
 
-    // Normalize values for scoring
-    const maxViews = Math.max(...filteredContent.map(c => (c.impressions || 0) + (c.views || 0)), 1);
-    const maxER = Math.max(...filteredContent.map(c => c.engagement_rate || 0), 1);
-    const maxWatchTime = Math.max(...filteredContent.map(c => c.watch_time || 0), 1);
-    const maxSharesSaves = Math.max(...filteredContent.map(c => (c.shares || 0) + (c.saves || 0)), 1);
+    const getMetricValue = (c: Content): number => {
+      const views = (c.impressions || 0) + (c.views || 0);
+      const interactions = (c.likes || 0) + (c.comments || 0) + (c.shares || 0) + (c.saves || 0);
+      switch (selectedMetric) {
+        case "views": return views;
+        case "interactions": return interactions;
+        case "engagementRate": return c.engagement_rate || 0;
+        case "watchTime":
+        case "tswb": return c.watch_time || 0;
+        case "viralityRate": return views > 0 ? ((c.shares || 0) / views) * 100 : 0;
+        case "cpm": // lower is better — invert
+          return views > 0 ? -1 * views : 0; // sort by most views as proxy
+        default: return views; // content, budget, tswbCost, creators — fallback to views
+      }
+    };
 
-    return filteredContent
-      .map(c => {
-        const views = (c.impressions || 0) + (c.views || 0);
-        const er = c.engagement_rate || 0;
-        const wt = c.watch_time || 0;
-        const sharesSaves = (c.shares || 0) + (c.saves || 0);
+    // For CPM, lower is better so we want highest metric value (which we inverted)
+    const sorted = [...filteredContent].sort((a, b) => getMetricValue(b) - getMetricValue(a));
 
-        const score =
-          (views / maxViews) * 0.30 +
-          (er / maxER) * 0.25 +
-          (wt / maxWatchTime) * 0.25 +
-          (sharesSaves / maxSharesSaves) * 0.20;
-
-        const creator = creatorMap.get(c.creator_id);
-
-        return {
-          id: c.id,
-          thumbnailUrl: c.thumbnail_url,
-          contentType: c.content_type,
-          platform: c.platform,
-          views,
-          engagementRate: er,
-          url: c.url,
-          creatorHandle: creator?.handle,
-          score,
-        };
-      })
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 5);
-  }, [filteredContent, creatorMap]);
+    return sorted.slice(0, 5).map(c => {
+      const creator = creatorMap.get(c.creator_id);
+      const views = (c.impressions || 0) + (c.views || 0);
+      return {
+        id: c.id,
+        thumbnailUrl: c.thumbnail_url,
+        contentType: c.content_type,
+        platform: c.platform,
+        views,
+        engagementRate: c.engagement_rate || 0,
+        url: c.url,
+        creatorHandle: creator?.handle,
+        score: getMetricValue(c),
+      };
+    });
+  }, [filteredContent, creatorMap, selectedMetric]);
 
   const metricLabels: Record<MetricKey, string> = {
     views: "Views",
