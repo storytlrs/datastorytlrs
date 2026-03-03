@@ -46,6 +46,11 @@ export interface CampaignStructuredInsights {
   tiktok_detail_metrics: { thruplay_rate: number; view_rate_3s: number; avg_watch_time: number };
   audience_demographics?: { category: string; facebook: number; instagram: number; tiktok: number }[];
   target_audience: string;
+  content_analysis?: {
+    creative_comparison: string;
+    platform_performance: string;
+    improvement_suggestions: string;
+  };
   top_content: PostData[];
   community_management: { answered_comments: number | null; answered_dms: number | null; response_rate_24h: number | null };
   brand_awareness: string;
@@ -258,6 +263,7 @@ export const CampaignAdsInsightsContent = forwardRef<HTMLDivElement, CampaignAds
       tiktok_detail_metrics: d(tiktokDetailSource, { thruplay_rate: 0, view_rate_3s: 0, avg_watch_time: 0 }),
       audience_demographics: raw.audience_demographics || [],
       target_audience: raw.target_audience || "",
+      content_analysis: raw.content_analysis || { creative_comparison: "", platform_performance: "", improvement_suggestions: "" },
       top_content: raw.top_content || [],
       community_management: d(raw.community_management, { answered_comments: null, answered_dms: null, response_rate_24h: null }),
       brand_awareness: raw.brand_awareness || "",
@@ -507,7 +513,51 @@ export const CampaignAdsInsightsContent = forwardRef<HTMLDivElement, CampaignAds
           />
         </Card>
 
-        {/* 8. Content TOP 5 */}
+        {/* Content Analysis */}
+        {(insights.content_analysis?.creative_comparison || insights.content_analysis?.platform_performance || insights.content_analysis?.improvement_suggestions) && (
+          <Card className="p-6 rounded-[20px] border-foreground" style={{ backgroundColor: "#E9E9E9" }}>
+            <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+              <Eye className="w-6 h-6" />
+              Analýza kreativ
+            </h2>
+            <div className="flex gap-6">
+              {/* Text content */}
+              <div className="flex-1 space-y-4">
+                {insights.content_analysis.creative_comparison && (
+                  <Card className="p-4 rounded-[15px] border-border bg-muted/30">
+                    <div className="flex items-center gap-2 mb-2"><Award className="w-5 h-5 text-accent-blue" /><span className="font-bold text-sm uppercase">Porovnání vizuálů</span></div>
+                    <p className="text-foreground leading-relaxed text-sm"><TranslatedText text={insights.content_analysis.creative_comparison} /></p>
+                  </Card>
+                )}
+                {insights.content_analysis.platform_performance && (
+                  <Card className="p-4 rounded-[15px] border-border bg-muted/30">
+                    <div className="flex items-center gap-2 mb-2"><BarChart3 className="w-5 h-5 text-accent-green" /><span className="font-bold text-sm uppercase">Výkon dle platformy</span></div>
+                    <p className="text-foreground leading-relaxed text-sm"><TranslatedText text={insights.content_analysis.platform_performance} /></p>
+                  </Card>
+                )}
+                {insights.content_analysis.improvement_suggestions && (
+                  <Card className="p-4 rounded-[15px] border-border bg-muted/30">
+                    <div className="flex items-center gap-2 mb-2"><Lightbulb className="w-5 h-5 text-accent-orange" /><span className="font-bold text-sm uppercase">Doporučení pro zlepšení</span></div>
+                    <p className="text-foreground leading-relaxed text-sm"><TranslatedText text={insights.content_analysis.improvement_suggestions} /></p>
+                  </Card>
+                )}
+              </div>
+              {/* Top 2 creative previews */}
+              {insights.top_content.length > 0 && (
+                <div className="flex-shrink-0 w-[300px]">
+                  <h3 className="text-sm font-semibold uppercase text-muted-foreground mb-3">Nejúspěšnější kreativy</h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    {insights.top_content.slice(0, 2).map((post, i) => (
+                      <PostCard key={i} post={post} />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </Card>
+        )}
+
+        {/* TOP 5 contentů */}
         {insights.top_content.length > 0 && (
           <Card className="p-6 rounded-[20px] border-foreground" style={{ backgroundColor: "#E9E9E9" }}>
             <h2 className="text-xl font-bold mb-4">TOP 5 contentů za celou kampaň</h2>
