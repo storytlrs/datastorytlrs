@@ -1094,27 +1094,44 @@ async function handleQuarterlyReport(ctx: any) {
     costPerThruplay, costPer3sView,
   } = ctx;
 
-  // Separate Meta ads by platform (FB vs IG) using ad name hints
+  // ── Platform classification using publisher_platform from campaigns ──
+  // First, try to use publisher_platform from campaign rows
+  const allMetaCampaignRows = (campaigns || []).filter((c: any) => !c.age || c.age === '');
+  const fbCampaignRows = allMetaCampaignRows.filter((c: any) => (c.publisher_platform || '').toLowerCase() === 'facebook');
+  const igCampaignRows = allMetaCampaignRows.filter((c: any) => (c.publisher_platform || '').toLowerCase() === 'instagram');
+  // "unknown" rows are aggregates - use them for reach when platform-specific rows don't have it
+  const unknownCampaignRows = allMetaCampaignRows.filter((c: any) => {
+    const p = (c.publisher_platform || '').toLowerCase();
+    return p === 'unknown' || p === '' || p === 'messenger';
+  });
+
+  // Also try ads classification by publisher_platform or name
   const fbAds = (ads || []).filter((a: any) => {
-    const name = (a.ad_name || "").toLowerCase();
-    return name.includes("facebook") || name.includes("fb");
+    const pp = (a.publisher_platform || '').toLowerCase();
+    if (pp === 'facebook') return true;
+    const name = (a.ad_name || '').toLowerCase();
+    return name.includes('facebook') || name.includes('fb');
   });
   const igAds = (ads || []).filter((a: any) => {
-    const name = (a.ad_name || "").toLowerCase();
-    return name.includes("instagram") || name.includes("ig");
+    const pp = (a.publisher_platform || '').toLowerCase();
+    if (pp === 'instagram') return true;
+    const name = (a.ad_name || '').toLowerCase();
+    return name.includes('instagram') || name.includes('ig');
   });
-  // If no ads match FB/IG name patterns, treat all Meta ads as general (split evenly or assign all)
   const unclassifiedMetaAds = (ads || []).filter((a: any) => {
-    const name = (a.ad_name || "").toLowerCase();
-    return !name.includes("facebook") && !name.includes("fb") && !name.includes("instagram") && !name.includes("ig");
+    const pp = (a.publisher_platform || '').toLowerCase();
+    const name = (a.ad_name || '').toLowerCase();
+    return pp !== 'facebook' && pp !== 'instagram' && !name.includes('facebook') && !name.includes('fb') && !name.includes('instagram') && !name.includes('ig');
   });
-  // Add unclassified Meta ads to both FB and IG if neither has any
   if (fbAds.length === 0 && igAds.length === 0 && unclassifiedMetaAds.length > 0) {
     fbAds.push(...unclassifiedMetaAds);
   }
 
-  // TikTok ads come from the dedicated tiktokAds array (not from Meta brand_ads)
-  // Normalize TikTok ad fields to match the expected shape
+  // Also try ad_sets by publisher_platform
+  const fbAdSets = (adSets || []).filter((as: any) => (as.publisher_platform || '').toLowerCase() === 'facebook');
+  const igAdSets = (adSets || []).filter((as: any) => (as.publisher_platform || '').toLowerCase() === 'instagram');
+
+  // Normalize TikTok ads
   const normalizedTiktokAds = (tiktokAds || []).map((a: any) => ({
     ad_name: a.ad_name || "Unnamed",
     amount_spent: a.amount_spent || 0,
@@ -1130,13 +1147,14 @@ async function handleQuarterlyReport(ctx: any) {
     thumbnail_url: a.thumbnail_url || null,
   }));
 
-  const calcPlatformMetrics = (platformAds: any[]) => {
-    const spend = platformAds.reduce((s: number, a: any) => s + (a.amount_spent || 0), 0);
-    const reach = platformAds.reduce((s: number, a: any) => s + (a.reach || 0), 0);
-    const impr = platformAds.reduce((s: number, a: any) => s + (a.impressions || 0), 0);
-    const clicks = platformAds.reduce((s: number, a: any) => s + (a.clicks || 0), 0);
-    const interactions = platformAds.reduce((s: number, a: any) => s + (a.post_reactions || 0) + (a.post_comments || 0) + (a.post_shares || 0) + (a.post_saves || 0), 0);
-    const thruplays = platformAds.reduce((s: number, a: any) => s + (a.thruplays || 0), 0);
+  // Calculate platform metrics: prefer ads > ad_sets > campaigns
+  const calcMetricsFromRows = (rows: any[]) => {
+    const spend = rows.reduce((s: number, r: any) => s + (r.amount_spent || 0), 0);
+    const reach = rows.reduce((s: number, r: any) => s + (r.reach || 0), 0);
+    const impr = rows.reduce((s: number, r: any) => s + (r.impressions || 0), 0);
+    const clicks = rows.reduce((s: number, r: any) => s + (r.clicks || 0), 0);
+    const interactions = rows.reduce((s: number, r: any) => s + (r.post_reactions || r.likes || 0) + (r.post_comments || r.comments || 0) + (r.post_shares || r.shares || 0) + (r.post_saves || 0), 0);
+    const thruplays = rows.reduce((s: number, r: any) => s + (r.thruplays || r.video_views_p100 || 0), 0);
     return {
       spend, reach, frequency: reach > 0 ? impr / reach : 0,
       cpm: impr > 0 ? (spend / impr) * 1000 : 0,
@@ -1145,9 +1163,35 @@ async function handleQuarterlyReport(ctx: any) {
     };
   };
 
-  const fbM = calcPlatformMetrics(fbAds);
-  const igM = calcPlatformMetrics(igAds);
-  const tkM = calcPlatformMetrics(normalizedTiktokAds);
+  // Facebook: ads > ad_sets > campaigns
+  const fbM = fbAds.length > 0 ? calcMetricsFromRows(fbAds) :
+              fbAdSets.length > 0 ? calcMetricsFromRows(fbAdSets) :
+              calcMetricsFromRows(fbCampaignRows);
+  // Instagram: ads > ad_sets > campaigns
+  const igM = igAds.length > 0 ? calcMetricsFromRows(igAds) :
+              igAdSets.length > 0 ? calcMetricsFromRows(igAdSets) :
+              calcMetricsFromRows(igCampaignRows);
+  // TikTok: normalized ads > tiktok ad groups > tiktok campaigns
+  const tiktokCampaignsOnly = (tiktokCampaigns || []).filter((c: any) => !c.age && !c.gender && !c.location);
+  const tkM = normalizedTiktokAds.length > 0 ? calcMetricsFromRows(normalizedTiktokAds) :
+              (tiktokAdGroups || []).length > 0 ? calcMetricsFromRows(tiktokAdGroups) :
+              calcMetricsFromRows(tiktokCampaignsOnly);
+
+  // For reach: if platform-specific rows have 0 reach, try to distribute from "unknown" aggregate rows
+  if (fbM.reach === 0 && igM.reach === 0 && unknownCampaignRows.length > 0) {
+    const totalUnknownReach = unknownCampaignRows.reduce((s: number, r: any) => s + (r.reach || 0), 0);
+    const totalPlatformSpend = fbM.spend + igM.spend;
+    if (totalPlatformSpend > 0 && totalUnknownReach > 0) {
+      const fbRatio = fbM.spend / totalPlatformSpend;
+      const igRatio = igM.spend / totalPlatformSpend;
+      fbM.reach = Math.round(totalUnknownReach * fbRatio);
+      igM.reach = Math.round(totalUnknownReach * igRatio);
+      const fbImpr = fbCampaignRows.reduce((s: number, r: any) => s + (r.impressions || 0), 0) || fbM.spend / (fbM.cpm || 1) * 1000;
+      const igImpr = igCampaignRows.reduce((s: number, r: any) => s + (r.impressions || 0), 0) || igM.spend / (igM.cpm || 1) * 1000;
+      fbM.frequency = fbM.reach > 0 ? fbImpr / fbM.reach : 0;
+      igM.frequency = igM.reach > 0 ? igImpr / igM.reach : 0;
+    }
+  }
 
   const generateTopReason = (a: any, rank: number) => {
     const parts: string[] = [];
@@ -1167,16 +1211,18 @@ async function handleQuarterlyReport(ctx: any) {
     return parts.length > 0 ? parts.join(", ") : "Prostor pro optimalizaci výkonu";
   };
 
+  const getName = (a: any) => a.ad_name || a.adset_name || a.campaign_name || "Unnamed";
+
   const topBySpend = (arr: any[], count: number) =>
     [...arr].sort((a, b) => (b.amount_spent || 0) - (a.amount_spent || 0)).slice(0, count).map((a: any, i: number) => ({
-      name: a.ad_name || "Unnamed", spend: a.amount_spent || 0, impressions: a.impressions || 0,
+      name: getName(a), spend: a.amount_spent || 0, impressions: a.impressions || 0,
       clicks: a.clicks || 0, ctr: a.ctr || 0, thumbnail_url: a.thumbnail_url || null,
       reason: generateTopReason(a, i + 1),
     }));
 
   const bottomByPerformance = (arr: any[], count: number) =>
     [...arr].filter((a) => (a.amount_spent || 0) > 0).sort((a, b) => (a.ctr || 0) - (b.ctr || 0)).slice(0, count).map((a: any) => ({
-      name: a.ad_name || "Unnamed", spend: a.amount_spent || 0, impressions: a.impressions || 0,
+      name: getName(a), spend: a.amount_spent || 0, impressions: a.impressions || 0,
       clicks: a.clicks || 0, ctr: a.ctr || 0, thumbnail_url: a.thumbnail_url || null,
       reason: generateImproveReason(a),
     }));
@@ -1308,12 +1354,17 @@ KONTEXT OD UŽIVATELE:
   const aiContent = JSON.parse(aiData.choices[0].message.content);
 
   // Persist thumbnails to permanent storage
-  const fbTop = topBySpend(fbAds, 5);
-  const fbImprove = bottomByPerformance(fbAds, 3);
-  const igTop = topBySpend(igAds, 5);
-  const igImprove = bottomByPerformance(igAds, 3);
-  const tkTop = topBySpend(normalizedTiktokAds, 5);
-  const tkImprove = bottomByPerformance(normalizedTiktokAds, 3);
+  // Use best available data for top/bottom posts: ads > ad_sets > campaigns
+  const fbPostSource = fbAds.length > 0 ? fbAds : fbAdSets.length > 0 ? fbAdSets : fbCampaignRows;
+  const igPostSource = igAds.length > 0 ? igAds : igAdSets.length > 0 ? igAdSets : igCampaignRows;
+  const tkPostSource = normalizedTiktokAds.length > 0 ? normalizedTiktokAds : (tiktokAdGroups || []).length > 0 ? tiktokAdGroups : tiktokCampaignsOnly;
+
+  const fbTop = topBySpend(fbPostSource, 5);
+  const fbImprove = bottomByPerformance(fbPostSource, 3);
+  const igTop = topBySpend(igPostSource, 5);
+  const igImprove = bottomByPerformance(igPostSource, 3);
+  const tkTop = topBySpend(tkPostSource, 5);
+  const tkImprove = bottomByPerformance(tkPostSource, 3);
 
   await persistThumbnails(supabase, report_id, [
     { key: "facebook_top_posts", posts: fbTop },
