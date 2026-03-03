@@ -347,6 +347,33 @@ export const CampaignAdsInsightsContent = forwardRef<HTMLDivElement, CampaignAds
     const hasMeta = hasMetaPlatform ?? (insights.meta_key_metrics.spend > 0 || insights.meta_key_metrics.reach > 0);
     const hasTiktok = hasTiktokPlatform ?? (insights.tiktok_key_metrics.spend > 0 || insights.tiktok_key_metrics.reach > 0);
 
+    // Media plan comparison helpers
+    const mp = insights.media_plan_comparison;
+    const totalActualSpend = insights.meta_key_metrics.spend + insights.tiktok_key_metrics.spend;
+    const metaSpendRatio = totalActualSpend > 0 ? insights.meta_key_metrics.spend / totalActualSpend : (hasMeta && !hasTiktok ? 1 : 0.5);
+    const tiktokSpendRatio = totalActualSpend > 0 ? insights.tiktok_key_metrics.spend / totalActualSpend : (hasTiktok && !hasMeta ? 1 : 0.5);
+    const totalActualReach = insights.meta_key_metrics.reach + insights.tiktok_key_metrics.reach;
+    const metaReachRatio = totalActualReach > 0 ? insights.meta_key_metrics.reach / totalActualReach : metaSpendRatio;
+    const tiktokReachRatio = totalActualReach > 0 ? insights.tiktok_key_metrics.reach / totalActualReach : tiktokSpendRatio;
+
+    const getSpendPlan = (ratio: number) => mp?.budget && mp.budget.planned > 0 ? {
+      planned: mp.budget.planned * ratio,
+      actual: mp.budget.actual * ratio,
+      plannedLabel: formatCurrencySimple(mp.budget.planned * ratio, cur),
+    } : undefined;
+
+    const getReachPlan = (ratio: number) => mp?.reach && mp.reach.planned > 0 ? {
+      planned: mp.reach.planned * ratio,
+      actual: mp.reach.actual * ratio,
+      plannedLabel: formatNumber(Math.round(mp.reach.planned * ratio)),
+    } : undefined;
+
+    const getFrequencyPlan = () => mp?.frequency && mp.frequency.planned > 0 ? {
+      planned: mp.frequency.planned,
+      actual: mp.frequency.actual,
+      plannedLabel: mp.frequency.planned.toFixed(2),
+    } : undefined;
+
     return (
       <div ref={ref} className="space-y-8" style={{ backgroundColor: "#E9E9E9" }}>
         {/* 1. Executive Summary */}
@@ -388,32 +415,8 @@ export const CampaignAdsInsightsContent = forwardRef<HTMLDivElement, CampaignAds
           </div>
         </Card>
 
-        {/* 3. Media Plan Comparison */}
-        {insights.media_plan_comparison && (
-          <Card className="p-6 rounded-[20px] border-foreground" style={{ backgroundColor: "#E9E9E9" }}>
-            <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-              <ClipboardList className="w-6 h-6" />
-              Plnění Media Plánu
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {insights.media_plan_comparison.budget && insights.media_plan_comparison.budget.planned > 0 && (
-                <MediaPlanComparisonRow label="Budget" planned={insights.media_plan_comparison.budget.planned} actual={insights.media_plan_comparison.budget.actual} format="currency" />
-              )}
-              {insights.media_plan_comparison.impressions && insights.media_plan_comparison.impressions.planned > 0 && (
-                <MediaPlanComparisonRow label="Impressions" planned={insights.media_plan_comparison.impressions.planned} actual={insights.media_plan_comparison.impressions.actual} />
-              )}
-              {insights.media_plan_comparison.reach && insights.media_plan_comparison.reach.planned > 0 && (
-                <MediaPlanComparisonRow label="Reach" planned={insights.media_plan_comparison.reach.planned} actual={insights.media_plan_comparison.reach.actual} />
-              )}
-              {insights.media_plan_comparison.cpm && insights.media_plan_comparison.cpm.planned > 0 && (
-                <MediaPlanComparisonRow label="CPM" planned={insights.media_plan_comparison.cpm.planned} actual={insights.media_plan_comparison.cpm.actual} format="currency" />
-              )}
-              {insights.media_plan_comparison.frequency && insights.media_plan_comparison.frequency.planned > 0 && (
-                <MediaPlanComparisonRow label="Frequency" planned={insights.media_plan_comparison.frequency.planned} actual={insights.media_plan_comparison.frequency.actual} format="percent" />
-              )}
-            </div>
-          </Card>
-        )}
+        {/* Media Plan Comparison is now integrated into metric tiles below */}
+
 
         {/* 4. Klíčové metriky META */}
         {hasMeta && (
@@ -424,9 +427,9 @@ export const CampaignAdsInsightsContent = forwardRef<HTMLDivElement, CampaignAds
               Klíčové metriky META
             </h2>
             <div className="grid grid-cols-3 gap-4">
-              <MetricTile title="Spend" value={formatCurrency(insights.meta_key_metrics.spend, cur)} icon={DollarSign} accentColor="orange" />
-              <MetricTile title="Reach" value={formatNumber(insights.meta_key_metrics.reach)} icon={Users} accentColor="blue" />
-              <MetricTile title="Frequency" value={insights.meta_key_metrics.frequency.toFixed(2)} icon={BarChart3} accentColor="blue" />
+              <MetricTile title="Spend" value={formatCurrency(insights.meta_key_metrics.spend, cur)} icon={DollarSign} accentColor="orange" planComparison={getSpendPlan(metaSpendRatio)} />
+              <MetricTile title="Reach" value={formatNumber(insights.meta_key_metrics.reach)} icon={Users} accentColor="blue" planComparison={getReachPlan(metaReachRatio)} />
+              <MetricTile title="Frequency" value={insights.meta_key_metrics.frequency.toFixed(2)} icon={BarChart3} accentColor="blue" planComparison={getFrequencyPlan()} />
             </div>
             <MetricCommentary text={insights.metric_commentary?.meta_key} />
           </Card>
@@ -457,9 +460,9 @@ export const CampaignAdsInsightsContent = forwardRef<HTMLDivElement, CampaignAds
               Klíčové metriky TikTok
             </h2>
             <div className="grid grid-cols-3 gap-4">
-              <MetricTile title="Spend" value={formatCurrency(insights.tiktok_key_metrics.spend, cur)} icon={DollarSign} accentColor="orange" />
-              <MetricTile title="Reach" value={formatNumber(insights.tiktok_key_metrics.reach)} icon={Users} accentColor="blue" />
-              <MetricTile title="Frequency" value={insights.tiktok_key_metrics.frequency.toFixed(2)} icon={BarChart3} accentColor="blue" />
+              <MetricTile title="Spend" value={formatCurrency(insights.tiktok_key_metrics.spend, cur)} icon={DollarSign} accentColor="orange" planComparison={getSpendPlan(tiktokSpendRatio)} />
+              <MetricTile title="Reach" value={formatNumber(insights.tiktok_key_metrics.reach)} icon={Users} accentColor="blue" planComparison={getReachPlan(tiktokReachRatio)} />
+              <MetricTile title="Frequency" value={insights.tiktok_key_metrics.frequency.toFixed(2)} icon={BarChart3} accentColor="blue" planComparison={getFrequencyPlan()} />
             </div>
             <MetricCommentary text={insights.metric_commentary?.tiktok_key} />
           </Card>
