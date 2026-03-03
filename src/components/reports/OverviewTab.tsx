@@ -512,7 +512,7 @@ export const OverviewTab = ({ reportId }: OverviewTabProps) => {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <KPICard title="Influencers" value={effectivenessKPIs.creatorsCount.toString()} icon={Users} accentColor="blue" />
           <KPICard title="Content Pieces" value={effectivenessKPIs.contentPieces.toString()} icon={FileText} accentColor="blue" />
-          <KPICard title="Total Views" value={formatNumber(awarenessKPIs.impressionsViews)} icon={Eye} accentColor="blue" benchmark={benchmarks ? formatNumber(benchmarks.views) : undefined} />
+          <KPICard title="Total Views" value={formatNumber(awarenessKPIs.impressionsViews)} icon={Eye} accentColor="blue" />
           <KPICard title="Avg CPM" value={formatCurrency(effectivenessKPIs.cpm)} icon={Wallet} accentColor="blue" tooltip="CPM (Cost per Mille) = (Budget Spent / Views) × 1000." benchmark={benchmarks ? formatCurrency(benchmarks.cpm) : undefined} />
         </div>
       </div>
@@ -524,10 +524,10 @@ export const OverviewTab = ({ reportId }: OverviewTabProps) => {
           <h3 className="font-bold text-lg uppercase tracking-wide">Inovativní a kvalitativní metriky</h3>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <KPICard title="TSWB" value={secondsToReadableTime(engagementKPIs.tswb)} icon={Clock} accentColor="green" tooltip="TSWB (Time Spent With Brand) = Watch Time + (Likes × 3) + (Comments × 5) + ((Saves + Shares + Reposts) × 10)." benchmark={benchmarks ? secondsToReadableTime(benchmarks.tswb) : undefined} />
-          <KPICard title="Interactions" value={formatNumber(engagementKPIs.interactions)} icon={TrendingUp} accentColor="green" benchmark={benchmarks ? formatNumber(benchmarks.interactions) : undefined} />
-          <KPICard title="Engagement Rate" value={formatPercent(engagementKPIs.engagementRate)} icon={Zap} accentColor="green" tooltip="Engagement Rate = (Interactions / Views) × 100." benchmark={benchmarks ? formatPercent(benchmarks.engagementRate) : undefined} />
-          <KPICard title="Virality Avg" value={formatPercent(engagementKPIs.viralityRate, 3)} icon={Share2} accentColor="green" tooltip="Virality Rate = (Shares / Views) × 100." benchmark={benchmarks ? formatPercent(benchmarks.viralityRate, 3) : undefined} />
+          <KPICard title="TSWB" value={secondsToReadableTime(engagementKPIs.tswb)} icon={Clock} accentColor="green" tooltip="TSWB (Time Spent With Brand) = Watch Time + (Likes × 3) + (Comments × 5) + ((Saves + Shares + Reposts) × 10)." />
+          <KPICard title="Interactions" value={formatNumber(engagementKPIs.interactions)} icon={TrendingUp} accentColor="green" />
+          <KPICard title="Engagement Rate" value={formatPercent(engagementKPIs.engagementRate)} icon={Zap} accentColor="green" tooltip="Engagement Rate = (Interactions / Views) × 100." />
+          <KPICard title="Virality Avg" value={formatPercent(engagementKPIs.viralityRate, 3)} icon={Share2} accentColor="green" tooltip="Virality Rate = (Shares / Views) × 100." />
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <KPICard title="Likes" value={formatNumber(engagementKPIs.likes)} icon={Heart} accentColor="green" />
