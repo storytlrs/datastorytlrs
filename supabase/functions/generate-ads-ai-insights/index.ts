@@ -1240,10 +1240,24 @@ KONTEXT OD UŽIVATELE:
     "results": "Detailní vyhodnocení plnění cílů a výsledků změn s konkrétními čísly (max 150 slov)"
   },
   "metrics_over_time": "Popis celkového vývoje klíčových metrik za kvartál – trendy, sezónnost, výkyvy (max 150 slov)",
+  "metric_commentary": {
+    "facebook_key": "2-3 krátké věty hodnotící klíčové Facebook metriky (spend, reach, frequency)",
+    "facebook_detail": "2-3 krátké věty hodnotící detailní Facebook metriky (CPM, CPE, CPV)",
+    "instagram_key": "2-3 krátké věty hodnotící klíčové Instagram metriky (spend, reach, frequency)",
+    "instagram_detail": "2-3 krátké věty hodnotící detailní Instagram metriky (CPM, CPE, CPV)",
+    "tiktok_key": "2-3 krátké věty hodnotící klíčové TikTok metriky (spend, reach, frequency)",
+    "tiktok_detail": "2-3 krátké věty hodnotící detailní TikTok metriky (CPM, CPE, CPV)"
+  },
   "brand_awareness": "Analýza vlivu kampaní na brand awareness za celý kvartál – celkový dosah, frekvence, dopad (max 150 slov)",
   "facebook_metrics_over_time": "Vývoj FB metrik v průběhu kvartálu (max 100 slov)",
+  "facebook_top_posts_analysis": "Projdi každou optimalizaci zvlášť. Najdi podobnost v úspěšnějších postech a napiš, co nám tento kvartál fungovalo. Vezmi data i z minulosti a porovnej podobnosti i zde. Vyhodnoť, co nám pro jakou optimalizaci funguje. Tento souhrn napiš ve 2-3 větách.",
+  "facebook_improve_posts_analysis": "Projdi každou optimalizaci zvlášť. Najdi podobnost v méně úspěšných postech a napiš, co nám tento kvartál moc nefungovalo. Vezmi data i z minulosti a porovnej podobnosti i zde. Vyhodnoť, co nám pro jakou optimalizaci nefunguje. Tento souhrn napiš ve 2-3 větách.",
   "instagram_metrics_over_time": "Vývoj IG metrik v průběhu kvartálu (max 100 slov)",
+  "instagram_top_posts_analysis": "Projdi každou optimalizaci zvlášť. Najdi podobnost v úspěšnějších IG postech a napiš, co nám tento kvartál fungovalo. 2-3 věty.",
+  "instagram_improve_posts_analysis": "Projdi každou optimalizaci zvlášť. Najdi podobnost v méně úspěšných IG postech a napiš, co nám nefungovalo. 2-3 věty.",
   "tiktok_metrics_over_time": "Vývoj TikTok metrik v průběhu kvartálu (max 100 slov)",
+  "tiktok_top_posts_analysis": "Projdi každou optimalizaci zvlášť. Najdi podobnost v úspěšnějších TikTok postech a napiš, co nám tento kvartál fungovalo. 2-3 věty.",
+  "tiktok_improve_posts_analysis": "Projdi každou optimalizaci zvlášť. Najdi podobnost v méně úspěšných TikTok postech a napiš, co nám nefungovalo. 2-3 věty.",
   "summary_success": {
     "what_worked": ["2-3 body co fungovalo dobře za kvartál"],
     "top_results": ["2-3 TOP výsledky kvartálu s konkrétními čísly"]
@@ -1310,6 +1324,26 @@ KONTEXT OD UŽIVATELE:
     { key: "tiktok_improve_posts", posts: tkImprove },
   ]);
 
+  // Build media plan comparison
+  const { data: mpItems = [] } = await supabase
+    .from("media_plan_items")
+    .select("*")
+    .eq("report_id", report_id);
+
+  const plannedBudget = (mpItems || []).reduce((s: number, i: any) => s + (i.budget || 0), 0);
+  const plannedImpressions = (mpItems || []).reduce((s: number, i: any) => s + (i.impressions || 0), 0);
+  const plannedReach = (mpItems || []).reduce((s: number, i: any) => s + (i.reach || 0), 0);
+  const plannedCpm = (mpItems || []).reduce((s: number, i: any) => s + (i.cpm || 0), 0) / Math.max((mpItems || []).filter((i: any) => i.cpm).length, 1);
+  const plannedFrequency = (mpItems || []).reduce((s: number, i: any) => s + (i.frequency || 0), 0) / Math.max((mpItems || []).filter((i: any) => i.frequency).length, 1);
+
+  const mediaPlanComparison = (mpItems && mpItems.length > 0) ? {
+    budget: { planned: plannedBudget, actual: totalSpend },
+    impressions: { planned: plannedImpressions, actual: totalImpressions },
+    reach: { planned: plannedReach, actual: totalReach },
+    cpm: { planned: plannedCpm, actual: cpm },
+    frequency: { planned: plannedFrequency, actual: avgFrequency },
+  } : null;
+
   const structuredInsights = {
     report_period: "quarterly",
     executive_summary: aiContent.executive_summary,
@@ -1318,21 +1352,29 @@ KONTEXT OD UŽIVATELE:
     key_metrics: { spend: totalSpend, reach: totalReach, frequency: avgFrequency, currency: "CZK" },
     detail_metrics: { cpm, cpe, cpv: costPerThruplay, currency: "CZK" },
     metrics_over_time: aiContent.metrics_over_time,
+    metric_commentary: aiContent.metric_commentary || {},
+    media_plan_comparison: mediaPlanComparison,
     community_management: { answered_comments: null, answered_dms: null, response_rate_24h: null },
     brand_awareness: aiContent.brand_awareness,
     facebook_metrics: { spend: fbM.spend, reach: fbM.reach, frequency: fbM.frequency },
     facebook_detail_metrics: { cpm: fbM.cpm, cpe: fbM.cpe, cpv: fbM.cpv },
     facebook_metrics_over_time: aiContent.facebook_metrics_over_time || "",
+    facebook_top_posts_analysis: aiContent.facebook_top_posts_analysis || "",
+    facebook_improve_posts_analysis: aiContent.facebook_improve_posts_analysis || "",
     facebook_top_posts: fbTop,
     facebook_improve_posts: fbImprove,
     instagram_metrics: { spend: igM.spend, reach: igM.reach, frequency: igM.frequency },
     instagram_detail_metrics: { cpm: igM.cpm, cpe: igM.cpe, cpv: igM.cpv },
     instagram_metrics_over_time: aiContent.instagram_metrics_over_time || "",
+    instagram_top_posts_analysis: aiContent.instagram_top_posts_analysis || "",
+    instagram_improve_posts_analysis: aiContent.instagram_improve_posts_analysis || "",
     instagram_top_posts: igTop,
     instagram_improve_posts: igImprove,
     tiktok_metrics: { spend: tkM.spend, reach: tkM.reach, frequency: tkM.frequency },
     tiktok_detail_metrics: { cpm: tkM.cpm, cpe: tkM.cpe, cpv: tkM.cpv },
     tiktok_metrics_over_time: aiContent.tiktok_metrics_over_time || "",
+    tiktok_top_posts_analysis: aiContent.tiktok_top_posts_analysis || "",
+    tiktok_improve_posts_analysis: aiContent.tiktok_improve_posts_analysis || "",
     tiktok_top_posts: tkTop,
     tiktok_improve_posts: tkImprove,
     followers: { facebook: null, instagram: null, tiktok: null },
