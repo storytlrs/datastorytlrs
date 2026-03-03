@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Wallet, Eye, MousePointer, TrendingUp, Target, Loader2 } from "lucide-react";
+import { Wallet, Eye, MousePointer, TrendingUp, Target, Loader2, Heart, MessageCircle, Share2, Bookmark, Play, Video, Link2 } from "lucide-react";
 import { KPICard } from "@/components/reports/KPICard";
 import { TopContentGrid, TopContentItem } from "./TopContentGrid";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
@@ -83,17 +83,11 @@ const BrandAdsDashboard = ({ spaceId, filters }: BrandAdsDashboardProps) => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      // Fetch Meta data - use age='' & gender='' to get aggregate rows
-      // Campaigns use publisher_platform='unknown' for totals; ad sets/ads may use specific platforms
       const [metaCampaigns, metaAllCampaigns, metaAdSets, metaAds, metaAdThumbnails] = await Promise.all([
-        // Total campaign rows (publisher_platform='unknown')
         supabase.from("brand_campaigns").select("id, campaign_name, campaign_id").eq("space_id", spaceId).eq("publisher_platform", "unknown").eq("age", "").eq("gender", "").order("campaign_name"),
-        // Also fetch platform-specific campaign rows (for ad set foreign key resolution)
         supabase.from("brand_campaigns").select("id, campaign_name, campaign_id").eq("space_id", spaceId).neq("publisher_platform", "unknown").eq("age", "").eq("gender", ""),
-        // Ad sets & ads: filter only by age/gender (no publisher_platform filter)
-        supabase.from("brand_ad_sets" as any).select("id, adset_name, adset_id, brand_campaign_id, amount_spent, impressions, clicks, ctr, frequency, date_start, publisher_platform").eq("space_id", spaceId).eq("age", "").eq("gender", ""),
-        supabase.from("brand_ads").select("id, ad_name, ad_id, brand_ad_set_id, amount_spent, impressions, clicks, ctr, frequency, link_clicks, post_reactions, post_comments, post_shares, post_saves, date_start, thumbnail_url, publisher_platform").eq("space_id", spaceId).eq("age", "").eq("gender", ""),
-        // Thumbnails from any row that has one
+        supabase.from("brand_ad_sets" as any).select("id, adset_name, adset_id, brand_campaign_id, amount_spent, impressions, clicks, ctr, frequency, reach, date_start, publisher_platform, video_3s_plays, thruplays, thruplay_rate, view_rate_3s, cost_per_3s_play, cost_per_thruplay").eq("space_id", spaceId).eq("age", "").eq("gender", ""),
+        supabase.from("brand_ads").select("id, ad_name, ad_id, brand_ad_set_id, amount_spent, impressions, clicks, ctr, frequency, reach, link_clicks, post_reactions, post_comments, post_shares, post_saves, date_start, thumbnail_url, publisher_platform, video_3s_plays, thruplays, thruplay_rate, view_rate_3s, cost_per_3s_play, cost_per_thruplay, cpm, cpc").eq("space_id", spaceId).eq("age", "").eq("gender", ""),
         supabase.from("brand_ads").select("ad_id, thumbnail_url").eq("space_id", spaceId).not("thumbnail_url", "is", null),
       ]);
 
@@ -115,8 +109,8 @@ const BrandAdsDashboard = ({ spaceId, filters }: BrandAdsDashboardProps) => {
       // Fetch TikTok data
       const [ttCampaigns, ttAdGroups, ttAds] = await Promise.all([
         supabase.from("tiktok_campaigns").select("id, campaign_name, campaign_id").eq("space_id", spaceId).eq("age", "").eq("gender", "").eq("location", "").order("campaign_name"),
-        supabase.from("tiktok_ad_groups").select("id, adgroup_name, adgroup_id, tiktok_campaign_id, amount_spent, impressions, clicks, ctr, frequency").eq("space_id", spaceId),
-        supabase.from("tiktok_ads").select("id, ad_name, ad_id, tiktok_ad_group_id, amount_spent, impressions, clicks, ctr, frequency, link_clicks, likes, comments, shares, thumbnail_url").eq("space_id", spaceId),
+        supabase.from("tiktok_ad_groups").select("id, adgroup_name, adgroup_id, tiktok_campaign_id, amount_spent, impressions, clicks, ctr, frequency, reach, video_watched_2s, average_video_play, cpm, cpc").eq("space_id", spaceId),
+        supabase.from("tiktok_ads").select("id, ad_name, ad_id, tiktok_ad_group_id, amount_spent, impressions, clicks, ctr, frequency, reach, link_clicks, likes, comments, shares, thumbnail_url, video_watched_2s, average_video_play, cpm, cpc").eq("space_id", spaceId),
       ]);
 
       // Normalize Meta campaigns
@@ -346,6 +340,7 @@ const BrandAdsDashboard = ({ spaceId, filters }: BrandAdsDashboardProps) => {
     const totalSpend = dataSource.reduce((sum, a) => sum + (a.amount_spent || 0), 0);
     const totalImpressions = dataSource.reduce((sum, a) => sum + (a.impressions || 0), 0);
     const totalClicks = dataSource.reduce((sum, a) => sum + (a.clicks || 0), 0);
+    const totalReach = dataSource.reduce((sum, a) => sum + ((a as any).reach || 0), 0);
     const ctr = totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0;
     const avgFrequency = dataSource.length > 0
       ? dataSource.reduce((sum, a) => sum + (a.frequency || 0), 0) / dataSource.filter(a => a.frequency).length || 0
@@ -353,7 +348,49 @@ const BrandAdsDashboard = ({ spaceId, filters }: BrandAdsDashboardProps) => {
     const cpm = totalImpressions > 0 ? (totalSpend / totalImpressions) * 1000 : 0;
     const cpc = totalClicks > 0 ? totalSpend / totalClicks : 0;
 
-    return { totalSpend, impressions: totalImpressions, clicks: totalClicks, ctr, frequency: avgFrequency, cpm, cpc };
+    // Engagement
+    const totalReactions = dataSource.reduce((sum, a) => sum + ((a as any).post_reactions || 0), 0);
+    const totalComments = dataSource.reduce((sum, a) => sum + ((a as any).post_comments || 0), 0);
+    const totalShares = dataSource.reduce((sum, a) => sum + ((a as any).post_shares || 0), 0);
+    const totalSaves = dataSource.reduce((sum, a) => sum + ((a as any).post_saves || 0), 0);
+    const totalEngagement = totalReactions + totalComments + totalShares + totalSaves;
+    const engagementRate = totalImpressions > 0 ? (totalEngagement / totalImpressions) * 100 : 0;
+    const cpe = totalEngagement > 0 ? totalSpend / totalEngagement : 0;
+
+    // Video
+    const totalThruplays = dataSource.reduce((sum, a) => sum + ((a as any).thruplays || 0), 0);
+    const thruplayRate = totalImpressions > 0 ? (totalThruplays / totalImpressions) * 100 : 0;
+    const costPerThruplay = totalThruplays > 0 ? totalSpend / totalThruplays : 0;
+    const total3sViews = dataSource.reduce((sum, a) => sum + ((a as any).video_3s_plays || (a as any).video_watched_2s || 0), 0);
+    const viewRate3s = totalImpressions > 0 ? (total3sViews / totalImpressions) * 100 : 0;
+    const costPer3sView = total3sViews > 0 ? totalSpend / total3sViews : 0;
+
+    // Avg watch time - weighted by impressions
+    let totalWeightedWatchTime = 0;
+    let totalWatchTimeImpressions = 0;
+    dataSource.forEach(a => {
+      const wt = (a as any).average_video_play || 0;
+      const imp = a.impressions || 0;
+      if (wt > 0 && imp > 0) {
+        totalWeightedWatchTime += wt * imp;
+        totalWatchTimeImpressions += imp;
+      }
+    });
+    const avgWatchTime = totalWatchTimeImpressions > 0 ? totalWeightedWatchTime / totalWatchTimeImpressions : 0;
+
+    // Traffic
+    const totalLinkClicks = dataSource.reduce((sum, a) => sum + ((a as any).link_clicks || 0), 0);
+
+    return {
+      totalSpend, impressions: totalImpressions, clicks: totalClicks, ctr, frequency: avgFrequency, cpm, cpc,
+      reach: totalReach,
+      reactions: totalReactions, comments: totalComments, shares: totalShares, saves: totalSaves,
+      engagement: totalEngagement, engagementRate, cpe,
+      thruplays: totalThruplays, thruplayRate, costPerThruplay,
+      views3s: total3sViews, viewRate3s, costPer3sView,
+      avgWatchTime,
+      linkClicks: totalLinkClicks,
+    };
   }, [finalAds, finalAdSets, hasAdsData]);
 
   // Chart data grouped by campaign
@@ -595,17 +632,59 @@ const BrandAdsDashboard = ({ spaceId, filters }: BrandAdsDashboardProps) => {
           </Card>
 
 
-          {/* KPI Tiles */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold">Key Metrics</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <KPICard title="Total Spend" value={formatCurrency(kpis.totalSpend, currency)} icon={Wallet} accentColor="orange" tooltip="Total advertising spend" />
-              <KPICard title="Impressions" value={kpis.impressions.toLocaleString()} icon={Eye} tooltip="Total ad impressions" />
-              <KPICard title="Clicks" value={kpis.clicks.toLocaleString()} icon={MousePointer} tooltip="Total ad clicks" />
-              <KPICard title="CTR" value={`${kpis.ctr.toFixed(2)}%`} icon={TrendingUp} accentColor="green" tooltip="Click-through rate" />
-              <KPICard title="Frequency" value={kpis.frequency.toFixed(2)} icon={Target} tooltip="Average frequency" />
-              <KPICard title="CPM" value={formatCurrency(kpis.cpm, currency)} icon={Wallet} tooltip="Cost per 1000 impressions" />
-              <KPICard title="CPC" value={formatCurrency(kpis.cpc, currency)} icon={MousePointer} tooltip="Cost per click" />
+          {/* Awareness */}
+          <div className="space-y-3">
+            <h3 className="text-lg font-semibold">Awareness</h3>
+            <div className="grid grid-cols-5 gap-4">
+              <KPICard title="Total Spend" value={formatCurrency(kpis.totalSpend, currency)} icon={Wallet} accentColor="orange" />
+              <KPICard title="Reach" value={kpis.reach.toLocaleString("cs-CZ")} icon={Eye} />
+              <KPICard title="Frequency" value={kpis.frequency.toFixed(2)} icon={Target} />
+              <KPICard title="CPM" value={formatCurrency(kpis.cpm, currency)} icon={Wallet} />
+              <KPICard title="Impressions" value={kpis.impressions.toLocaleString("cs-CZ")} icon={Eye} />
+            </div>
+          </div>
+
+          {/* Engagement */}
+          <div className="space-y-3">
+            <h3 className="text-lg font-semibold">Engagement</h3>
+            <div className="grid grid-cols-4 gap-4">
+              <KPICard title="Reactions" value={kpis.reactions.toLocaleString("cs-CZ")} icon={Heart} />
+              <KPICard title="Comments" value={kpis.comments.toLocaleString("cs-CZ")} icon={MessageCircle} />
+              <KPICard title="Shares" value={kpis.shares.toLocaleString("cs-CZ")} icon={Share2} />
+              <KPICard title="Saves" value={kpis.saves.toLocaleString("cs-CZ")} icon={Bookmark} />
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <KPICard title="Engagement" value={kpis.engagement.toLocaleString("cs-CZ")} icon={TrendingUp} />
+              <KPICard title="Engagement Rate" value={`${kpis.engagementRate.toFixed(2)}%`} icon={TrendingUp} accentColor="green" />
+              <KPICard title="CPE" value={formatCurrency(kpis.cpe, currency)} icon={Wallet} />
+            </div>
+          </div>
+
+          {/* Video */}
+          <div className="space-y-3">
+            <h3 className="text-lg font-semibold">Video</h3>
+            <div className="grid grid-cols-3 gap-4">
+              <KPICard title="ThruPlays" value={kpis.thruplays.toLocaleString("cs-CZ")} icon={Play} />
+              <KPICard title="ThruPlay Rate" value={`${kpis.thruplayRate.toFixed(2)}%`} icon={Play} accentColor="green" />
+              <KPICard title="Cost per ThruPlay" value={formatCurrency(kpis.costPerThruplay, currency)} icon={Wallet} />
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <KPICard title="3s Views" value={kpis.views3s.toLocaleString("cs-CZ")} icon={Video} />
+              <KPICard title="3s View Rate" value={`${kpis.viewRate3s.toFixed(2)}%`} icon={Video} accentColor="green" />
+              <KPICard title="Cost per 3s View" value={formatCurrency(kpis.costPer3sView, currency)} icon={Wallet} />
+            </div>
+            <div className="grid grid-cols-1 gap-4">
+              <KPICard title="Avg Watch Time" value={`${kpis.avgWatchTime.toFixed(1)}s`} icon={Video} />
+            </div>
+          </div>
+
+          {/* Traffic */}
+          <div className="space-y-3">
+            <h3 className="text-lg font-semibold">Traffic</h3>
+            <div className="grid grid-cols-3 gap-4">
+              <KPICard title="Link Clicks" value={kpis.linkClicks.toLocaleString("cs-CZ")} icon={Link2} />
+              <KPICard title="CTR" value={`${kpis.ctr.toFixed(2)}%`} icon={TrendingUp} accentColor="green" />
+              <KPICard title="CPC" value={formatCurrency(kpis.cpc, currency)} icon={Wallet} />
             </div>
           </div>
         </>
