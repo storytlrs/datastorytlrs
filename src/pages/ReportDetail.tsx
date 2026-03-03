@@ -256,7 +256,6 @@ const ReportDetail = () => {
             {/* Influencer-specific tabs */}
             {isInfluencer && (
               <>
-                <TabsTrigger value="creators">Creators</TabsTrigger>
                 <TabsTrigger value="content">Content</TabsTrigger>
                 <TabsTrigger value="data">Data</TabsTrigger>
               </>
@@ -299,14 +298,9 @@ const ReportDetail = () => {
           {/* Influencer-specific content */}
           {isInfluencer && (
             <>
-              <TabsContent value="creators">
-                <CreatorsTab key={refreshKey} reportId={reportId!} />
-              </TabsContent>
-
               <TabsContent value="content">
                 <ContentTab key={refreshKey} reportId={reportId!} />
               </TabsContent>
-
 
               <TabsContent value="data">
                 <DataTab key={refreshKey} reportId={reportId!} onImportSuccess={fetchReport} />
