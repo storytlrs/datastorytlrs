@@ -5,6 +5,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { TranslatedText } from "@/components/ui/TranslatedText";
 import { MetricTile } from "./MetricTile";
+import { Progress } from "@/components/ui/progress";
+import { cn } from "@/lib/utils";
 import { formatCurrencySimple, formatCurrency } from "@/lib/currencyUtils";
 import { supabase } from "@/integrations/supabase/client";
 import { SnapshotTrendChart } from "./SnapshotTrendChart";
@@ -36,9 +38,26 @@ export interface YearlyStructuredInsights {
   key_metrics: { spend: number; reach: number; frequency: number; currency: string };
   detail_metrics: { cpm: number; cpe: number; cpv: number; currency: string };
   metrics_over_time: string;
+  metric_commentary?: { meta_key?: string; meta_detail?: string; tiktok_key?: string; tiktok_detail?: string };
+  media_plan_comparison?: {
+    budget?: { planned: number; actual: number };
+    impressions?: { planned: number; actual: number };
+    reach?: { planned: number; actual: number };
+    cpm?: { planned: number; actual: number };
+    frequency?: { planned: number; actual: number };
+  } | null;
+  // Meta combined (FB+IG) metrics like campaign report
+  meta_key_metrics?: { spend: number; reach: number; frequency: number; currency: string };
+  meta_detail_metrics?: { thruplay_rate: number; view_rate_3s: number; avg_watch_time: number };
+  // TikTok combined metrics like campaign report
+  tiktok_key_metrics?: { spend: number; reach: number; frequency: number; currency: string };
+  tiktok_detail_metrics_campaign?: { thruplay_rate: number; view_rate_3s: number; avg_watch_time: number };
+  // Content analysis like campaign
+  content_analysis?: { creative_comparison: string; platform_performance: string; improvement_suggestions: string };
+  top_content?: PostData[];
   community_management: { answered_comments: number | null; answered_dms: number | null; response_rate_24h: number | null };
   brand_awareness: string;
-  // Per-platform data
+  // Per-platform data (kept for platform sections)
   facebook_metrics: { spend: number; reach: number; frequency: number };
   facebook_detail_metrics: { cpm: number; cpe: number; cpv: number };
   facebook_metrics_over_time: string;
@@ -95,9 +114,21 @@ interface YearlyAdsInsightsContentProps {
 
 const formatNumber = (num: number): string => {
   if (num == null) return "-";
-  if (num >= 1000000) return (num / 1000000).toFixed(1) + "M";
-  if (num >= 1000) return (num / 1000).toFixed(1) + "K";
-  return num.toLocaleString();
+  return Math.round(num).toLocaleString("cs-CZ");
+};
+
+const formatPercent = (num: number): string => {
+  if (num == null) return "-";
+  return num.toFixed(2) + "%";
+};
+
+const MetricCommentary = ({ text }: { text?: string }) => {
+  if (!text) return null;
+  return (
+    <div className="mt-3 p-3 bg-muted/40 rounded-[12px]">
+      <p className="text-sm text-foreground leading-relaxed"><TranslatedText text={text} /></p>
+    </div>
+  );
 };
 
 // ── Reusable sub-components ──
@@ -470,12 +501,28 @@ export const YearlyAdsInsightsContent = forwardRef<HTMLDivElement, YearlyAdsInsi
   ({ insights: raw, canEdit = false, onSaveInsights, hasMetaPlatform, hasTiktokPlatform, reportId }, ref) => {
     const d = (obj: any, defaults: any) => ({ ...defaults, ...obj });
 
+    const rawAny = raw as any;
+    
+    // Support both new campaign-style and old per-platform metrics
+    const metaKeySource = rawAny.meta_key_metrics ?? { spend: (raw.facebook_metrics?.spend || 0) + (raw.instagram_metrics?.spend || 0), reach: (raw.facebook_metrics?.reach || 0) + (raw.instagram_metrics?.reach || 0), frequency: 0, currency: "CZK" };
+    const metaDetailSource = rawAny.meta_detail_metrics ?? rawAny.tiktok_detail_metrics_campaign ?? { thruplay_rate: 0, view_rate_3s: 0, avg_watch_time: 0 };
+    const tiktokKeySource = rawAny.tiktok_key_metrics ?? { spend: raw.tiktok_metrics?.spend || 0, reach: raw.tiktok_metrics?.reach || 0, frequency: raw.tiktok_metrics?.frequency || 0, currency: "CZK" };
+    const tiktokDetailSource = rawAny.tiktok_detail_metrics_campaign ?? rawAny.tiktok_detail_metrics ?? { thruplay_rate: 0, view_rate_3s: 0, avg_watch_time: 0 };
+
     const insights: YearlyStructuredInsights = {
       executive_summary: d(raw.executive_summary, { intro: "", media_insight: "", top_result: "", recommendation: "" }),
       goal_fulfillment: d(raw.goal_fulfillment, { goals_set: "", results: "" }),
       key_metrics: d(raw.key_metrics, { spend: 0, reach: 0, frequency: 0, currency: "CZK" }),
       detail_metrics: d(raw.detail_metrics, { cpm: 0, cpe: 0, cpv: 0, currency: "CZK" }),
       metrics_over_time: raw.metrics_over_time || "",
+      metric_commentary: rawAny.metric_commentary || {},
+      media_plan_comparison: rawAny.media_plan_comparison || null,
+      meta_key_metrics: d(metaKeySource, { spend: 0, reach: 0, frequency: 0, currency: "CZK" }),
+      meta_detail_metrics: d(metaDetailSource, { thruplay_rate: 0, view_rate_3s: 0, avg_watch_time: 0 }),
+      tiktok_key_metrics: d(tiktokKeySource, { spend: 0, reach: 0, frequency: 0, currency: "CZK" }),
+      tiktok_detail_metrics_campaign: d(tiktokDetailSource, { thruplay_rate: 0, view_rate_3s: 0, avg_watch_time: 0 }),
+      content_analysis: rawAny.content_analysis || { creative_comparison: "", platform_performance: "", improvement_suggestions: "" },
+      top_content: rawAny.top_content || [],
       community_management: d(raw.community_management, { answered_comments: null, answered_dms: null, response_rate_24h: null }),
       brand_awareness: raw.brand_awareness || "",
       facebook_metrics: d(raw.facebook_metrics, { spend: 0, reach: 0, frequency: 0 }),
@@ -692,10 +739,31 @@ export const YearlyAdsInsightsContent = forwardRef<HTMLDivElement, YearlyAdsInsi
       if (onSaveInsights) await onSaveInsights({ followers: updated });
     };
 
-    const cur = insights.key_metrics.currency || "CZK";
+    const cur = insights.key_metrics.currency || insights.meta_key_metrics?.currency || "CZK";
     const hasFacebook = hasMetaPlatform ?? (insights.facebook_metrics.spend > 0 || insights.facebook_metrics.reach > 0);
     const hasInstagram = hasMetaPlatform ?? (insights.instagram_metrics.spend > 0 || insights.instagram_metrics.reach > 0);
     const hasTiktokData = hasTiktokPlatform ?? (insights.tiktok_metrics.spend > 0 || insights.tiktok_metrics.reach > 0);
+    const hasMeta = hasFacebook || hasInstagram;
+
+    // Media plan comparison helpers (like campaign report)
+    const mp = insights.media_plan_comparison;
+    const metaKey = insights.meta_key_metrics || { spend: 0, reach: 0, frequency: 0, currency: "CZK" };
+    const metaDetail = insights.meta_detail_metrics || { thruplay_rate: 0, view_rate_3s: 0, avg_watch_time: 0 };
+    const tiktokKey = insights.tiktok_key_metrics || { spend: 0, reach: 0, frequency: 0, currency: "CZK" };
+    const tiktokDetail = insights.tiktok_detail_metrics_campaign || { thruplay_rate: 0, view_rate_3s: 0, avg_watch_time: 0 };
+
+    const totalActualSpend = metaKey.spend + tiktokKey.spend;
+    const metaSpendRatio = totalActualSpend > 0 ? metaKey.spend / totalActualSpend : (hasMeta && !hasTiktokData ? 1 : 0.5);
+    const tiktokSpendRatio = totalActualSpend > 0 ? tiktokKey.spend / totalActualSpend : (hasTiktokData && !hasMeta ? 1 : 0.5);
+    const totalActualReach = metaKey.reach + tiktokKey.reach;
+    const metaReachRatio = totalActualReach > 0 ? metaKey.reach / totalActualReach : metaSpendRatio;
+    const tiktokReachRatio = totalActualReach > 0 ? tiktokKey.reach / totalActualReach : tiktokSpendRatio;
+
+    const getSpendPlan = (ratio: number) => mp?.budget && mp.budget.planned > 0 ? { planned: mp.budget.planned * ratio, actual: mp.budget.actual * ratio, plannedLabel: formatCurrencySimple(mp.budget.planned * ratio, cur) } : undefined;
+    const getReachPlan = (ratio: number) => mp?.reach && mp.reach.planned > 0 ? { planned: mp.reach.planned * ratio, actual: mp.reach.actual * ratio, plannedLabel: formatNumber(Math.round(mp.reach.planned * ratio)) } : undefined;
+    const getFrequencyPlan = () => mp?.frequency && mp.frequency.planned > 0 ? { planned: mp.frequency.planned, actual: mp.frequency.actual, plannedLabel: mp.frequency.planned.toFixed(2) } : undefined;
+    const getImpressionsPlan = (ratio: number) => mp?.impressions && mp.impressions.planned > 0 ? { planned: mp.impressions.planned * ratio, actual: mp.impressions.actual * ratio, plannedLabel: formatNumber(Math.round(mp.impressions.planned * ratio)) } : undefined;
+    const getCpmPlan = () => mp?.cpm && mp.cpm.planned > 0 ? { planned: mp.cpm.planned, actual: mp.cpm.actual, plannedLabel: formatCurrencySimple(mp.cpm.planned, cur) } : undefined;
 
     return (
       <div ref={ref} className="space-y-8" style={{ backgroundColor: "#E9E9E9" }}>
@@ -738,39 +806,114 @@ export const YearlyAdsInsightsContent = forwardRef<HTMLDivElement, YearlyAdsInsi
           </div>
         </Card>
 
-        {/* 3. Klíčové metriky META */}
-        <Card className="p-6 rounded-[20px] border-foreground" style={{ backgroundColor: "#E9E9E9" }}>
-          <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-            Klíčové metriky
-            <span className="flex items-center gap-1 ml-2">
-              {hasFacebook && <FacebookIcon />}
-              {hasInstagram && <InstagramIcon />}
-              {hasTiktokData && <TiktokIcon />}
-            </span>
-          </h2>
-          <div className="grid grid-cols-3 gap-4">
-            <MetricTile title="Spend" value={formatCurrency(insights.key_metrics.spend, cur)} icon={Wallet} accentColor="orange" />
-            <MetricTile title="Reach" value={formatNumber(insights.key_metrics.reach)} icon={Users} accentColor="blue" />
-            <MetricTile title="Frequency" value={insights.key_metrics.frequency.toFixed(2)} icon={BarChart3} accentColor="blue" />
-          </div>
-        </Card>
+        {/* 3. Klíčové metriky META (campaign-style with media plan badges) */}
+        {hasMeta && (
+          <Card className="p-6 rounded-[20px] border-foreground" style={{ backgroundColor: "#E9E9E9" }}>
+            <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+              <FacebookIcon /><InstagramIcon /> Klíčové metriky META
+            </h2>
+            <MetricCommentary text={insights.metric_commentary?.meta_key} />
+            <div className="grid grid-cols-3 gap-4">
+              <MetricTile title="Spend" value={formatCurrency(metaKey.spend, cur)} icon={Wallet} accentColor="orange" planComparison={getSpendPlan(metaSpendRatio)} />
+              <MetricTile title="Reach" value={formatNumber(metaKey.reach)} icon={Users} accentColor="blue" planComparison={getReachPlan(metaReachRatio)} />
+              <MetricTile title="Frequency" value={metaKey.frequency.toFixed(2)} icon={BarChart3} accentColor="blue" planComparison={getFrequencyPlan()} />
+            </div>
+          </Card>
+        )}
 
-        {/* 4. Detailní metriky */}
-        <Card className="p-6 rounded-[20px] border-foreground" style={{ backgroundColor: "#E9E9E9" }}>
-          <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-            Detailní metriky
-            <span className="flex items-center gap-1 ml-2">
-              {hasFacebook && <FacebookIcon />}
-              {hasInstagram && <InstagramIcon />}
-              {hasTiktokData && <TiktokIcon />}
-            </span>
-          </h2>
-          <div className="grid grid-cols-3 gap-4">
-            <MetricTile title="CPM" value={formatCurrency(insights.detail_metrics.cpm, cur)} icon={Wallet} accentColor="orange" />
-            <MetricTile title="CPE" value={formatCurrency(insights.detail_metrics.cpe, cur)} icon={Wallet} accentColor="orange" />
-            <MetricTile title="CPV" value={formatCurrency(insights.detail_metrics.cpv, cur)} icon={Wallet} accentColor="orange" />
-          </div>
-        </Card>
+        {/* 4. Detailní metriky META */}
+        {hasMeta && (
+          <Card className="p-6 rounded-[20px] border-foreground" style={{ backgroundColor: "#E9E9E9" }}>
+            <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+              <FacebookIcon /><InstagramIcon /> Detailní metriky META
+            </h2>
+            <MetricCommentary text={insights.metric_commentary?.meta_detail} />
+            <div className="grid grid-cols-3 md:grid-cols-5 gap-4">
+              <MetricTile title="Impressions" value={formatNumber(metaKey.reach * metaKey.frequency)} icon={Eye} accentColor="blue" planComparison={getImpressionsPlan(metaReachRatio)} />
+              <MetricTile title="CPM" value={formatCurrencySimple(metaKey.spend / (metaKey.reach * metaKey.frequency) * 1000 || 0, cur)} icon={Wallet} accentColor="orange" planComparison={getCpmPlan()} />
+              <MetricTile title="ThruPlay Rate" value={formatPercent(metaDetail.thruplay_rate)} icon={Play} accentColor="blue" />
+              <MetricTile title="VV 3s Rate" value={formatPercent(metaDetail.view_rate_3s)} icon={Eye} accentColor="blue" />
+              <MetricTile title="Avg. Watch Time" value={`${metaDetail.avg_watch_time.toFixed(1)}s`} icon={Clock} accentColor="blue" />
+            </div>
+          </Card>
+        )}
+
+        {/* 5. Klíčové metriky TikTok */}
+        {hasTiktokData && (
+          <Card className="p-6 rounded-[20px] border-foreground" style={{ backgroundColor: "#E9E9E9" }}>
+            <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+              <TiktokIcon /> Klíčové metriky TikTok
+            </h2>
+            <MetricCommentary text={insights.metric_commentary?.tiktok_key} />
+            <div className="grid grid-cols-3 gap-4">
+              <MetricTile title="Spend" value={formatCurrency(tiktokKey.spend, cur)} icon={Wallet} accentColor="orange" planComparison={getSpendPlan(tiktokSpendRatio)} />
+              <MetricTile title="Reach" value={formatNumber(tiktokKey.reach)} icon={Users} accentColor="blue" planComparison={getReachPlan(tiktokReachRatio)} />
+              <MetricTile title="Frequency" value={tiktokKey.frequency.toFixed(2)} icon={BarChart3} accentColor="blue" planComparison={getFrequencyPlan()} />
+            </div>
+          </Card>
+        )}
+
+        {/* 6. Detailní metriky TikTok */}
+        {hasTiktokData && (
+          <Card className="p-6 rounded-[20px] border-foreground" style={{ backgroundColor: "#E9E9E9" }}>
+            <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+              <TiktokIcon /> Detailní metriky TikTok
+            </h2>
+            <MetricCommentary text={insights.metric_commentary?.tiktok_detail} />
+            <div className="grid grid-cols-3 md:grid-cols-5 gap-4">
+              <MetricTile title="Impressions" value={formatNumber(tiktokKey.reach * tiktokKey.frequency)} icon={Eye} accentColor="blue" planComparison={getImpressionsPlan(tiktokReachRatio)} />
+              <MetricTile title="CPM" value={formatCurrencySimple(tiktokKey.spend / (tiktokKey.reach * tiktokKey.frequency) * 1000 || 0, cur)} icon={Wallet} accentColor="orange" planComparison={getCpmPlan()} />
+              <MetricTile title="ThruPlay Rate" value={formatPercent(tiktokDetail.thruplay_rate)} icon={Play} accentColor="blue" />
+              <MetricTile title="VV 3s Rate" value={formatPercent(tiktokDetail.view_rate_3s)} icon={Eye} accentColor="blue" />
+              <MetricTile title="Avg. Watch Time" value={`${tiktokDetail.avg_watch_time.toFixed(1)}s`} icon={Clock} accentColor="blue" />
+            </div>
+          </Card>
+        )}
+
+        {/* Content Analysis (like campaign) */}
+        {(insights.content_analysis?.creative_comparison || insights.content_analysis?.platform_performance || insights.content_analysis?.improvement_suggestions) && (
+          <Card className="p-6 rounded-[20px] border-foreground" style={{ backgroundColor: "#E9E9E9" }}>
+            <h2 className="text-xl font-bold mb-4 flex items-center gap-2"><Eye className="w-6 h-6" /> Content</h2>
+            <div className="flex gap-6">
+              <div className="flex-1 space-y-4">
+                {insights.content_analysis.creative_comparison && (
+                  <Card className="p-4 rounded-[15px] border-border bg-muted/30">
+                    <div className="flex items-center gap-2 mb-2"><Award className="w-5 h-5 text-accent-blue" /><span className="font-bold text-sm uppercase">Porovnání vizuálů</span></div>
+                    <p className="text-foreground leading-relaxed text-sm"><TranslatedText text={insights.content_analysis.creative_comparison} /></p>
+                  </Card>
+                )}
+                {insights.content_analysis.platform_performance && (
+                  <Card className="p-4 rounded-[15px] border-border bg-muted/30">
+                    <div className="flex items-center gap-2 mb-2"><BarChart3 className="w-5 h-5 text-accent-green" /><span className="font-bold text-sm uppercase">Výkon dle platformy</span></div>
+                    <p className="text-foreground leading-relaxed text-sm"><TranslatedText text={insights.content_analysis.platform_performance} /></p>
+                  </Card>
+                )}
+                {insights.content_analysis.improvement_suggestions && (
+                  <Card className="p-4 rounded-[15px] border-border bg-muted/30">
+                    <div className="flex items-center gap-2 mb-2"><Lightbulb className="w-5 h-5 text-accent-orange" /><span className="font-bold text-sm uppercase">Doporučení pro zlepšení</span></div>
+                    <p className="text-foreground leading-relaxed text-sm"><TranslatedText text={insights.content_analysis.improvement_suggestions} /></p>
+                  </Card>
+                )}
+              </div>
+              {(insights.top_content || []).length > 0 && (
+                <div className="flex-shrink-0 w-[300px]">
+                  <h3 className="text-sm font-semibold uppercase text-muted-foreground mb-3">Nejúspěšnější kreativy</h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    {(insights.top_content || []).slice(0, 2).map((post, i) => <PostCard key={i} post={post} />)}
+                  </div>
+                </div>
+              )}
+            </div>
+          </Card>
+        )}
+
+        {/* TOP 5 contentů */}
+        {(insights.top_content || []).length > 0 && (
+          <Card className="p-6 rounded-[20px] border-foreground" style={{ backgroundColor: "#E9E9E9" }}>
+            <h2 className="text-xl font-bold mb-4">TOP 5 contentů za celý rok</h2>
+            {postGrid(insights.top_content || [])}
+          </Card>
+        )}
 
         {/* 5. Vývoj metrik v čase */}
         <Card className="p-6 rounded-[20px] border-foreground" style={{ backgroundColor: "#E9E9E9" }}>
