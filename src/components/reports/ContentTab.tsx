@@ -46,6 +46,8 @@ interface ContentItem {
   content_summary: string | null;
   sentiment_summary: string | null;
   sentiment: string | null;
+  watch_time: number | null;
+  reposts: number | null;
 }
 
 export const ContentTab = ({ reportId }: ContentTabProps) => {
@@ -70,7 +72,7 @@ export const ContentTab = ({ reportId }: ContentTabProps) => {
     setLoading(true);
     const { data, error } = await supabase
       .from("content")
-      .select("id, report_id, platform, content_type, thumbnail_url, url, views, impressions, likes, comments, shares, saves, published_date, creator_id, creators(id, handle), content_summary, sentiment_summary, sentiment")
+      .select("id, report_id, platform, content_type, thumbnail_url, url, views, impressions, likes, comments, shares, saves, published_date, creator_id, creators(id, handle), content_summary, sentiment_summary, sentiment, watch_time, reposts")
       .eq("report_id", reportId)
       .order("published_date", { ascending: false });
 
@@ -203,16 +205,24 @@ export const ContentTab = ({ reportId }: ContentTabProps) => {
     // Apply sorting
     return filtered.sort((a, b) => {
       switch (sortBy) {
-        case "er":
-          return calculateER(b) - calculateER(a);
+        case "tswb": {
+          const tswbA = (a.watch_time || 0) + ((a.likes || 0) * 3) + ((a.comments || 0) * 5) + (((a.saves || 0) + (a.shares || 0) + (a.reposts || 0)) * 10);
+          const tswbB = (b.watch_time || 0) + ((b.likes || 0) * 3) + ((b.comments || 0) * 5) + (((b.saves || 0) + (b.shares || 0) + (b.reposts || 0)) * 10);
+          return tswbA - tswbB; // lowest = best
+        }
         case "views":
           return ((b.views || 0) + (b.impressions || 0)) - ((a.views || 0) + (a.impressions || 0));
-        case "likes":
-          return (b.likes || 0) - (a.likes || 0);
-        case "comments":
-          return (b.comments || 0) - (a.comments || 0);
-        case "shares":
-          return (b.shares || 0) - (a.shares || 0);
+        case "watchTime":
+          return (b.watch_time || 0) - (a.watch_time || 0);
+        case "er":
+          return calculateER(b) - calculateER(a);
+        case "virality": {
+          const viewsA = (a.views || 0) + (a.impressions || 0);
+          const viewsB = (b.views || 0) + (b.impressions || 0);
+          const virA = viewsA > 0 ? (a.shares || 0) / viewsA : 0;
+          const virB = viewsB > 0 ? (b.shares || 0) / viewsB : 0;
+          return virB - virA;
+        }
         case "date":
         default:
           return new Date(b.published_date || 0).getTime() - new Date(a.published_date || 0).getTime();
@@ -555,11 +565,11 @@ export const ContentTab = ({ reportId }: ContentTabProps) => {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="date">Date (newest)</SelectItem>
-            <SelectItem value="er">Engagement Rate</SelectItem>
-            <SelectItem value="views">Views/Impressions</SelectItem>
-            <SelectItem value="likes">Likes</SelectItem>
-            <SelectItem value="comments">Comments</SelectItem>
-            <SelectItem value="shares">Shares</SelectItem>
+            <SelectItem value="tswb">TSWB (lowest first)</SelectItem>
+            <SelectItem value="views">Views (highest first)</SelectItem>
+            <SelectItem value="watchTime">Watch Time (highest first)</SelectItem>
+            <SelectItem value="er">Engagement Rate (highest first)</SelectItem>
+            <SelectItem value="virality">Virality (highest first)</SelectItem>
           </SelectContent>
         </Select>
 
