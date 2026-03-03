@@ -1984,7 +1984,11 @@ KONTEXT OD UŽIVATELE:
   const aiContent = safeJsonParse(aiData.choices[0].message.content);
 
   // Ensure executive_summary.intro is always filled
-  if (!aiContent.executive_summary?.intro) {
+  const introFromPrimary = typeof aiContent.executive_summary?.intro === "string"
+    ? aiContent.executive_summary.intro.trim()
+    : "";
+
+  if (!introFromPrimary) {
     console.log("Yearly: intro missing, generating via secondary call...");
     try {
       const introResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -2124,10 +2128,10 @@ KONTEXT OD UŽIVATELE:
   const structuredInsights = {
     report_period: "yearly",
     executive_summary: {
-      intro: aiContent.executive_summary?.intro || "",
-      media_insight: aiContent.executive_summary?.media_insight || "",
-      top_result: aiContent.executive_summary?.top_result || "",
-      recommendation: aiContent.executive_summary?.recommendation || "",
+      intro: typeof aiContent.executive_summary?.intro === "string" ? aiContent.executive_summary.intro.trim() : "",
+      media_insight: typeof aiContent.executive_summary?.media_insight === "string" ? aiContent.executive_summary.media_insight.trim() : "",
+      top_result: typeof aiContent.executive_summary?.top_result === "string" ? aiContent.executive_summary.top_result.trim() : "",
+      recommendation: typeof aiContent.executive_summary?.recommendation === "string" ? aiContent.executive_summary.recommendation.trim() : "",
     },
     campaign_context,
     goal_fulfillment: aiContent.goal_fulfillment,
