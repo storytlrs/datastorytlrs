@@ -5,10 +5,11 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, X, Search, Pencil, Trash2, UserPlus } from "lucide-react";
+import { Plus, X, Search, Pencil, Trash2, UserPlus, KeyRound } from "lucide-react";
 import { AssignUserToBrand } from "./AssignUserToBrand";
 import { CreateUserDialog } from "./CreateUserDialog";
 import { EditUserDialog } from "./EditUserDialog";
+import { ResetPasswordDialog } from "./ResetPasswordDialog";
 import { toast } from "sonner";
 import {
   AlertDialog,
