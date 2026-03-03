@@ -1994,7 +1994,7 @@ KONTEXT OD UŽIVATELE:
           model: "google/gemini-2.5-flash",
           messages: [
             { role: "system", content: "Jsi analytik digitálního marketingu. Piš česky, stručně a profesionálně." },
-            { role: "user", content: `Na základě těchto dat vytvoř úvodní shrnutí roku v 2-3 větách. Stručný přehled výsledků a hlavní závěr.\n\nKontext: ${campaign_context.mainGoal}\nCelkový spend: ${totalSpend} CZK\nReach: ${totalReach}\nImpressions: ${totalImpressions}\nInterakce: ${totalEngagement}\n\nOdpověz POUZE textem shrnutí, žádný JSON.` },
+            { role: "user", content: `Na základě těchto dat vytvoř úvodní shrnutí roku v 2-3 větách. Stručný přehled výsledků a hlavní závěr.\n\nKontext: ${campaign_context.mainGoal}\nCelkový spend: ${totalSpend} CZK\nReach: ${totalReach}\nImpressions: ${totalImpressions}\nInterakce: ${totalInteractions}\n\nOdpověz POUZE textem shrnutí, žádný JSON.` },
           ],
         }),
       });
