@@ -18,29 +18,15 @@ export const getCurrencySymbol = (currency: string): string => {
  */
 export const formatCurrency = (amount: number, currency: string = DEFAULT_CURRENCY): string => {
   if (amount === 0) {
-    return currency === "CZK" ? "0,00 Kč" : `${getCurrencySymbol(currency)}0.00`;
+    return currency === "CZK" ? "0 Kč" : `${getCurrencySymbol(currency)}0`;
   }
 
   if (currency === "CZK") {
-    // Czech format: space as thousand separator, comma for decimals, Kč after
-    if (Math.abs(amount) >= 1000000) {
-      return `${(amount / 1000000).toLocaleString("cs-CZ", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}M Kč`;
-    }
-    if (Math.abs(amount) >= 1000) {
-      return `${(amount / 1000).toLocaleString("cs-CZ", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}K Kč`;
-    }
-    return `${amount.toLocaleString("cs-CZ", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Kč`;
+    return `${Math.round(amount).toLocaleString("cs-CZ")} Kč`;
   }
 
-  // Other currencies: symbol before, English locale
   const symbol = getCurrencySymbol(currency);
-  if (Math.abs(amount) >= 1000000) {
-    return `${symbol}${(amount / 1000000).toFixed(2)}M`;
-  }
-  if (Math.abs(amount) >= 1000) {
-    return `${symbol}${(amount / 1000).toFixed(1)}K`;
-  }
-  return `${symbol}${amount.toFixed(2)}`;
+  return `${symbol}${Math.round(amount).toLocaleString("en-US")}`;
 };
 
 /**
@@ -50,9 +36,9 @@ export const formatCurrencySimple = (amount: number | null, currency: string = D
   if (amount === null || amount === undefined) return "-";
   
   if (currency === "CZK") {
-    return `${amount.toLocaleString("cs-CZ", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Kč`;
+    return `${Math.round(amount).toLocaleString("cs-CZ")} Kč`;
   }
   
   const symbol = getCurrencySymbol(currency);
-  return `${symbol}${amount.toFixed(2)}`;
+  return `${symbol}${Math.round(amount).toLocaleString("en-US")}`;
 };
