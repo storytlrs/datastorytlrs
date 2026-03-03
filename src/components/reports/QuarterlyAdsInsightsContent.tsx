@@ -524,7 +524,18 @@ export const QuarterlyAdsInsightsContent = forwardRef<HTMLDivElement, QuarterlyA
   ({ insights: raw, canEdit = false, onSaveInsights, hasMetaPlatform, hasTiktokPlatform, reportId }, ref) => {
     const insights: QuarterlyStructuredInsights = {
       executive_summary: raw.executive_summary || { intro: "", media_insight: "", top_result: "", recommendation: "" },
-      goal_fulfillment: { goals_set: Array.isArray(raw.goal_fulfillment?.goals_set) ? raw.goal_fulfillment.goals_set : raw.goal_fulfillment?.goals_set ? [raw.goal_fulfillment.goals_set] : [], results: Array.isArray(raw.goal_fulfillment?.results) ? raw.goal_fulfillment.results : raw.goal_fulfillment?.results ? [raw.goal_fulfillment.results] : [], },
+      goal_fulfillment: {
+        goals_set: Array.isArray(raw.goal_fulfillment?.goals_set)
+          ? raw.goal_fulfillment.goals_set
+          : typeof raw.goal_fulfillment?.goals_set === 'string' && raw.goal_fulfillment.goals_set
+            ? (raw.goal_fulfillment.goals_set as string).split(/(?<=[.!?])\s+/).filter((s: string) => s.trim())
+            : [],
+        results: Array.isArray(raw.goal_fulfillment?.results)
+          ? raw.goal_fulfillment.results
+          : typeof raw.goal_fulfillment?.results === 'string' && raw.goal_fulfillment.results
+            ? (raw.goal_fulfillment.results as string).split(/(?<=[.!?])\s+/).filter((s: string) => s.trim())
+            : [],
+      },
       key_metrics: { spend: 0, reach: 0, frequency: 0, currency: "CZK", ...raw.key_metrics },
       detail_metrics: { cpm: 0, cpe: 0, cpv: 0, currency: "CZK", ...raw.detail_metrics },
       metrics_over_time: raw.metrics_over_time || "",
