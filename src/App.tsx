@@ -29,6 +29,7 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/auth" element={<Auth />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/dashboard" element={<MainLayout><DashboardRedirect /></MainLayout>} />
           <Route path="/brands/:brandId" element={<MainLayout><BrandDetail /></MainLayout>} />
           <Route path="/reports/:reportId" element={<MainLayout><ReportDetail /></MainLayout>} />

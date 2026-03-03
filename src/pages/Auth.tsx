@@ -104,46 +104,91 @@ const Auth = () => {
         </div>
 
         <div className="bg-card p-8 rounded-[35px] border border-foreground shadow-sm">
-          <form onSubmit={handleAuth} className="space-y-6">
+          {forgotMode ? (
+            <form onSubmit={handleForgotPassword} className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="resetEmail">Email</Label>
+                <Input
+                  id="resetEmail"
+                  type="email"
+                  placeholder="you@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  className="rounded-[35px] border-foreground"
+                />
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="rounded-[35px] border-foreground"
-              />
-            </div>
+              <Button
+                type="submit"
+                className="w-full rounded-[35px] h-12 font-semibold"
+                disabled={loading}
+              >
+                {loading ? "Sending..." : "Send Reset Link"}
+              </Button>
 
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className="rounded-[35px] border-foreground"
-              />
-            </div>
+              <div className="text-center">
+                <button
+                  type="button"
+                  onClick={() => setForgotMode(false)}
+                  className="text-sm text-muted-foreground hover:text-foreground underline"
+                >
+                  Back to Sign In
+                </button>
+              </div>
+            </form>
+          ) : (
+            <>
+              <form onSubmit={handleAuth} className="space-y-6">
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="you@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    className="rounded-[35px] border-foreground"
+                  />
+                </div>
 
-            <Button
-              type="submit"
-              className="w-full rounded-[35px] h-12 font-semibold"
-              disabled={loading}
-            >
-              {loading ? "Loading..." : "Sign In"}
-            </Button>
-          </form>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="password">Password</Label>
+                    <button
+                      type="button"
+                      onClick={() => setForgotMode(true)}
+                      className="text-xs text-muted-foreground hover:text-foreground underline"
+                    >
+                      Forgot password?
+                    </button>
+                  </div>
+                  <Input
+                    id="password"
+                    type="password"
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    className="rounded-[35px] border-foreground"
+                  />
+                </div>
 
-          <div className="mt-6 text-center text-sm text-muted-foreground">
-            Need an account? Contact your administrator
-          </div>
+                <Button
+                  type="submit"
+                  className="w-full rounded-[35px] h-12 font-semibold"
+                  disabled={loading}
+                >
+                  {loading ? "Loading..." : "Sign In"}
+                </Button>
+              </form>
+
+              <div className="mt-6 text-center text-sm text-muted-foreground">
+                Need an account? Contact your administrator
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

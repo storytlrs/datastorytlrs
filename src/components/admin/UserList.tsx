@@ -372,6 +372,13 @@ export const UserList = () => {
         </AlertDialogContent>
       </AlertDialog>
 
+      <ResetPasswordDialog
+        open={!!resetPasswordUser}
+        onOpenChange={(open) => !open && setResetPasswordUser(null)}
+        userId={resetPasswordUser?.id || ""}
+        userEmail={resetPasswordUser?.email || ""}
+      />
+
       {/* Delete user dialog */}
       <AlertDialog
         open={!!deleteUserDialog}
