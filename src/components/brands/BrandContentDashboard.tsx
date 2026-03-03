@@ -2,12 +2,15 @@ import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Users, FileText, Eye, TrendingUp, Zap, Loader2 } from "lucide-react";
-import { KPICard } from "@/components/reports/KPICard";
-import { TopContentGrid, TopContentItem } from "./TopContentGrid";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { format, parseISO, startOfMonth } from "date-fns";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Loader2, Play, ArrowUpDown, ImageIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatCurrency } from "@/lib/currencyUtils";
+import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { format } from "date-fns";
+import { CalendarIcon } from "lucide-react";
 
 interface OverviewFilters {
   dateRange: { start: Date | null; end: Date | null };
@@ -19,204 +22,200 @@ interface BrandContentDashboardProps {
   filters: OverviewFilters;
 }
 
-interface Content {
+interface AdCreative {
   id: string;
-  reach: number | null;
-  impressions: number | null;
-  views: number | null;
-  likes: number | null;
-  comments: number | null;
-  shares: number | null;
-  saves: number | null;
-  published_date: string | null;
-  platform: string;
-  content_type: string;
+  ad_name: string | null;
   thumbnail_url: string | null;
-  url: string | null;
-  engagement_rate: number | null;
+  amount_spent: number | null;
+  impressions: number | null;
+  clicks: number | null;
+  cpm: number | null;
+  ctr: number | null;
+  video_3s_plays: number | null;
+  link_clicks: number | null;
+  engagement: number; // computed
+  date_start: string | null;
+  platform: "meta" | "tiktok";
 }
 
-type MetricKey = "views" | "reach" | "engagementRate" | "contentPieces";
+type SortMetric = "cpm" | "impressions" | "video_3s_plays" | "engagement" | "link_clicks";
+type SortDirection = "best" | "worst";
+
+const SORT_METRIC_LABELS: Record<SortMetric, string> = {
+  cpm: "CPM",
+  impressions: "Impressions",
+  video_3s_plays: "3s Views",
+  engagement: "Engagement",
+  link_clicks: "Link Clicks",
+};
+
+const formatNumber = (num: number): string => {
+  if (num >= 1000000) return (num / 1000000).toFixed(1) + "M";
+  if (num >= 1000) return (num / 1000).toFixed(1) + "K";
+  return num.toLocaleString("cs-CZ");
+};
 
 const BrandContentDashboard = ({ spaceId, filters }: BrandContentDashboardProps) => {
-  const [content, setContent] = useState<Content[]>([]);
+  const [metaAds, setMetaAds] = useState<AdCreative[]>([]);
+  const [tiktokAds, setTiktokAds] = useState<AdCreative[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedMetric, setSelectedMetric] = useState<MetricKey>("views");
+
+  // Local filters
+  const [platformFilter, setPlatformFilter] = useState<"all" | "meta" | "tiktok">("all");
+  const [sortMetric, setSortMetric] = useState<SortMetric>("impressions");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("best");
+  const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
+  const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
 
   useEffect(() => {
     fetchData();
-  }, [spaceId, filters]);
+  }, [spaceId]);
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      // For now, fetch content from always_on reports
-      // Later this will be replaced with brand_content table with automatic imports
-      let reportsQuery = supabase
-        .from("reports")
-        .select("id")
+      // Fetch Meta ads (only rows with thumbnails, aggregate/total rows)
+      const { data: metaData } = await supabase
+        .from("brand_ads")
+        .select("id, ad_name, thumbnail_url, amount_spent, impressions, clicks, cpm, ctr, video_3s_plays, link_clicks, post_reactions, post_comments, post_shares, post_saves, date_start, publisher_platform")
         .eq("space_id", spaceId)
-        .eq("type", "always_on");
+        .eq("age", "")
+        .eq("gender", "");
 
-      if (filters.dateRange.start) {
-        reportsQuery = reportsQuery.gte("start_date", filters.dateRange.start.toISOString().split("T")[0]);
+      // Fetch TikTok ads
+      const { data: tkCampaigns } = await supabase
+        .from("tiktok_campaigns")
+        .select("id")
+        .eq("space_id", spaceId);
+
+      const tkCampaignIds = tkCampaigns?.map(c => c.id) || [];
+
+      let tkAdsData: any[] = [];
+      if (tkCampaignIds.length > 0) {
+        const { data: tkAdGroups } = await supabase
+          .from("tiktok_ad_groups")
+          .select("id")
+          .in("tiktok_campaign_id", tkCampaignIds);
+
+        const tkAdGroupIds = tkAdGroups?.map(ag => ag.id) || [];
+
+        if (tkAdGroupIds.length > 0) {
+          const { data } = await supabase
+            .from("tiktok_ads")
+            .select("id, ad_name, thumbnail_url, amount_spent, impressions, clicks, cpm, ctr, video_watched_2s, link_clicks, likes, comments, shares, follows")
+            .in("tiktok_ad_group_id", tkAdGroupIds);
+          tkAdsData = data || [];
+        }
       }
-      if (filters.dateRange.end) {
-        reportsQuery = reportsQuery.lte("end_date", filters.dateRange.end.toISOString().split("T")[0]);
-      }
 
-      const { data: reportsData, error: reportsError } = await reportsQuery;
-      if (reportsError) throw reportsError;
+      // Normalize Meta
+      const normalizedMeta: AdCreative[] = (metaData || [])
+        .filter(a => a.thumbnail_url)
+        .map(a => ({
+          id: a.id,
+          ad_name: a.ad_name,
+          thumbnail_url: a.thumbnail_url,
+          amount_spent: a.amount_spent,
+          impressions: a.impressions,
+          clicks: a.clicks,
+          cpm: a.cpm,
+          ctr: a.ctr,
+          video_3s_plays: a.video_3s_plays,
+          link_clicks: a.link_clicks,
+          engagement: (a.post_reactions || 0) + (a.post_comments || 0) + (a.post_shares || 0) + (a.post_saves || 0),
+          date_start: a.date_start,
+          platform: "meta" as const,
+        }));
 
-      const reportIds = reportsData?.map(r => r.id) || [];
+      // Normalize TikTok
+      const normalizedTk: AdCreative[] = (tkAdsData || [])
+        .filter((a: any) => a.thumbnail_url)
+        .map((a: any) => ({
+          id: a.id,
+          ad_name: a.ad_name,
+          thumbnail_url: a.thumbnail_url,
+          amount_spent: a.amount_spent,
+          impressions: a.impressions,
+          clicks: a.clicks,
+          cpm: a.cpm,
+          ctr: a.ctr,
+          video_3s_plays: a.video_watched_2s || 0,
+          link_clicks: a.link_clicks,
+          engagement: (a.likes || 0) + (a.comments || 0) + (a.shares || 0) + (a.follows || 0),
+          date_start: null,
+          platform: "tiktok" as const,
+        }));
 
-      if (reportIds.length === 0) {
-        setContent([]);
-        setLoading(false);
-        return;
-      }
-
-      let contentQuery = supabase
-        .from("content")
-        .select("id, reach, impressions, views, likes, comments, shares, saves, published_date, platform, content_type, thumbnail_url, url, engagement_rate")
-        .in("report_id", reportIds);
-
-      if (filters.platform !== "all") {
-        contentQuery = contentQuery.eq("platform", filters.platform as "instagram" | "tiktok" | "youtube" | "facebook" | "twitter");
-      }
-
-      const { data: contentData, error: contentError } = await contentQuery;
-      if (contentError) throw contentError;
-
-      setContent(contentData || []);
+      setMetaAds(normalizedMeta);
+      setTiktokAds(normalizedTk);
     } catch (error) {
-      console.error("Failed to fetch content data:", error);
+      console.error("Failed to fetch ad creatives:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  // Calculate KPIs
-  const kpis = useMemo(() => {
-    const totalReach = content.reduce((sum, c) => sum + (c.reach || 0), 0);
-    const totalViews = content.reduce((sum, c) => sum + (c.impressions || 0) + (c.views || 0), 0);
-    const totalLikes = content.reduce((sum, c) => sum + (c.likes || 0), 0);
-    const totalComments = content.reduce((sum, c) => sum + (c.comments || 0), 0);
-    const totalShares = content.reduce((sum, c) => sum + (c.shares || 0), 0);
-    const totalSaves = content.reduce((sum, c) => sum + (c.saves || 0), 0);
-    const totalInteractions = totalLikes + totalComments + totalShares + totalSaves;
+  const filteredAndSorted = useMemo(() => {
+    let all: AdCreative[] = [];
+    if (platformFilter === "all") all = [...metaAds, ...tiktokAds];
+    else if (platformFilter === "meta") all = [...metaAds];
+    else all = [...tiktokAds];
 
-    const engagementRate = totalViews > 0 ? (totalInteractions / totalViews) * 100 : 0;
-    const viralityRate = totalViews > 0 ? (totalShares / totalViews) * 100 : 0;
-    const contentPieces = content.length;
-    const avgViewsPerContent = contentPieces > 0 ? totalViews / contentPieces : 0;
+    // Date filter
+    if (dateFrom) {
+      all = all.filter(a => {
+        if (!a.date_start) return true;
+        return new Date(a.date_start) >= dateFrom;
+      });
+    }
+    if (dateTo) {
+      all = all.filter(a => {
+        if (!a.date_start) return true;
+        return new Date(a.date_start) <= dateTo;
+      });
+    }
 
-    return {
-      reach: totalReach,
-      views: totalViews,
-      engagementRate,
-      viralityRate,
-      contentPieces,
-      avgViewsPerContent,
-    };
-  }, [content]);
-
-  // Monthly chart data
-  const chartData = useMemo(() => {
-    const monthlyData: Record<string, {
-      monthKey: string;
-      month: string;
-      views: number;
-      reach: number;
-      interactions: number;
-      totalViews: number;
-      contentCount: number;
-    }> = {};
-
-    content.forEach(c => {
-      if (!c.published_date) return;
-      const date = parseISO(c.published_date);
-      const monthKey = format(startOfMonth(date), "yyyy-MM");
-      const monthLabel = format(date, "MMM yyyy");
-
-      if (!monthlyData[monthKey]) {
-        monthlyData[monthKey] = {
-          monthKey,
-          month: monthLabel,
-          views: 0,
-          reach: 0,
-          interactions: 0,
-          totalViews: 0,
-          contentCount: 0,
-        };
+    // Sort
+    all.sort((a, b) => {
+      let aVal = 0, bVal = 0;
+      switch (sortMetric) {
+        case "cpm":
+          aVal = a.cpm || 9999999;
+          bVal = b.cpm || 9999999;
+          // CPM: lower = better
+          return sortDirection === "best" ? aVal - bVal : bVal - aVal;
+        case "impressions":
+          aVal = a.impressions || 0;
+          bVal = b.impressions || 0;
+          return sortDirection === "best" ? bVal - aVal : aVal - bVal;
+        case "video_3s_plays":
+          aVal = a.video_3s_plays || 0;
+          bVal = b.video_3s_plays || 0;
+          return sortDirection === "best" ? bVal - aVal : aVal - bVal;
+        case "engagement":
+          aVal = a.engagement || 0;
+          bVal = b.engagement || 0;
+          return sortDirection === "best" ? bVal - aVal : aVal - bVal;
+        case "link_clicks":
+          aVal = a.link_clicks || 0;
+          bVal = b.link_clicks || 0;
+          return sortDirection === "best" ? bVal - aVal : aVal - bVal;
+        default:
+          return 0;
       }
-
-      const views = (c.impressions || 0) + (c.views || 0);
-      monthlyData[monthKey].views += views;
-      monthlyData[monthKey].totalViews += views;
-      monthlyData[monthKey].reach += c.reach || 0;
-      monthlyData[monthKey].interactions += (c.likes || 0) + (c.comments || 0) + (c.shares || 0) + (c.saves || 0);
-      monthlyData[monthKey].contentCount += 1;
     });
 
-    return Object.values(monthlyData)
-      .sort((a, b) => a.monthKey.localeCompare(b.monthKey))
-      .map(d => ({
-        month: d.month,
-        views: d.views,
-        reach: d.reach,
-        engagementRate: d.totalViews > 0 ? (d.interactions / d.totalViews) * 100 : 0,
-        contentPieces: d.contentCount,
-      }));
-  }, [content]);
+    return all.slice(0, 15);
+  }, [metaAds, tiktokAds, platformFilter, sortMetric, sortDirection, dateFrom, dateTo]);
 
-  // Top 5 content by composite score
-  const topContent: TopContentItem[] = useMemo(() => {
-    if (content.length === 0) return [];
-
-    const maxViews = Math.max(...content.map(c => (c.impressions || 0) + (c.views || 0)), 1);
-    const maxER = Math.max(...content.map(c => c.engagement_rate || 0), 1);
-    const maxSharesSaves = Math.max(...content.map(c => (c.shares || 0) + (c.saves || 0)), 1);
-
-    return content
-      .map(c => {
-        const views = (c.impressions || 0) + (c.views || 0);
-        const er = c.engagement_rate || 0;
-        const sharesSaves = (c.shares || 0) + (c.saves || 0);
-
-        const score =
-          (views / maxViews) * 0.40 +
-          (er / maxER) * 0.30 +
-          (sharesSaves / maxSharesSaves) * 0.30;
-
-        return {
-          id: c.id,
-          thumbnailUrl: c.thumbnail_url,
-          contentType: c.content_type,
-          platform: c.platform,
-          views,
-          engagementRate: er,
-          url: c.url,
-          score,
-        };
-      })
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 5);
-  }, [content]);
-
-  const metricLabels: Record<MetricKey, string> = {
-    views: "Views",
-    reach: "Reach",
-    engagementRate: "Engagement Rate (%)",
-    contentPieces: "Content Pieces",
-  };
-
-  const formatChartValue = (value: number, metric: MetricKey): string => {
-    switch (metric) {
-      case "engagementRate":
-        return `${value.toFixed(2)}%`;
-      default:
-        return value.toLocaleString("cs-CZ", { maximumFractionDigits: 0 });
+  const getSortMetricValue = (ad: AdCreative): string => {
+    switch (sortMetric) {
+      case "cpm": return ad.cpm ? formatCurrency(ad.cpm, "CZK") : "–";
+      case "impressions": return formatNumber(ad.impressions || 0);
+      case "video_3s_plays": return formatNumber(ad.video_3s_plays || 0);
+      case "engagement": return formatNumber(ad.engagement || 0);
+      case "link_clicks": return formatNumber(ad.link_clicks || 0);
+      default: return "–";
     }
   };
 
@@ -224,21 +223,22 @@ const BrandContentDashboard = ({ spaceId, filters }: BrandContentDashboardProps)
     return (
       <div className="flex items-center justify-center p-12">
         <Loader2 className="w-6 h-6 animate-spin mr-2" />
-        <p>Loading content data...</p>
+        <p>Loading creatives...</p>
       </div>
     );
   }
 
-  if (content.length === 0) {
+  const totalAds = metaAds.length + tiktokAds.length;
+
+  if (totalAds === 0) {
     return (
       <div className="space-y-8">
         <Card className="p-12 rounded-[35px] border-foreground border-dashed">
           <div className="flex flex-col items-center justify-center text-center space-y-4">
-            <FileText className="w-12 h-12 text-muted-foreground" />
-            <h3 className="text-lg font-semibold">No Content Data Yet</h3>
+            <ImageIcon className="w-12 h-12 text-muted-foreground" />
+            <h3 className="text-lg font-semibold">No Ad Creatives Yet</h3>
             <p className="text-muted-foreground max-w-md">
-              Content data will appear here once you have Always-on content reports with data, 
-              or when automatic content import is configured.
+              Ad creatives will appear here once you have ads with thumbnails imported for this brand.
             </p>
           </div>
         </Card>
@@ -247,108 +247,175 @@ const BrandContentDashboard = ({ spaceId, filters }: BrandContentDashboardProps)
   }
 
   return (
-    <div className="space-y-8">
-      {/* Bar Chart */}
-      <Card className="p-6 rounded-[35px] border-foreground">
-        <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-          <h3 className="text-lg font-semibold">Monthly Performance</h3>
-          <div className="flex flex-wrap gap-2">
-            {(Object.keys(metricLabels) as MetricKey[]).map((key) => (
-              <Button
-                key={key}
-                variant="outline"
-                size="sm"
-                onClick={() => setSelectedMetric(key)}
-                className={cn(
-                  "rounded-[35px] hover:border-foreground hover:bg-foreground hover:text-background",
-                  selectedMetric === key
-                    ? "border-accent-orange bg-accent-orange text-foreground"
-                    : "border-foreground bg-card text-foreground"
-                )}
-              >
-                {metricLabels[key]}
-              </Button>
-            ))}
+    <div className="space-y-6">
+      {/* Filters */}
+      <Card className="p-4 rounded-[35px] border-foreground">
+        <div className="flex flex-wrap items-end gap-4">
+          {/* Platform */}
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Platform</Label>
+            <Select value={platformFilter} onValueChange={(v) => setPlatformFilter(v as any)}>
+              <SelectTrigger className="w-[130px] rounded-[35px] border-foreground">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="meta">Meta</SelectItem>
+                <SelectItem value="tiktok">TikTok</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-        </div>
 
-        {chartData.length > 0 ? (
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-              <XAxis dataKey="month" stroke="hsl(var(--foreground))" />
-              <YAxis
-                stroke="hsl(var(--foreground))"
-                tickFormatter={(value) => formatChartValue(value, selectedMetric)}
-              />
-              <Tooltip
-                formatter={(value: number) => [
-                  formatChartValue(value, selectedMetric),
-                  metricLabels[selectedMetric]
-                ]}
-                contentStyle={{
-                  backgroundColor: "hsl(var(--background))",
-                  border: "1px solid hsl(var(--border))",
-                  borderRadius: "8px",
-                }}
-              />
-              <Bar dataKey={selectedMetric} fill="hsl(var(--accent-green))" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        ) : (
-          <div className="flex items-center justify-center h-[300px] text-muted-foreground">
-            No data available for the selected filters
+          {/* Sort metric */}
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Sort by</Label>
+            <Select value={sortMetric} onValueChange={(v) => setSortMetric(v as SortMetric)}>
+              <SelectTrigger className="w-[150px] rounded-[35px] border-foreground">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {(Object.entries(SORT_METRIC_LABELS) as [SortMetric, string][]).map(([key, label]) => (
+                  <SelectItem key={key} value={key}>{label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-        )}
+
+          {/* Sort direction */}
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Order</Label>
+            <Button
+              variant="outline"
+              className="rounded-[35px] border-foreground gap-2"
+              onClick={() => setSortDirection(d => d === "best" ? "worst" : "best")}
+            >
+              <ArrowUpDown className="w-4 h-4" />
+              {sortDirection === "best" ? "Best first" : "Worst first"}
+            </Button>
+          </div>
+
+          {/* Date from */}
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">From</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="rounded-[35px] border-foreground gap-2 w-[140px] justify-start">
+                  <CalendarIcon className="w-4 h-4" />
+                  {dateFrom ? format(dateFrom, "dd.MM.yyyy") : "–"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar mode="single" selected={dateFrom} onSelect={setDateFrom} />
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          {/* Date to */}
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">To</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="rounded-[35px] border-foreground gap-2 w-[140px] justify-start">
+                  <CalendarIcon className="w-4 h-4" />
+                  {dateTo ? format(dateTo, "dd.MM.yyyy") : "–"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar mode="single" selected={dateTo} onSelect={setDateTo} />
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          {/* Reset */}
+          {(dateFrom || dateTo || platformFilter !== "all") && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="rounded-[35px] text-muted-foreground"
+              onClick={() => { setDateFrom(undefined); setDateTo(undefined); setPlatformFilter("all"); }}
+            >
+              Reset
+            </Button>
+          )}
+        </div>
       </Card>
 
-      {/* Top 5 Content */}
-      <TopContentGrid items={topContent} title="Top 5 Content" emptyMessage="No content found" />
+      {/* Creatives Grid */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+        {filteredAndSorted.map((ad, index) => (
+          <Card key={ad.id} className="rounded-[20px] border-foreground overflow-hidden hover:shadow-lg transition-shadow relative">
+            {/* Rank badge */}
+            <div className="absolute top-2 right-2 z-10 w-6 h-6 rounded-full bg-accent-green text-accent-green-foreground flex items-center justify-center text-xs font-bold">
+              {index + 1}
+            </div>
 
-      {/* KPI Tiles */}
-      <div className="space-y-4">
-        <h3 className="text-lg font-semibold">Key Metrics</h3>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          <KPICard
-            title="Reach"
-            value={kpis.reach.toLocaleString()}
-            icon={Users}
-            accentColor="blue"
-            tooltip="Total unique users who saw the content"
-          />
-          <KPICard
-            title="Views"
-            value={kpis.views.toLocaleString()}
-            icon={Eye}
-            tooltip="Total impressions and views"
-          />
-          <KPICard
-            title="Engagement Rate"
-            value={`${kpis.engagementRate.toFixed(2)}%`}
-            icon={TrendingUp}
-            accentColor="green"
-            tooltip="(interactions / views) × 100"
-          />
-          <KPICard
-            title="Content Pieces"
-            value={kpis.contentPieces.toLocaleString()}
-            icon={FileText}
-            tooltip="Total number of content pieces"
-          />
-          <KPICard
-            title="Avg Views/Content"
-            value={Math.round(kpis.avgViewsPerContent).toLocaleString()}
-            icon={Eye}
-            tooltip="Average views per content piece"
-          />
-          <KPICard
-            title="Virality Rate"
-            value={`${kpis.viralityRate.toFixed(4)}%`}
-            icon={Zap}
-            tooltip="(shares / views) × 100"
-          />
-        </div>
+            {/* Thumbnail */}
+            <div className="relative aspect-[9/16] bg-muted overflow-hidden">
+              {ad.thumbnail_url ? (
+                <img
+                  src={ad.thumbnail_url}
+                  alt={ad.ad_name || "Ad creative"}
+                  className="w-full h-full object-cover"
+                  referrerPolicy="no-referrer"
+                  onError={(e) => {
+                    e.currentTarget.style.display = "none";
+                    e.currentTarget.parentElement?.querySelector(".fallback-icon")?.classList.remove("hidden");
+                  }}
+                />
+              ) : null}
+              <div className={cn("fallback-icon w-full h-full flex items-center justify-center absolute inset-0", ad.thumbnail_url ? "hidden" : "")}>
+                <Play className="w-8 h-8 text-muted-foreground" />
+              </div>
+
+              {/* Platform badge */}
+              <div className="absolute top-2 left-2">
+                <span className={cn(
+                  "px-2 py-0.5 backdrop-blur-sm rounded-full text-[10px] font-medium",
+                  ad.platform === "meta"
+                    ? "bg-accent-cyan/80 text-foreground"
+                    : "bg-foreground/80 text-background"
+                )}>
+                  {ad.platform === "meta" ? "Meta" : "TikTok"}
+                </span>
+              </div>
+            </div>
+
+            {/* Info */}
+            <div className="p-3 space-y-2">
+              {ad.ad_name && (
+                <p className="text-xs font-semibold truncate" title={ad.ad_name}>
+                  {ad.ad_name}
+                </p>
+              )}
+
+              {/* Primary sorted metric highlighted */}
+              <div className="flex items-center justify-between text-xs">
+                <div>
+                  <span className="text-muted-foreground">{SORT_METRIC_LABELS[sortMetric]}</span>
+                  <p className="font-bold text-sm">{getSortMetricValue(ad)}</p>
+                </div>
+                <div className="text-right">
+                  <span className="text-muted-foreground">Impr.</span>
+                  <p className="font-bold">{formatNumber(ad.impressions || 0)}</p>
+                </div>
+              </div>
+
+              {/* Date */}
+              {ad.date_start && (
+                <p className="text-[10px] text-muted-foreground">
+                  {format(new Date(ad.date_start), "dd.MM.yyyy")}
+                </p>
+              )}
+            </div>
+          </Card>
+        ))}
       </div>
+
+      {filteredAndSorted.length === 0 && (
+        <div className="flex items-center justify-center h-[200px] text-muted-foreground border border-dashed border-border rounded-[35px]">
+          No creatives match the selected filters
+        </div>
+      )}
     </div>
   );
 };
