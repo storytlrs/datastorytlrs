@@ -1,6 +1,13 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+// Sanitize AI response content by removing control characters before JSON.parse
+function safeJsonParse(raw: string): any {
+  // Remove control characters (0x00-0x1F) except for standard whitespace (\n, \r, \t)
+  const sanitized = raw.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, "");
+  return JSON.parse(sanitized);
+}
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -540,7 +547,7 @@ INSTRUKCE:
   }
 
   const aiData = await aiResponse.json();
-  const aiContent = JSON.parse(aiData.choices[0].message.content);
+  const aiContent = safeJsonParse(aiData.choices[0].message.content);
 
   // Persist thumbnails to permanent storage before building insights
   await persistThumbnails(supabase, report_id, [
@@ -705,7 +712,7 @@ ${ctx.mediaPlanContext || ""}`;
   }
 
   const aiData = await aiResponse.json();
-  const aiContent = JSON.parse(aiData.choices[0].message.content);
+  const aiContent = safeJsonParse(aiData.choices[0].message.content);
 
   console.log("Ads AI content generated successfully");
 
@@ -957,7 +964,7 @@ KONTEXT OD UŽIVATELE:
   }
 
   const aiData = await aiResponse.json();
-  const aiContent = JSON.parse(aiData.choices[0].message.content);
+  const aiContent = safeJsonParse(aiData.choices[0].message.content);
 
   // Persist thumbnails to permanent storage
   await persistThumbnails(supabase, report_id, [
@@ -1431,7 +1438,7 @@ KONTEXT OD UŽIVATELE:
   }
 
   const aiData = await aiResponse.json();
-  const aiContent = JSON.parse(aiData.choices[0].message.content);
+  const aiContent = safeJsonParse(aiData.choices[0].message.content);
 
   // Persist thumbnails to permanent storage
 
@@ -1812,7 +1819,7 @@ KONTEXT OD UŽIVATELE:
   }
 
   const aiData = await aiResponse.json();
-  const aiContent = JSON.parse(aiData.choices[0].message.content);
+  const aiContent = safeJsonParse(aiData.choices[0].message.content);
 
   // Persist thumbnails to permanent storage
   const fbTopR = topByReach(fbAds, 5);
