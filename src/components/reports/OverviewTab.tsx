@@ -513,7 +513,7 @@ export const OverviewTab = ({ reportId }: OverviewTabProps) => {
           <KPICard title="Influencers" value={effectivenessKPIs.creatorsCount.toString()} icon={Users} accentColor="blue" />
           <KPICard title="Content Pieces" value={effectivenessKPIs.contentPieces.toString()} icon={FileText} accentColor="blue" />
           <KPICard title="Total Views" value={formatNumber(awarenessKPIs.impressionsViews)} icon={Eye} accentColor="blue" />
-          <KPICard title="Avg CPM" value={formatCurrency(effectivenessKPIs.cpm)} icon={Wallet} accentColor="blue" tooltip="CPM (Cost per Mille) = (Budget Spent / Views) × 1000." benchmark={benchmarks ? formatCurrency(benchmarks.cpm) : undefined} />
+          <KPICard title="Avg CPM" value={formatCurrency(effectivenessKPIs.cpm)} icon={Wallet} accentColor="blue" tooltip="CPM (Cost per Mille) = (Budget Spent / Views) × 1000." />
         </div>
       </div>
 
