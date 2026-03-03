@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { TranslationProvider } from "@/contexts/TranslationContext";
 import Auth from "./pages/Auth";
+import ResetPassword from "./pages/ResetPassword";
 import DashboardRedirect from "./pages/DashboardRedirect";
 import BrandDetail from "./pages/BrandDetail";
 import ReportDetail from "./pages/ReportDetail";
@@ -28,6 +29,7 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/auth" element={<Auth />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/dashboard" element={<MainLayout><DashboardRedirect /></MainLayout>} />
           <Route path="/brands/:brandId" element={<MainLayout><BrandDetail /></MainLayout>} />
           <Route path="/reports/:reportId" element={<MainLayout><ReportDetail /></MainLayout>} />

@@ -5,10 +5,11 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, X, Search, Pencil, Trash2, UserPlus } from "lucide-react";
+import { Plus, X, Search, Pencil, Trash2, UserPlus, KeyRound } from "lucide-react";
 import { AssignUserToBrand } from "./AssignUserToBrand";
 import { CreateUserDialog } from "./CreateUserDialog";
 import { EditUserDialog } from "./EditUserDialog";
+import { ResetPasswordDialog } from "./ResetPasswordDialog";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -38,6 +39,7 @@ export const UserList = () => {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [editUser, setEditUser] = useState<UserWithRole | null>(null);
   const [deleteUserDialog, setDeleteUserDialog] = useState<UserWithRole | null>(null);
+  const [resetPasswordUser, setResetPasswordUser] = useState<UserWithRole | null>(null);
   const [removeBrandDialog, setRemoveBrandDialog] = useState<{
     userId: string;
     brandId: string;
@@ -289,6 +291,15 @@ export const UserList = () => {
                         variant="outline"
                         size="sm"
                         className="rounded-[35px] gap-2"
+                        onClick={() => setResetPasswordUser(user)}
+                      >
+                        <KeyRound className="h-4 w-4" />
+                        Reset
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="rounded-[35px] gap-2"
                         onClick={() => setEditUser(user)}
                       >
                         <Pencil className="h-4 w-4" />
@@ -360,6 +371,13 @@ export const UserList = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ResetPasswordDialog
+        open={!!resetPasswordUser}
+        onOpenChange={(open) => !open && setResetPasswordUser(null)}
+        userId={resetPasswordUser?.id || ""}
+        userEmail={resetPasswordUser?.email || ""}
+      />
 
       {/* Delete user dialog */}
       <AlertDialog
