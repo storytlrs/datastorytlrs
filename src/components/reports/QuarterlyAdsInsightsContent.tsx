@@ -1,13 +1,15 @@
-import { useState, forwardRef } from "react";
+import { useState, useEffect, forwardRef } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { TranslatedText } from "@/components/ui/TranslatedText";
 import { MetricTile } from "./MetricTile";
+import { SnapshotTrendChart } from "./SnapshotTrendChart";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { formatCurrencySimple, formatCurrency } from "@/lib/currencyUtils";
+import { supabase } from "@/integrations/supabase/client";
 import {
   Target,
   Rocket,
@@ -177,6 +179,7 @@ interface QuarterlyAdsInsightsContentProps {
   onSaveInsights?: (updates: Partial<QuarterlyStructuredInsights>) => Promise<void>;
   hasMetaPlatform?: boolean;
   hasTiktokPlatform?: boolean;
+  reportId?: string;
 }
 
 // ── Helpers ──
@@ -368,6 +371,9 @@ interface PlatformSectionProps {
   getSpendPlan?: any;
   getReachPlan?: any;
   getFrequencyPlan?: any;
+  chartSpaceId?: string | null;
+  chartCampaignIds?: string[];
+  chartEntityTypes?: string[];
 }
 
 const PlatformSection = ({
@@ -376,6 +382,7 @@ const PlatformSection = ({
   topPostsAnalysis, improvePostsAnalysis,
   topPosts, improvePosts, cur, canEdit, editingSections, startEditing, stopEditing, onSaveSection, sectionPrefix,
   getSpendPlan, getReachPlan, getFrequencyPlan,
+  chartSpaceId, chartCampaignIds, chartEntityTypes,
 }: PlatformSectionProps) => {
   const hasData = metrics.spend > 0 || metrics.reach > 0 || topPosts.length > 0;
   if (!hasData) return null;
@@ -409,6 +416,15 @@ const PlatformSection = ({
           canEdit={canEdit}
           placeholder={`AI popis vývoje metrik – ${platformName}...`}
         />
+        {chartSpaceId && chartCampaignIds && chartCampaignIds.length > 0 && (
+          <div className="mt-6">
+            <SnapshotTrendChart
+              spaceId={chartSpaceId}
+              campaignIds={chartCampaignIds}
+              entityTypes={chartEntityTypes}
+            />
+          </div>
+        )}
       </Card>
 
       {/* Key metrics */}
@@ -485,7 +501,7 @@ const PlatformSection = ({
 // ── Main Component ──
 
 export const QuarterlyAdsInsightsContent = forwardRef<HTMLDivElement, QuarterlyAdsInsightsContentProps>(
-  ({ insights: raw, canEdit = false, onSaveInsights, hasMetaPlatform, hasTiktokPlatform }, ref) => {
+  ({ insights: raw, canEdit = false, onSaveInsights, hasMetaPlatform, hasTiktokPlatform, reportId }, ref) => {
     const insights: QuarterlyStructuredInsights = {
       executive_summary: raw.executive_summary || { intro: "", media_insight: "", top_result: "", recommendation: "" },
       goal_fulfillment: raw.goal_fulfillment || { goals_set: "", results: "" },
@@ -524,6 +540,63 @@ export const QuarterlyAdsInsightsContent = forwardRef<HTMLDivElement, QuarterlyA
     };
 
     const [editingSections, setEditingSections] = useState<Set<string>>(new Set());
+
+    // Fetch linked campaign IDs and spaceId for the trend chart
+    const [chartSpaceId, setChartSpaceId] = useState<string | null>(null);
+    const [chartCampaignIds, setChartCampaignIds] = useState<string[]>([]);
+    const [chartEntityTypes, setChartEntityTypes] = useState<string[]>([]);
+
+    useEffect(() => {
+      if (!reportId) return;
+      const fetchChartData = async () => {
+        const { data: report } = await supabase
+          .from("reports")
+          .select("space_id")
+          .eq("id", reportId)
+          .single();
+        if (!report) return;
+        setChartSpaceId(report.space_id);
+
+        const entityTypes: string[] = [];
+        const campaignTextIds: string[] = [];
+
+        const { data: metaLinks } = await supabase
+          .from("report_campaigns")
+          .select("brand_campaign_id")
+          .eq("report_id", reportId);
+        if (metaLinks && metaLinks.length > 0) {
+          const ids = metaLinks.map(l => l.brand_campaign_id);
+          const { data: campaigns } = await supabase
+            .from("brand_campaigns" as any)
+            .select("campaign_id")
+            .in("id", ids);
+          if (campaigns) {
+            campaignTextIds.push(...campaigns.map((c: any) => c.campaign_id));
+          }
+          entityTypes.push("meta_campaign");
+        }
+
+        const { data: tiktokLinks } = await supabase
+          .from("report_tiktok_campaigns")
+          .select("tiktok_campaign_id")
+          .eq("report_id", reportId);
+        if (tiktokLinks && tiktokLinks.length > 0) {
+          const ids = tiktokLinks.map(l => l.tiktok_campaign_id);
+          const { data: campaigns } = await supabase
+            .from("tiktok_campaigns" as any)
+            .select("campaign_id")
+            .in("id", ids);
+          if (campaigns) {
+            campaignTextIds.push(...campaigns.map((c: any) => c.campaign_id));
+          }
+          entityTypes.push("tiktok_campaign");
+        }
+
+        setChartCampaignIds([...new Set(campaignTextIds)]);
+        setChartEntityTypes(entityTypes);
+      };
+      fetchChartData();
+    }, [reportId]);
 
     // Text states
     const [introSummary, setIntroSummary] = useState(insights.executive_summary.intro || "");
@@ -813,6 +886,9 @@ export const QuarterlyAdsInsightsContent = forwardRef<HTMLDivElement, QuarterlyA
           getSpendPlan={getSpendPlan(fbSpendRatio)}
           getReachPlan={getReachPlan(fbReachRatio)}
           getFrequencyPlan={getFrequencyPlan()}
+          chartSpaceId={chartSpaceId}
+          chartCampaignIds={chartCampaignIds}
+          chartEntityTypes={chartEntityTypes}
         />
 
         <PlatformSection
@@ -837,6 +913,9 @@ export const QuarterlyAdsInsightsContent = forwardRef<HTMLDivElement, QuarterlyA
           getSpendPlan={getSpendPlan(igSpendRatio)}
           getReachPlan={getReachPlan(igReachRatio)}
           getFrequencyPlan={getFrequencyPlan()}
+          chartSpaceId={chartSpaceId}
+          chartCampaignIds={chartCampaignIds}
+          chartEntityTypes={chartEntityTypes}
         />
 
         <PlatformSection
@@ -861,6 +940,9 @@ export const QuarterlyAdsInsightsContent = forwardRef<HTMLDivElement, QuarterlyA
           getSpendPlan={getSpendPlan(tkSpendRatio)}
           getReachPlan={getReachPlan(tkReachRatio)}
           getFrequencyPlan={getFrequencyPlan()}
+          chartSpaceId={chartSpaceId}
+          chartCampaignIds={chartCampaignIds}
+          chartEntityTypes={chartEntityTypes}
         />
 
         {/* Followers */}
