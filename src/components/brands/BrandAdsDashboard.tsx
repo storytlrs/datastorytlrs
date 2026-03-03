@@ -594,8 +594,6 @@ const BrandAdsDashboard = ({ spaceId, filters }: BrandAdsDashboardProps) => {
             )}
           </Card>
 
-          {/* Top 5 Ad Creatives */}
-          <TopContentGrid items={topContent} title="Top 5 Ad Creatives" emptyMessage="No ad creatives found" />
 
           {/* KPI Tiles */}
           <div className="space-y-4">
