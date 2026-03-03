@@ -565,11 +565,11 @@ export const ContentTab = ({ reportId }: ContentTabProps) => {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="date">Date (newest)</SelectItem>
-            <SelectItem value="tswb">TSWB (lowest first)</SelectItem>
-            <SelectItem value="views">Views (highest first)</SelectItem>
-            <SelectItem value="watchTime">Watch Time (highest first)</SelectItem>
-            <SelectItem value="er">Engagement Rate (highest first)</SelectItem>
-            <SelectItem value="virality">Virality (highest first)</SelectItem>
+            <SelectItem value="tswb">TSWB</SelectItem>
+            <SelectItem value="views">Views</SelectItem>
+            <SelectItem value="watchTime">Watch Time</SelectItem>
+            <SelectItem value="er">Engagement Rate</SelectItem>
+            <SelectItem value="virality">Virality</SelectItem>
           </SelectContent>
         </Select>
 
