@@ -5,6 +5,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { TranslatedText } from "@/components/ui/TranslatedText";
 import { MetricTile } from "./MetricTile";
+import { Progress } from "@/components/ui/progress";
+import { cn } from "@/lib/utils";
 import { formatCurrencySimple, formatCurrency } from "@/lib/currencyUtils";
 import {
   Target,
@@ -29,6 +31,7 @@ import {
   Zap,
   CheckCircle,
   ArrowRight,
+  Play,
 } from "lucide-react";
 
 // ── Types ──
@@ -57,6 +60,21 @@ export interface QuarterlyStructuredInsights {
     currency: string;
   };
   metrics_over_time: string;
+  metric_commentary?: {
+    facebook_key?: string;
+    facebook_detail?: string;
+    instagram_key?: string;
+    instagram_detail?: string;
+    tiktok_key?: string;
+    tiktok_detail?: string;
+  };
+  media_plan_comparison?: {
+    budget?: { planned: number; actual: number };
+    impressions?: { planned: number; actual: number };
+    reach?: { planned: number; actual: number };
+    cpm?: { planned: number; actual: number };
+    frequency?: { planned: number; actual: number };
+  } | null;
   community_management: {
     answered_comments: number | null;
     answered_dms: number | null;
@@ -66,6 +84,8 @@ export interface QuarterlyStructuredInsights {
   facebook_metrics: { spend: number; reach: number; frequency: number };
   facebook_detail_metrics: { cpm: number; cpe: number; cpv: number };
   facebook_metrics_over_time: string;
+  facebook_top_posts_analysis?: string;
+  facebook_improve_posts_analysis?: string;
   facebook_top_posts: {
     name: string;
     spend: number;
@@ -87,6 +107,8 @@ export interface QuarterlyStructuredInsights {
   instagram_metrics: { spend: number; reach: number; frequency: number };
   instagram_detail_metrics: { cpm: number; cpe: number; cpv: number };
   instagram_metrics_over_time: string;
+  instagram_top_posts_analysis?: string;
+  instagram_improve_posts_analysis?: string;
   instagram_top_posts: {
     name: string;
     spend: number;
@@ -108,6 +130,8 @@ export interface QuarterlyStructuredInsights {
   tiktok_metrics: { spend: number; reach: number; frequency: number };
   tiktok_detail_metrics: { cpm: number; cpe: number; cpv: number };
   tiktok_metrics_over_time: string;
+  tiktok_top_posts_analysis?: string;
+  tiktok_improve_posts_analysis?: string;
   tiktok_top_posts: {
     name: string;
     spend: number;
@@ -162,6 +186,11 @@ const formatNumber = (num: number): string => {
   if (num >= 1000000) return (num / 1000000).toFixed(1) + "M";
   if (num >= 1000) return (num / 1000).toFixed(1) + "K";
   return num.toLocaleString();
+};
+
+const formatPercent = (num: number): string => {
+  if (num == null) return "-";
+  return num.toFixed(2) + "%";
 };
 
 // ── Reusable sub-components ──
@@ -268,6 +297,15 @@ const EditableNumberField = ({
   );
 };
 
+const MetricCommentary = ({ text }: { text?: string }) => {
+  if (!text) return null;
+  return (
+    <div className="mb-4 p-3 bg-muted/40 rounded-[12px]">
+      <p className="text-sm text-foreground leading-relaxed"><TranslatedText text={text} /></p>
+    </div>
+  );
+};
+
 const PostCard = ({ post }: { post: { name: string; spend: number; impressions: number; clicks: number; ctr: number; thumbnail_url?: string; reason?: string } }) => (
   <Card className="overflow-hidden rounded-[35px] border-foreground hover:shadow-lg transition-shadow">
     <div className="relative aspect-[9/12.8] bg-muted overflow-hidden">
@@ -314,6 +352,10 @@ interface PlatformSectionProps {
   metrics: { spend: number; reach: number; frequency: number };
   detailMetrics: { cpm: number; cpe: number; cpv: number };
   metricsOverTime: string;
+  metricCommentaryKey?: string;
+  metricCommentaryDetail?: string;
+  topPostsAnalysis?: string;
+  improvePostsAnalysis?: string;
   topPosts: { name: string; spend: number; impressions: number; clicks: number; ctr: number; thumbnail_url?: string; reason?: string }[];
   improvePosts: { name: string; spend: number; impressions: number; clicks: number; ctr: number; thumbnail_url?: string; reason?: string }[];
   cur: string;
@@ -323,10 +365,17 @@ interface PlatformSectionProps {
   stopEditing: (s: string) => void;
   onSaveSection: (section: string, value: string) => void;
   sectionPrefix: string;
+  getSpendPlan?: any;
+  getReachPlan?: any;
+  getFrequencyPlan?: any;
 }
 
 const PlatformSection = ({
-  icon, platformName, metrics, detailMetrics, metricsOverTime, topPosts, improvePosts, cur, canEdit, editingSections, startEditing, stopEditing, onSaveSection, sectionPrefix,
+  icon, platformName, metrics, detailMetrics, metricsOverTime,
+  metricCommentaryKey, metricCommentaryDetail,
+  topPostsAnalysis, improvePostsAnalysis,
+  topPosts, improvePosts, cur, canEdit, editingSections, startEditing, stopEditing, onSaveSection, sectionPrefix,
+  getSpendPlan, getReachPlan, getFrequencyPlan,
 }: PlatformSectionProps) => {
   const hasData = metrics.spend > 0 || metrics.reach > 0 || topPosts.length > 0;
   if (!hasData) return null;
@@ -345,7 +394,7 @@ const PlatformSection = ({
 
   return (
     <>
-      {/* Metrics over time + Key metrics */}
+      {/* Metrics over time */}
       <Card className="p-6 rounded-[20px] border-foreground" style={{ backgroundColor: "#E9E9E9" }}>
         <div className="flex items-center gap-3 mb-4">
           {icon}
@@ -368,10 +417,11 @@ const PlatformSection = ({
           {icon}
           <h2 className="text-xl font-bold">Klíčové metriky – {platformName}</h2>
         </div>
+        <MetricCommentary text={metricCommentaryKey} />
         <div className="grid grid-cols-3 gap-4">
-          <MetricTile title="Spend" value={formatCurrency(metrics.spend, cur)} icon={Wallet} accentColor="orange" />
-          <MetricTile title="Reach" value={formatNumber(metrics.reach)} icon={Users} accentColor="blue" />
-          <MetricTile title="Frequency" value={metrics.frequency.toFixed(2)} icon={BarChart3} accentColor="blue" />
+          <MetricTile title="Spend" value={formatCurrency(metrics.spend, cur)} icon={Wallet} accentColor="orange" planComparison={getSpendPlan} />
+          <MetricTile title="Reach" value={formatNumber(metrics.reach)} icon={Users} accentColor="blue" planComparison={getReachPlan} />
+          <MetricTile title="Frequency" value={metrics.frequency.toFixed(2)} icon={BarChart3} accentColor="blue" planComparison={getFrequencyPlan} />
         </div>
       </Card>
 
@@ -381,6 +431,7 @@ const PlatformSection = ({
           {icon}
           <h2 className="text-xl font-bold">Detailní metriky – {platformName}</h2>
         </div>
+        <MetricCommentary text={metricCommentaryDetail} />
         <div className="grid grid-cols-3 gap-4">
           <MetricTile title="CPM" value={formatCurrency(detailMetrics.cpm, cur)} icon={Wallet} accentColor="orange" />
           <MetricTile title="CPE" value={formatCurrency(detailMetrics.cpe, cur)} icon={Wallet} accentColor="orange" />
@@ -389,24 +440,42 @@ const PlatformSection = ({
       </Card>
 
       {/* TOP posts */}
-      {topPosts.length > 0 && (
+      {(topPosts.length > 0 || topPostsAnalysis) && (
         <Card className="p-6 rounded-[20px] border-foreground" style={{ backgroundColor: "#E9E9E9" }}>
           <div className="flex items-center gap-3 mb-4">
             {icon}
             <h2 className="text-xl font-bold">TOP příspěvky – {platformName}</h2>
           </div>
-          {postGrid(topPosts)}
+          <EditableSection
+            value={topPostsAnalysis || ""}
+            isEditing={editingSections.has(`${sectionPrefix}_top_posts_analysis`)}
+            onStartEdit={() => startEditing(`${sectionPrefix}_top_posts_analysis`)}
+            onSave={(v) => onSaveSection(`${sectionPrefix}_top_posts_analysis`, v)}
+            onCancel={() => stopEditing(`${sectionPrefix}_top_posts_analysis`)}
+            canEdit={canEdit}
+            placeholder={`AI analýza: Co nám tento kvartál fungovalo na ${platformName}...`}
+          />
+          {topPosts.length > 0 && <div className="mt-4">{postGrid(topPosts)}</div>}
         </Card>
       )}
 
       {/* Improve posts */}
-      {improvePosts.length > 0 && (
+      {(improvePosts.length > 0 || improvePostsAnalysis) && (
         <Card className="p-6 rounded-[20px] border-foreground" style={{ backgroundColor: "#E9E9E9" }}>
           <div className="flex items-center gap-3 mb-4">
             {icon}
             <h2 className="text-xl font-bold">Příspěvky, na kterých pracovat – {platformName}</h2>
           </div>
-          {postGrid(improvePosts)}
+          <EditableSection
+            value={improvePostsAnalysis || ""}
+            isEditing={editingSections.has(`${sectionPrefix}_improve_posts_analysis`)}
+            onStartEdit={() => startEditing(`${sectionPrefix}_improve_posts_analysis`)}
+            onSave={(v) => onSaveSection(`${sectionPrefix}_improve_posts_analysis`, v)}
+            onCancel={() => stopEditing(`${sectionPrefix}_improve_posts_analysis`)}
+            canEdit={canEdit}
+            placeholder={`AI analýza: Co nám tento kvartál nefungovalo na ${platformName}...`}
+          />
+          {improvePosts.length > 0 && <div className="mt-4">{postGrid(improvePosts)}</div>}
         </Card>
       )}
     </>
@@ -423,21 +492,29 @@ export const QuarterlyAdsInsightsContent = forwardRef<HTMLDivElement, QuarterlyA
       key_metrics: { spend: 0, reach: 0, frequency: 0, currency: "CZK", ...raw.key_metrics },
       detail_metrics: { cpm: 0, cpe: 0, cpv: 0, currency: "CZK", ...raw.detail_metrics },
       metrics_over_time: raw.metrics_over_time || "",
+      metric_commentary: raw.metric_commentary || {},
+      media_plan_comparison: raw.media_plan_comparison || null,
       community_management: { answered_comments: null, answered_dms: null, response_rate_24h: null, ...raw.community_management },
       brand_awareness: raw.brand_awareness || "",
       facebook_metrics: { spend: 0, reach: 0, frequency: 0, ...raw.facebook_metrics },
       facebook_detail_metrics: { cpm: 0, cpe: 0, cpv: 0, ...raw.facebook_detail_metrics },
       facebook_metrics_over_time: raw.facebook_metrics_over_time || "",
+      facebook_top_posts_analysis: raw.facebook_top_posts_analysis || "",
+      facebook_improve_posts_analysis: raw.facebook_improve_posts_analysis || "",
       facebook_top_posts: raw.facebook_top_posts || [],
       facebook_improve_posts: raw.facebook_improve_posts || [],
       instagram_metrics: { spend: 0, reach: 0, frequency: 0, ...raw.instagram_metrics },
       instagram_detail_metrics: { cpm: 0, cpe: 0, cpv: 0, ...raw.instagram_detail_metrics },
       instagram_metrics_over_time: raw.instagram_metrics_over_time || "",
+      instagram_top_posts_analysis: raw.instagram_top_posts_analysis || "",
+      instagram_improve_posts_analysis: raw.instagram_improve_posts_analysis || "",
       instagram_top_posts: raw.instagram_top_posts || [],
       instagram_improve_posts: raw.instagram_improve_posts || [],
       tiktok_metrics: { spend: 0, reach: 0, frequency: 0, ...raw.tiktok_metrics },
       tiktok_detail_metrics: { cpm: 0, cpe: 0, cpv: 0, ...raw.tiktok_detail_metrics },
       tiktok_metrics_over_time: raw.tiktok_metrics_over_time || "",
+      tiktok_top_posts_analysis: raw.tiktok_top_posts_analysis || "",
+      tiktok_improve_posts_analysis: raw.tiktok_improve_posts_analysis || "",
       tiktok_top_posts: raw.tiktok_top_posts || [],
       tiktok_improve_posts: raw.tiktok_improve_posts || [],
       followers: { facebook: null, instagram: null, tiktok: null, ...raw.followers },
@@ -505,6 +582,10 @@ export const QuarterlyAdsInsightsContent = forwardRef<HTMLDivElement, QuarterlyA
         else if (section === "facebook_metrics_over_time") updates.facebook_metrics_over_time = value;
         else if (section === "instagram_metrics_over_time") updates.instagram_metrics_over_time = value;
         else if (section === "tiktok_metrics_over_time") updates.tiktok_metrics_over_time = value;
+        // Handle platform analysis sections
+        else if (section.endsWith("_top_posts_analysis") || section.endsWith("_improve_posts_analysis")) {
+          (updates as any)[section] = value;
+        }
         await onSaveInsights(updates);
       }
     };
@@ -557,6 +638,36 @@ export const QuarterlyAdsInsightsContent = forwardRef<HTMLDivElement, QuarterlyA
     const hasInstagram = hasMetaPlatform ?? (insights.instagram_metrics.spend > 0 || insights.instagram_metrics.reach > 0 || (insights.instagram_top_posts || []).length > 0);
     const hasTiktokData = hasTiktokPlatform ?? (insights.tiktok_metrics.spend > 0 || insights.tiktok_metrics.reach > 0 || (insights.tiktok_top_posts || []).length > 0);
 
+    // Media plan comparison helpers
+    const mp = insights.media_plan_comparison;
+    const totalSpend = insights.facebook_metrics.spend + insights.instagram_metrics.spend + insights.tiktok_metrics.spend;
+    const fbSpendRatio = totalSpend > 0 ? insights.facebook_metrics.spend / totalSpend : (hasFacebook ? 0.33 : 0);
+    const igSpendRatio = totalSpend > 0 ? insights.instagram_metrics.spend / totalSpend : (hasInstagram ? 0.33 : 0);
+    const tkSpendRatio = totalSpend > 0 ? insights.tiktok_metrics.spend / totalSpend : (hasTiktokData ? 0.33 : 0);
+
+    const totalReach = insights.facebook_metrics.reach + insights.instagram_metrics.reach + insights.tiktok_metrics.reach;
+    const fbReachRatio = totalReach > 0 ? insights.facebook_metrics.reach / totalReach : fbSpendRatio;
+    const igReachRatio = totalReach > 0 ? insights.instagram_metrics.reach / totalReach : igSpendRatio;
+    const tkReachRatio = totalReach > 0 ? insights.tiktok_metrics.reach / totalReach : tkSpendRatio;
+
+    const getSpendPlan = (ratio: number) => mp?.budget && mp.budget.planned > 0 ? {
+      planned: mp.budget.planned * ratio,
+      actual: mp.budget.actual * ratio,
+      plannedLabel: formatCurrencySimple(mp.budget.planned * ratio, cur),
+    } : undefined;
+
+    const getReachPlan = (ratio: number) => mp?.reach && mp.reach.planned > 0 ? {
+      planned: mp.reach.planned * ratio,
+      actual: mp.reach.actual * ratio,
+      plannedLabel: formatNumber(Math.round(mp.reach.planned * ratio)),
+    } : undefined;
+
+    const getFrequencyPlan = () => mp?.frequency && mp.frequency.planned > 0 ? {
+      planned: mp.frequency.planned,
+      actual: mp.frequency.actual,
+      plannedLabel: mp.frequency.planned.toFixed(2),
+    } : undefined;
+
     return (
       <div ref={ref} className="space-y-8" style={{ backgroundColor: "#E9E9E9" }}>
         {/* 1. Executive Summary */}
@@ -598,7 +709,7 @@ export const QuarterlyAdsInsightsContent = forwardRef<HTMLDivElement, QuarterlyA
           </div>
         </Card>
 
-        {/* 3. Klíčové metriky */}
+        {/* 3. Celkové klíčové metriky */}
         <Card className="p-6 rounded-[20px] border-foreground" style={{ backgroundColor: "#E9E9E9" }}>
           <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
             Klíčové metriky
@@ -615,7 +726,7 @@ export const QuarterlyAdsInsightsContent = forwardRef<HTMLDivElement, QuarterlyA
           </div>
         </Card>
 
-        {/* 4. Detailní metriky */}
+        {/* 4. Celkové detailní metriky */}
         <Card className="p-6 rounded-[20px] border-foreground" style={{ backgroundColor: "#E9E9E9" }}>
           <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
             Detailní metriky
@@ -632,7 +743,7 @@ export const QuarterlyAdsInsightsContent = forwardRef<HTMLDivElement, QuarterlyA
           </div>
         </Card>
 
-        {/* 5. Vývoj metrik v čase */}
+        {/* 5. Celkový vývoj metrik v čase */}
         <Card className="p-6 rounded-[20px] border-foreground" style={{ backgroundColor: "#E9E9E9" }}>
           <h2 className="text-xl font-bold mb-4">Vývoj metrik v čase</h2>
           <EditableSection
@@ -679,13 +790,17 @@ export const QuarterlyAdsInsightsContent = forwardRef<HTMLDivElement, QuarterlyA
           />
         </Card>
 
-        {/* 8-12. Facebook Section */}
+        {/* Platform Sections with metrics, commentary, plan comparison, top/improve posts with analysis */}
         <PlatformSection
           icon={<FacebookIcon />}
           platformName="Facebook"
           metrics={insights.facebook_metrics}
           detailMetrics={insights.facebook_detail_metrics}
           metricsOverTime={fbMetricsOverTime}
+          metricCommentaryKey={insights.metric_commentary?.facebook_key}
+          metricCommentaryDetail={insights.metric_commentary?.facebook_detail}
+          topPostsAnalysis={insights.facebook_top_posts_analysis}
+          improvePostsAnalysis={insights.facebook_improve_posts_analysis}
           topPosts={insights.facebook_top_posts}
           improvePosts={insights.facebook_improve_posts}
           cur={cur}
@@ -695,15 +810,21 @@ export const QuarterlyAdsInsightsContent = forwardRef<HTMLDivElement, QuarterlyA
           stopEditing={stopEditing}
           onSaveSection={handleSaveSection}
           sectionPrefix="facebook"
+          getSpendPlan={getSpendPlan(fbSpendRatio)}
+          getReachPlan={getReachPlan(fbReachRatio)}
+          getFrequencyPlan={getFrequencyPlan()}
         />
 
-        {/* Instagram Section */}
         <PlatformSection
           icon={<InstagramIcon />}
           platformName="Instagram"
           metrics={insights.instagram_metrics}
           detailMetrics={insights.instagram_detail_metrics}
           metricsOverTime={igMetricsOverTime}
+          metricCommentaryKey={insights.metric_commentary?.instagram_key}
+          metricCommentaryDetail={insights.metric_commentary?.instagram_detail}
+          topPostsAnalysis={insights.instagram_top_posts_analysis}
+          improvePostsAnalysis={insights.instagram_improve_posts_analysis}
           topPosts={insights.instagram_top_posts}
           improvePosts={insights.instagram_improve_posts}
           cur={cur}
@@ -713,15 +834,21 @@ export const QuarterlyAdsInsightsContent = forwardRef<HTMLDivElement, QuarterlyA
           stopEditing={stopEditing}
           onSaveSection={handleSaveSection}
           sectionPrefix="instagram"
+          getSpendPlan={getSpendPlan(igSpendRatio)}
+          getReachPlan={getReachPlan(igReachRatio)}
+          getFrequencyPlan={getFrequencyPlan()}
         />
 
-        {/* TikTok Section */}
         <PlatformSection
           icon={<TiktokIcon />}
           platformName="TikTok"
           metrics={insights.tiktok_metrics}
           detailMetrics={insights.tiktok_detail_metrics}
           metricsOverTime={tkMetricsOverTime}
+          metricCommentaryKey={insights.metric_commentary?.tiktok_key}
+          metricCommentaryDetail={insights.metric_commentary?.tiktok_detail}
+          topPostsAnalysis={insights.tiktok_top_posts_analysis}
+          improvePostsAnalysis={insights.tiktok_improve_posts_analysis}
           topPosts={insights.tiktok_top_posts}
           improvePosts={insights.tiktok_improve_posts}
           cur={cur}
@@ -731,6 +858,9 @@ export const QuarterlyAdsInsightsContent = forwardRef<HTMLDivElement, QuarterlyA
           stopEditing={stopEditing}
           onSaveSection={handleSaveSection}
           sectionPrefix="tiktok"
+          getSpendPlan={getSpendPlan(tkSpendRatio)}
+          getReachPlan={getReachPlan(tkReachRatio)}
+          getFrequencyPlan={getFrequencyPlan()}
         />
 
         {/* Followers */}
@@ -748,21 +878,21 @@ export const QuarterlyAdsInsightsContent = forwardRef<HTMLDivElement, QuarterlyA
                 {(hasFacebook || insights.followers.facebook != null) && (
                   <Card className="p-4 rounded-[15px] border-border bg-muted/30 flex flex-col items-center gap-3">
                     <FacebookIcon /><span className="text-sm font-medium text-muted-foreground uppercase">Facebook</span>
-                <EditableNumberField value={insights.followers.facebook} label="Facebook" canEdit={canEdit} onSave={(v) => handleSaveFollowersField("facebook", v)} />
-              </Card>
-            )}
-            {(hasInstagram || insights.followers.instagram != null) && (
-              <Card className="p-4 rounded-[15px] border-border bg-muted/30 flex flex-col items-center gap-3">
-                <InstagramIcon /><span className="text-sm font-medium text-muted-foreground uppercase">Instagram</span>
-                <EditableNumberField value={insights.followers.instagram} label="Instagram" canEdit={canEdit} onSave={(v) => handleSaveFollowersField("instagram", v)} />
-              </Card>
-            )}
-            {(hasTiktokData || insights.followers.tiktok != null) && (
-              <Card className="p-4 rounded-[15px] border-border bg-muted/30 flex flex-col items-center gap-3">
-                <TiktokIcon /><span className="text-sm font-medium text-muted-foreground uppercase">TikTok</span>
-                <EditableNumberField value={insights.followers.tiktok} label="TikTok" canEdit={canEdit} onSave={(v) => handleSaveFollowersField("tiktok", v)} />
-              </Card>
-            )}
+                    <EditableNumberField value={insights.followers.facebook} label="Facebook" canEdit={canEdit} onSave={(v) => handleSaveFollowersField("facebook", v)} />
+                  </Card>
+                )}
+                {(hasInstagram || insights.followers.instagram != null) && (
+                  <Card className="p-4 rounded-[15px] border-border bg-muted/30 flex flex-col items-center gap-3">
+                    <InstagramIcon /><span className="text-sm font-medium text-muted-foreground uppercase">Instagram</span>
+                    <EditableNumberField value={insights.followers.instagram} label="Instagram" canEdit={canEdit} onSave={(v) => handleSaveFollowersField("instagram", v)} />
+                  </Card>
+                )}
+                {(hasTiktokData || insights.followers.tiktok != null) && (
+                  <Card className="p-4 rounded-[15px] border-border bg-muted/30 flex flex-col items-center gap-3">
+                    <TiktokIcon /><span className="text-sm font-medium text-muted-foreground uppercase">TikTok</span>
+                    <EditableNumberField value={insights.followers.tiktok} label="TikTok" canEdit={canEdit} onSave={(v) => handleSaveFollowersField("tiktok", v)} />
+                  </Card>
+                )}
               </div>
             );
           })()}
