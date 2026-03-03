@@ -1170,10 +1170,11 @@ async function handleQuarterlyReport(ctx: any) {
     };
   };
 
-  // Facebook: ads > ad_sets > campaigns
+  // Facebook: ads > ad_sets > campaigns (include unknown/unclassified campaign rows alongside FB)
+  const fbCampaignRowsWithUnknown = [...fbCampaignRows, ...unknownCampaignRows];
   const fbM = fbAds.length > 0 ? calcMetricsFromRows(fbAds) :
               fbAdSets.length > 0 ? calcMetricsFromRows(fbAdSets) :
-              calcMetricsFromRows(fbCampaignRows);
+              calcMetricsFromRows(fbCampaignRowsWithUnknown);
   // Instagram: ads > ad_sets > campaigns
   const igM = igAds.length > 0 ? calcMetricsFromRows(igAds) :
               igAdSets.length > 0 ? calcMetricsFromRows(igAdSets) :
@@ -1307,7 +1308,7 @@ async function handleQuarterlyReport(ctx: any) {
   }
 
   // Define post sources early so we can include them in the AI prompt context
-  const fbPostSource = fbAds.length > 0 ? fbAds : fbAdSets.length > 0 ? fbAdSets : fbCampaignRows;
+  const fbPostSource = fbAds.length > 0 ? fbAds : fbAdSets.length > 0 ? fbAdSets : fbCampaignRowsWithUnknown;
   const igPostSource = igAds.length > 0 ? igAds : igAdSets.length > 0 ? igAdSets : igCampaignRows;
   const tkPostSource = normalizedTiktokAds.length > 0 ? normalizedTiktokAds : (tiktokAdGroups || []).length > 0 ? tiktokAdGroups : tiktokCampaignsOnly;
 
@@ -1552,22 +1553,37 @@ async function handleYearlyReport(ctx: any) {
     costPerThruplay, costPer3sView,
   } = ctx;
 
-  // Separate Meta ads by platform
+  // Separate Meta ads by platform (check publisher_platform first, then name)
   const fbAds = (ads || []).filter((a: any) => {
+    const pp = (a.publisher_platform || '').toLowerCase();
+    if (pp === 'facebook') return true;
     const name = (a.ad_name || "").toLowerCase();
     return name.includes("facebook") || name.includes("fb");
   });
   const igAds = (ads || []).filter((a: any) => {
+    const pp = (a.publisher_platform || '').toLowerCase();
+    if (pp === 'instagram') return true;
     const name = (a.ad_name || "").toLowerCase();
     return name.includes("instagram") || name.includes("ig");
   });
   const unclassifiedMetaAds = (ads || []).filter((a: any) => {
+    const pp = (a.publisher_platform || '').toLowerCase();
     const name = (a.ad_name || "").toLowerCase();
-    return !name.includes("facebook") && !name.includes("fb") && !name.includes("instagram") && !name.includes("ig");
+    return pp !== 'facebook' && pp !== 'instagram' && !name.includes("facebook") && !name.includes("fb") && !name.includes("instagram") && !name.includes("ig");
   });
   if (fbAds.length === 0 && igAds.length === 0 && unclassifiedMetaAds.length > 0) {
     fbAds.push(...unclassifiedMetaAds);
   }
+
+  // Campaign-level fallback for platform classification
+  const allMetaCampaignRowsY = (campaigns || []).filter((c: any) => !c.age || c.age === '');
+  const fbCampaignRowsY = allMetaCampaignRowsY.filter((c: any) => (c.publisher_platform || '').toLowerCase() === 'facebook');
+  const igCampaignRowsY = allMetaCampaignRowsY.filter((c: any) => (c.publisher_platform || '').toLowerCase() === 'instagram');
+  const unknownCampaignRowsY = allMetaCampaignRowsY.filter((c: any) => {
+    const p = (c.publisher_platform || '').toLowerCase();
+    return p === 'unknown' || p === '' || p === 'messenger';
+  });
+  const fbCampaignRowsWithUnknownY = [...fbCampaignRowsY, ...unknownCampaignRowsY];
 
   // Normalize TikTok ads
   const normalizedTiktokAds = (tiktokAds || []).map((a: any) => ({
@@ -1601,9 +1617,11 @@ async function handleYearlyReport(ctx: any) {
     };
   };
 
-  const fbM = calcPlatformMetrics(fbAds);
-  const igM = calcPlatformMetrics(igAds);
-  const tkM = calcPlatformMetrics(normalizedTiktokAds);
+  // Use ads if available, otherwise fall back to campaign rows
+  const fbM = fbAds.length > 0 ? calcPlatformMetrics(fbAds) : calcPlatformMetrics(fbCampaignRowsWithUnknownY);
+  const igM = igAds.length > 0 ? calcPlatformMetrics(igAds) : calcPlatformMetrics(igCampaignRowsY);
+  const tkM = normalizedTiktokAds.length > 0 ? calcPlatformMetrics(normalizedTiktokAds) :
+              calcPlatformMetrics((ctx.tiktokCampaigns || []).filter((c: any) => !c.age && !c.gender && !c.location));
 
   // Reason generators
   const generateTopReachReason = (a: any, rank: number) => {
