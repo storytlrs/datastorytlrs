@@ -436,12 +436,12 @@ export const CampaignAdsInsightsContent = forwardRef<HTMLDivElement, CampaignAds
               <svg viewBox="0 0 24 24" className="w-6 h-6" fill="currentColor"><path d="M7.8 2h8.4C19.4 2 22 4.6 22 7.8v8.4a5.8 5.8 0 0 1-5.8 5.8H7.8C4.6 22 2 19.4 2 16.2V7.8A5.8 5.8 0 0 1 7.8 2m-.2 2A3.6 3.6 0 0 0 4 7.6v8.8C4 18.39 5.61 20 7.6 20h8.8a3.6 3.6 0 0 0 3.6-3.6V7.6C20 5.61 18.39 4 16.4 4H7.6m9.65 1.5a1.25 1.25 0 1 1 0 2.5 1.25 1.25 0 0 1 0-2.5M12 7a5 5 0 1 1 0 10 5 5 0 0 1 0-10m0 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z"/></svg>
               Klíčové metriky META
             </h2>
+            <MetricCommentary text={insights.metric_commentary?.meta_key} />
             <div className="grid grid-cols-3 gap-4">
               <MetricTile title="Spend" value={formatCurrency(insights.meta_key_metrics.spend, cur)} icon={DollarSign} accentColor="orange" planComparison={getSpendPlan(metaSpendRatio)} />
               <MetricTile title="Reach" value={formatNumber(insights.meta_key_metrics.reach)} icon={Users} accentColor="blue" planComparison={getReachPlan(metaReachRatio)} />
               <MetricTile title="Frequency" value={insights.meta_key_metrics.frequency.toFixed(2)} icon={BarChart3} accentColor="blue" planComparison={getFrequencyPlan()} />
             </div>
-            <MetricCommentary text={insights.metric_commentary?.meta_key} />
           </Card>
         )}
 
@@ -453,6 +453,7 @@ export const CampaignAdsInsightsContent = forwardRef<HTMLDivElement, CampaignAds
               <svg viewBox="0 0 24 24" className="w-6 h-6" fill="currentColor"><path d="M7.8 2h8.4C19.4 2 22 4.6 22 7.8v8.4a5.8 5.8 0 0 1-5.8 5.8H7.8C4.6 22 2 19.4 2 16.2V7.8A5.8 5.8 0 0 1 7.8 2m-.2 2A3.6 3.6 0 0 0 4 7.6v8.8C4 18.39 5.61 20 7.6 20h8.8a3.6 3.6 0 0 0 3.6-3.6V7.6C20 5.61 18.39 4 16.4 4H7.6m9.65 1.5a1.25 1.25 0 1 1 0 2.5 1.25 1.25 0 0 1 0-2.5M12 7a5 5 0 1 1 0 10 5 5 0 0 1 0-10m0 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z"/></svg>
               Detailní metriky META
             </h2>
+            <MetricCommentary text={insights.metric_commentary?.meta_detail} />
             <div className="grid grid-cols-3 md:grid-cols-5 gap-4">
               <MetricTile title="Impressions" value={formatNumber(insights.meta_key_metrics.reach * insights.meta_key_metrics.frequency)} icon={Eye} accentColor="blue" planComparison={getImpressionsPlan(metaReachRatio)} />
               <MetricTile title="CPM" value={formatCurrencySimple(insights.meta_key_metrics.spend / (insights.meta_key_metrics.reach * insights.meta_key_metrics.frequency) * 1000 || 0, cur)} icon={DollarSign} accentColor="orange" planComparison={getCpmPlan()} />
@@ -460,7 +461,6 @@ export const CampaignAdsInsightsContent = forwardRef<HTMLDivElement, CampaignAds
               <MetricTile title="VV 3s Rate" value={formatPercent(insights.meta_detail_metrics.view_rate_3s)} icon={Eye} accentColor="blue" />
               <MetricTile title="Avg. Watch Time" value={`${insights.meta_detail_metrics.avg_watch_time.toFixed(1)}s`} icon={Clock} accentColor="blue" />
             </div>
-            <MetricCommentary text={insights.metric_commentary?.meta_detail} />
           </Card>
         )}
 
@@ -471,12 +471,12 @@ export const CampaignAdsInsightsContent = forwardRef<HTMLDivElement, CampaignAds
               <svg viewBox="0 0 24 24" className="w-6 h-6" fill="currentColor"><path d="M16.6 5.82s.51.5 0 0A4.28 4.28 0 0 1 15.54 3h-3.09v12.4a2.59 2.59 0 0 1-2.59 2.5c-1.42 0-2.6-1.16-2.6-2.6a2.6 2.6 0 0 1 2.6-2.55c.27 0 .52.04.77.11v-3.16a5.74 5.74 0 0 0-.77-.05A5.72 5.72 0 0 0 4.14 15.3a5.73 5.73 0 0 0 5.72 5.72 5.73 5.73 0 0 0 5.72-5.72V9.33a7.58 7.58 0 0 0 4.42 1.42V7.58a4.27 4.27 0 0 1-3.4-1.76Z"/></svg>
               Klíčové metriky TikTok
             </h2>
+            <MetricCommentary text={insights.metric_commentary?.tiktok_key} />
             <div className="grid grid-cols-3 gap-4">
               <MetricTile title="Spend" value={formatCurrency(insights.tiktok_key_metrics.spend, cur)} icon={DollarSign} accentColor="orange" planComparison={getSpendPlan(tiktokSpendRatio)} />
               <MetricTile title="Reach" value={formatNumber(insights.tiktok_key_metrics.reach)} icon={Users} accentColor="blue" planComparison={getReachPlan(tiktokReachRatio)} />
               <MetricTile title="Frequency" value={insights.tiktok_key_metrics.frequency.toFixed(2)} icon={BarChart3} accentColor="blue" planComparison={getFrequencyPlan()} />
             </div>
-            <MetricCommentary text={insights.metric_commentary?.tiktok_key} />
           </Card>
         )}
 
@@ -487,6 +487,7 @@ export const CampaignAdsInsightsContent = forwardRef<HTMLDivElement, CampaignAds
               <svg viewBox="0 0 24 24" className="w-6 h-6" fill="currentColor"><path d="M16.6 5.82s.51.5 0 0A4.28 4.28 0 0 1 15.54 3h-3.09v12.4a2.59 2.59 0 0 1-2.59 2.5c-1.42 0-2.6-1.16-2.6-2.6a2.6 2.6 0 0 1 2.6-2.55c.27 0 .52.04.77.11v-3.16a5.74 5.74 0 0 0-.77-.05A5.72 5.72 0 0 0 4.14 15.3a5.73 5.73 0 0 0 5.72 5.72 5.73 5.73 0 0 0 5.72-5.72V9.33a7.58 7.58 0 0 0 4.42 1.42V7.58a4.27 4.27 0 0 1-3.4-1.76Z"/></svg>
               Detailní metriky TikTok
             </h2>
+            <MetricCommentary text={insights.metric_commentary?.tiktok_detail} />
             <div className="grid grid-cols-3 md:grid-cols-5 gap-4">
               <MetricTile title="Impressions" value={formatNumber(insights.tiktok_key_metrics.reach * insights.tiktok_key_metrics.frequency)} icon={Eye} accentColor="blue" planComparison={getImpressionsPlan(tiktokReachRatio)} />
               <MetricTile title="CPM" value={formatCurrencySimple(insights.tiktok_key_metrics.spend / (insights.tiktok_key_metrics.reach * insights.tiktok_key_metrics.frequency) * 1000 || 0, cur)} icon={DollarSign} accentColor="orange" planComparison={getCpmPlan()} />
@@ -494,7 +495,6 @@ export const CampaignAdsInsightsContent = forwardRef<HTMLDivElement, CampaignAds
               <MetricTile title="VV 3s Rate" value={formatPercent(insights.tiktok_detail_metrics.view_rate_3s)} icon={Eye} accentColor="blue" />
               <MetricTile title="Avg. Watch Time" value={`${insights.tiktok_detail_metrics.avg_watch_time.toFixed(1)}s`} icon={Clock} accentColor="blue" />
             </div>
-            <MetricCommentary text={insights.metric_commentary?.tiktok_detail} />
           </Card>
         )}
 
@@ -502,9 +502,19 @@ export const CampaignAdsInsightsContent = forwardRef<HTMLDivElement, CampaignAds
         <Card className="p-6 rounded-[20px] border-foreground" style={{ backgroundColor: "#E9E9E9" }}>
           <h2 className="text-xl font-bold mb-4">Oslovená cílová skupina</h2>
           
+          <EditableSection
+            value={targetAudience}
+            isEditing={editingSections.has("target_audience")}
+            onStartEdit={() => startEditing("target_audience")}
+            onSave={(v) => handleSaveSection("target_audience", v)}
+            onCancel={() => stopEditing("target_audience")}
+            canEdit={canEdit}
+            placeholder="AI analýza oslovené cílové skupiny..."
+          />
+
           {/* Demographics bar chart */}
           {insights.audience_demographics && insights.audience_demographics.length > 0 && (
-            <div className="mb-6">
+            <div className="mt-6">
               <h3 className="text-sm font-semibold uppercase text-muted-foreground mb-3">TOP {insights.audience_demographics.length} oslovené kategorie dle platformy</h3>
               <div className="h-[300px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
@@ -525,16 +535,6 @@ export const CampaignAdsInsightsContent = forwardRef<HTMLDivElement, CampaignAds
               </div>
             </div>
           )}
-
-          <EditableSection
-            value={targetAudience}
-            isEditing={editingSections.has("target_audience")}
-            onStartEdit={() => startEditing("target_audience")}
-            onSave={(v) => handleSaveSection("target_audience", v)}
-            onCancel={() => stopEditing("target_audience")}
-            canEdit={canEdit}
-            placeholder="AI analýza oslovené cílové skupiny..."
-          />
         </Card>
 
         {/* Content Analysis */}
