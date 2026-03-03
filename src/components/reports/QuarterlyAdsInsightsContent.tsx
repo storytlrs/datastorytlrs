@@ -802,14 +802,8 @@ export const QuarterlyAdsInsightsContent = forwardRef<HTMLDivElement, QuarterlyA
         <Card className="p-6 rounded-[20px] border-foreground" style={{ backgroundColor: "#E9E9E9" }}>
           <h2 className="text-xl font-bold mb-4">Executive Summary</h2>
           {(introSummary || canEdit) && (
-            <div className="mb-5 p-4 bg-background/60 rounded-[15px] border border-border/50">
-              <div className="flex items-start gap-2">
-                <BookOpen className="w-4 h-4 mt-0.5 text-primary shrink-0" />
-                <div className="flex-1">
-                  <p className="text-xs font-semibold text-muted-foreground mb-1 uppercase tracking-wide">Shrnutí kvartálu</p>
-                  <EditableSection value={introSummary} isEditing={editingSections.has("intro")} onStartEdit={() => startEditing("intro")} onSave={(v) => handleSaveSection("intro", v)} onCancel={() => stopEditing("intro")} canEdit={canEdit} placeholder="Úvodní shrnutí kvartálu..." />
-                </div>
-              </div>
+            <div className="mb-5">
+              <EditableSection value={introSummary} isEditing={editingSections.has("intro")} onStartEdit={() => startEditing("intro")} onSave={(v) => handleSaveSection("intro", v)} onCancel={() => stopEditing("intro")} canEdit={canEdit} placeholder="Úvodní shrnutí kvartálu..." />
             </div>
           )}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
