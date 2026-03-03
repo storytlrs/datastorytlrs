@@ -177,10 +177,19 @@ serve(async (req) => {
       throw new Error("No campaigns linked to this report. Please select campaigns first.");
     }
 
-    // Fetch only linked Meta campaigns
-    const { data: campaigns = [] } = linkedCampaignIds.length > 0
+    // Fetch only linked Meta campaigns (aggregate rows)
+    const { data: campaignsAgg = [] } = linkedCampaignIds.length > 0
       ? await supabase.from("brand_campaigns").select("*").in("id", linkedCampaignIds)
       : { data: [] };
+
+    // Also fetch all demographic breakdown rows for the same campaign_ids
+    const linkedCampaignTextIds = (campaignsAgg || []).map((c: any) => c.campaign_id);
+    const { data: campaignsDemoRows = [] } = linkedCampaignTextIds.length > 0
+      ? await supabase.from("brand_campaigns").select("*").eq("space_id", spaceId).in("campaign_id", linkedCampaignTextIds).neq("age", "").neq("gender", "")
+      : { data: [] };
+
+    // Merge: aggregate rows + demographic breakdown rows
+    const campaigns = [...(campaignsAgg || []), ...(campaignsDemoRows || [])];
 
     // Fetch ad sets belonging to linked Meta campaigns
     const { data: adSets = [] } = linkedCampaignIds.length > 0
@@ -194,10 +203,19 @@ serve(async (req) => {
       ? await supabase.from("brand_ads").select("*").eq("space_id", spaceId).in("brand_ad_set_id", adSetIds)
       : { data: [] };
 
-    // Fetch linked TikTok campaigns
-    const { data: tiktokCampaigns = [] } = linkedTiktokCampaignIds.length > 0
+    // Fetch linked TikTok campaigns (aggregate rows)
+    const { data: tiktokCampaignsAgg = [] } = linkedTiktokCampaignIds.length > 0
       ? await supabase.from("tiktok_campaigns").select("*").in("id", linkedTiktokCampaignIds)
       : { data: [] };
+
+    // Also fetch TikTok demographic breakdown rows
+    const linkedTiktokTextIds = (tiktokCampaignsAgg || []).map((c: any) => c.campaign_id);
+    const { data: tiktokCampaignsDemoRows = [] } = linkedTiktokTextIds.length > 0
+      ? await supabase.from("tiktok_campaigns").select("*").eq("space_id", spaceId).in("campaign_id", linkedTiktokTextIds).or("age.neq.,gender.neq.,location.neq.")
+      : { data: [] };
+
+    // Merge
+    const tiktokCampaigns = [...(tiktokCampaignsAgg || []), ...(tiktokCampaignsDemoRows || [])];
 
     // Fetch TikTok ad groups
     const { data: tiktokAdGroups = [] } = linkedTiktokCampaignIds.length > 0
@@ -217,9 +235,11 @@ serve(async (req) => {
       .select("*")
       .eq("report_id", report_id);
 
-    // Calculate aggregated metrics from both platforms
-    const allCampaigns = [...(campaigns || []), ...(tiktokCampaigns || [])];
-    const metricsSource = allCampaigns.length > 0 ? allCampaigns : [...(adSets || []), ...(tiktokAdGroups || [])];
+    // Calculate aggregated metrics from both platforms (only aggregate rows, not demographic breakdowns)
+    const metaCampaignsAgg = (campaigns || []).filter((c: any) => !c.age && !c.gender);
+    const tiktokCampaignsAgg2 = (tiktokCampaigns || []).filter((c: any) => !c.age && !c.gender && !c.location);
+    const allCampaignsAgg = [...metaCampaignsAgg, ...tiktokCampaignsAgg2];
+    const metricsSource = allCampaignsAgg.length > 0 ? allCampaignsAgg : [...(adSets || []), ...(tiktokAdGroups || [])];
     const totalSpend = metricsSource.reduce((s: number, d: any) => s + (d.amount_spent || 0), 0);
     const totalReach = metricsSource.reduce((s: number, d: any) => s + (d.reach || 0), 0);
     const totalImpressions = metricsSource.reduce((s: number, d: any) => s + (d.impressions || 0), 0);
@@ -785,10 +805,11 @@ async function handleCampaignReport(ctx: any) {
     average_video_play: a.average_video_play || 0,
   }));
 
-  // Meta platform metrics
-  const metaSpend = (campaigns || []).reduce((s: number, c: any) => s + (c.amount_spent || 0), 0);
-  const metaReach = (campaigns || []).reduce((s: number, c: any) => s + (c.reach || 0), 0);
-  const metaImpr = (campaigns || []).reduce((s: number, c: any) => s + (c.impressions || 0), 0);
+  // Meta platform metrics (only aggregate rows)
+  const metaCampaignsOnly = (campaigns || []).filter((c: any) => !c.age && !c.gender);
+  const metaSpend = metaCampaignsOnly.reduce((s: number, c: any) => s + (c.amount_spent || 0), 0);
+  const metaReach = metaCampaignsOnly.reduce((s: number, c: any) => s + (c.reach || 0), 0);
+  const metaImpr = metaCampaignsOnly.reduce((s: number, c: any) => s + (c.impressions || 0), 0);
   const metaFreq = metaReach > 0 ? metaImpr / metaReach : 0;
   const metaThruplays = (ads || []).reduce((s: number, a: any) => s + (a.thruplays || 0), 0);
   const meta3sViews = (ads || []).reduce((s: number, a: any) => s + (a.video_3s_plays || 0), 0);
@@ -796,10 +817,11 @@ async function handleCampaignReport(ctx: any) {
   const metaViewRate3s = metaImpr > 0 ? (meta3sViews / metaImpr) * 100 : 0;
   const metaAvgWatchTime = 0;
 
-  // TikTok platform metrics
-  const tkSpend = (tiktokCampaigns || []).reduce((s: number, c: any) => s + (c.amount_spent || 0), 0);
-  const tkReach = (tiktokCampaigns || []).reduce((s: number, c: any) => s + (c.reach || 0), 0);
-  const tkImpr = (tiktokCampaigns || []).reduce((s: number, c: any) => s + (c.impressions || 0), 0);
+  // TikTok platform metrics (only aggregate rows)
+  const tiktokCampaignsOnly = (tiktokCampaigns || []).filter((c: any) => !c.age && !c.gender && !c.location);
+  const tkSpend = tiktokCampaignsOnly.reduce((s: number, c: any) => s + (c.amount_spent || 0), 0);
+  const tkReach = tiktokCampaignsOnly.reduce((s: number, c: any) => s + (c.reach || 0), 0);
+  const tkImpr = tiktokCampaignsOnly.reduce((s: number, c: any) => s + (c.impressions || 0), 0);
   const tkFreq = tkReach > 0 ? tkImpr / tkReach : 0;
   const tkThruplays = normalizedTiktokAds.reduce((s: number, a: any) => s + (a.thruplays || 0), 0);
   const tk3sViews = normalizedTiktokAds.reduce((s: number, a: any) => s + (a.video_3s_plays || 0), 0);
