@@ -518,7 +518,7 @@ export const CampaignAdsInsightsContent = forwardRef<HTMLDivElement, CampaignAds
           <Card className="p-6 rounded-[20px] border-foreground" style={{ backgroundColor: "#E9E9E9" }}>
             <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
               <Eye className="w-6 h-6" />
-              Analýza kreativ
+              Content
             </h2>
             <div className="flex gap-6">
               {/* Text content */}
