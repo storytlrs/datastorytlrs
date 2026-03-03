@@ -483,9 +483,9 @@ INSTRUKCE:
   "metrics_over_time": "Popis vývoje a trendů klíčových metrik (spend, reach, frequency, CTR, engagement) během měsíce. Zmiň co rostlo, co klesalo, co bylo stabilní (max 150 slov)",
   "brand_awareness": "Analýza vlivu kampaní na brand awareness – kolik lidí bylo osloveno, jak často, jaký je dopad na povědomí o značce. Porovnej FB vs IG pokud jsou data (max 150 slov)",
   "learnings": {
-    "works": ["3-5 konkrétních bodů co funguje dobře, s čísly kde to dává smysl"],
-    "threats_opportunities": ["2-4 body – identifikuj hrozby (vysoká frekvence, nízký CTR apod.) a příležitosti (dobře fungující formáty, segmenty)"],
-    "improvements": ["3-5 akčních doporučení co konkrétně zlepšit v dalším měsíci"]
+    "works": ["2-3 konkrétní body co funguje dobře, s čísly kde to dává smysl"],
+    "threats_opportunities": ["2-3 body – identifikuj hrozby a příležitosti"],
+    "improvements": ["2-3 akční doporučení co konkrétně zlepšit v dalším měsíci"]
   }
 }`;
 
@@ -651,9 +651,9 @@ ${ctx.mediaPlanContext || ""}`;
   "engagement_summary": "Jeden odstavec hodnotící zapojení a interakce uživatelů (max 100 slov)",
   "effectiveness_summary": "Jeden odstavec hodnotící nákladovou efektivitu kampaně (max 100 slov)",
   "recommendations": {
-    "works": ["3-5 bodů co funguje dobře"],
-    "doesnt_work": ["2-4 body co nefunguje nebo má prostor ke zlepšení"],
-    "suggestions": ["3-5 konkrétních doporučení pro optimalizaci"]
+    "works": ["2-3 body co funguje dobře"],
+    "doesnt_work": ["2-3 body co nefunguje nebo má prostor ke zlepšení"],
+    "suggestions": ["2-3 konkrétní doporučení pro optimalizaci"]
   }
 }`;
 
@@ -897,9 +897,9 @@ KONTEXT OD UŽIVATELE:
   },
   "brand_awareness": "Analýza vlivu kampaně na brand awareness – celkový dosah, frekvence, dopad na povědomí o značce (max 200 slov)",
   "learnings": {
-    "what_worked": ["3-5 konkrétních bodů co se povedlo, s čísly"],
-    "what_to_improve": ["3-5 bodů co zlepšit v příští kampani"],
-    "what_to_test": ["3-5 nápadů co příště otestovat"]
+    "what_worked": ["2-3 konkrétní body co se povedlo, s čísly"],
+    "what_to_improve": ["2-3 body co zlepšit v příští kampani"],
+    "what_to_test": ["2-3 nápady co příště otestovat"]
   }
 }`;
 
@@ -1221,18 +1221,18 @@ KONTEXT OD UŽIVATELE:
   "instagram_metrics_over_time": "Vývoj IG metrik v průběhu kvartálu (max 100 slov)",
   "tiktok_metrics_over_time": "Vývoj TikTok metrik v průběhu kvartálu (max 100 slov)",
   "summary_success": {
-    "what_worked": ["3-5 bodů co fungovalo dobře za kvartál"],
-    "top_results": ["3-5 TOP výsledků kvartálu s konkrétními čísly"]
+    "what_worked": ["2-3 body co fungovalo dobře za kvartál"],
+    "top_results": ["2-3 TOP výsledky kvartálu s konkrétními čísly"]
   },
   "summary_events": {
-    "what_happened": ["3-5 klíčových událostí/aktivit za kvartál"],
-    "what_we_solved": ["2-4 problémy které jsme řešili"],
-    "threats_opportunities": ["2-4 identifikované hrozby a příležitosti"]
+    "what_happened": ["2-3 klíčové události/aktivity za kvartál"],
+    "what_we_solved": ["2-3 problémy které jsme řešili"],
+    "threats_opportunities": ["2-3 identifikované hrozby a příležitosti"]
   },
   "learnings": {
-    "improving": ["3-5 bodů co aktivně zlepšujeme"],
-    "focus_areas": ["3-5 oblastí kterým se budeme věnovat"],
-    "changes": ["3-5 konkrétních změn které implementujeme"]
+    "improving": ["2-3 body co aktivně zlepšujeme"],
+    "focus_areas": ["2-3 oblasti kterým se budeme věnovat"],
+    "changes": ["2-3 konkrétní změny které implementujeme"]
   }
 }`;
 
@@ -1572,18 +1572,18 @@ KONTEXT OD UŽIVATELE:
   "tiktok_video_analysis": "Která videa upoutala na TikToku (max 150 slov)",
   "competition_analysis": "Shrnutí konkurenčního prostředí a inspirace (max 200 slov)",
   "summary_success": {
-    "what_worked": ["3-5 bodů co fungovalo"],
-    "top_results": ["3-5 TOP výsledků roku"]
+    "what_worked": ["2-3 body co fungovalo"],
+    "top_results": ["2-3 TOP výsledky roku"]
   },
   "summary_events": {
-    "what_happened": ["3-5 klíčových událostí"],
-    "what_we_solved": ["2-4 problémy"],
-    "threats_opportunities": ["2-4 hrozby a příležitosti"]
+    "what_happened": ["2-3 klíčové události"],
+    "what_we_solved": ["2-3 problémy"],
+    "threats_opportunities": ["2-3 hrozby a příležitosti"]
   },
   "learnings": {
-    "improving": ["3-5 bodů co zlepšíme"],
-    "focus_areas": ["3-5 oblastí kterým se budeme věnovat"],
-    "changes": ["3-5 konkrétních změn"]
+    "improving": ["2-3 body co zlepšíme"],
+    "focus_areas": ["2-3 oblasti kterým se budeme věnovat"],
+    "changes": ["2-3 konkrétní změny"]
   }
 }`;
 
