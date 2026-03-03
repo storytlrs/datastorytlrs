@@ -1193,39 +1193,96 @@ async function handleQuarterlyReport(ctx: any) {
     }
   }
 
-  const generateTopReason = (a: any, rank: number) => {
-    const parts: string[] = [];
-    if (rank <= 3) parts.push(`#${rank} nejvyšší spend`);
-    if ((a.ctr || 0) > 1) parts.push(`silné CTR ${(a.ctr || 0).toFixed(2)}%`);
-    if ((a.impressions || 0) > 10000) parts.push(`${((a.impressions || 0) / 1000).toFixed(0)}K impressions`);
-    if ((a.clicks || 0) > 100) parts.push(`${a.clicks} kliknutí`);
-    return parts.length > 0 ? parts.join(", ") : "Vysoký spend a dobrý výkon";
-  };
-
-  const generateImproveReason = (a: any) => {
-    const parts: string[] = [];
-    if ((a.ctr || 0) < 0.5) parts.push(`nízké CTR ${(a.ctr || 0).toFixed(2)}%`);
-    else if ((a.ctr || 0) < 1) parts.push(`podprůměrné CTR ${(a.ctr || 0).toFixed(2)}%`);
-    if ((a.amount_spent || 0) > 0 && (a.clicks || 0) === 0) parts.push("žádné kliknutí");
-    if ((a.impressions || 0) > 0 && (a.clicks || 0) / (a.impressions || 1) < 0.005) parts.push("nízká konverze zobrazení na kliky");
-    return parts.length > 0 ? parts.join(", ") : "Prostor pro optimalizaci výkonu";
-  };
-
   const getName = (a: any) => a.ad_name || a.adset_name || a.campaign_name || "Unnamed";
 
-  const topBySpend = (arr: any[], count: number) =>
-    [...arr].sort((a, b) => (b.amount_spent || 0) - (a.amount_spent || 0)).slice(0, count).map((a: any, i: number) => ({
-      name: getName(a), spend: a.amount_spent || 0, impressions: a.impressions || 0,
-      clicks: a.clicks || 0, ctr: a.ctr || 0, thumbnail_url: a.thumbnail_url || null,
-      reason: generateTopReason(a, i + 1),
-    }));
+  // Calculate engagement for a post
+  const getEngagement = (a: any) => (a.post_reactions || a.likes || 0) + (a.post_comments || a.comments || 0) + (a.post_shares || a.shares || 0) + (a.post_saves || 0);
+  // Calculate video views (thruplays / video_views_p100)
+  const getVideoViews = (a: any) => a.thruplays || a.video_views_p100 || 0;
 
-  const bottomByPerformance = (arr: any[], count: number) =>
-    [...arr].filter((a) => (a.amount_spent || 0) > 0).sort((a, b) => (a.ctr || 0) - (b.ctr || 0)).slice(0, count).map((a: any) => ({
-      name: getName(a), spend: a.amount_spent || 0, impressions: a.impressions || 0,
-      clicks: a.clicks || 0, ctr: a.ctr || 0, thumbnail_url: a.thumbnail_url || null,
-      reason: generateImproveReason(a),
-    }));
+  const makePost = (a: any, reason: string, highlight_metric?: string, highlight_value?: number) => ({
+    name: getName(a), spend: a.amount_spent || 0, impressions: a.impressions || 0,
+    clicks: a.clicks || 0, ctr: a.ctr || 0, thumbnail_url: a.thumbnail_url || null,
+    reason, highlight_metric, highlight_value,
+  });
+
+  // Select top 3 posts: best reach (CPM), best engagement (CPE), best video views (CPV)
+  const selectTopPosts = (arr: any[]) => {
+    const validArr = arr.filter((a: any) => (a.amount_spent || 0) > 0 || (a.impressions || 0) > 0);
+    if (validArr.length === 0) return [];
+    const usedIds = new Set<string>();
+    const results: any[] = [];
+
+    // 1. Best Reach → show CPM
+    const byReach = [...validArr].sort((a, b) => (b.reach || 0) - (a.reach || 0));
+    const bestReach = byReach.find((a: any) => !usedIds.has(getName(a)));
+    if (bestReach) {
+      usedIds.add(getName(bestReach));
+      const reachCpm = (bestReach.impressions || 0) > 0 ? ((bestReach.amount_spent || 0) / (bestReach.impressions || 1)) * 1000 : 0;
+      results.push(makePost(bestReach, `Nejlepší reach: ${((bestReach.reach || 0) / 1000).toFixed(0)}K`, "CPM", reachCpm));
+    }
+
+    // 2. Best Engagement → show CPE
+    const byEngagement = [...validArr].sort((a, b) => getEngagement(b) - getEngagement(a));
+    const bestEng = byEngagement.find((a: any) => !usedIds.has(getName(a)));
+    if (bestEng) {
+      usedIds.add(getName(bestEng));
+      const engTotal = getEngagement(bestEng);
+      const engCpe = engTotal > 0 ? (bestEng.amount_spent || 0) / engTotal : 0;
+      results.push(makePost(bestEng, `Nejlepší engagement: ${engTotal.toLocaleString()} interakcí`, "CPE", engCpe));
+    }
+
+    // 3. Best Video Views → show CPV
+    const byViews = [...validArr].sort((a, b) => getVideoViews(b) - getVideoViews(a));
+    const bestViews = byViews.find((a: any) => !usedIds.has(getName(a)));
+    if (bestViews) {
+      usedIds.add(getName(bestViews));
+      const views = getVideoViews(bestViews);
+      const viewsCpv = views > 0 ? (bestViews.amount_spent || 0) / views : 0;
+      results.push(makePost(bestViews, `Nejlepší video views: ${((views || 0) / 1000).toFixed(0)}K`, "CPV", viewsCpv));
+    }
+
+    return results;
+  };
+
+  // Select worst 3 posts: worst reach (CPM), worst engagement (CPE), worst video views (CPV)
+  const selectImprovePosts = (arr: any[]) => {
+    const validArr = arr.filter((a: any) => (a.amount_spent || 0) > 0);
+    if (validArr.length === 0) return [];
+    const usedIds = new Set<string>();
+    const results: any[] = [];
+
+    // 1. Worst Reach → show CPM
+    const byReach = [...validArr].sort((a, b) => (a.reach || 0) - (b.reach || 0));
+    const worstReach = byReach.find((a: any) => !usedIds.has(getName(a)));
+    if (worstReach) {
+      usedIds.add(getName(worstReach));
+      const reachCpm = (worstReach.impressions || 0) > 0 ? ((worstReach.amount_spent || 0) / (worstReach.impressions || 1)) * 1000 : 0;
+      results.push(makePost(worstReach, `Nejnižší reach: ${((worstReach.reach || 0) / 1000).toFixed(0)}K`, "CPM", reachCpm));
+    }
+
+    // 2. Worst Engagement → show CPE
+    const byEngagement = [...validArr].sort((a, b) => getEngagement(a) - getEngagement(b));
+    const worstEng = byEngagement.find((a: any) => !usedIds.has(getName(a)));
+    if (worstEng) {
+      usedIds.add(getName(worstEng));
+      const engTotal = getEngagement(worstEng);
+      const engCpe = engTotal > 0 ? (worstEng.amount_spent || 0) / engTotal : 0;
+      results.push(makePost(worstEng, `Nejnižší engagement: ${engTotal.toLocaleString()} interakcí`, "CPE", engCpe));
+    }
+
+    // 3. Worst Video Views → show CPV
+    const byViews = [...validArr].sort((a, b) => getVideoViews(a) - getVideoViews(b));
+    const worstViews = byViews.find((a: any) => !usedIds.has(getName(a)));
+    if (worstViews) {
+      usedIds.add(getName(worstViews));
+      const views = getVideoViews(worstViews);
+      const viewsCpv = views > 0 ? (worstViews.amount_spent || 0) / views : 0;
+      results.push(makePost(worstViews, `Nejnižší video views: ${((views || 0) / 1000).toFixed(0)}K`, "CPV", viewsCpv));
+    }
+
+    return results;
+  };
 
   const campaignSummary = campaigns
     .map((cm: any) => `${cm.campaign_name || "Unnamed"}: Spend ${cm.amount_spent}, Impr ${cm.impressions}, Clicks ${cm.clicks}`)
@@ -1378,12 +1435,12 @@ KONTEXT OD UŽIVATELE:
 
   // Persist thumbnails to permanent storage
 
-  const fbTop = topBySpend(fbPostSource, 5);
-  const fbImprove = bottomByPerformance(fbPostSource, 3);
-  const igTop = topBySpend(igPostSource, 5);
-  const igImprove = bottomByPerformance(igPostSource, 3);
-  const tkTop = topBySpend(tkPostSource, 5);
-  const tkImprove = bottomByPerformance(tkPostSource, 3);
+  const fbTop = selectTopPosts(fbPostSource);
+  const fbImprove = selectImprovePosts(fbPostSource);
+  const igTop = selectTopPosts(igPostSource);
+  const igImprove = selectImprovePosts(igPostSource);
+  const tkTop = selectTopPosts(tkPostSource);
+  const tkImprove = selectImprovePosts(tkPostSource);
 
   await persistThumbnails(supabase, report_id, [
     { key: "facebook_top_posts", posts: fbTop },

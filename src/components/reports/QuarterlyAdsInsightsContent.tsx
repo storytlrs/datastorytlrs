@@ -96,6 +96,8 @@ export interface QuarterlyStructuredInsights {
     ctr: number;
     thumbnail_url?: string;
     reason?: string;
+    highlight_metric?: string;
+    highlight_value?: number;
   }[];
   facebook_improve_posts: {
     name: string;
@@ -105,6 +107,8 @@ export interface QuarterlyStructuredInsights {
     ctr: number;
     thumbnail_url?: string;
     reason?: string;
+    highlight_metric?: string;
+    highlight_value?: number;
   }[];
   instagram_metrics: { spend: number; reach: number; frequency: number };
   instagram_detail_metrics: { cpm: number; cpe: number; cpv: number };
@@ -119,6 +123,8 @@ export interface QuarterlyStructuredInsights {
     ctr: number;
     thumbnail_url?: string;
     reason?: string;
+    highlight_metric?: string;
+    highlight_value?: number;
   }[];
   instagram_improve_posts: {
     name: string;
@@ -128,6 +134,8 @@ export interface QuarterlyStructuredInsights {
     ctr: number;
     thumbnail_url?: string;
     reason?: string;
+    highlight_metric?: string;
+    highlight_value?: number;
   }[];
   tiktok_metrics: { spend: number; reach: number; frequency: number };
   tiktok_detail_metrics: { cpm: number; cpe: number; cpv: number };
@@ -142,6 +150,8 @@ export interface QuarterlyStructuredInsights {
     ctr: number;
     thumbnail_url?: string;
     reason?: string;
+    highlight_metric?: string;
+    highlight_value?: number;
   }[];
   tiktok_improve_posts: {
     name: string;
@@ -151,6 +161,8 @@ export interface QuarterlyStructuredInsights {
     ctr: number;
     thumbnail_url?: string;
     reason?: string;
+    highlight_metric?: string;
+    highlight_value?: number;
   }[];
   followers: {
     facebook: number | null;
@@ -309,7 +321,7 @@ const MetricCommentary = ({ text }: { text?: string }) => {
   );
 };
 
-const PostCard = ({ post }: { post: { name: string; spend: number; impressions: number; clicks: number; ctr: number; thumbnail_url?: string; reason?: string } }) => (
+const PostCard = ({ post }: { post: { name: string; spend: number; impressions: number; clicks: number; ctr: number; thumbnail_url?: string; reason?: string; highlight_metric?: string; highlight_value?: number } }) => (
   <Card className="overflow-hidden rounded-[35px] border-foreground hover:shadow-lg transition-shadow">
     <div className="relative aspect-[9/12.8] bg-muted overflow-hidden">
       {post.thumbnail_url ? (
@@ -325,6 +337,12 @@ const PostCard = ({ post }: { post: { name: string; spend: number; impressions: 
       <span className="font-medium text-xs truncate block">{post.name}</span>
       {post.reason && (
         <p className="text-[10px] text-muted-foreground italic leading-tight">{post.reason}</p>
+      )}
+      {post.highlight_metric && post.highlight_value != null && (
+        <div className="flex items-center gap-1 text-xs font-semibold text-foreground">
+          <Wallet className="w-3 h-3" />
+          <span>{post.highlight_metric}: {formatCurrencySimple(post.highlight_value, "CZK")}</span>
+        </div>
       )}
       <div className="grid grid-cols-2 gap-1 text-xs">
         <div className="flex items-center gap-1 text-muted-foreground"><Wallet className="w-3 h-3" /><span>{formatCurrencySimple(post.spend || 0, "CZK")}</span></div>
@@ -359,8 +377,8 @@ interface PlatformSectionProps {
   metricCommentaryDetail?: string;
   topPostsAnalysis?: string;
   improvePostsAnalysis?: string;
-  topPosts: { name: string; spend: number; impressions: number; clicks: number; ctr: number; thumbnail_url?: string; reason?: string }[];
-  improvePosts: { name: string; spend: number; impressions: number; clicks: number; ctr: number; thumbnail_url?: string; reason?: string }[];
+  topPosts: { name: string; spend: number; impressions: number; clicks: number; ctr: number; thumbnail_url?: string; reason?: string; highlight_metric?: string; highlight_value?: number }[];
+  improvePosts: { name: string; spend: number; impressions: number; clicks: number; ctr: number; thumbnail_url?: string; reason?: string; highlight_metric?: string; highlight_value?: number }[];
   cur: string;
   canEdit: boolean;
   editingSections: Set<string>;
