@@ -510,8 +510,8 @@ export const OverviewTab = ({ reportId }: OverviewTabProps) => {
           <h3 className="font-bold text-lg uppercase tracking-wide">Základní metriky</h3>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <KPICard title="Influencers" value={effectivenessKPIs.creatorsCount.toString()} icon={Users} accentColor="blue" benchmark={benchmarks ? Math.round(benchmarks.creatorsCount).toString() : undefined} />
-          <KPICard title="Content Pieces" value={effectivenessKPIs.contentPieces.toString()} icon={FileText} accentColor="blue" benchmark={benchmarks ? Math.round(benchmarks.contentPieces).toString() : undefined} />
+          <KPICard title="Influencers" value={effectivenessKPIs.creatorsCount.toString()} icon={Users} accentColor="blue" />
+          <KPICard title="Content Pieces" value={effectivenessKPIs.contentPieces.toString()} icon={FileText} accentColor="blue" />
           <KPICard title="Total Views" value={formatNumber(awarenessKPIs.impressionsViews)} icon={Eye} accentColor="blue" benchmark={benchmarks ? formatNumber(benchmarks.views) : undefined} />
           <KPICard title="Avg CPM" value={formatCurrency(effectivenessKPIs.cpm)} icon={Wallet} accentColor="blue" tooltip="CPM (Cost per Mille) = (Budget Spent / Views) × 1000." benchmark={benchmarks ? formatCurrency(benchmarks.cpm) : undefined} />
         </div>
@@ -530,10 +530,10 @@ export const OverviewTab = ({ reportId }: OverviewTabProps) => {
           <KPICard title="Virality Avg" value={formatPercent(engagementKPIs.viralityRate, 3)} icon={Share2} accentColor="green" tooltip="Virality Rate = (Shares / Views) × 100." benchmark={benchmarks ? formatPercent(benchmarks.viralityRate, 3) : undefined} />
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <KPICard title="Likes" value={formatNumber(engagementKPIs.likes)} icon={Heart} accentColor="green" benchmark={benchmarks ? formatNumber(benchmarks.likes) : undefined} />
-          <KPICard title="Comments" value={formatNumber(engagementKPIs.comments)} icon={MessageCircle} accentColor="green" benchmark={benchmarks ? formatNumber(benchmarks.comments) : undefined} />
-          <KPICard title="Shares" value={formatNumber(engagementKPIs.shares)} icon={Share2} accentColor="green" benchmark={benchmarks ? formatNumber(benchmarks.shares) : undefined} />
-          <KPICard title="Saves" value={formatNumber(engagementKPIs.saves)} icon={Bookmark} accentColor="green" benchmark={benchmarks ? formatNumber(benchmarks.saves) : undefined} />
+          <KPICard title="Likes" value={formatNumber(engagementKPIs.likes)} icon={Heart} accentColor="green" />
+          <KPICard title="Comments" value={formatNumber(engagementKPIs.comments)} icon={MessageCircle} accentColor="green" />
+          <KPICard title="Shares" value={formatNumber(engagementKPIs.shares)} icon={Share2} accentColor="green" />
+          <KPICard title="Saves" value={formatNumber(engagementKPIs.saves)} icon={Bookmark} accentColor="green" />
         </div>
       </div>
       {/* Trend Chart - temporarily hidden */}
