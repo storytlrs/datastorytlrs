@@ -1983,6 +1983,33 @@ KONTEXT OD UŽIVATELE:
   const aiData = await aiResponse.json();
   const aiContent = safeJsonParse(aiData.choices[0].message.content);
 
+  // Ensure executive_summary.intro is always filled
+  if (!aiContent.executive_summary?.intro) {
+    console.log("Yearly: intro missing, generating via secondary call...");
+    try {
+      const introResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${lovableApiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          messages: [
+            { role: "system", content: "Jsi analytik digitálního marketingu. Piš česky, stručně a profesionálně." },
+            { role: "user", content: `Na základě těchto dat vytvoř úvodní shrnutí roku v 2-3 větách. Stručný přehled výsledků a hlavní závěr.\n\nKontext: ${campaign_context.mainGoal}\nCelkový spend: ${totalSpend} CZK\nReach: ${totalReach}\nImpressions: ${totalImpressions}\nInterakce: ${totalEngagement}\n\nOdpověz POUZE textem shrnutí, žádný JSON.` },
+          ],
+        }),
+      });
+      if (introResp.ok) {
+        const introData = await introResp.json();
+        const introText = introData.choices?.[0]?.message?.content?.trim();
+        if (introText) {
+          if (!aiContent.executive_summary) aiContent.executive_summary = {};
+          aiContent.executive_summary.intro = introText;
+          console.log("Yearly: intro generated successfully");
+        }
+      }
+    } catch (e) { console.error("Failed to generate yearly intro:", e); }
+  }
+
   // Persist thumbnails to permanent storage
   const fbTopR = topByReach(fbAds, 5);
   const fbBotR = bottomByReach(fbAds, 3);
@@ -2096,7 +2123,12 @@ KONTEXT OD UŽIVATELE:
 
   const structuredInsights = {
     report_period: "yearly",
-    executive_summary: aiContent.executive_summary,
+    executive_summary: {
+      intro: aiContent.executive_summary?.intro || "",
+      media_insight: aiContent.executive_summary?.media_insight || "",
+      top_result: aiContent.executive_summary?.top_result || "",
+      recommendation: aiContent.executive_summary?.recommendation || "",
+    },
     campaign_context,
     goal_fulfillment: aiContent.goal_fulfillment,
     key_metrics: { spend: totalSpend, reach: totalReach, frequency: avgFrequency, currency: "CZK" },
