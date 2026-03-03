@@ -1242,6 +1242,11 @@ async function handleQuarterlyReport(ctx: any) {
     promptMap[p.key] = p.prompt_text;
   }
 
+  // Define post sources early so we can include them in the AI prompt context
+  const fbPostSource = fbAds.length > 0 ? fbAds : fbAdSets.length > 0 ? fbAdSets : fbCampaignRows;
+  const igPostSource = igAds.length > 0 ? igAds : igAdSets.length > 0 ? igAdSets : igCampaignRows;
+  const tkPostSource = normalizedTiktokAds.length > 0 ? normalizedTiktokAds : (tiktokAdGroups || []).length > 0 ? tiktokAdGroups : tiktokCampaignsOnly;
+
   const dataContext = `
 CELKOVÁ DATA KVARTÁLU:
 - Celkový spend: ${totalSpend.toFixed(2)} CZK
@@ -1264,6 +1269,24 @@ ${(tiktokCampaigns || []).map((cm: any) => `${cm.campaign_name || "Unnamed"}: Sp
 FACEBOOK DATA (${fbAds.length} reklam): Spend ${fbM.spend.toFixed(2)}, Reach ${fbM.reach}, Freq ${fbM.frequency.toFixed(2)}, CPM ${fbM.cpm.toFixed(2)}, CPE ${fbM.cpe.toFixed(2)}, CPV ${fbM.cpv.toFixed(2)}
 INSTAGRAM DATA (${igAds.length} reklam): Spend ${igM.spend.toFixed(2)}, Reach ${igM.reach}, Freq ${igM.frequency.toFixed(2)}, CPM ${igM.cpm.toFixed(2)}, CPE ${igM.cpe.toFixed(2)}, CPV ${igM.cpv.toFixed(2)}
 TIKTOK DATA (${normalizedTiktokAds.length} reklam): Spend ${tkM.spend.toFixed(2)}, Reach ${tkM.reach}, Freq ${tkM.frequency.toFixed(2)}, CPM ${tkM.cpm.toFixed(2)}, CPE ${tkM.cpe.toFixed(2)}, CPV ${tkM.cpv.toFixed(2)}
+
+TOP FACEBOOK REKLAMY (dle spend):
+${(fbPostSource.length > 0 ? [...fbPostSource].sort((a: any, b: any) => (b.amount_spent || 0) - (a.amount_spent || 0)).slice(0, 5).map((a: any) => `- ${getName(a)}: Spend ${a.amount_spent || 0}, Impr ${a.impressions || 0}, Clicks ${a.clicks || 0}, CTR ${(a.ctr || 0).toFixed(2)}%`).join("\n") : "Žádná data")}
+
+NEJHORŠÍ FACEBOOK REKLAMY (dle CTR):
+${(fbPostSource.length > 0 ? [...fbPostSource].filter((a: any) => (a.amount_spent || 0) > 0).sort((a: any, b: any) => (a.ctr || 0) - (b.ctr || 0)).slice(0, 5).map((a: any) => `- ${getName(a)}: Spend ${a.amount_spent || 0}, Impr ${a.impressions || 0}, Clicks ${a.clicks || 0}, CTR ${(a.ctr || 0).toFixed(2)}%`).join("\n") : "Žádná data")}
+
+TOP INSTAGRAM REKLAMY (dle spend):
+${(igPostSource.length > 0 ? [...igPostSource].sort((a: any, b: any) => (b.amount_spent || 0) - (a.amount_spent || 0)).slice(0, 5).map((a: any) => `- ${getName(a)}: Spend ${a.amount_spent || 0}, Impr ${a.impressions || 0}, Clicks ${a.clicks || 0}, CTR ${(a.ctr || 0).toFixed(2)}%`).join("\n") : "Žádná data")}
+
+NEJHORŠÍ INSTAGRAM REKLAMY (dle CTR):
+${(igPostSource.length > 0 ? [...igPostSource].filter((a: any) => (a.amount_spent || 0) > 0).sort((a: any, b: any) => (a.ctr || 0) - (b.ctr || 0)).slice(0, 5).map((a: any) => `- ${getName(a)}: Spend ${a.amount_spent || 0}, Impr ${a.impressions || 0}, Clicks ${a.clicks || 0}, CTR ${(a.ctr || 0).toFixed(2)}%`).join("\n") : "Žádná data")}
+
+TOP TIKTOK REKLAMY (dle spend):
+${(tkPostSource.length > 0 ? [...tkPostSource].sort((a: any, b: any) => (b.amount_spent || 0) - (a.amount_spent || 0)).slice(0, 5).map((a: any) => `- ${getName(a)}: Spend ${a.amount_spent || 0}, Impr ${a.impressions || 0}, Clicks ${a.clicks || 0}, CTR ${(a.ctr || 0).toFixed(2)}%`).join("\n") : "Žádná data")}
+
+NEJHORŠÍ TIKTOK REKLAMY (dle CTR):
+${(tkPostSource.length > 0 ? [...tkPostSource].filter((a: any) => (a.amount_spent || 0) > 0).sort((a: any, b: any) => (a.ctr || 0) - (b.ctr || 0)).slice(0, 5).map((a: any) => `- ${getName(a)}: Spend ${a.amount_spent || 0}, Impr ${a.impressions || 0}, Clicks ${a.clicks || 0}, CTR ${(a.ctr || 0).toFixed(2)}%`).join("\n") : "Žádná data")}
 
 KONTEXT OD UŽIVATELE:
 - Hlavní cíl: ${campaign_context.mainGoal}
@@ -1354,10 +1377,6 @@ KONTEXT OD UŽIVATELE:
   const aiContent = JSON.parse(aiData.choices[0].message.content);
 
   // Persist thumbnails to permanent storage
-  // Use best available data for top/bottom posts: ads > ad_sets > campaigns
-  const fbPostSource = fbAds.length > 0 ? fbAds : fbAdSets.length > 0 ? fbAdSets : fbCampaignRows;
-  const igPostSource = igAds.length > 0 ? igAds : igAdSets.length > 0 ? igAdSets : igCampaignRows;
-  const tkPostSource = normalizedTiktokAds.length > 0 ? normalizedTiktokAds : (tiktokAdGroups || []).length > 0 ? tiktokAdGroups : tiktokCampaignsOnly;
 
   const fbTop = topBySpend(fbPostSource, 5);
   const fbImprove = bottomByPerformance(fbPostSource, 3);
