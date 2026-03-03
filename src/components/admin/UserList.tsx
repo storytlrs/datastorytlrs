@@ -291,6 +291,15 @@ export const UserList = () => {
                         variant="outline"
                         size="sm"
                         className="rounded-[35px] gap-2"
+                        onClick={() => setResetPasswordUser(user)}
+                      >
+                        <KeyRound className="h-4 w-4" />
+                        Reset
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="rounded-[35px] gap-2"
                         onClick={() => setEditUser(user)}
                       >
                         <Pencil className="h-4 w-4" />
