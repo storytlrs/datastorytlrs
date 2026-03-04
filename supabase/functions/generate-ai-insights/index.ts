@@ -2,30 +2,36 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 function safeJsonParse(raw: string): any {
-  // First try direct parse
-  try {
-    return JSON.parse(raw);
-  } catch (_) {
-    // ignore
+  // Strip markdown code fences if present
+  let text = raw.trim();
+  const fenceMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (fenceMatch) text = fenceMatch[1].trim();
+
+  // Remove illegal control characters (keep \n \r \t)
+  text = text.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
+
+  // Try direct parse first
+  try { return JSON.parse(text); } catch (_) { /* continue */ }
+
+  // Escape real newlines/tabs inside JSON string values
+  // Walk char-by-char to properly handle only chars inside strings
+  let result = "";
+  let inString = false;
+  let escape = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (escape) { result += ch; escape = false; continue; }
+    if (ch === "\\" && inString) { result += ch; escape = true; continue; }
+    if (ch === '"') { inString = !inString; result += ch; continue; }
+    if (inString) {
+      if (ch === "\n") { result += "\\n"; continue; }
+      if (ch === "\r") { result += "\\r"; continue; }
+      if (ch === "\t") { result += "\\t"; continue; }
+    }
+    result += ch;
   }
-  // Remove control characters except \n, \r, \t
-  let sanitized = raw.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
-  // Try again
-  try {
-    return JSON.parse(sanitized);
-  } catch (_) {
-    // ignore
-  }
-  // Extract JSON block if wrapped in markdown
-  const jsonMatch = sanitized.match(/```(?:json)?\s*([\s\S]*?)```/);
-  if (jsonMatch) {
-    sanitized = jsonMatch[1].trim();
-  }
-  // Escape unescaped newlines inside JSON string values
-  sanitized = sanitized.replace(/(?<=:\s*"[^"]*)\n(?=[^"]*")/g, "\\n");
-  sanitized = sanitized.replace(/(?<=:\s*"[^"]*)\r(?=[^"]*")/g, "\\r");
-  sanitized = sanitized.replace(/(?<=:\s*"[^"]*)\t(?=[^"]*")/g, "\\t");
-  return JSON.parse(sanitized);
+
+  return JSON.parse(result);
 }
 
 const corsHeaders = {
