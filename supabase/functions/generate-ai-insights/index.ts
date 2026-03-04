@@ -2,36 +2,8 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 function safeJsonParse(raw: string): any {
-  // Strip markdown code fences if present
-  let text = raw.trim();
-  const fenceMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
-  if (fenceMatch) text = fenceMatch[1].trim();
-
-  // Remove illegal control characters (keep \n \r \t)
-  text = text.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
-
-  // Try direct parse first
-  try { return JSON.parse(text); } catch (_) { /* continue */ }
-
-  // Escape real newlines/tabs inside JSON string values
-  // Walk char-by-char to properly handle only chars inside strings
-  let result = "";
-  let inString = false;
-  let escape = false;
-  for (let i = 0; i < text.length; i++) {
-    const ch = text[i];
-    if (escape) { result += ch; escape = false; continue; }
-    if (ch === "\\" && inString) { result += ch; escape = true; continue; }
-    if (ch === '"') { inString = !inString; result += ch; continue; }
-    if (inString) {
-      if (ch === "\n") { result += "\\n"; continue; }
-      if (ch === "\r") { result += "\\r"; continue; }
-      if (ch === "\t") { result += "\\t"; continue; }
-    }
-    result += ch;
-  }
-
-  return JSON.parse(result);
+  const sanitized = raw.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, "");
+  return JSON.parse(sanitized);
 }
 
 const corsHeaders = {
@@ -60,10 +32,10 @@ serve(async (req) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
+    const anthropicApiKey = Deno.env.get("ANTHROPIC_API_KEY");
 
-    if (!lovableApiKey) {
-      throw new Error("LOVABLE_API_KEY is not configured");
+    if (!anthropicApiKey) {
+      throw new Error("ANTHROPIC_API_KEY is not configured");
     }
 
     const supabase = createClient(supabaseUrl, supabaseKey);
@@ -365,31 +337,41 @@ serve(async (req) => {
       };
     });
 
-    // Helper: calculate TSWB for a content item (lower = better)
-    const calcContentTswb = (c: any) => {
-      return (c.watch_time || 0) + ((c.likes || 0) * 3) + ((c.comments || 0) * 5) +
-             (((c.saves || 0) + (c.shares || 0) + (c.reposts || 0)) * 10);
-    };
-
-    // Determine how many top outputs per creator
-    const totalCreators = creators?.length || 0;
-    const outputsPerCreator = totalCreators <= 2 ? 2 : 1;
+    // How many top posts to show per creator
+    const totalCreators = (creators || []).length;
+    const topPostsPerCreator = totalCreators <= 2 ? 2 : 1;
 
     // Build creator performance with enhanced data
-    const creatorPerformance: any[] = [];
-    
-    (creators || []).forEach((creator) => {
+    const creatorPerformance = (creators || []).map((creator) => {
       const creatorContent = content?.filter((c) => c.creator_id === creator.id) || [];
-      
+
       // Get unique platforms from content
       const platforms = [...new Set(creatorContent.map((c) => c.platform))];
-      
-      // Sort by TSWB ascending (lowest = best)
-      const sortedByTswb = [...creatorContent].sort((a, b) => {
-        const tswbA = calcContentTswb(a);
-        const tswbB = calcContentTswb(b);
-        return tswbA - tswbB;
-      });
+
+      // Calculate TSWB per post and sort descending (highest = best)
+      const contentWithTswb = creatorContent.map((c) => ({
+        ...c,
+        _tswb: (c.watch_time || 0) + ((c.likes || 0) * 3) + ((c.comments || 0) * 5) +
+               (((c.saves || 0) + (c.shares || 0) + (c.reposts || 0)) * 10),
+      })).sort((a, b) => b._tswb - a._tswb);
+
+      const topCreatorContents = contentWithTswb.slice(0, topPostsPerCreator).map((c) => ({
+        id: c.id,
+        thumbnail_url: c.thumbnail_url,
+        content_type: c.content_type,
+        platform: c.platform,
+        views: (c.impressions || 0) + (c.views || 0),
+        engagement_rate: c.engagement_rate || 0,
+        url: c.url,
+        content_summary: c.content_summary,
+        creator_handle: creator.handle,
+        tswb: c._tswb,
+        likes: c.likes || 0,
+        comments: c.comments || 0,
+        saves: c.saves || 0,
+        shares: (c.shares || 0) + (c.reposts || 0),
+        watch_time: c.watch_time || 0,
+      }));
 
       // Calculate sentiment breakdown
       const sentimentBreakdown = { positive: 0, neutral: 0, negative: 0 };
@@ -410,39 +392,20 @@ serve(async (req) => {
         .map((c) => c.sentiment_summary)
         .filter(Boolean);
 
-      const topOutputs = sortedByTswb.slice(0, outputsPerCreator);
-      
-      topOutputs.forEach((topCreatorContent, idx) => {
-        creatorPerformance.push({
-          handle: creator.handle,
-          avatar_url: creator.avatar_url,
-          platforms: platforms.length > 0 ? platforms : [creator.platform],
-          top_content: {
-            id: topCreatorContent.id,
-            thumbnail_url: topCreatorContent.thumbnail_url,
-            content_type: topCreatorContent.content_type,
-            platform: topCreatorContent.platform,
-            views: (topCreatorContent.impressions || 0) + (topCreatorContent.views || 0),
-            engagement_rate: topCreatorContent.engagement_rate || 0,
-            url: topCreatorContent.url,
-            content_summary: topCreatorContent.content_summary,
-            creator_handle: creator.handle,
-            tswb: calcContentTswb(topCreatorContent),
-            likes: topCreatorContent.likes || 0,
-            comments: topCreatorContent.comments || 0,
-            shares: topCreatorContent.shares || 0,
-            saves: topCreatorContent.saves || 0,
-            watch_time: topCreatorContent.watch_time || 0,
-          },
-          sentiment_breakdown: sentimentPercentages,
-          relevance: "medium" as const,
-          positive_topics: [] as string[],
-          success_analysis: "", // Will be generated by AI (2-3 paragraphs)
-          top_comments: [] as string[], // Will be generated by AI (3-5 comments)
-          _sentiment_summaries: creatorSentimentSummaries,
-          _output_index: idx,
-        });
-      });
+      return {
+        handle: creator.handle,
+        avatar_url: creator.avatar_url,
+        platforms: platforms.length > 0 ? platforms : [creator.platform],
+        top_contents: topCreatorContents,
+        sentiment_breakdown: sentimentPercentages,
+        relevance: "medium" as const,
+        paragraph1: "",
+        paragraph2: "",
+        paragraph3: "",
+        positive_topics: [] as string[],
+        top_comments: [] as string[],
+        _sentiment_summaries: creatorSentimentSummaries,
+      };
     });
 
     // Generate AI content with enhanced prompt
@@ -477,26 +440,26 @@ Kontext od uživatele:
 Sentiment summaries z contentu (pro extrakci témat):
 ${allSentimentSummaries.slice(0, 20).join("\n")}
 
-Creatori a jejich sentiment summaries:
-${creatorPerformance.map(c => `@${c.handle} (content_id: ${c.top_content?.id || 'N/A'}, TSWB: ${c.top_content?.tswb || 0}, views: ${c.top_content?.views || 0}, likes: ${c.top_content?.likes || 0}, comments: ${c.top_content?.comments || 0}, shares: ${c.top_content?.shares || 0}, saves: ${c.top_content?.saves || 0}, ER: ${c.top_content?.engagement_rate || 0}%, watch_time: ${c.top_content?.watch_time || 0}s): ${(c as any)._sentiment_summaries?.slice(0, 3).join("; ") || "No data"}`).join("\n")}`;
+Creatori a jejich top výstupy (TSWB skóre + sentiment summaries):
+${creatorPerformance.map(c => `@${c.handle}: top výstupy TSWB=[${c.top_contents.map((t: any) => t.tswb).join(", ")}], sentiment summaries: ${(c as any)._sentiment_summaries?.slice(0, 3).join("; ") || "No data"}`).join("\n")}`;
 
     const userPrompt = `Vytvoř analytický obsah pro influencer report. Odpověz ve formátu JSON s následující strukturou:
 
 {
-  "executive_summary": "3-4 krátké věty: 1) Na co se kampaň soustředila, 2) Co jsme udělali pro naplnění cíle, 3) Vyzdvihni hlavní highlights, 4) Shrň proč se kampaň povedla. Maximálně 80 slov celkem.",
+  "executive_summary": "Krátké shrnutí kampaně ve 3-4 větách. Zahrň: na co se kampaň soustředila, co bylo uděláno pro naplnění cíle, klíčové výsledky a proč se kampaň povedla.",
   "overview_paragraph": "Jeden odstavec hodnotící výsledky z pohledu efektivity a dosahu (max 100 slov)",
   "innovation_paragraph": "Jeden odstavec hodnotící TSWB, virality rate a kvalitu interakcí (max 100 slov)",
   "sentiment_paragraph": "Jeden odstavec o klíčových tématech a sentimentu v komentářích (max 100 slov)",
   "top_sentiment_topics": ["5 nejčastějších témat zmiňovaných v komentářích - krátká slova/fráze"],
-  "brand_awareness_comments": ["8-12 nejčastějších/nejtypičtějších komentářů z kampaně, které nejlépe ilustrují vliv na brand awareness - vyber z dostupných sentiment summaries"],
   "creator_insights": [
     {
       "handle": "creator_handle",
-      "content_id": "id of the content piece",
       "relevance": 75,
-      "positive_topics": ["max 3 pozitivní témata"],
-      "success_analysis": "2-3 odstavce (každý 2-3 krátké věty). První odstavec: nejúspěšnější metrika a co výstup doručil. Druhý odstavec: co uživatelé nejčastěji komentovali. Třetí odstavec (volitelný): další zajímavý highlight. Odstavce odděl dvěma novými řádky.",
-      "top_comments": ["3-5 nejčastějších komentářů pod tímto výstupem"]
+      "paragraph1": "1. odstavec (2-3 krátké věty): zaměř se na nejúspěšnější metriku tohoto výstupu a popiš čeho dosáhl",
+      "paragraph2": "2. odstavec (2-3 krátké věty): zaměř se na komentáře – co nejčastěji uživatelé komentovali",
+      "paragraph3": "3. odstavec (2-3 krátké věty): vyzdvihni další zajímavý highlight. Pokud není nic dalšího zajímavého, vrať prázdný string.",
+      "positive_topics": ["max 3 pozitivní témata z komentářů"],
+      "top_comments": ["3-5 nejčastějších/nejreprezentativnějších komentářů nebo témat komentářů"]
     }
   ],
   "recommendations": {
@@ -506,23 +469,24 @@ ${creatorPerformance.map(c => `@${c.handle} (content_id: ${c.top_content?.id || 
   }
 }
 
-Pro creator_insights vytvoř entry pro každý výstup (content_id). Creatori a jejich výstupy: ${creatorPerformance.map(c => `@${c.handle} (content_id: ${c.top_content?.id})`).join(", ")}`;
+Pro creator_insights vytvoř entry pro každého z těchto creatorů: ${creatorPerformance.map(c => c.handle).join(", ")}`;
 
-    console.log("Calling Lovable AI...");
+    console.log("Calling Anthropic AI...");
 
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const aiResponse = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${lovableApiKey}`,
+        "x-api-key": anthropicApiKey,
+        "anthropic-version": "2023-06-01",
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "claude-sonnet-4-6",
+        max_tokens: 8096,
+        system: systemPrompt,
         messages: [
-          { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
         ],
-        response_format: { type: "json_object" },
       }),
     });
 
@@ -540,12 +504,12 @@ Pro creator_insights vytvoř entry pro každý výstup (content_id). Creatori a 
         });
       }
       const errorText = await aiResponse.text();
-      console.error("AI gateway error:", aiResponse.status, errorText);
-      throw new Error("AI gateway error");
+      console.error("Anthropic API error:", aiResponse.status, errorText);
+      throw new Error("Anthropic API error");
     }
 
     const aiData = await aiResponse.json();
-    const aiContent = safeJsonParse(aiData.choices[0].message.content);
+    const aiContent = safeJsonParse(aiData.content[0].text);
 
     console.log("AI content generated successfully");
 
@@ -553,24 +517,19 @@ Pro creator_insights vytvoř entry pro každý výstup (content_id). Creatori a 
     const enhancedCreatorPerformance = creatorPerformance.map((creator) => {
       const normalizeHandle = (h: string) => h.replace(/^@/, '').toLowerCase();
       const aiInsight = aiContent.creator_insights?.find(
-        (i: any) => {
-          const handleMatch = normalizeHandle(i.handle) === normalizeHandle(creator.handle);
-          // Match by content_id if available, otherwise by handle
-          if (i.content_id && creator.top_content?.id) {
-            return handleMatch && i.content_id === creator.top_content.id;
-          }
-          return handleMatch;
-        }
+        (i: any) => normalizeHandle(i.handle) === normalizeHandle(creator.handle)
       );
-      
+
       // Remove internal fields
-      const { _sentiment_summaries, _output_index, ...cleanCreator } = creator as any;
-      
+      const { _sentiment_summaries, ...cleanCreator } = creator as any;
+
       return {
         ...cleanCreator,
         relevance: typeof aiInsight?.relevance === "number" ? aiInsight.relevance : 50,
+        paragraph1: aiInsight?.paragraph1 || "",
+        paragraph2: aiInsight?.paragraph2 || "",
+        paragraph3: aiInsight?.paragraph3 || "",
         positive_topics: aiInsight?.positive_topics || [],
-        success_analysis: aiInsight?.success_analysis || "",
         top_comments: aiInsight?.top_comments || [],
       };
     });
@@ -601,7 +560,6 @@ Pro creator_insights vytvoř entry pro každý výstup (content_id). Creatori a 
         summary: aiContent.sentiment_paragraph,
       },
       top_sentiment_topics: aiContent.top_sentiment_topics || [],
-      brand_awareness_comments: aiContent.brand_awareness_comments || [],
       leaderboard,
       benchmarks: {
         engagementRate: benchmarkER,
