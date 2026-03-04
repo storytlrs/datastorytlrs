@@ -6,6 +6,7 @@ import { TranslatedText } from "@/components/ui/TranslatedText";
 import { Input } from "@/components/ui/input";
 import { useT } from "@/lib/translations";
 import { MetricTile } from "./MetricTile";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { ContentPreviewCard } from "./ContentPreviewCard";
 import { LeaderboardTable, LeaderboardEntry, Benchmarks } from "./LeaderboardTable";
 import { CreatorPerformanceCard } from "./CreatorPerformanceCard";
@@ -98,6 +99,7 @@ interface StructuredInsights {
     summary: string;
   };
   top_sentiment_topics?: string[];
+  brand_awareness_comments?: string[];
   leaderboard: LeaderboardEntry[];
   benchmarks: Benchmarks;
   creator_performance: CreatorPerformanceData[];
@@ -547,44 +549,7 @@ export const AIInsightsContent = forwardRef<HTMLDivElement, AIInsightsContentPro
         </div>
       </Card>
 
-      {/* Top 5 Content Block - Page 2 */}
-      <Card className="p-6 rounded-[20px] border-foreground pdf-page-break" style={{ backgroundColor: '#E9E9E9' }}>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold">Top 5 Content</h2>
-          {canEdit && reportId && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsContentSelectorOpen(true)}
-              className="rounded-[35px] border-foreground"
-            >
-              <Settings2 className="w-4 h-4 mr-2" />
-              Select Content
-            </Button>
-          )}
-        </div>
-        
-        {displayedTopContent.length > 0 ? (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-            {displayedTopContent.map((content) => (
-              <ContentPreviewCard
-                key={content.id}
-                thumbnailUrl={content.thumbnail_url}
-                contentType={content.content_type}
-                platform={content.platform}
-                views={content.views}
-                engagementRate={content.engagement_rate}
-                url={content.url}
-                creatorHandle={content.creator_handle}
-              />
-            ))}
-          </div>
-        ) : (
-          <p className="text-muted-foreground text-center py-8">No content available</p>
-        )}
-      </Card>
-
-      {/* Campaign Overview Block - Page 3 */}
+      {/* Campaign Overview Block - Page 2 */}
       <Card className="p-6 rounded-[20px] border-foreground pdf-page-break" style={{ backgroundColor: '#E9E9E9' }}>
         <h2 className="text-xl font-bold mb-4">
           {t("Základní přehled kampaně")}
@@ -756,7 +721,133 @@ export const AIInsightsContent = forwardRef<HTMLDivElement, AIInsightsContentPro
         </div>
       </Card>
 
-      {/* Creators Leaderboard Block - Page 6 */}
+      {/* Top 5 Content Block - between Sentiment and Leaderboard */}
+      <Card className="p-6 rounded-[20px] border-foreground pdf-page-break" style={{ backgroundColor: '#E9E9E9' }}>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-bold">Top 5 Content</h2>
+          {canEdit && reportId && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsContentSelectorOpen(true)}
+              className="rounded-[35px] border-foreground"
+            >
+              <Settings2 className="w-4 h-4 mr-2" />
+              Select Content
+            </Button>
+          )}
+        </div>
+        
+        {displayedTopContent.length > 0 ? (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            {displayedTopContent.map((content) => (
+              <ContentPreviewCard
+                key={content.id}
+                thumbnailUrl={content.thumbnail_url}
+                contentType={content.content_type}
+                platform={content.platform}
+                views={content.views}
+                engagementRate={content.engagement_rate}
+                url={content.url}
+                creatorHandle={content.creator_handle}
+              />
+            ))}
+          </div>
+        ) : (
+          <p className="text-muted-foreground text-center py-8">No content available</p>
+        )}
+      </Card>
+
+      {/* Brand Awareness Impact */}
+      <Card className="p-6 rounded-[20px] border-foreground pdf-page-break" style={{ backgroundColor: '#E9E9E9' }}>
+        <h2 className="text-xl font-bold mb-4">
+          {t("Vliv na brand awareness")}
+        </h2>
+        
+        <div className="grid md:grid-cols-2 gap-6">
+          {/* Sentiment Pie Chart */}
+          <div>
+            <h3 className="text-sm font-semibold text-muted-foreground mb-3 uppercase">
+              {t("Sentiment komentářů")}
+            </h3>
+            {(() => {
+              const total = (insights.creator_performance || []).reduce(
+                (acc, c) => ({
+                  positive: acc.positive + (c.sentiment_breakdown?.positive || 0),
+                  neutral: acc.neutral + (c.sentiment_breakdown?.neutral || 0),
+                  negative: acc.negative + (c.sentiment_breakdown?.negative || 0),
+                }),
+                { positive: 0, neutral: 0, negative: 0 }
+              );
+              const pieData = [
+                { name: "Positive", value: total.positive, color: "hsl(var(--accent-green))" },
+                { name: "Neutral", value: total.neutral, color: "hsl(var(--muted-foreground))" },
+                { name: "Negative", value: total.negative, color: "hsl(var(--accent-orange))" },
+              ].filter(d => d.value > 0);
+              
+              if (pieData.length === 0) {
+                return <p className="text-muted-foreground text-sm italic">No sentiment data</p>;
+              }
+              
+              return (
+                <div className="flex flex-col items-center">
+                  <div style={{ width: 220, height: 220 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={pieData}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={50}
+                          outerRadius={90}
+                          paddingAngle={3}
+                          dataKey="value"
+                          label={({ name, value }) => `${name} ${value}%`}
+                          labelLine={false}
+                        >
+                          {pieData.map((entry, index) => (
+                            <Cell key={index} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="flex gap-4 mt-2">
+                    {pieData.map((d, i) => (
+                      <div key={i} className="flex items-center gap-1.5 text-xs">
+                        <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: d.color }} />
+                        <span>{d.name} ({d.value}%)</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+
+          {/* Frequent Comments */}
+          <div>
+            <h3 className="text-sm font-semibold text-muted-foreground mb-3 uppercase">
+              {t("Nejčastější komentáře")}
+            </h3>
+            {insights.brand_awareness_comments && insights.brand_awareness_comments.length > 0 ? (
+              <ul className="space-y-2">
+                {insights.brand_awareness_comments.map((comment, i) => (
+                  <li key={i} className="text-sm text-foreground flex items-start gap-2">
+                    <MessageSquare className="w-3.5 h-3.5 mt-0.5 text-muted-foreground flex-shrink-0" />
+                    <TranslatedText text={comment} />
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-muted-foreground text-sm italic">No comment data available</p>
+            )}
+          </div>
+        </div>
+      </Card>
+
+      {/* Creators Leaderboard Block */}
       <Card className="p-6 rounded-[20px] border-foreground pdf-page-break" style={{ backgroundColor: '#E9E9E9' }}>
         <h2 className="text-xl font-bold mb-4">
           Creators Leaderboard

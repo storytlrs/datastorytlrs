@@ -431,11 +431,12 @@ ${creatorPerformance.map(c => `@${c.handle}: ${(c as any)._sentiment_summaries?.
     const userPrompt = `Vytvoř analytický obsah pro influencer report. Odpověz ve formátu JSON s následující strukturou:
 
 {
-  "executive_summary": "Jeden odstavec shrnující zásadní informace o kampani (max 150 slov)",
+  "executive_summary": "3-4 krátké věty: 1) Na co se kampaň soustředila, 2) Co jsme udělali pro naplnění cíle, 3) Vyzdvihni hlavní highlights, 4) Shrň proč se kampaň povedla. Maximálně 80 slov celkem.",
   "overview_paragraph": "Jeden odstavec hodnotící výsledky z pohledu efektivity a dosahu (max 100 slov)",
   "innovation_paragraph": "Jeden odstavec hodnotící TSWB, virality rate a kvalitu interakcí (max 100 slov)",
   "sentiment_paragraph": "Jeden odstavec o klíčových tématech a sentimentu v komentářích (max 100 slov)",
   "top_sentiment_topics": ["5 nejčastějších témat zmiňovaných v komentářích - krátká slova/fráze"],
+  "brand_awareness_comments": ["8-12 nejčastějších/nejtypičtějších komentářů z kampaně, které nejlépe ilustrují vliv na brand awareness - vyber z dostupných sentiment summaries"],
   "creator_insights": [
     {
       "handle": "creator_handle",
@@ -540,6 +541,7 @@ Pro creator_insights vytvoř entry pro každého z těchto creatorů: ${creatorP
         summary: aiContent.sentiment_paragraph,
       },
       top_sentiment_topics: aiContent.top_sentiment_topics || [],
+      brand_awareness_comments: aiContent.brand_awareness_comments || [],
       leaderboard,
       benchmarks: {
         engagementRate: benchmarkER,
