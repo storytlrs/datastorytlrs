@@ -31,9 +31,11 @@ interface CreatorPerformanceData {
     negative: number;
   };
   relevance: number | "high" | "medium" | "low";
-  key_insight: string;
+  key_insight?: string;
   positive_topics: string[];
-  negative_topics: string[];
+  negative_topics?: string[];
+  success_analysis?: string;
+  top_comments?: string[];
 }
 
 const getRelevanceAsNumber = (rel: string | number | undefined): number => {
@@ -446,12 +448,16 @@ export const AIInsightsContentPDF = forwardRef<HTMLDivElement, AIInsightsContent
                   )}
                 </div>
 
-                {/* Middle: Content Summary + Sentiment */}
+                {/* Middle: Success Analysis + Sentiment */}
                 <div className="space-y-3">
-                  {creator.top_content?.content_summary && (
+                  {(creator as any).success_analysis && (
                     <div>
-                      <span className="text-xs font-medium text-muted-foreground mb-1 block">Content Summary:</span>
-                      <p className="text-xs leading-relaxed">{creator.top_content.content_summary}</p>
+                      <span className="text-xs font-medium text-muted-foreground mb-1 block">Analýza výstupu:</span>
+                      <div className="text-xs leading-relaxed space-y-1">
+                        {(creator as any).success_analysis.split(/\n\n+/).map((p: string, i: number) => (
+                          <p key={i}>{p}</p>
+                        ))}
+                      </div>
                     </div>
                   )}
 
@@ -477,12 +483,18 @@ export const AIInsightsContentPDF = forwardRef<HTMLDivElement, AIInsightsContent
                   )}
                 </div>
 
-                {/* Right: Key Insight + Topics + Relevance */}
+                {/* Right: Top Comments, Topics & Relevance */}
                 <div className="space-y-3">
-                  <div>
-                    <span className="text-xs font-medium text-muted-foreground mb-1 block">Key Insight:</span>
-                    <p className="text-xs leading-relaxed">{creator.key_insight || "No insight available"}</p>
-                  </div>
+                  {(creator as any).top_comments && (creator as any).top_comments.length > 0 && (
+                    <div>
+                      <span className="text-xs font-medium text-muted-foreground mb-1 block">Nejčastější komentáře:</span>
+                      <ul className="space-y-0.5">
+                        {(creator as any).top_comments.slice(0, 5).map((comment: string, i: number) => (
+                          <li key={i} className="text-xs text-foreground">💬 {comment}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
 
                   <div>
                     <span className="text-xs font-medium text-muted-foreground mb-1 block">Positive Topics:</span>
@@ -490,19 +502,6 @@ export const AIInsightsContentPDF = forwardRef<HTMLDivElement, AIInsightsContent
                       {creator.positive_topics && creator.positive_topics.length > 0 ? (
                         creator.positive_topics.map((topic, i) => (
                           <TopicBadge key={i} topic={topic} variant="positive" />
-                        ))
-                      ) : (
-                        <span className="text-xs text-muted-foreground italic">None</span>
-                      )}
-                    </div>
-                  </div>
-
-                  <div>
-                    <span className="text-xs font-medium text-muted-foreground mb-1 block">Negative Topics:</span>
-                    <div className="flex flex-wrap gap-1">
-                      {creator.negative_topics && creator.negative_topics.length > 0 ? (
-                        creator.negative_topics.map((topic, i) => (
-                          <TopicBadge key={i} topic={topic} variant="negative" />
                         ))
                       ) : (
                         <span className="text-xs text-muted-foreground italic">None</span>

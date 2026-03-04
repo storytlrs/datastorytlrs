@@ -33,10 +33,12 @@ interface CreatorPerformanceData {
     neutral: number;
     negative: number;
   };
-  relevance: number | "high" | "medium" | "low"; // Support both old string and new number format
-  key_insight: string;
+  relevance: number | "high" | "medium" | "low";
+  key_insight?: string;
   positive_topics: string[];
-  negative_topics: string[];
+  negative_topics?: string[];
+  success_analysis?: string;
+  top_comments?: string[];
 }
 
 interface KPITargets {

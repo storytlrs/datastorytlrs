@@ -2,9 +2,8 @@ import { Card } from "@/components/ui/card";
 import { ContentPreviewCard } from "./ContentPreviewCard";
 import { TopicBadge } from "./TopicBadge";
 import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Pencil, Save, X } from "lucide-react";
+import { Pencil, Save, X, MessageSquare } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { TranslatedText } from "@/components/ui/TranslatedText";
@@ -21,7 +20,7 @@ interface TopContent {
   creator_handle: string;
 }
 
-interface CreatorPerformanceData {
+export interface CreatorPerformanceData {
   handle: string;
   avatar_url: string | null;
   platforms: string[];
@@ -31,10 +30,12 @@ interface CreatorPerformanceData {
     neutral: number;
     negative: number;
   };
-  relevance: number; // 0-100 percentage
-  key_insight: string;
+  relevance: number | "high" | "medium" | "low";
+  key_insight?: string;
   positive_topics: string[];
-  negative_topics: string[];
+  negative_topics?: string[];
+  success_analysis?: string;
+  top_comments?: string[];
 }
 
 interface CreatorPerformanceCardProps {
@@ -42,8 +43,8 @@ interface CreatorPerformanceCardProps {
   canEdit?: boolean;
   variant?: 'default' | 'flat';
   brandName?: string;
-  onSaveKeyInsight?: (handle: string, insight: string) => void;
-  onSaveTopics?: (handle: string, positiveTopics: string[], negativeTopics: string[]) => void;
+  onSaveSuccessAnalysis?: (handle: string, contentId: string, analysis: string) => void;
+  onSaveTopics?: (handle: string, positiveTopics: string[]) => void;
   onSaveContentSummary?: (handle: string, summary: string) => void;
 }
 
@@ -53,44 +54,14 @@ const getRelevanceColor = (relevance: number) => {
   return "text-muted-foreground";
 };
 
-const getRelevanceExplanation = (
-  creator: CreatorPerformanceData,
-  brandName?: string
-): string => {
-  const { relevance, positive_topics, negative_topics, top_content } = creator;
-  const brand = brandName || "značce";
-
-  const hasPositive = positive_topics.length > 0;
-  const hasNegative = negative_topics.length > 0;
-  const hasContentContext = !!top_content?.content_summary;
-
-  if (relevance >= 70) {
-    const topicsPart = hasPositive
-      ? ` Obsah přirozeně rezonuje s tématy jako ${positive_topics.slice(0, 3).join(", ")}, což je v souladu s komunikací ${brand}.`
-      : "";
-    const contentPart = hasContentContext
-      ? ` Shrnutí obsahu ukazuje na silnou tematickou blízkost ke značce.`
-      : "";
-    const negativePart = hasNegative
-      ? ` Drobná rizika se objevují u témat: ${negative_topics.slice(0, 2).join(", ")}.`
-      : "";
-    return `Vysoká relevance značí, že tvůrce komunikuje témata blízká ${brand} a jeho obsah organicky zapadá do brandové komunikace.${topicsPart}${contentPart}${negativePart}`;
+const getRelevanceAsNumber = (rel: string | number | undefined): number => {
+  if (typeof rel === "number") return rel;
+  switch (rel) {
+    case "high": return 85;
+    case "medium": return 55;
+    case "low": return 25;
+    default: return 50;
   }
-
-  if (relevance >= 40) {
-    const topicsPart = hasPositive
-      ? ` Některá témata (${positive_topics.slice(0, 2).join(", ")}) jsou relevantní, ale nejsou dominantní v obsahu tvůrce.`
-      : " Tematický překryv s brandem je omezený.";
-    const negativePart = hasNegative
-      ? ` Negativně vnímané oblasti (${negative_topics.slice(0, 2).join(", ")}) mohou snižovat celkový fit.`
-      : "";
-    return `Střední relevance naznačuje částečný překryv mezi obsahem tvůrce a komunikací ${brand}.${topicsPart}${negativePart}`;
-  }
-
-  const reason = hasNegative
-    ? ` Převažují témata, která nejsou v souladu se značkou (${negative_topics.slice(0, 2).join(", ")}).`
-    : " Obsah tvůrce se tematicky míjí s hodnotami a komunikací značky.";
-  return `Nízká relevance ukazuje na malou shodu mezi obsahem tvůrce a brandem ${brand}.${reason}`;
 };
 
 export const CreatorPerformanceCard = ({
@@ -98,64 +69,20 @@ export const CreatorPerformanceCard = ({
   canEdit = false,
   variant = 'default',
   brandName,
-  onSaveKeyInsight,
+  onSaveSuccessAnalysis,
   onSaveTopics,
   onSaveContentSummary,
 }: CreatorPerformanceCardProps) => {
-  const [isEditing, setIsEditing] = useState(false);
-  const [editedInsight, setEditedInsight] = useState(creator.key_insight);
+  const [isEditingAnalysis, setIsEditingAnalysis] = useState(false);
+  const [editedAnalysis, setEditedAnalysis] = useState(creator.success_analysis || '');
   
-  // Topics editing state
-  const [isEditingPositiveTopics, setIsEditingPositiveTopics] = useState(false);
-  const [isEditingNegativeTopics, setIsEditingNegativeTopics] = useState(false);
-  const [editedPositiveTopics, setEditedPositiveTopics] = useState(creator.positive_topics.join(', '));
-  const [editedNegativeTopics, setEditedNegativeTopics] = useState(creator.negative_topics.join(', '));
+  const [isEditingTopics, setIsEditingTopics] = useState(false);
+  const [editedTopics, setEditedTopics] = useState(creator.positive_topics.join(', '));
   
-  // Content summary editing state
   const [isEditingContentSummary, setIsEditingContentSummary] = useState(false);
   const [editedContentSummary, setEditedContentSummary] = useState(creator.top_content?.content_summary || '');
 
-  const handleSave = () => {
-    onSaveKeyInsight?.(creator.handle, editedInsight);
-    setIsEditing(false);
-  };
-
-  const handleCancel = () => {
-    setEditedInsight(creator.key_insight);
-    setIsEditing(false);
-  };
-
-  const handleSavePositiveTopics = () => {
-    const topics = editedPositiveTopics.split(',').map(t => t.trim()).filter(t => t);
-    onSaveTopics?.(creator.handle, topics, creator.negative_topics);
-    setIsEditingPositiveTopics(false);
-  };
-
-  const handleCancelPositiveTopics = () => {
-    setEditedPositiveTopics(creator.positive_topics.join(', '));
-    setIsEditingPositiveTopics(false);
-  };
-
-  const handleSaveNegativeTopics = () => {
-    const topics = editedNegativeTopics.split(',').map(t => t.trim()).filter(t => t);
-    onSaveTopics?.(creator.handle, creator.positive_topics, topics);
-    setIsEditingNegativeTopics(false);
-  };
-
-  const handleCancelNegativeTopics = () => {
-    setEditedNegativeTopics(creator.negative_topics.join(', '));
-    setIsEditingNegativeTopics(false);
-  };
-
-  const handleSaveContentSummary = () => {
-    onSaveContentSummary?.(creator.handle, editedContentSummary);
-    setIsEditingContentSummary(false);
-  };
-
-  const handleCancelContentSummary = () => {
-    setEditedContentSummary(creator.top_content?.content_summary || '');
-    setIsEditingContentSummary(false);
-  };
+  const relevanceNum = getRelevanceAsNumber(creator.relevance);
 
   const content = (
     <>
@@ -196,7 +123,7 @@ export const CreatorPerformanceCard = ({
       </div>
 
       <div className="grid md:grid-cols-3 gap-6">
-        {/* Left: Content Preview only */}
+        {/* Left: Content Preview */}
         <div className="space-y-4">
           {creator.top_content && (
             <div className="w-[180px] flex-shrink-0">
@@ -212,46 +139,56 @@ export const CreatorPerformanceCard = ({
           )}
         </div>
 
-        {/* Middle: Content Summary + Sentiment Breakdown */}
+        {/* Middle: Success Analysis (2-3 paragraphs) */}
         <div className="space-y-4">
           <div>
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-medium text-muted-foreground">
-                Content Summary:
+                Analýza výstupu:
               </span>
-              {canEdit && !isEditingContentSummary && (
+              {canEdit && !isEditingAnalysis && (
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => setIsEditingContentSummary(true)}
+                  onClick={() => setIsEditingAnalysis(true)}
                   className="h-6 w-6 p-0"
                 >
                   <Pencil className="w-3 h-3" />
                 </Button>
               )}
             </div>
-            {isEditingContentSummary ? (
+            {isEditingAnalysis ? (
               <div className="space-y-2">
                 <Textarea
-                  value={editedContentSummary}
-                  onChange={(e) => setEditedContentSummary(e.target.value)}
-                  className="min-h-[80px] rounded-[15px] border-foreground text-sm"
+                  value={editedAnalysis}
+                  onChange={(e) => setEditedAnalysis(e.target.value)}
+                  className="min-h-[120px] rounded-[15px] border-foreground text-sm"
                 />
                 <div className="flex gap-2">
-                  <Button size="sm" onClick={handleSaveContentSummary} className="rounded-[35px]">
-                    <Save className="w-3 h-3 mr-1" />
-                    Save
+                  <Button size="sm" onClick={() => {
+                    onSaveSuccessAnalysis?.(creator.handle, creator.top_content?.id || '', editedAnalysis);
+                    setIsEditingAnalysis(false);
+                  }} className="rounded-[35px]">
+                    <Save className="w-3 h-3 mr-1" /> Save
                   </Button>
-                  <Button size="sm" variant="outline" onClick={handleCancelContentSummary} className="rounded-[35px] border-foreground">
-                    <X className="w-3 h-3 mr-1" />
-                    Cancel
+                  <Button size="sm" variant="outline" onClick={() => {
+                    setEditedAnalysis(creator.success_analysis || '');
+                    setIsEditingAnalysis(false);
+                  }} className="rounded-[35px] border-foreground">
+                    <X className="w-3 h-3 mr-1" /> Cancel
                   </Button>
                 </div>
               </div>
             ) : (
-              <p className="text-sm leading-relaxed max-h-[300px] overflow-y-auto">
-                {creator.top_content?.content_summary ? <TranslatedText text={creator.top_content.content_summary} /> : <span className="text-muted-foreground italic">No content summary</span>}
-              </p>
+              <div className="text-sm leading-relaxed max-h-[300px] overflow-y-auto space-y-3">
+                {creator.success_analysis ? (
+                  creator.success_analysis.split(/\n\n+/).map((paragraph, i) => (
+                    <p key={i}><TranslatedText text={paragraph} /></p>
+                  ))
+                ) : (
+                  <p className="text-muted-foreground italic">No analysis available</p>
+                )}
+              </div>
             )}
           </div>
 
@@ -278,45 +215,24 @@ export const CreatorPerformanceCard = ({
           )}
         </div>
 
-        {/* Right: Key Insight & Topics & Relevance */}
+        {/* Right: Top Comments, Positive Topics & Relevance */}
         <div className="space-y-4">
-          {/* Key Insight */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-muted-foreground">Key Insight:</span>
-              {canEdit && !isEditing && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setIsEditing(true)}
-                  className="h-6 w-6 p-0"
-                >
-                  <Pencil className="w-3 h-3" />
-                </Button>
-              )}
+          {/* Top Comments */}
+          {creator.top_comments && creator.top_comments.length > 0 && (
+            <div>
+              <span className="text-sm font-medium text-muted-foreground mb-2 block">
+                Nejčastější komentáře:
+              </span>
+              <ul className="space-y-1.5">
+                {creator.top_comments.map((comment, i) => (
+                  <li key={i} className="text-sm text-foreground flex items-start gap-1.5">
+                    <MessageSquare className="w-3 h-3 mt-0.5 text-muted-foreground flex-shrink-0" />
+                    <TranslatedText text={comment} />
+                  </li>
+                ))}
+              </ul>
             </div>
-            {isEditing ? (
-              <div className="space-y-2">
-                <Textarea
-                  value={editedInsight}
-                  onChange={(e) => setEditedInsight(e.target.value)}
-                  className="min-h-[80px] rounded-[15px] border-foreground text-sm"
-                />
-                <div className="flex gap-2">
-                  <Button size="sm" onClick={handleSave} className="rounded-[35px]">
-                    <Save className="w-3 h-3 mr-1" />
-                    Save
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={handleCancel} className="rounded-[35px] border-foreground">
-                    <X className="w-3 h-3 mr-1" />
-                    Cancel
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <p className="text-sm">{creator.key_insight ? <TranslatedText text={creator.key_insight} /> : "No insight available"}</p>
-            )}
-          </div>
+          )}
 
           {/* Positive Topics */}
           <div>
@@ -324,33 +240,38 @@ export const CreatorPerformanceCard = ({
               <span className="text-sm font-medium text-muted-foreground">
                 Positive Topics:
               </span>
-              {canEdit && !isEditingPositiveTopics && (
+              {canEdit && !isEditingTopics && (
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => setIsEditingPositiveTopics(true)}
+                  onClick={() => setIsEditingTopics(true)}
                   className="h-6 w-6 p-0"
                 >
                   <Pencil className="w-3 h-3" />
                 </Button>
               )}
             </div>
-            {isEditingPositiveTopics ? (
+            {isEditingTopics ? (
               <div className="space-y-2">
-                <Input
-                  value={editedPositiveTopics}
-                  onChange={(e) => setEditedPositiveTopics(e.target.value)}
-                  placeholder="Topic 1, Topic 2, Topic 3..."
-                  className="rounded-[15px] border-foreground text-sm"
+                <Textarea
+                  value={editedTopics}
+                  onChange={(e) => setEditedTopics(e.target.value)}
+                  placeholder="Topic 1, Topic 2..."
+                  className="min-h-[60px] rounded-[15px] border-foreground text-sm"
                 />
                 <div className="flex gap-2">
-                  <Button size="sm" onClick={handleSavePositiveTopics} className="rounded-[35px]">
-                    <Save className="w-3 h-3 mr-1" />
-                    Save
+                  <Button size="sm" onClick={() => {
+                    const topics = editedTopics.split(',').map(t => t.trim()).filter(t => t);
+                    onSaveTopics?.(creator.handle, topics);
+                    setIsEditingTopics(false);
+                  }} className="rounded-[35px]">
+                    <Save className="w-3 h-3 mr-1" /> Save
                   </Button>
-                  <Button size="sm" variant="outline" onClick={handleCancelPositiveTopics} className="rounded-[35px] border-foreground">
-                    <X className="w-3 h-3 mr-1" />
-                    Cancel
+                  <Button size="sm" variant="outline" onClick={() => {
+                    setEditedTopics(creator.positive_topics.join(', '));
+                    setIsEditingTopics(false);
+                  }} className="rounded-[35px] border-foreground">
+                    <X className="w-3 h-3 mr-1" /> Cancel
                   </Button>
                 </div>
               </div>
@@ -367,76 +288,22 @@ export const CreatorPerformanceCard = ({
             )}
           </div>
 
-          {/* Negative Topics */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-muted-foreground">
-                Negative Topics:
-              </span>
-              {canEdit && !isEditingNegativeTopics && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setIsEditingNegativeTopics(true)}
-                  className="h-6 w-6 p-0"
-                >
-                  <Pencil className="w-3 h-3" />
-                </Button>
-              )}
-            </div>
-            {isEditingNegativeTopics ? (
-              <div className="space-y-2">
-                <Input
-                  value={editedNegativeTopics}
-                  onChange={(e) => setEditedNegativeTopics(e.target.value)}
-                  placeholder="Topic 1, Topic 2, Topic 3..."
-                  className="rounded-[15px] border-foreground text-sm"
-                />
-                <div className="flex gap-2">
-                  <Button size="sm" onClick={handleSaveNegativeTopics} className="rounded-[35px]">
-                    <Save className="w-3 h-3 mr-1" />
-                    Save
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={handleCancelNegativeTopics} className="rounded-[35px] border-foreground">
-                    <X className="w-3 h-3 mr-1" />
-                    Cancel
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div className="flex flex-wrap gap-2">
-                {creator.negative_topics.length > 0 ? (
-                  creator.negative_topics.map((topic, i) => (
-                    <TopicBadge key={i} topic={topic} variant="negative" />
-                  ))
-                ) : (
-                  <span className="text-sm text-muted-foreground italic">No negative topics</span>
-                )}
-              </div>
-            )}
-          </div>
-
           {/* Relevance */}
           <div>
             <span className="text-sm text-muted-foreground">Relevance: </span>
-            <span className={`font-bold ${getRelevanceColor(creator.relevance)}`}>
-              {creator.relevance}%
+            <span className={`font-bold ${getRelevanceColor(relevanceNum)}`}>
+              {relevanceNum}%
             </span>
-            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-              <TranslatedText text={getRelevanceExplanation(creator, brandName)} />
-            </p>
           </div>
         </div>
       </div>
     </>
   );
 
-  // Flat variant - without Card wrapper (for PDF export)
   if (variant === 'flat') {
     return <div className="pdf-no-break">{content}</div>;
   }
 
-  // Default variant - with Card wrapper
   return (
     <Card className="p-6 rounded-[20px] border-foreground">
       {content}

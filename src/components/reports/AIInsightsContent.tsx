@@ -37,10 +37,12 @@ interface CreatorPerformanceData {
     neutral: number;
     negative: number;
   };
-  relevance: number | "high" | "medium" | "low"; // Support both old string and new number format
-  key_insight: string;
+  relevance: number | "high" | "medium" | "low";
+  key_insight?: string;
   positive_topics: string[];
-  negative_topics: string[];
+  negative_topics?: string[];
+  success_analysis?: string;
+  top_comments?: string[];
 }
 
 // Helper function to convert old relevance values to percentage
@@ -864,7 +866,7 @@ export const AIInsightsContent = forwardRef<HTMLDivElement, AIInsightsContentPro
 
       {/* Content Performance - Each creator on separate page (Page 7+) */}
       {insights.creator_performance && insights.creator_performance.length > 0 ? (
-        insights.creator_performance.map((creator) => {
+        insights.creator_performance.map((creator, idx) => {
           // Transform old data structure to new format with defensive defaults
           const transformedCreator = {
             handle: creator.handle || "",
@@ -877,30 +879,32 @@ export const AIInsightsContent = forwardRef<HTMLDivElement, AIInsightsContentPro
               negative: 0,
             },
             relevance: getRelevanceAsNumber(creator.relevance),
-            key_insight: creator.key_insight || "",
             positive_topics: creator.positive_topics || [],
-            negative_topics: creator.negative_topics || [],
+            success_analysis: creator.success_analysis || "",
+            top_comments: creator.top_comments || [],
           };
 
           return (
-            <Card key={creator.handle} className="p-6 rounded-[20px] border-foreground pdf-page-break" style={{ backgroundColor: '#E9E9E9' }}>
+            <Card key={`${creator.handle}-${creator.top_content?.id || idx}`} className="p-6 rounded-[20px] border-foreground pdf-page-break" style={{ backgroundColor: '#E9E9E9' }}>
               <CreatorPerformanceCard
                 creator={transformedCreator}
                 canEdit={canEdit}
                 variant="flat"
                 brandName={brandName}
-                onSaveKeyInsight={(handle, insight) => {
+                onSaveSuccessAnalysis={(handle, contentId, analysis) => {
                   if (onSaveInsights) {
                     const updatedPerformance = (insights.creator_performance || []).map((c) =>
-                      c.handle === handle ? { ...c, key_insight: insight } : c
+                      c.handle === handle && (c.top_content?.id === contentId || !contentId)
+                        ? { ...c, success_analysis: analysis }
+                        : c
                     );
                     onSaveInsights({ creator_performance: updatedPerformance });
                   }
                 }}
-                onSaveTopics={(handle, positiveTopics, negativeTopics) => {
+                onSaveTopics={(handle, positiveTopics) => {
                   if (onSaveInsights) {
                     const updatedPerformance = (insights.creator_performance || []).map((c) =>
-                      c.handle === handle ? { ...c, positive_topics: positiveTopics, negative_topics: negativeTopics } : c
+                      c.handle === handle ? { ...c, positive_topics: positiveTopics } : c
                     );
                     onSaveInsights({ creator_performance: updatedPerformance });
                   }
