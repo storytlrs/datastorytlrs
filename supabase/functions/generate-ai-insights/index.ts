@@ -2,7 +2,29 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 function safeJsonParse(raw: string): any {
-  const sanitized = raw.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, "");
+  // First try direct parse
+  try {
+    return JSON.parse(raw);
+  } catch (_) {
+    // ignore
+  }
+  // Remove control characters except \n, \r, \t
+  let sanitized = raw.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
+  // Try again
+  try {
+    return JSON.parse(sanitized);
+  } catch (_) {
+    // ignore
+  }
+  // Extract JSON block if wrapped in markdown
+  const jsonMatch = sanitized.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (jsonMatch) {
+    sanitized = jsonMatch[1].trim();
+  }
+  // Escape unescaped newlines inside JSON string values
+  sanitized = sanitized.replace(/(?<=:\s*"[^"]*)\n(?=[^"]*")/g, "\\n");
+  sanitized = sanitized.replace(/(?<=:\s*"[^"]*)\r(?=[^"]*")/g, "\\r");
+  sanitized = sanitized.replace(/(?<=:\s*"[^"]*)\t(?=[^"]*")/g, "\\t");
   return JSON.parse(sanitized);
 }
 
