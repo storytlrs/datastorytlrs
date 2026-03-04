@@ -13,6 +13,7 @@ import { TopicBadge } from "./TopicBadge";
 import { ContentSelectorDialog, SelectedContentItem } from "./ContentSelectorDialog";
 import { Users, FileText, Eye, Wallet, Clock, Heart, TrendingUp, MessageSquare, Target, Rocket, Star, Pencil, Save, X, Settings2 } from "lucide-react";
 import { formatCurrency } from "@/lib/currencyUtils";
+import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
 interface TopContent {
   id: string;
@@ -30,16 +31,21 @@ interface CreatorPerformanceData {
   handle: string;
   avatar_url: string | null;
   platforms: string[];
-  top_content: TopContent | null;
+  top_contents?: TopContent[];
+  top_content?: TopContent | null; // legacy
   sentiment_breakdown: {
     positive: number;
     neutral: number;
     negative: number;
   };
-  relevance: number | "high" | "medium" | "low"; // Support both old string and new number format
-  key_insight: string;
+  relevance: number | "high" | "medium" | "low";
+  paragraph1?: string;
+  paragraph2?: string;
+  paragraph3?: string;
   positive_topics: string[];
-  negative_topics: string[];
+  top_comments?: string[];
+  key_insight?: string; // legacy
+  negative_topics?: string[]; // legacy
 }
 
 // Helper function to convert old relevance values to percentage
@@ -98,6 +104,7 @@ interface StructuredInsights {
     summary: string;
   };
   top_sentiment_topics?: string[];
+  top_comments?: string[];
   leaderboard: LeaderboardEntry[];
   benchmarks: Benchmarks;
   creator_performance: CreatorPerformanceData[];
@@ -347,6 +354,12 @@ export const AIInsightsContent = forwardRef<HTMLDivElement, AIInsightsContentPro
     insights.top_sentiment_topics?.join(', ') || ''
   );
 
+  // Top comments editing state
+  const [isEditingTopComments, setIsEditingTopComments] = useState(false);
+  const [editedTopComments, setEditedTopComments] = useState(
+    insights.top_comments?.join('\n') || ''
+  );
+
   const startEditing = (section: string) => {
     setEditingSections((prev) => new Set([...prev, section]));
   };
@@ -491,7 +504,7 @@ export const AIInsightsContent = forwardRef<HTMLDivElement, AIInsightsContentPro
             onSave={(v) => handleSaveSection("executive_summary", v)}
             onCancel={() => stopEditing("executive_summary")}
             canEdit={canEdit}
-            placeholder="Enter executive summary..."
+            placeholder="Napiš krátké shrnutí kampaně ve 3–4 větách: na co se kampaň soustředila, co jsme udělali pro naplnění cíle, jaké byly klíčové výsledky a proč se kampaň povedla."
           />
         </div>
 
@@ -547,44 +560,7 @@ export const AIInsightsContent = forwardRef<HTMLDivElement, AIInsightsContentPro
         </div>
       </Card>
 
-      {/* Top 5 Content Block - Page 2 */}
-      <Card className="p-6 rounded-[20px] border-foreground pdf-page-break" style={{ backgroundColor: '#E9E9E9' }}>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold">Top 5 Content</h2>
-          {canEdit && reportId && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsContentSelectorOpen(true)}
-              className="rounded-[35px] border-foreground"
-            >
-              <Settings2 className="w-4 h-4 mr-2" />
-              Select Content
-            </Button>
-          )}
-        </div>
-        
-        {displayedTopContent.length > 0 ? (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-            {displayedTopContent.map((content) => (
-              <ContentPreviewCard
-                key={content.id}
-                thumbnailUrl={content.thumbnail_url}
-                contentType={content.content_type}
-                platform={content.platform}
-                views={content.views}
-                engagementRate={content.engagement_rate}
-                url={content.url}
-                creatorHandle={content.creator_handle}
-              />
-            ))}
-          </div>
-        ) : (
-          <p className="text-muted-foreground text-center py-8">No content available</p>
-        )}
-      </Card>
-
-      {/* Campaign Overview Block - Page 3 */}
+      {/* Campaign Overview Block - Page 2 */}
       <Card className="p-6 rounded-[20px] border-foreground pdf-page-break" style={{ backgroundColor: '#E9E9E9' }}>
         <h2 className="text-xl font-bold mb-4">
           {t("Základní přehled kampaně")}
@@ -756,7 +732,163 @@ export const AIInsightsContent = forwardRef<HTMLDivElement, AIInsightsContentPro
         </div>
       </Card>
 
-      {/* Creators Leaderboard Block - Page 6 */}
+      {/* Top 5 Content Block - moved here between Sentiment and Leaderboard */}
+      <Card className="p-6 rounded-[20px] border-foreground pdf-page-break" style={{ backgroundColor: '#E9E9E9' }}>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-bold">Top 5 Content</h2>
+          {canEdit && reportId && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsContentSelectorOpen(true)}
+              className="rounded-[35px] border-foreground"
+            >
+              <Settings2 className="w-4 h-4 mr-2" />
+              Select Content
+            </Button>
+          )}
+        </div>
+
+        {displayedTopContent.length > 0 ? (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            {displayedTopContent.map((content) => (
+              <ContentPreviewCard
+                key={content.id}
+                thumbnailUrl={content.thumbnail_url}
+                contentType={content.content_type}
+                platform={content.platform}
+                views={content.views}
+                engagementRate={content.engagement_rate}
+                url={content.url}
+                creatorHandle={content.creator_handle}
+              />
+            ))}
+          </div>
+        ) : (
+          <p className="text-muted-foreground text-center py-8">No content available</p>
+        )}
+      </Card>
+
+      {/* Vliv na brand awareness Block */}
+      {(() => {
+        const creatorPerf = insights.creator_performance || [];
+        const count = creatorPerf.length;
+        const totals = creatorPerf.reduce(
+          (acc, c) => {
+            acc.positive += c.sentiment_breakdown?.positive || 0;
+            acc.neutral += c.sentiment_breakdown?.neutral || 0;
+            acc.negative += c.sentiment_breakdown?.negative || 0;
+            return acc;
+          },
+          { positive: 0, neutral: 0, negative: 0 }
+        );
+        const pieData = count > 0 ? [
+          { name: 'Pozitivní', value: Math.round(totals.positive / count), color: '#22c55e' },
+          { name: 'Neutrální', value: Math.round(totals.neutral / count), color: '#94a3b8' },
+          { name: 'Negativní', value: Math.round(totals.negative / count), color: '#ef4444' },
+        ].filter(d => d.value > 0) : [];
+
+        const topComments = insights.top_comments || [];
+
+        const handleSaveComments = async () => {
+          const comments = editedTopComments
+            .split('\n')
+            .map(c => c.trim())
+            .filter(c => c);
+          if (onSaveInsights) {
+            await onSaveInsights({ top_comments: comments });
+          }
+          setIsEditingTopComments(false);
+        };
+
+        return (
+          <Card className="p-6 rounded-[20px] border-foreground pdf-page-break" style={{ backgroundColor: '#E9E9E9' }}>
+            <h2 className="text-xl font-bold mb-6">Vliv na brand awareness</h2>
+            <div className="grid md:grid-cols-2 gap-8">
+              {/* Nejčastější komentáře */}
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Nejčastější komentáře</span>
+                  {canEdit && !isEditingTopComments && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setIsEditingTopComments(true)}
+                      className="h-6 w-6 p-0"
+                    >
+                      <Pencil className="w-3 h-3" />
+                    </Button>
+                  )}
+                </div>
+                {isEditingTopComments ? (
+                  <div className="space-y-2">
+                    <Textarea
+                      value={editedTopComments}
+                      onChange={(e) => setEditedTopComments(e.target.value)}
+                      placeholder="Zadej komentáře, každý na nový řádek (8–12 komentářů)..."
+                      className="min-h-[200px] rounded-[15px] border-foreground text-sm"
+                    />
+                    <div className="flex gap-2">
+                      <Button size="sm" onClick={handleSaveComments} className="rounded-[35px]">
+                        <Save className="w-3 h-3 mr-1" />
+                        Save
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => { setEditedTopComments(insights.top_comments?.join('\n') || ''); setIsEditingTopComments(false); }} className="rounded-[35px] border-foreground">
+                        <X className="w-3 h-3 mr-1" />
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                ) : topComments.length > 0 ? (
+                  <ul className="space-y-2">
+                    {topComments.slice(0, 12).map((comment, i) => (
+                      <li key={i} className="flex items-start gap-2 text-sm">
+                        <span className="text-muted-foreground mt-0.5">„</span>
+                        <span>{comment}</span>
+                        <span className="text-muted-foreground mt-0.5">"</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-muted-foreground italic">
+                    {canEdit ? 'Klikni na tužku a přidej nejčastější komentáře.' : 'Žádné komentáře nejsou k dispozici.'}
+                  </p>
+                )}
+              </div>
+
+              {/* Koláčový graf sentimentu */}
+              <div>
+                <div className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Sentiment komentářů</div>
+                {pieData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={220}>
+                    <PieChart>
+                      <Pie
+                        data={pieData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={55}
+                        outerRadius={90}
+                        paddingAngle={3}
+                        dataKey="value"
+                      >
+                        {pieData.map((entry, index) => (
+                          <Cell key={index} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(value) => [`${value}%`, '']} />
+                      <Legend formatter={(value) => <span className="text-sm">{value}</span>} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <p className="text-sm text-muted-foreground italic">Žádná data o sentimentu.</p>
+                )}
+              </div>
+            </div>
+          </Card>
+        );
+      })()}
+
+      {/* Creators Leaderboard Block */}
       <Card className="p-6 rounded-[20px] border-foreground pdf-page-break" style={{ backgroundColor: '#E9E9E9' }}>
         <h2 className="text-xl font-bold mb-4">
           Creators Leaderboard
