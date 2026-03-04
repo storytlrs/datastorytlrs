@@ -80,6 +80,7 @@ interface StructuredInsights {
     summary: string;
   };
   top_sentiment_topics?: string[];
+  brand_awareness_comments?: string[];
   leaderboard: any[];
   benchmarks: {
     engagementRate: number;
