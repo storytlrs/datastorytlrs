@@ -94,6 +94,15 @@ export interface MonthlyStructuredInsights {
     thumbnail_url?: string;
     reason?: string;
   }[];
+  top_content?: {
+    name: string;
+    spend: number;
+    impressions: number;
+    clicks: number;
+    ctr: number;
+    thumbnail_url?: string;
+    reason?: string;
+  }[];
   followers: {
     facebook: number | null;
     instagram: number | null;
@@ -131,10 +140,11 @@ interface EditableSectionProps {
   onCancel: () => void;
   canEdit?: boolean;
   placeholder?: string;
+  asBullets?: boolean;
 }
 
 const EditableSection = ({
-  value, isEditing, onStartEdit, onSave, onCancel, canEdit = false, placeholder = "Enter text...",
+  value, isEditing, onStartEdit, onSave, onCancel, canEdit = false, placeholder = "Enter text...", asBullets = false,
 }: EditableSectionProps) => {
   const [editValue, setEditValue] = useState(value);
   if (isEditing) {
@@ -148,9 +158,21 @@ const EditableSection = ({
       </div>
     );
   }
+  const bullets = asBullets && value ? value.split("\n").map(l => l.replace(/^[-•]\s*/, "").trim()).filter(Boolean) : [];
   return (
     <div className="group relative">
-      <p className="text-foreground leading-relaxed whitespace-pre-line">{value ? <TranslatedText text={value} /> : <span className="text-muted-foreground italic">{placeholder}</span>}</p>
+      {asBullets && bullets.length > 0 ? (
+        <ul className="space-y-1.5 text-foreground">
+          {bullets.map((line, i) => (
+            <li key={i} className="flex items-start gap-2 leading-relaxed">
+              <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-foreground flex-shrink-0" />
+              <TranslatedText text={line} />
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-foreground leading-relaxed whitespace-pre-line">{value ? <TranslatedText text={value} /> : <span className="text-muted-foreground italic">{placeholder}</span>}</p>
+      )}
       {canEdit && (
         <Button variant="ghost" size="sm" onClick={onStartEdit} className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 p-0">
           <Pencil className="w-3 h-3" />
@@ -325,6 +347,7 @@ export const MonthlyAdsInsightsContent = forwardRef<HTMLDivElement, MonthlyAdsIn
       instagram_top_posts: raw.instagram_top_posts || [],
       tiktok_metrics: { spend: 0, reach: 0, frequency: 0, ...(raw as any).tiktok_metrics },
       tiktok_top_posts: (raw as any).tiktok_top_posts || [],
+      top_content: (raw as any).top_content || [],
       followers: { facebook: null, instagram: null, tiktok: null, ...raw.followers },
       learnings: { works: [], threats_opportunities: [], improvements: [], ...raw.learnings },
     };
@@ -673,6 +696,22 @@ export const MonthlyAdsInsightsContent = forwardRef<HTMLDivElement, MonthlyAdsIn
                 </div>
               </>
             )}
+          </Card>
+        )}
+
+        {/* TOP 5 contentů */}
+        {(insights.top_content || []).length > 0 && (
+          <Card className="p-6 rounded-[20px] border-foreground" style={{ backgroundColor: "#E9E9E9" }}>
+            <h2 className="text-xl font-bold mb-4">TOP 5 contentů za celý měsíc</h2>
+            <div className={`grid gap-10 ${
+              (insights.top_content || []).length === 1 ? "grid-cols-1 max-w-[250px] mx-auto" :
+              (insights.top_content || []).length === 2 ? "grid-cols-2 max-w-[520px] mx-auto" :
+              (insights.top_content || []).length === 3 ? "grid-cols-3 max-w-[780px] mx-auto" :
+              (insights.top_content || []).length === 4 ? "grid-cols-2 md:grid-cols-4" :
+              "grid-cols-2 md:grid-cols-3 lg:grid-cols-5"
+            }`}>
+              {(insights.top_content || []).map((post, i) => <PostCard key={i} post={post} />)}
+            </div>
           </Card>
         )}
 

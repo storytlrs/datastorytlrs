@@ -77,6 +77,7 @@ export const AdsAIInsightsTab = ({ reportId }: AdsAIInsightsTabProps) => {
 
       if (data.ai_insights_structured) {
         const structured = data.ai_insights_structured as any;
+        console.log("[DEBUG] fetchReportData got executive_summary:", JSON.stringify(structured?.executive_summary));
         setStructuredData(structured);
 
         // For default reports, set paragraph states
@@ -109,26 +110,30 @@ export const AdsAIInsightsTab = ({ reportId }: AdsAIInsightsTabProps) => {
         } else if (data.error.includes("Payment required")) {
           toast.error(t("Nedostatek kreditů. Doplňte prosím kredity ve workspace."));
         } else {
-          throw new Error(data.error);
+          toast.error(data.error);
         }
         return;
       }
 
-      setStructuredData(data.structured_data);
-      setAiInsights(data.structured_data?.executive_summary || "");
-      setContentKey(prev => prev + 1);
-
-      if (data.structured_data?.report_period !== "monthly") {
-        setAwarenessParagraph(data.awareness_summary || "");
-        setEngagementParagraph(data.engagement_summary || "");
-        setEffectivenessParagraph(data.effectiveness_summary || "");
-      }
-
+      console.log("[DEBUG] Function response data:", JSON.stringify(data?.structured_data?.executive_summary));
       toast.success(t("AI Insights vygenerovány úspěšně!"));
       setIsInputDialogOpen(false);
-    } catch (error) {
+      await fetchReportData();
+      console.log("[DEBUG] After fetchReportData, structuredData executive_summary will be set from DB");
+      setContentKey(prev => prev + 1);
+    } catch (error: any) {
       console.error("Error generating AI insights:", error);
-      toast.error(t("Nepodařilo se vygenerovat AI Insights"));
+      let msg = "";
+      try {
+        if (error?.context?.json) {
+          const ctx = await error.context.json();
+          msg = ctx?.error || ctx?.message || JSON.stringify(ctx);
+        } else if (error?.context?.text) {
+          msg = await error.context.text();
+        }
+      } catch {}
+      if (!msg) msg = error?.message || "";
+      toast.error(`${t("Nepodařilo se vygenerovat AI Insights")}: ${msg}`);
     } finally {
       setIsGenerating(false);
     }

@@ -41,9 +41,9 @@ import {
 export interface QuarterlyStructuredInsights {
   executive_summary: {
     intro?: string;
-    media_insight: string;
-    top_result: string;
-    recommendation: string;
+    media_insight: string[];
+    top_result: string[];
+    recommendation: string[];
   };
   goal_fulfillment: {
     goals_set: string[];
@@ -164,6 +164,15 @@ export interface QuarterlyStructuredInsights {
     highlight_metric?: string;
     highlight_value?: number;
   }[];
+  top_content?: {
+    name: string;
+    spend: number;
+    impressions: number;
+    clicks: number;
+    ctr: number;
+    thumbnail_url?: string;
+    reason?: string;
+  }[];
   followers: {
     facebook: number | null;
     instagram: number | null;
@@ -218,10 +227,11 @@ interface EditableSectionProps {
   onCancel: () => void;
   canEdit?: boolean;
   placeholder?: string;
+  asBullets?: boolean;
 }
 
 const EditableSection = ({
-  value, isEditing, onStartEdit, onSave, onCancel, canEdit = false, placeholder = "Enter text...",
+  value, isEditing, onStartEdit, onSave, onCancel, canEdit = false, placeholder = "Enter text...", asBullets = false,
 }: EditableSectionProps) => {
   const [editValue, setEditValue] = useState(value);
   if (isEditing) {
@@ -235,9 +245,21 @@ const EditableSection = ({
       </div>
     );
   }
+  const bullets = asBullets && value ? value.split("\n").map(l => l.replace(/^[-•]\s*/, "").trim()).filter(Boolean) : [];
   return (
     <div className="group relative">
-      <p className="text-foreground leading-relaxed whitespace-pre-line">{value ? <TranslatedText text={value} /> : <span className="text-muted-foreground italic">{placeholder}</span>}</p>
+      {asBullets && bullets.length > 0 ? (
+        <ul className="space-y-1.5 text-foreground">
+          {bullets.map((line, i) => (
+            <li key={i} className="flex items-start gap-2 leading-relaxed">
+              <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-foreground flex-shrink-0" />
+              <TranslatedText text={line} />
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-foreground leading-relaxed whitespace-pre-line">{value ? <TranslatedText text={value} /> : <span className="text-muted-foreground italic">{placeholder}</span>}</p>
+      )}
       {canEdit && (
         <Button variant="ghost" size="sm" onClick={onStartEdit} className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 p-0">
           <Pencil className="w-3 h-3" />
@@ -528,31 +550,23 @@ const PlatformSection = ({
 
 export const QuarterlyAdsInsightsContent = forwardRef<HTMLDivElement, QuarterlyAdsInsightsContentProps>(
   ({ insights: raw, canEdit = false, onSaveInsights, hasMetaPlatform, hasTiktokPlatform, reportId }, ref) => {
-    const executiveSummary: Partial<QuarterlyStructuredInsights["executive_summary"]> = raw.executive_summary || {};
-    const legacyIntroSource = [
-      executiveSummary.media_insight,
-      executiveSummary.top_result,
-      executiveSummary.recommendation,
-    ]
-      .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
-      .join(" ");
-    const legacyIntro = legacyIntroSource
-      ? legacyIntroSource
-          .split(/(?<=[.!?])\s+/)
-          .filter((sentence: string) => sentence.trim())
-          .slice(0, 3)
-          .join(" ")
-      : "";
+    const toStringArray = (val: any): string[] => {
+      if (Array.isArray(val)) return val.filter(Boolean);
+      if (typeof val === "string" && val.trim()) {
+        if (val.includes("\n") || val.startsWith("- ")) return val.split("\n").map((l: string) => l.replace(/^[-•]\s*/, "").trim()).filter(Boolean);
+        return val.split(/(?<=[.!?])\s+/).filter((s: string) => s.trim());
+      }
+      return [];
+    };
+
+    const rawExec = raw.executive_summary || {};
 
     const insights: QuarterlyStructuredInsights = {
       executive_summary: {
-        intro:
-          typeof executiveSummary.intro === "string" && executiveSummary.intro.trim().length > 0
-            ? executiveSummary.intro
-            : legacyIntro,
-        media_insight: executiveSummary.media_insight || "",
-        top_result: executiveSummary.top_result || "",
-        recommendation: executiveSummary.recommendation || "",
+        intro: typeof rawExec.intro === "string" && rawExec.intro.trim() ? rawExec.intro : "",
+        media_insight: toStringArray(rawExec.media_insight),
+        top_result: toStringArray(rawExec.top_result),
+        recommendation: toStringArray(rawExec.recommendation),
       },
       goal_fulfillment: {
         goals_set: Array.isArray(raw.goal_fulfillment?.goals_set)
@@ -594,6 +608,7 @@ export const QuarterlyAdsInsightsContent = forwardRef<HTMLDivElement, QuarterlyA
       tiktok_improve_posts_analysis: raw.tiktok_improve_posts_analysis || "",
       tiktok_top_posts: raw.tiktok_top_posts || [],
       tiktok_improve_posts: raw.tiktok_improve_posts || [],
+      top_content: (raw as any).top_content || [],
       followers: { facebook: null, instagram: null, tiktok: null, ...raw.followers },
       summary_success: { what_worked: [], top_results: [], ...raw.summary_success },
       summary_events: { what_happened: [], what_we_solved: [], threats_opportunities: [], ...raw.summary_events },
@@ -662,8 +677,8 @@ export const QuarterlyAdsInsightsContent = forwardRef<HTMLDivElement, QuarterlyA
     // Text states
     const [introSummary, setIntroSummary] = useState(insights.executive_summary.intro || "");
     const [mediaInsight, setMediaInsight] = useState(insights.executive_summary.media_insight);
-    const [topResult, setTopResult] = useState(insights.executive_summary.top_result);
-    const [recommendation, setRecommendation] = useState(insights.executive_summary.recommendation);
+    const [topResult, setTopResult] = useState<string[]>(insights.executive_summary.top_result);
+    const [recommendation, setRecommendation] = useState<string[]>(insights.executive_summary.recommendation);
     const [goalsSet, setGoalsSet] = useState<string[]>(insights.goal_fulfillment.goals_set);
     const [results, setResults] = useState<string[]>(insights.goal_fulfillment.results);
     const [metricsOverTime, setMetricsOverTime] = useState(insights.metrics_over_time);
@@ -687,7 +702,7 @@ export const QuarterlyAdsInsightsContent = forwardRef<HTMLDivElement, QuarterlyA
 
     const handleSaveSection = async (section: string, value: string) => {
       const setters: Record<string, (v: string) => void> = {
-        intro: setIntroSummary, media_insight: setMediaInsight, top_result: setTopResult, recommendation: setRecommendation,
+        intro: setIntroSummary,
         metrics_over_time: setMetricsOverTime, brand_awareness: setBrandAwareness,
         facebook_metrics_over_time: setFbMetricsOverTime,
         instagram_metrics_over_time: setIgMetricsOverTime,
@@ -698,12 +713,12 @@ export const QuarterlyAdsInsightsContent = forwardRef<HTMLDivElement, QuarterlyA
 
       if (onSaveInsights) {
         const updates: Partial<QuarterlyStructuredInsights> = {};
-        if (["intro", "media_insight", "top_result", "recommendation"].includes(section)) {
+        if (section === "intro") {
           updates.executive_summary = {
-            intro: section === "intro" ? value : introSummary,
-            media_insight: section === "media_insight" ? value : mediaInsight,
-            top_result: section === "top_result" ? value : topResult,
-            recommendation: section === "recommendation" ? value : recommendation,
+            intro: value,
+            media_insight: mediaInsight,
+            top_result: topResult,
+            recommendation: recommendation,
           };
         } else if (section === "metrics_over_time") updates.metrics_over_time = value;
         else if (section === "brand_awareness") updates.brand_awareness = value;
@@ -720,6 +735,7 @@ export const QuarterlyAdsInsightsContent = forwardRef<HTMLDivElement, QuarterlyA
 
     const handleSaveListSection = async (section: string, items: string[]) => {
       const setters: Record<string, (v: string[]) => void> = {
+        media_insight: setMediaInsight, top_result: setTopResult, recommendation: setRecommendation,
         what_worked: setWhatWorked, top_results: setTopResults,
         what_happened: setWhatHappened, what_we_solved: setWhatWeSolved, threats_opportunities: setThreatsOpps,
         improving: setImproving, focus_areas: setFocusAreas, changes: setChanges,
@@ -730,7 +746,14 @@ export const QuarterlyAdsInsightsContent = forwardRef<HTMLDivElement, QuarterlyA
 
       if (onSaveInsights) {
         const updates: Partial<QuarterlyStructuredInsights> = {};
-        if (["goals_set", "results"].includes(section)) {
+        if (["media_insight", "top_result", "recommendation"].includes(section)) {
+          updates.executive_summary = {
+            intro: introSummary,
+            media_insight: section === "media_insight" ? items : mediaInsight,
+            top_result: section === "top_result" ? items : topResult,
+            recommendation: section === "recommendation" ? items : recommendation,
+          };
+        } else if (["goals_set", "results"].includes(section)) {
           updates.goal_fulfillment = {
             goals_set: section === "goals_set" ? items : goalsSet,
             results: section === "results" ? items : results,
@@ -815,15 +838,15 @@ export const QuarterlyAdsInsightsContent = forwardRef<HTMLDivElement, QuarterlyA
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card className="p-4 rounded-[15px] border-border bg-muted/30">
               <div className="flex items-center gap-2 mb-2"><Eye className="w-5 h-5 text-accent-blue" /><span className="font-bold text-sm uppercase">Media poznatek</span></div>
-              <EditableSection value={mediaInsight} isEditing={editingSections.has("media_insight")} onStartEdit={() => startEditing("media_insight")} onSave={(v) => handleSaveSection("media_insight", v)} onCancel={() => stopEditing("media_insight")} canEdit={canEdit} />
+              <EditableListSection items={mediaInsight} isEditing={editingSections.has("media_insight")} onStartEdit={() => startEditing("media_insight")} onSave={(items) => handleSaveListSection("media_insight", items)} onCancel={() => stopEditing("media_insight")} canEdit={canEdit} bulletColor="text-accent-blue" placeholder="Klíčový media poznatek..." />
             </Card>
             <Card className="p-4 rounded-[15px] border-border bg-muted/30">
               <div className="flex items-center gap-2 mb-2"><Star className="w-5 h-5 text-accent-green" /><span className="font-bold text-sm uppercase">TOP výsledek</span></div>
-              <EditableSection value={topResult} isEditing={editingSections.has("top_result")} onStartEdit={() => startEditing("top_result")} onSave={(v) => handleSaveSection("top_result", v)} onCancel={() => stopEditing("top_result")} canEdit={canEdit} />
+              <EditableListSection items={topResult} isEditing={editingSections.has("top_result")} onStartEdit={() => startEditing("top_result")} onSave={(items) => handleSaveListSection("top_result", items)} onCancel={() => stopEditing("top_result")} canEdit={canEdit} bulletColor="text-accent-green" placeholder="Nejlepší výsledek kvartálu..." />
             </Card>
             <Card className="p-4 rounded-[15px] border-border bg-muted/30">
               <div className="flex items-center gap-2 mb-2"><Lightbulb className="w-5 h-5 text-accent-orange" /><span className="font-bold text-sm uppercase">Doporučení pro zlepšení</span></div>
-              <EditableSection value={recommendation} isEditing={editingSections.has("recommendation")} onStartEdit={() => startEditing("recommendation")} onSave={(v) => handleSaveSection("recommendation", v)} onCancel={() => stopEditing("recommendation")} canEdit={canEdit} />
+              <EditableListSection items={recommendation} isEditing={editingSections.has("recommendation")} onStartEdit={() => startEditing("recommendation")} onSave={(items) => handleSaveListSection("recommendation", items)} onCancel={() => stopEditing("recommendation")} canEdit={canEdit} bulletColor="text-accent-orange" placeholder="Doporučení pro zlepšení..." />
             </Card>
           </div>
         </Card>
@@ -1040,6 +1063,22 @@ export const QuarterlyAdsInsightsContent = forwardRef<HTMLDivElement, QuarterlyA
             );
           })()}
         </Card>
+
+        {/* TOP 5 contentů */}
+        {(insights.top_content || []).length > 0 && (
+          <Card className="p-6 rounded-[20px] border-foreground" style={{ backgroundColor: "#E9E9E9" }}>
+            <h2 className="text-xl font-bold mb-4">TOP 5 contentů za celý kvartál</h2>
+            <div className={`grid gap-10 ${
+              (insights.top_content || []).length === 1 ? "grid-cols-1 max-w-[250px] mx-auto" :
+              (insights.top_content || []).length === 2 ? "grid-cols-2 max-w-[520px] mx-auto" :
+              (insights.top_content || []).length === 3 ? "grid-cols-3 max-w-[780px] mx-auto" :
+              (insights.top_content || []).length === 4 ? "grid-cols-2 md:grid-cols-4" :
+              "grid-cols-2 md:grid-cols-3 lg:grid-cols-5"
+            }`}>
+              {(insights.top_content || []).map((post, i) => <PostCard key={i} post={post} />)}
+            </div>
+          </Card>
+        )}
 
         {/* Shrnutí: Co se povedlo */}
         <Card className="p-6 rounded-[20px] border-foreground" style={{ backgroundColor: "#E9E9E9" }}>

@@ -911,6 +911,7 @@ export const AIInsightsContent = forwardRef<HTMLDivElement, AIInsightsContentPro
             handle: creator.handle || "",
             avatar_url: creator.avatar_url || null,
             platforms: creator.platforms || [],
+            top_contents: creator.top_contents || [],
             top_content: creator.top_content || null,
             sentiment_breakdown: creator.sentiment_breakdown || {
               positive: 0,
@@ -918,8 +919,12 @@ export const AIInsightsContent = forwardRef<HTMLDivElement, AIInsightsContentPro
               negative: 0,
             },
             relevance: getRelevanceAsNumber(creator.relevance),
-            key_insight: creator.key_insight || "",
+            paragraph1: creator.paragraph1 || creator.key_insight || "",
+            paragraph2: creator.paragraph2 || "",
+            paragraph3: creator.paragraph3 || "",
             positive_topics: creator.positive_topics || [],
+            top_comments: creator.top_comments || [],
+            key_insight: creator.key_insight || "",
             negative_topics: creator.negative_topics || [],
           };
 

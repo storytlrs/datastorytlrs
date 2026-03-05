@@ -33,7 +33,7 @@ interface PostData {
 }
 
 export interface YearlyStructuredInsights {
-  executive_summary: { intro?: string; media_insight: string; top_result: string; recommendation: string };
+  executive_summary: { intro?: string; media_insight: string[]; top_result: string[]; recommendation: string[] };
   goal_fulfillment: { goals_set: string; results: string };
   key_metrics: { spend: number; reach: number; frequency: number; currency: string };
   detail_metrics: { cpm: number; cpe: number; cpv: number; currency: string };
@@ -134,8 +134,8 @@ const MetricCommentary = ({ text }: { text?: string }) => {
 // ── Reusable sub-components ──
 
 const EditableSection = ({
-  value, isEditing, onStartEdit, onSave, onCancel, canEdit = false, placeholder = "Enter text...",
-}: { value: string; isEditing: boolean; onStartEdit: () => void; onSave: (v: string) => void; onCancel: () => void; canEdit?: boolean; placeholder?: string }) => {
+  value, isEditing, onStartEdit, onSave, onCancel, canEdit = false, placeholder = "Enter text...", asBullets = false,
+}: { value: string; isEditing: boolean; onStartEdit: () => void; onSave: (v: string) => void; onCancel: () => void; canEdit?: boolean; placeholder?: string; asBullets?: boolean }) => {
   const [editValue, setEditValue] = useState(value);
   if (isEditing) {
     return (
@@ -148,9 +148,21 @@ const EditableSection = ({
       </div>
     );
   }
+  const bullets = asBullets && value ? value.split("\n").map(l => l.replace(/^[-•]\s*/, "").trim()).filter(Boolean) : [];
   return (
     <div className="group relative">
-      <p className="text-foreground leading-relaxed whitespace-pre-line">{value ? <TranslatedText text={value} /> : <span className="text-muted-foreground italic">{placeholder}</span>}</p>
+      {asBullets && bullets.length > 0 ? (
+        <ul className="space-y-1.5 text-foreground">
+          {bullets.map((line, i) => (
+            <li key={i} className="flex items-start gap-2 leading-relaxed">
+              <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-foreground flex-shrink-0" />
+              <TranslatedText text={line} />
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-foreground leading-relaxed whitespace-pre-line">{value ? <TranslatedText text={value} /> : <span className="text-muted-foreground italic">{placeholder}</span>}</p>
+      )}
       {canEdit && (
         <Button variant="ghost" size="sm" onClick={onStartEdit} className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 p-0">
           <Pencil className="w-3 h-3" />
@@ -500,6 +512,14 @@ const YearlyPlatformSection = ({
 export const YearlyAdsInsightsContent = forwardRef<HTMLDivElement, YearlyAdsInsightsContentProps>(
   ({ insights: raw, canEdit = false, onSaveInsights, hasMetaPlatform, hasTiktokPlatform, reportId }, ref) => {
     const d = (obj: any, defaults: any) => ({ ...defaults, ...obj });
+    const toStringArray = (val: any): string[] => {
+      if (Array.isArray(val)) return val.filter(Boolean);
+      if (typeof val === "string" && val.trim()) {
+        if (val.includes("\n") || val.startsWith("- ")) return val.split("\n").map((l: string) => l.replace(/^[-•]\s*/, "").trim()).filter(Boolean);
+        return val.split(/(?<=[.!?])\s+/).filter((s: string) => s.trim());
+      }
+      return [];
+    };
 
     const rawAny = raw as any;
     
@@ -510,7 +530,12 @@ export const YearlyAdsInsightsContent = forwardRef<HTMLDivElement, YearlyAdsInsi
     const tiktokDetailSource = rawAny.tiktok_detail_metrics_campaign ?? rawAny.tiktok_detail_metrics ?? { thruplay_rate: 0, view_rate_3s: 0, avg_watch_time: 0 };
 
     const insights: YearlyStructuredInsights = {
-      executive_summary: d(raw.executive_summary, { intro: "", media_insight: "", top_result: "", recommendation: "" }),
+      executive_summary: {
+        intro: raw.executive_summary?.intro || "",
+        media_insight: toStringArray(raw.executive_summary?.media_insight),
+        top_result: toStringArray(raw.executive_summary?.top_result),
+        recommendation: toStringArray(raw.executive_summary?.recommendation),
+      },
       goal_fulfillment: d(raw.goal_fulfillment, { goals_set: "", results: "" }),
       key_metrics: d(raw.key_metrics, { spend: 0, reach: 0, frequency: 0, currency: "CZK" }),
       detail_metrics: d(raw.detail_metrics, { cpm: 0, cpe: 0, cpv: 0, currency: "CZK" }),
@@ -572,9 +597,9 @@ export const YearlyAdsInsightsContent = forwardRef<HTMLDivElement, YearlyAdsInsi
 
     // Text states
     const [introSummary, setIntroSummary] = useState(insights.executive_summary.intro || "");
-    const [mediaInsight, setMediaInsight] = useState(insights.executive_summary.media_insight);
-    const [topResult, setTopResult] = useState(insights.executive_summary.top_result);
-    const [recommendation, setRecommendation] = useState(insights.executive_summary.recommendation);
+    const [mediaInsight, setMediaInsight] = useState<string[]>(insights.executive_summary.media_insight);
+    const [topResult, setTopResult] = useState<string[]>(insights.executive_summary.top_result);
+    const [recommendation, setRecommendation] = useState<string[]>(insights.executive_summary.recommendation);
     const [goalsSet, setGoalsSet] = useState(insights.goal_fulfillment.goals_set);
     const [results, setResults] = useState(insights.goal_fulfillment.results);
     const [metricsOverTime, setMetricsOverTime] = useState(insights.metrics_over_time);
@@ -661,7 +686,7 @@ export const YearlyAdsInsightsContent = forwardRef<HTMLDivElement, YearlyAdsInsi
 
     const handleSaveSection = async (section: string, value: string) => {
       const setters: Record<string, (v: string) => void> = {
-        intro: setIntroSummary, media_insight: setMediaInsight, top_result: setTopResult, recommendation: setRecommendation,
+        intro: setIntroSummary,
         goals_set: setGoalsSet, results: setResults,
         metrics_over_time: setMetricsOverTime, brand_awareness: setBrandAwareness,
         competition_analysis: setCompetitionAnalysis,
@@ -677,12 +702,12 @@ export const YearlyAdsInsightsContent = forwardRef<HTMLDivElement, YearlyAdsInsi
 
       if (onSaveInsights) {
         const updates: Partial<YearlyStructuredInsights> = {};
-        if (["intro", "media_insight", "top_result", "recommendation"].includes(section)) {
+        if (section === "intro") {
           updates.executive_summary = {
-            intro: section === "intro" ? value : introSummary,
-            media_insight: section === "media_insight" ? value : mediaInsight,
-            top_result: section === "top_result" ? value : topResult,
-            recommendation: section === "recommendation" ? value : recommendation,
+            intro: value,
+            media_insight: mediaInsight,
+            top_result: topResult,
+            recommendation: recommendation,
           };
         } else if (["goals_set", "results"].includes(section)) {
           updates.goal_fulfillment = {
@@ -698,6 +723,7 @@ export const YearlyAdsInsightsContent = forwardRef<HTMLDivElement, YearlyAdsInsi
 
     const handleSaveListSection = async (section: string, items: string[]) => {
       const setters: Record<string, (v: string[]) => void> = {
+        media_insight: setMediaInsight, top_result: setTopResult, recommendation: setRecommendation,
         what_worked: setWhatWorked, top_results: setTopResults,
         what_happened: setWhatHappened, what_we_solved: setWhatWeSolved, threats_opportunities: setThreatsOpps,
         improving: setImproving, focus_areas: setFocusAreas, changes: setChanges,
@@ -707,7 +733,14 @@ export const YearlyAdsInsightsContent = forwardRef<HTMLDivElement, YearlyAdsInsi
 
       if (onSaveInsights) {
         const updates: Partial<YearlyStructuredInsights> = {};
-        if (["what_worked", "top_results"].includes(section)) {
+        if (["media_insight", "top_result", "recommendation"].includes(section)) {
+          updates.executive_summary = {
+            intro: introSummary,
+            media_insight: section === "media_insight" ? items : mediaInsight,
+            top_result: section === "top_result" ? items : topResult,
+            recommendation: section === "recommendation" ? items : recommendation,
+          };
+        } else if (["what_worked", "top_results"].includes(section)) {
           updates.summary_success = {
             what_worked: section === "what_worked" ? items : whatWorked,
             top_results: section === "top_results" ? items : topResults,
@@ -778,15 +811,15 @@ export const YearlyAdsInsightsContent = forwardRef<HTMLDivElement, YearlyAdsInsi
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card className="p-4 rounded-[15px] border-border bg-muted/30">
               <div className="flex items-center gap-2 mb-2"><Eye className="w-5 h-5 text-accent-blue" /><span className="font-bold text-sm uppercase">Media poznatek</span></div>
-              <EditableSection value={mediaInsight} isEditing={editingSections.has("media_insight")} onStartEdit={() => startEditing("media_insight")} onSave={(v) => handleSaveSection("media_insight", v)} onCancel={() => stopEditing("media_insight")} canEdit={canEdit} />
+              <EditableListSection items={mediaInsight} isEditing={editingSections.has("media_insight")} onStartEdit={() => startEditing("media_insight")} onSave={(items) => handleSaveListSection("media_insight", items)} onCancel={() => stopEditing("media_insight")} canEdit={canEdit} bulletColor="text-accent-blue" placeholder="Klíčový media poznatek..." />
             </Card>
             <Card className="p-4 rounded-[15px] border-border bg-muted/30">
               <div className="flex items-center gap-2 mb-2"><Star className="w-5 h-5 text-accent-green" /><span className="font-bold text-sm uppercase">TOP výsledek</span></div>
-              <EditableSection value={topResult} isEditing={editingSections.has("top_result")} onStartEdit={() => startEditing("top_result")} onSave={(v) => handleSaveSection("top_result", v)} onCancel={() => stopEditing("top_result")} canEdit={canEdit} />
+              <EditableListSection items={topResult} isEditing={editingSections.has("top_result")} onStartEdit={() => startEditing("top_result")} onSave={(items) => handleSaveListSection("top_result", items)} onCancel={() => stopEditing("top_result")} canEdit={canEdit} bulletColor="text-accent-green" placeholder="Nejlepší výsledek roku..." />
             </Card>
             <Card className="p-4 rounded-[15px] border-border bg-muted/30">
               <div className="flex items-center gap-2 mb-2"><Lightbulb className="w-5 h-5 text-accent-orange" /><span className="font-bold text-sm uppercase">Doporučení pro zlepšení</span></div>
-              <EditableSection value={recommendation} isEditing={editingSections.has("recommendation")} onStartEdit={() => startEditing("recommendation")} onSave={(v) => handleSaveSection("recommendation", v)} onCancel={() => stopEditing("recommendation")} canEdit={canEdit} />
+              <EditableListSection items={recommendation} isEditing={editingSections.has("recommendation")} onStartEdit={() => startEditing("recommendation")} onSave={(items) => handleSaveListSection("recommendation", items)} onCancel={() => stopEditing("recommendation")} canEdit={canEdit} bulletColor="text-accent-orange" placeholder="Doporučení pro zlepšení..." />
             </Card>
           </div>
         </Card>

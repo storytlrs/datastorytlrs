@@ -1,4 +1,4 @@
-project_id = "rzetgajncoedibmlfyvl"
+project_id = "rltxqoupobfohrkrbtib"
 
 [functions.import-hypeauditor]
 verify_jwt = true
@@ -41,6 +41,9 @@ verify_jwt = true
 
 [functions.import-tiktok-demographics]
 verify_jwt = true
+
+[functions.generate-ads-ai-insights]
+verify_jwt = false
 
 [functions.generate-space-ai-insights]
 verify_jwt = false

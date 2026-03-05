@@ -154,20 +154,22 @@ const scrapeInstagramPost = async (url: string, apiKey: string): Promise<{
 // Analyze content with AI
 const analyzeWithAI = async (
   content: string,
-  lovableApiKey: string,
+  anthropicApiKey: string,
   systemPrompt: string,
   userPrompt: string
 ): Promise<string> => {
-  const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${lovableApiKey}`,
+      'x-api-key': anthropicApiKey,
+      'anthropic-version': '2023-06-01',
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'google/gemini-2.5-flash',
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 4096,
+      system: systemPrompt,
       messages: [
-        { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
       ],
     }),
@@ -175,12 +177,12 @@ const analyzeWithAI = async (
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error('AI gateway error:', response.status, errorText);
+    console.error('Anthropic API error:', response.status, errorText);
     throw new Error(`AI analysis failed: ${response.status}`);
   }
 
   const data: AIResponse = await response.json();
-  return data.choices?.[0]?.message?.content || '';
+  return (data as any).content?.[0]?.text || '';
 };
 
 serve(async (req) => {
@@ -265,10 +267,10 @@ serve(async (req) => {
       );
     }
 
-    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
-    if (!lovableApiKey) {
+    const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY');
+    if (!anthropicApiKey) {
       return new Response(
-        JSON.stringify({ success: false, error: 'AI gateway not configured' }),
+        JSON.stringify({ success: false, error: 'Anthropic API key not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -279,16 +281,16 @@ serve(async (req) => {
       content.url,
       apifyApiKey
     );
-    
+
     console.log(`Scraped: caption=${caption.length} chars, thumbnail=${thumbnail ? 'found' : 'not found'}, comments=${comments.length}`);
 
     // Step 2: Analyze content summary
     console.log('Step 2: Analyzing content...');
     const contentText = `Caption: ${caption}\n\nLikes: ${likesCount}\nComments count: ${commentsCount}`;
-    
+
     const contentSummary = await analyzeWithAI(
       contentText,
-      lovableApiKey,
+      anthropicApiKey,
       `Jsi expert na analýzu sociálních sítí. Analyzuj Instagram příspěvek a vytvoř stručné shrnutí v češtině.`,
       `Analyzuj tento Instagram příspěvek a vytvoř stručné shrnutí (max 300 slov):
       
@@ -310,7 +312,7 @@ serve(async (req) => {
       
       const sentimentAnalysis = await analyzeWithAI(
         commentsText,
-        lovableApiKey,
+        anthropicApiKey,
         `Jsi expert na sentiment analýzu. Analyzuj komentáře k Instagram příspěvku a urči celkový sentiment v češtině.`,
         `Analyzuj tyto komentáře k Instagram příspěvku:
 

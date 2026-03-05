@@ -201,25 +201,27 @@ export const CreatorPerformanceCard = ({
         </div>
       </div>
 
-      {/* Top content cards */}
-      {topContents.length > 0 && (
-        <div className={cn("flex gap-4 mb-6", topContents.length === 1 ? "" : "")}>
-          {topContents.map((tc, i) => (
-            <div key={tc.id || i} className="w-[180px] flex-shrink-0">
-              <ContentPreviewCard
-                thumbnailUrl={tc.thumbnail_url}
-                contentType={tc.content_type}
-                platform={tc.platform}
-                views={tc.views}
-                engagementRate={tc.engagement_rate}
-                url={tc.url}
-              />
-            </div>
-          ))}
-        </div>
-      )}
+      <div className="flex gap-6">
+        {/* Left: thumbnails */}
+        {topContents.length > 0 && (
+          <div className="flex gap-3 flex-shrink-0">
+            {topContents.map((tc, i) => (
+              <div key={tc.id || i} className="w-[160px]">
+                <ContentPreviewCard
+                  thumbnailUrl={tc.thumbnail_url}
+                  contentType={tc.content_type}
+                  platform={tc.platform}
+                  views={tc.views}
+                  engagementRate={tc.engagement_rate}
+                  url={tc.url}
+                />
+              </div>
+            ))}
+          </div>
+        )}
 
-      <div className="grid md:grid-cols-2 gap-6">
+        {/* Right: all text content */}
+        <div className="flex-1 grid md:grid-cols-2 gap-6">
         {/* Left: Analysis paragraphs */}
         <div className="space-y-4">
           <EditableParagraph
@@ -380,6 +382,9 @@ export const CreatorPerformanceCard = ({
             </span>
           </div>
         </div>
+        {/* end flex-1 grid */}
+        </div>
+      {/* end flex wrapper */}
       </div>
     </>
   );

@@ -11,10 +11,10 @@ serve(async (req) => {
   }
 
   try {
-    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
-    if (!lovableApiKey) {
+    const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY');
+    if (!anthropicApiKey) {
       return new Response(
-        JSON.stringify({ error: 'AI gateway not configured' }),
+        JSON.stringify({ error: 'Anthropic API key not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -28,7 +28,7 @@ serve(async (req) => {
       );
     }
 
-    const dataUrl = `data:${mime_type || 'image/png'};base64,${image_base64}`;
+    const mediaType = (mime_type || 'image/png') as 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp';
 
     const systemPrompt = `You are an expert at reading Instagram analytics screenshots. Extract all visible metrics from the screenshot.
 
@@ -63,21 +63,30 @@ Important rules:
 - Include ALL visible metrics, even if they don't map to the fields above - put them in raw_text
 - Return ONLY valid JSON, no markdown or explanation`;
 
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${lovableApiKey}`,
+        'x-api-key': anthropicApiKey,
+        'anthropic-version': '2023-06-01',
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model: 'claude-sonnet-4-6',
+        max_tokens: 2048,
+        system: systemPrompt,
         messages: [
-          { role: 'system', content: systemPrompt },
           {
             role: 'user',
             content: [
               { type: 'text', text: 'Extract all Instagram metrics from this screenshot:' },
-              { type: 'image_url', image_url: { url: dataUrl } },
+              {
+                type: 'image',
+                source: {
+                  type: 'base64',
+                  media_type: mediaType,
+                  data: image_base64,
+                },
+              },
             ],
           },
         ],
@@ -86,18 +95,12 @@ Important rules:
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('AI gateway error:', response.status, errorText);
+      console.error('Anthropic API error:', response.status, errorText);
 
       if (response.status === 429) {
         return new Response(
           JSON.stringify({ error: 'Rate limit exceeded, please try again later.' }),
           { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: 'AI credits exhausted. Please add credits.' }),
-          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
@@ -108,7 +111,7 @@ Important rules:
     }
 
     const data = await response.json();
-    const content = data.choices?.[0]?.message?.content || '';
+    const content = data.content?.[0]?.text || '';
 
     // Parse the JSON from AI response
     let extracted;

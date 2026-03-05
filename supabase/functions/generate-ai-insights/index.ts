@@ -451,6 +451,7 @@ ${creatorPerformance.map(c => `@${c.handle}: top výstupy TSWB=[${c.top_contents
   "innovation_paragraph": "Jeden odstavec hodnotící TSWB, virality rate a kvalitu interakcí (max 100 slov)",
   "sentiment_paragraph": "Jeden odstavec o klíčových tématech a sentimentu v komentářích (max 100 slov)",
   "top_sentiment_topics": ["5 nejčastějších témat zmiňovaných v komentářích - krátká slova/fráze"],
+  "top_comments": ["8-12 nejčastějších nebo nejreprezentativnějších komentářů z celé kampaně napříč všemi creatory"],
   "creator_insights": [
     {
       "handle": "creator_handle",
@@ -491,25 +492,30 @@ Pro creator_insights vytvoř entry pro každého z těchto creatorů: ${creatorP
     });
 
     if (!aiResponse.ok) {
+      const errorText = await aiResponse.text();
+      console.error("Anthropic API error:", aiResponse.status, errorText);
       if (aiResponse.status === 429) {
         return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again later." }), {
-          status: 429,
+          status: 200,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
       if (aiResponse.status === 402) {
         return new Response(JSON.stringify({ error: "Payment required. Please add credits to your workspace." }), {
-          status: 402,
+          status: 200,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      const errorText = await aiResponse.text();
-      console.error("Anthropic API error:", aiResponse.status, errorText);
-      throw new Error("Anthropic API error");
+      throw new Error(`Anthropic API error ${aiResponse.status}: ${errorText}`);
     }
 
     const aiData = await aiResponse.json();
-    const aiContent = safeJsonParse(aiData.content[0].text);
+    console.log("Anthropic raw response:", JSON.stringify(aiData).slice(0, 500));
+
+    const rawText = aiData.content?.[0]?.text || "";
+    // Strip markdown code blocks if present
+    const cleanedText = rawText.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+    const aiContent = safeJsonParse(cleanedText);
 
     console.log("AI content generated successfully");
 
@@ -560,6 +566,7 @@ Pro creator_insights vytvoř entry pro každého z těchto creatorů: ${creatorP
         summary: aiContent.sentiment_paragraph,
       },
       top_sentiment_topics: aiContent.top_sentiment_topics || [],
+      top_comments: aiContent.top_comments || [],
       leaderboard,
       benchmarks: {
         engagementRate: benchmarkER,
@@ -606,7 +613,7 @@ Pro creator_insights vytvoř entry pro každého z těchto creatorů: ${creatorP
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
       {
-        status: 500,
+        status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       }
     );

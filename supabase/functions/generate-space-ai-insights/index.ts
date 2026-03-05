@@ -23,7 +23,7 @@ serve(async (req) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const lovableApiKey = Deno.env.get("LOVABLE_API_KEY")!;
+    const anthropicApiKey = Deno.env.get("ANTHROPIC_API_KEY")!;
 
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
@@ -294,7 +294,7 @@ serve(async (req) => {
       },
     };
 
-    // Call Lovable AI with tool calling
+    // Call Anthropic AI with tool calling
     const systemPrompt = `Jsi expert na analýzu influencer marketingu a sociálních sítí. Generuješ přehledové dlaždice (tiles) pro dashboard brandu. Tvým cílem je poskytnout "big picture" přehled aktivit a výsledků.
 
 PRAVIDLA:
@@ -317,136 +317,125 @@ Používej český jazyk. Používej standardní zkratky (CPM, CPC, CTR, ER, TSW
     const userPrompt = `Data brandu napříč ${dataContext.reports_count} aktivními reporty:\n\n${JSON.stringify(dataContext, null, 2)}\n\nVygeneruj max 9 dlaždic. Začni přehledem aktivit (text, large), pak nejdůležitější metriky s benchmarky, top performer, a případné problémy/doporučení.`;
 
     const aiResponse = await fetch(
-      "https://ai.gateway.lovable.dev/v1/chat/completions",
+      "https://api.anthropic.com/v1/messages",
       {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${lovableApiKey}`,
+          "x-api-key": anthropicApiKey,
+          "anthropic-version": "2023-06-01",
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
+          model: "claude-sonnet-4-6",
+          max_tokens: 4096,
+          system: systemPrompt,
           messages: [
-            { role: "system", content: systemPrompt },
             { role: "user", content: userPrompt },
           ],
           tools: [
             {
-              type: "function",
-              function: {
-                name: "generate_insight_tiles",
-                description:
-                  "Generate an array of insight tiles for the brand dashboard.",
-                parameters: {
-                  type: "object",
-                  properties: {
-                    tiles: {
-                      type: "array",
-                      items: {
-                        type: "object",
-                        properties: {
-                          type: {
-                            type: "string",
-                            enum: ["metric", "chart", "content_preview", "text"],
-                          },
-                          title: { type: "string" },
-                          value: { type: "string" },
-                          subtitle: { type: "string" },
-                          benchmark: { type: "string" },
-                          size: {
-                            type: "string",
-                            enum: ["small", "medium", "large"],
-                          },
-                          accent_color: {
-                            type: "string",
-                            enum: ["default", "orange", "green", "blue"],
-                          },
-                          chart_data: {
-                            type: "array",
-                            items: {
-                              type: "object",
-                              properties: {
-                                name: { type: "string" },
-                                value: { type: "number" },
-                              },
-                              required: ["name", "value"],
-                              additionalProperties: false,
-                            },
-                          },
-                          chart_type: {
-                            type: "string",
-                            enum: ["bar", "line", "pie"],
-                          },
-                          content: {
+              name: "generate_insight_tiles",
+              description: "Generate an array of insight tiles for the brand dashboard.",
+              input_schema: {
+                type: "object",
+                properties: {
+                  tiles: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        type: {
+                          type: "string",
+                          enum: ["metric", "chart", "content_preview", "text"],
+                        },
+                        title: { type: "string" },
+                        value: { type: "string" },
+                        subtitle: { type: "string" },
+                        benchmark: { type: "string" },
+                        size: {
+                          type: "string",
+                          enum: ["small", "medium", "large"],
+                        },
+                        accent_color: {
+                          type: "string",
+                          enum: ["default", "orange", "green", "blue"],
+                        },
+                        chart_data: {
+                          type: "array",
+                          items: {
                             type: "object",
                             properties: {
-                              thumbnail_url: { type: "string" },
-                              url: { type: "string" },
-                              views: { type: "number" },
-                              likes: { type: "number" },
-                              comments: { type: "number" },
-                              engagement_rate: { type: "number" },
-                              platform: { type: "string" },
-                              content_type: { type: "string" },
-                              creator_handle: { type: "string" },
+                              name: { type: "string" },
+                              value: { type: "number" },
                             },
-                            required: ["views", "platform", "creator_handle"],
+                            required: ["name", "value"],
                             additionalProperties: false,
                           },
-                          text: { type: "string" },
-                          source_report_id: { type: "string" },
-                          priority: { type: "number" },
                         },
-                        required: ["type", "title", "priority", "size"],
-                        additionalProperties: false,
+                        chart_type: {
+                          type: "string",
+                          enum: ["bar", "line", "pie"],
+                        },
+                        content: {
+                          type: "object",
+                          properties: {
+                            thumbnail_url: { type: "string" },
+                            url: { type: "string" },
+                            views: { type: "number" },
+                            likes: { type: "number" },
+                            comments: { type: "number" },
+                            engagement_rate: { type: "number" },
+                            platform: { type: "string" },
+                            content_type: { type: "string" },
+                            creator_handle: { type: "string" },
+                          },
+                          required: ["views", "platform", "creator_handle"],
+                          additionalProperties: false,
+                        },
+                        text: { type: "string" },
+                        source_report_id: { type: "string" },
+                        priority: { type: "number" },
                       },
+                      required: ["type", "title", "priority", "size"],
+                      additionalProperties: false,
                     },
                   },
-                  required: ["tiles"],
-                  additionalProperties: false,
                 },
+                required: ["tiles"],
+                additionalProperties: false,
               },
             },
           ],
-          tool_choice: {
-            type: "function",
-            function: { name: "generate_insight_tiles" },
-          },
+          tool_choice: { type: "tool", name: "generate_insight_tiles" },
         }),
       }
     );
 
     if (!aiResponse.ok) {
       const errText = await aiResponse.text();
-      console.error("AI gateway error:", aiResponse.status, errText);
+      console.error("Anthropic API error:", aiResponse.status, errText);
 
       if (aiResponse.status === 429) {
         return new Response(
           JSON.stringify({ error: "Rate limit exceeded. Try again later." }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      if (aiResponse.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "AI credits exhausted. Please add credits." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
 
       return new Response(
         JSON.stringify({ error: "Failed to generate insights" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     const aiData = await aiResponse.json();
-    const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
+    // Anthropic returns tool_use blocks in content array
+    const toolUseBlock = aiData.content?.find((b: any) => b.type === "tool_use");
     let tiles: any[] = [];
 
-    if (toolCall?.function?.arguments) {
+    if (toolUseBlock?.input) {
       try {
-        const parsed = JSON.parse(toolCall.function.arguments);
-        tiles = parsed.tiles || [];
+        tiles = toolUseBlock.input.tiles || [];
       } catch (e) {
         console.error("Failed to parse AI response:", e);
       }
@@ -475,7 +464,7 @@ Používej český jazyk. Používej standardní zkratky (CPM, CPC, CTR, ER, TSW
       console.error("Upsert error:", upsertError);
       return new Response(
         JSON.stringify({ error: "Failed to save insights" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -487,7 +476,7 @@ Používej český jazyk. Používej standardní zkratky (CPM, CPC, CTR, ER, TSW
     console.error("Error:", e);
     return new Response(
       JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });

@@ -21,29 +21,27 @@ serve(async (req) => {
       );
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
+    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+    if (!ANTHROPIC_API_KEY) {
+      throw new Error("ANTHROPIC_API_KEY is not configured");
     }
 
     const numberedTexts = texts
       .map((t: string, i: number) => `[${i}] ${t}`)
       .join("\n---\n");
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "x-api-key": ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 4096,
+        system: "You are a professional translator. Translate the following Czech texts to English. Each text is prefixed with [number]. Return ONLY the translations in the same order, each prefixed with [number]. Keep the same formatting (line breaks, bullet points, markdown). Do not add any commentary.",
         messages: [
-          {
-            role: "system",
-            content:
-              "You are a professional translator. Translate the following Czech texts to English. Each text is prefixed with [number]. Return ONLY the translations in the same order, each prefixed with [number]. Keep the same formatting (line breaks, bullet points, markdown). Do not add any commentary.",
-          },
           { role: "user", content: numberedTexts },
         ],
       }),
@@ -56,19 +54,13 @@ serve(async (req) => {
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "Payment required." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
       const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
-      throw new Error("AI gateway error");
+      console.error("Anthropic API error:", response.status, errorText);
+      throw new Error("Anthropic API error");
     }
 
     const data = await response.json();
-    const content = data.choices?.[0]?.message?.content || "";
+    const content = data.content?.[0]?.text || "";
 
     // Parse numbered translations
     const translations: string[] = [];

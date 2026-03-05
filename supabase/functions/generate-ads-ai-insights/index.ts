@@ -8,6 +8,41 @@ function safeJsonParse(raw: string): any {
   return JSON.parse(sanitized);
 }
 
+// Anthropic API helper - converts OpenAI-style system+user to Anthropic format
+async function callAnthropicAI(
+  apiKey: string,
+  systemPrompt: string,
+  userPrompt: string,
+  maxTokens = 6144,
+): Promise<any> {
+  const response = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "claude-sonnet-4-6",
+      max_tokens: maxTokens,
+      system: systemPrompt,
+      messages: [{ role: "user", content: userPrompt }],
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    if (response.status === 429) throw new Error("Rate limit exceeded. Please try again later.");
+    if (response.status === 402) throw new Error("Payment required. Please add credits.");
+    throw new Error(`Anthropic API error ${response.status}: ${errorText}`);
+  }
+
+  const data = await response.json();
+  const rawText = data.content?.[0]?.text || "";
+  const cleanedText = rawText.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+  return safeJsonParse(cleanedText);
+}
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -30,16 +65,17 @@ async function persistThumbnails(
 ): Promise<void> {
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 
-  for (const { key, posts } of postArrays) {
-    if (!posts || posts.length === 0) continue;
+  await Promise.all(
+    postArrays.map(async ({ key, posts }) => {
+    if (!posts || posts.length === 0) return;
 
     await Promise.all(
       posts.map(async (post: any, index: number) => {
         const url = post.thumbnail_url;
         if (!url || typeof url !== "string") return;
 
-        // Skip if already a Supabase Storage URL
-        if (url.includes("supabase") && url.includes("content-thumbnails")) return;
+        // Skip if already a Supabase Storage URL for the CURRENT project
+        if (url.startsWith(supabaseUrl)) return;
 
         try {
           // Fetch image via proxy to bypass CORS/hotlink protection
@@ -89,7 +125,8 @@ async function persistThumbnails(
         }
       })
     );
-  }
+  })
+  );
 }
 
 // ── Media Plan context builder ──
@@ -144,10 +181,10 @@ serve(async (req) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
+    const anthropicApiKey = Deno.env.get("ANTHROPIC_API_KEY");
 
-    if (!lovableApiKey) {
-      throw new Error("LOVABLE_API_KEY is not configured");
+    if (!anthropicApiKey) {
+      throw new Error("ANTHROPIC_API_KEY is not configured");
     }
 
     const supabase = createClient(supabaseUrl, supabaseKey);
@@ -280,7 +317,7 @@ serve(async (req) => {
     // Route based on period
     if (period === "monthly") {
       return await handleMonthlyReport({
-        supabase, report_id, campaign_context, lovableApiKey,
+        supabase, report_id, campaign_context, anthropicApiKey,
         campaigns, adSets, ads,
         tiktokCampaigns, tiktokAdGroups, tiktokAds,
         totalSpend, totalReach, totalImpressions, totalClicks,
@@ -294,7 +331,7 @@ serve(async (req) => {
 
     if (period === "quarterly") {
       return await handleQuarterlyReport({
-        supabase, report_id, campaign_context, lovableApiKey,
+        supabase, report_id, campaign_context, anthropicApiKey,
         campaigns, adSets, ads,
         tiktokCampaigns, tiktokAdGroups, tiktokAds,
         totalSpend, totalReach, totalImpressions, totalClicks,
@@ -308,7 +345,7 @@ serve(async (req) => {
 
     if (period === "yearly") {
       return await handleYearlyReport({
-        supabase, report_id, campaign_context, lovableApiKey,
+        supabase, report_id, campaign_context, anthropicApiKey,
         campaigns, adSets, ads,
         tiktokCampaigns, tiktokAdGroups, tiktokAds,
         totalSpend, totalReach, totalImpressions, totalClicks,
@@ -322,7 +359,7 @@ serve(async (req) => {
 
     if (period === "campaign") {
       return await handleCampaignReport({
-        supabase, report_id, campaign_context, lovableApiKey,
+        supabase, report_id, campaign_context, anthropicApiKey,
         campaigns, adSets, ads,
         tiktokCampaigns, tiktokAdGroups, tiktokAds,
         totalSpend, totalReach, totalImpressions, totalClicks,
@@ -336,7 +373,7 @@ serve(async (req) => {
 
     // Default: fallback to original logic
     return await handleDefaultReport({
-      supabase, report_id, campaign_context, lovableApiKey,
+      supabase, report_id, campaign_context, anthropicApiKey,
       campaigns, adSets, ads,
       tiktokCampaigns, tiktokAdGroups, tiktokAds,
       totalSpend, totalReach, totalImpressions, totalClicks,
@@ -350,7 +387,7 @@ serve(async (req) => {
     console.error("Error generating Ads AI insights:", error);
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });
@@ -358,7 +395,7 @@ serve(async (req) => {
 // ── Monthly Report Handler ──
 async function handleMonthlyReport(ctx: any) {
   const {
-    supabase, report_id, campaign_context, lovableApiKey,
+    supabase, report_id, campaign_context, anthropicApiKey,
     campaigns, adSets, ads,
     totalSpend, totalReach, totalImpressions, totalClicks,
     totalThruplays, total3sViews, totalLinkClicks, totalInteractions,
@@ -521,33 +558,7 @@ INSTRUKCE:
 
   console.log("Calling AI for monthly Ads insights...");
 
-  const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${lovableApiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      response_format: { type: "json_object" },
-    }),
-  });
-
-  if (!aiResponse.ok) {
-    if (aiResponse.status === 429) {
-      return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again later." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-    if (aiResponse.status === 402) {
-      return new Response(JSON.stringify({ error: "Payment required. Please add credits." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-    const errorText = await aiResponse.text();
-    console.error("AI gateway error:", aiResponse.status, errorText);
-    throw new Error("AI gateway error");
-  }
-
-  const aiData = await aiResponse.json();
-  const aiContent = safeJsonParse(aiData.choices[0].message.content);
+  const aiContent = await callAnthropicAI(anthropicApiKey, systemPrompt, userPrompt);
 
   // Persist thumbnails to permanent storage before building insights
   await persistThumbnails(supabase, report_id, [
@@ -555,6 +566,10 @@ INSTRUKCE:
     { key: "instagram_top_posts", posts: igTopPosts },
     { key: "tiktok_top_posts", posts: tiktokTopPosts },
   ]);
+
+  const top5Monthly = [...fbTopPosts, ...igTopPosts, ...tiktokTopPosts]
+    .sort((a, b) => (b.impressions || 0) - (a.impressions || 0))
+    .slice(0, 5);
 
   const structuredInsights = {
     report_period: "monthly",
@@ -580,6 +595,7 @@ INSTRUKCE:
     instagram_top_posts: igTopPosts,
     tiktok_metrics: tiktokMetrics,
     tiktok_top_posts: tiktokTopPosts,
+    top_content: top5Monthly,
     followers: { facebook: null, instagram: null, tiktok: null },
     learnings: aiContent.learnings,
   };
@@ -609,7 +625,7 @@ INSTRUKCE:
 // ── Default (Campaign/Quarterly/Yearly) Report Handler ──
 async function handleDefaultReport(ctx: any) {
   const {
-    supabase, report_id, campaign_context, lovableApiKey,
+    supabase, report_id, campaign_context, anthropicApiKey,
     campaigns, adSets, ads,
     totalSpend, totalReach, totalImpressions, totalClicks,
     totalThruplays, total3sViews, totalLinkClicks, totalInteractions,
@@ -684,35 +700,9 @@ ${ctx.mediaPlanContext || ""}`;
   }
 }`;
 
-  console.log("Calling Lovable AI for Ads insights...");
+  console.log("Calling Anthropic AI for Ads insights...");
 
-  const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${lovableApiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      response_format: { type: "json_object" },
-    }),
-  });
-
-  if (!aiResponse.ok) {
-    if (aiResponse.status === 429) {
-      return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again later." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-    if (aiResponse.status === 402) {
-      return new Response(JSON.stringify({ error: "Payment required. Please add credits." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-    const errorText = await aiResponse.text();
-    console.error("AI gateway error:", aiResponse.status, errorText);
-    throw new Error("AI gateway error");
-  }
-
-  const aiData = await aiResponse.json();
-  const aiContent = safeJsonParse(aiData.choices[0].message.content);
+  const aiContent = await callAnthropicAI(anthropicApiKey, systemPrompt, userPrompt);
 
   console.log("Ads AI content generated successfully");
 
@@ -788,7 +778,7 @@ ${ctx.mediaPlanContext || ""}`;
 // ── Campaign Report Handler ──
 async function handleCampaignReport(ctx: any) {
   const {
-    supabase, report_id, campaign_context, lovableApiKey,
+    supabase, report_id, campaign_context, anthropicApiKey,
     campaigns, adSets, ads,
     tiktokCampaigns, tiktokAdGroups, tiktokAds,
     totalSpend, totalReach, totalImpressions, totalClicks,
@@ -905,9 +895,9 @@ KONTEXT OD UŽIVATELE:
 {
   "executive_summary": {
     "intro": "Úvodní shrnutí kampaně v 2-3 větách – stručný přehled co se dělo, jaké byly výsledky a hlavní závěr",
-    "media_insight": "Klíčový media poznatek z kampaně – 2-3 krátké věty",
-    "top_result": "Nejlepší výsledek kampaně – 2-3 krátké věty",
-    "recommendation": "Hlavní doporučení pro příští kampaň – 2-3 krátké věty"
+    "media_insight": ["3-4 krátké věty o klíčovém media poznatku kampaně, každá s konkrétním číslem nebo závěrem"],
+    "top_result": ["3-4 krátké věty o nejlepších výsledcích kampaně, každá s konkrétními daty"],
+    "recommendation": ["3-4 konkrétní a akční doporučení pro příští kampaň"]
   },
   "goal_fulfillment": {
     "goals_set": "Popis stanovených cílů kampaně (max 200 slov)",
@@ -938,33 +928,41 @@ KONTEXT OD UŽIVATELE:
 
   console.log("Calling AI for campaign Ads insights...");
 
-  const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${lovableApiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      response_format: { type: "json_object" },
-    }),
-  });
+  const aiContent = await callAnthropicAI(anthropicApiKey, systemPrompt, userPrompt);
 
-  if (!aiResponse.ok) {
-    if (aiResponse.status === 429) {
-      return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again later." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-    if (aiResponse.status === 402) {
-      return new Response(JSON.stringify({ error: "Payment required. Please add credits." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-    const errorText = await aiResponse.text();
-    console.error("AI gateway error:", aiResponse.status, errorText);
-    throw new Error("AI gateway error");
+  // Ensure executive_summary.intro is always filled
+  const introFromPrimary = typeof aiContent.executive_summary?.intro === "string"
+    ? aiContent.executive_summary.intro.trim()
+    : "";
+
+  if (!introFromPrimary) {
+    console.log("Campaign: intro missing, generating via secondary call...");
+    try {
+      const introResp = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "x-api-key": anthropicApiKey,
+          "anthropic-version": "2023-06-01",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-6",
+          max_tokens: 300,
+          system: "Jsi analytik digitálního marketingu. Piš česky, stručně a profesionálně.",
+          messages: [{ role: "user", content: `Na základě těchto dat vytvoř úvodní shrnutí kampaně v 2-3 větách. Stručný přehled výsledků a hlavní závěr.\n\nKontext: ${campaign_context.mainGoal}\nCelkový spend: ${totalSpend} CZK\nReach: ${totalReach}\nImpressions: ${totalImpressions}\nInterakce: ${totalInteractions}\n\nOdpověz POUZE textem shrnutí, žádný JSON.` }],
+        }),
+      });
+      if (introResp.ok) {
+        const introData = await introResp.json();
+        const introText = introData.content?.[0]?.text?.trim();
+        if (introText) {
+          if (!aiContent.executive_summary) aiContent.executive_summary = {};
+          aiContent.executive_summary.intro = introText;
+          console.log("Campaign: intro generated successfully");
+        }
+      }
+    } catch (e) { console.error("Failed to generate campaign intro:", e); }
   }
-
-  const aiData = await aiResponse.json();
-  const aiContent = safeJsonParse(aiData.choices[0].message.content);
 
   // Persist thumbnails to permanent storage
   await persistThumbnails(supabase, report_id, [
@@ -1048,7 +1046,12 @@ KONTEXT OD UŽIVATELE:
 
   const structuredInsights = {
     report_period: "campaign",
-    executive_summary: aiContent.executive_summary,
+    executive_summary: {
+      intro: typeof aiContent.executive_summary?.intro === "string" ? aiContent.executive_summary.intro.trim() : "",
+      media_insight: Array.isArray(aiContent.executive_summary?.media_insight) ? aiContent.executive_summary.media_insight : [],
+      top_result: Array.isArray(aiContent.executive_summary?.top_result) ? aiContent.executive_summary.top_result : [],
+      recommendation: Array.isArray(aiContent.executive_summary?.recommendation) ? aiContent.executive_summary.recommendation : [],
+    },
     campaign_context,
     goal_fulfillment: aiContent.goal_fulfillment,
     metric_commentary: aiContent.metric_commentary || {},
@@ -1091,7 +1094,7 @@ KONTEXT OD UŽIVATELE:
 // ── Quarterly Report Handler ──
 async function handleQuarterlyReport(ctx: any) {
   const {
-    supabase, report_id, campaign_context, lovableApiKey,
+    supabase, report_id, campaign_context, anthropicApiKey,
     campaigns, adSets, ads,
     tiktokCampaigns, tiktokAdGroups, tiktokAds,
     totalSpend, totalReach, totalImpressions, totalClicks,
@@ -1402,9 +1405,9 @@ KONTEXT OD UŽIVATELE:
 {
   "executive_summary": {
     "intro": "Úvodní shrnutí kvartálu v 2-3 větách – stručný přehled výsledků a hlavní závěr",
-    "media_insight": "Klíčový media poznatek za kvartál s konkrétními čísly (max 100 slov)",
-    "top_result": "Nejlepší výsledek kvartálu s konkrétními daty (max 100 slov)",
-    "recommendation": "Hlavní doporučení pro zlepšení v dalším kvartálu (max 100 slov)"
+    "media_insight": ["3-4 krátké věty o klíčovém media poznatku za kvartál, každá s konkrétním číslem nebo závěrem"],
+    "top_result": ["3-4 krátké věty o nejlepších výsledcích kvartálu, každá s konkrétními daty"],
+    "recommendation": ["3-4 konkrétní a akční doporučení pro zlepšení v dalším kvartálu"]
   },
   "goal_fulfillment": {
     "goals_set": ["3-5 krátkých bodů stanovených cílů, nových zavedení nebo změn v tomto kvartálu – každý bod max 10 slov"],
@@ -1462,33 +1465,7 @@ Pokud pro platformu není dost dat, napiš to explicitně, ale pole nikdy nenech
 
   console.log("Calling AI for quarterly Ads insights...");
 
-  const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${lovableApiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      response_format: { type: "json_object" },
-    }),
-  });
-
-  if (!aiResponse.ok) {
-    if (aiResponse.status === 429) {
-      return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again later." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-    if (aiResponse.status === 402) {
-      return new Response(JSON.stringify({ error: "Payment required. Please add credits." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-    const errorText = await aiResponse.text();
-    console.error("AI gateway error:", aiResponse.status, errorText);
-    throw new Error("AI gateway error");
-  }
-
-  const aiData = await aiResponse.json();
-  const aiContent = safeJsonParse(aiData.choices[0].message.content);
+  const aiContent = await callAnthropicAI(anthropicApiKey, systemPrompt, userPrompt);
 
   const postAnalysisFields = [
     "facebook_top_posts_analysis",
@@ -1524,38 +1501,17 @@ KE ZLEPŠENÍ TIKTOK:
 ${tkImprove.length > 0 ? tkImprove.map((p: any, i: number) => formatAnalysisPostLine(p, i)).join("\n") : "Žádná data"}`;
 
     try {
-      const postAnalysisResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${lovableApiKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
-          messages: [
-            {
-              role: "system",
-              content: "Jsi senior marketing analytik. Vrať pouze validní JSON. Každé pole musí být 2-3 věty v češtině, konkrétně vysvětlující proč příspěvky fungovaly/nefungovaly na základě metrik.",
-            },
-            {
-              role: "user",
-              content: `${postAnalysisContext}\n\nVrať přesně tento JSON:\n{\n  \"facebook_top_posts_analysis\": \"...\",\n  \"facebook_improve_posts_analysis\": \"...\",\n  \"instagram_top_posts_analysis\": \"...\",\n  \"instagram_improve_posts_analysis\": \"...\",\n  \"tiktok_top_posts_analysis\": \"...\",\n  \"tiktok_improve_posts_analysis\": \"...\"\n}`,
-            },
-          ],
-          response_format: { type: "json_object" },
-        }),
+      const postAnalysisContent = await callAnthropicAI(
+        anthropicApiKey,
+        "Jsi senior marketing analytik. Vrať pouze validní JSON. Každé pole musí být 2-3 věty v češtině, konkrétně vysvětlující proč příspěvky fungovaly/nefungovaly na základě metrik.",
+        `${postAnalysisContext}\n\nVrať přesně tento JSON:\n{\n  \"facebook_top_posts_analysis\": \"...\",\n  \"facebook_improve_posts_analysis\": \"...\",\n  \"instagram_top_posts_analysis\": \"...\",\n  \"instagram_improve_posts_analysis\": \"...\",\n  \"tiktok_top_posts_analysis\": \"...\",\n  \"tiktok_improve_posts_analysis\": \"...\"\n}`,
+      );
+
+      postAnalysisFields.forEach((field) => {
+        if (hasNonEmptyText(postAnalysisContent[field])) {
+          aiContent[field] = postAnalysisContent[field];
+        }
       });
-
-      if (postAnalysisResponse.ok) {
-        const postAnalysisData = await postAnalysisResponse.json();
-        const postAnalysisContent = safeJsonParse(postAnalysisData.choices[0].message.content);
-
-        postAnalysisFields.forEach((field) => {
-          if (hasNonEmptyText(postAnalysisContent[field])) {
-            aiContent[field] = postAnalysisContent[field];
-          }
-        });
-      } else {
-        const errText = await postAnalysisResponse.text();
-        console.warn("Targeted post analysis AI call failed:", postAnalysisResponse.status, errText);
-      }
     } catch (postAnalysisError) {
       console.warn("Targeted post analysis generation failed:", postAnalysisError);
     }
@@ -1591,6 +1547,10 @@ ${tkImprove.length > 0 ? tkImprove.map((p: any, i: number) => formatAnalysisPost
     { key: "tiktok_top_posts", posts: tkTop },
     { key: "tiktok_improve_posts", posts: tkImprove },
   ]);
+
+  const top5Quarterly = [...fbTop, ...igTop, ...tkTop]
+    .sort((a, b) => (b.impressions || 0) - (a.impressions || 0))
+    .slice(0, 5);
 
   // Build media plan comparison
   const { data: mpItems = [] } = await supabase
@@ -1645,6 +1605,7 @@ ${tkImprove.length > 0 ? tkImprove.map((p: any, i: number) => formatAnalysisPost
     tiktok_improve_posts_analysis: aiContent.tiktok_improve_posts_analysis || "",
     tiktok_top_posts: tkTop,
     tiktok_improve_posts: tkImprove,
+    top_content: top5Quarterly,
     followers: { facebook: null, instagram: null, tiktok: null },
     summary_success: aiContent.summary_success,
     summary_events: aiContent.summary_events,
@@ -1676,7 +1637,7 @@ ${tkImprove.length > 0 ? tkImprove.map((p: any, i: number) => formatAnalysisPost
 // ── Yearly Report Handler ──
 async function handleYearlyReport(ctx: any) {
   const {
-    supabase, report_id, campaign_context, lovableApiKey,
+    supabase, report_id, campaign_context, anthropicApiKey,
     campaigns, adSets, ads,
     tiktokCampaigns, tiktokAdGroups, tiktokAds,
     totalSpend, totalReach, totalImpressions, totalClicks,
@@ -1900,9 +1861,9 @@ KONTEXT OD UŽIVATELE:
 {
   "executive_summary": {
     "intro": "Úvodní shrnutí roku v 2-3 větách – stručný přehled výsledků a hlavní závěr",
-    "media_insight": "Klíčový media poznatek za rok (max 150 slov)",
-    "top_result": "Nejlepší výsledek roku (max 150 slov)",
-    "recommendation": "Hlavní doporučení pro zlepšení (max 150 slov)"
+    "media_insight": ["3-4 krátké věty o klíčovém media poznatku za rok, každá s konkrétním číslem nebo závěrem"],
+    "top_result": ["3-4 krátké věty o nejlepších výsledcích roku, každá s konkrétními daty"],
+    "recommendation": ["3-4 konkrétní a akční doporučení pro zlepšení"]
   },
   "goal_fulfillment": {
     "goals_set": "Popis stanovených cílů za rok (max 200 slov)",
@@ -1955,33 +1916,7 @@ KONTEXT OD UŽIVATELE:
 
   console.log("Calling AI for yearly Ads insights...");
 
-  const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${lovableApiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      response_format: { type: "json_object" },
-    }),
-  });
-
-  if (!aiResponse.ok) {
-    if (aiResponse.status === 429) {
-      return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again later." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-    if (aiResponse.status === 402) {
-      return new Response(JSON.stringify({ error: "Payment required. Please add credits." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-    const errorText = await aiResponse.text();
-    console.error("AI gateway error:", aiResponse.status, errorText);
-    throw new Error("AI gateway error");
-  }
-
-  const aiData = await aiResponse.json();
-  const aiContent = safeJsonParse(aiData.choices[0].message.content);
+  const aiContent = await callAnthropicAI(anthropicApiKey, systemPrompt, userPrompt);
 
   // Ensure executive_summary.intro is always filled
   const introFromPrimary = typeof aiContent.executive_summary?.intro === "string"
@@ -1991,20 +1926,23 @@ KONTEXT OD UŽIVATELE:
   if (!introFromPrimary) {
     console.log("Yearly: intro missing, generating via secondary call...");
     try {
-      const introResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      const introResp = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
-        headers: { Authorization: `Bearer ${lovableApiKey}`, "Content-Type": "application/json" },
+        headers: {
+          "x-api-key": anthropicApiKey,
+          "anthropic-version": "2023-06-01",
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
-          messages: [
-            { role: "system", content: "Jsi analytik digitálního marketingu. Piš česky, stručně a profesionálně." },
-            { role: "user", content: `Na základě těchto dat vytvoř úvodní shrnutí roku v 2-3 větách. Stručný přehled výsledků a hlavní závěr.\n\nKontext: ${campaign_context.mainGoal}\nCelkový spend: ${totalSpend} CZK\nReach: ${totalReach}\nImpressions: ${totalImpressions}\nInterakce: ${totalInteractions}\n\nOdpověz POUZE textem shrnutí, žádný JSON.` },
-          ],
+          model: "claude-sonnet-4-6",
+          max_tokens: 512,
+          system: "Jsi analytik digitálního marketingu. Piš česky, stručně a profesionálně.",
+          messages: [{ role: "user", content: `Na základě těchto dat vytvoř úvodní shrnutí roku v 2-3 větách. Stručný přehled výsledků a hlavní závěr.\n\nKontext: ${campaign_context.mainGoal}\nCelkový spend: ${totalSpend} CZK\nReach: ${totalReach}\nImpressions: ${totalImpressions}\nInterakce: ${totalInteractions}\n\nOdpověz POUZE textem shrnutí, žádný JSON.` }],
         }),
       });
       if (introResp.ok) {
         const introData = await introResp.json();
-        const introText = introData.choices?.[0]?.message?.content?.trim();
+        const introText = introData.content?.[0]?.text?.trim();
         if (introText) {
           if (!aiContent.executive_summary) aiContent.executive_summary = {};
           aiContent.executive_summary.intro = introText;
@@ -2129,9 +2067,9 @@ KONTEXT OD UŽIVATELE:
     report_period: "yearly",
     executive_summary: {
       intro: typeof aiContent.executive_summary?.intro === "string" ? aiContent.executive_summary.intro.trim() : "",
-      media_insight: typeof aiContent.executive_summary?.media_insight === "string" ? aiContent.executive_summary.media_insight.trim() : "",
-      top_result: typeof aiContent.executive_summary?.top_result === "string" ? aiContent.executive_summary.top_result.trim() : "",
-      recommendation: typeof aiContent.executive_summary?.recommendation === "string" ? aiContent.executive_summary.recommendation.trim() : "",
+      media_insight: Array.isArray(aiContent.executive_summary?.media_insight) ? aiContent.executive_summary.media_insight : [],
+      top_result: Array.isArray(aiContent.executive_summary?.top_result) ? aiContent.executive_summary.top_result : [],
+      recommendation: Array.isArray(aiContent.executive_summary?.recommendation) ? aiContent.executive_summary.recommendation : [],
     },
     campaign_context,
     goal_fulfillment: aiContent.goal_fulfillment,
