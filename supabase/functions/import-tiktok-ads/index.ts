@@ -98,6 +98,50 @@ const fetchTikTokGet = async (
   return data.data;
 };
 
+const persistThumbnailToStorage = async (
+  supabase: ReturnType<typeof createClient>,
+  imageUrl: string,
+  spaceId: string,
+  adId: string
+): Promise<string> => {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+  if (imageUrl.includes(supabaseUrl) && imageUrl.includes("/storage/")) return imageUrl;
+
+  try {
+    const proxyUrl = `${supabaseUrl}/functions/v1/proxy-image?url=${encodeURIComponent(imageUrl)}`;
+    const res = await fetch(proxyUrl, { headers: { Authorization: `Bearer ${serviceKey}` } });
+    if (!res.ok) {
+      console.warn(`Proxy failed for TikTok ad ${adId}: ${res.status}`);
+      return imageUrl;
+    }
+
+    const contentType = res.headers.get("content-type") || "image/jpeg";
+    const ext = contentType.includes("png") ? "png" : contentType.includes("webp") ? "webp" : "jpg";
+    const data = await res.arrayBuffer();
+
+    const storagePath = `tiktok-ads/${spaceId}/${adId}.${ext}`;
+    const { error } = await supabase.storage
+      .from("content-thumbnails")
+      .upload(storagePath, data, { contentType, upsert: true });
+
+    if (error) {
+      console.warn(`Storage upload failed for TikTok ad ${adId}: ${error.message}`);
+      return imageUrl;
+    }
+
+    const { data: pub } = supabase.storage
+      .from("content-thumbnails")
+      .getPublicUrl(storagePath);
+
+    return pub?.publicUrl || imageUrl;
+  } catch (e) {
+    console.warn(`Persist thumbnail failed for TikTok ad ${adId}: ${e}`);
+    return imageUrl;
+  }
+};
+
 // Import a single campaign with its ad groups and ads
 const importCampaign = async (
   supabase: ReturnType<typeof createClient>,
@@ -366,6 +410,13 @@ const importCampaign = async (
       continue;
     }
 
+    // Persist thumbnail to Supabase Storage for permanent URL
+    if (info?.thumbnail_url) {
+      info.thumbnail_url = await persistThumbnailToStorage(
+        supabase, info.thumbnail_url, spaceId, adId
+      );
+    }
+
     const { error: adErr } = await supabase
       .from("tiktok_ads")
       .upsert({
@@ -426,18 +477,49 @@ Deno.serve(async (req) => {
       });
     }
 
+    const { spaceId, campaignId, startDate, endDate, listOnly, refreshThumbnails } = await req.json();
+
+    if (!spaceId) {
+      return new Response(
+        JSON.stringify({ error: "spaceId is required" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Service role client for DB operations (bypasses RLS)
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const { spaceId, campaignId, startDate, endDate, listOnly } = await req.json();
+    // refreshThumbnails mode: re-persist any TikTok CDN URLs to Storage
+    if (refreshThumbnails) {
+      const { data: ads, error: adsErr } = await supabase
+        .from("tiktok_ads")
+        .select("id, ad_id, thumbnail_url")
+        .eq("space_id", spaceId)
+        .not("thumbnail_url", "ilike", "%supabase%")
+        .not("thumbnail_url", "is", null);
 
-    if (!spaceId) {
+      if (adsErr) {
+        return new Response(JSON.stringify({ error: adsErr.message }), {
+          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      let refreshed = 0;
+      for (const ad of ads || []) {
+        if (!ad.thumbnail_url) continue;
+        const newUrl = await persistThumbnailToStorage(supabase, ad.thumbnail_url, spaceId, ad.ad_id);
+        if (newUrl !== ad.thumbnail_url) {
+          await supabase.from("tiktok_ads").update({ thumbnail_url: newUrl }).eq("id", ad.id);
+          refreshed++;
+        }
+      }
+
       return new Response(
-        JSON.stringify({ error: "spaceId is required" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ success: true, total: ads?.length || 0, refreshed }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
