@@ -84,10 +84,10 @@ const BrandAdsDashboard = ({ spaceId, filters }: BrandAdsDashboardProps) => {
     setLoading(true);
     try {
       const [metaCampaigns, metaAllCampaigns, metaAdSets, metaAds, metaAdThumbnails] = await Promise.all([
-        supabase.from("brand_campaigns").select("id, campaign_name, campaign_id").eq("space_id", spaceId).eq("publisher_platform", "unknown").eq("age", "").eq("gender", "").order("campaign_name"),
-        supabase.from("brand_campaigns").select("id, campaign_name, campaign_id").eq("space_id", spaceId).neq("publisher_platform", "unknown").eq("age", "").eq("gender", ""),
-        supabase.from("brand_ad_sets" as any).select("id, adset_name, adset_id, brand_campaign_id, amount_spent, impressions, clicks, ctr, frequency, reach, date_start, publisher_platform, video_3s_plays, thruplays, thruplay_rate, view_rate_3s, cost_per_3s_play, cost_per_thruplay").eq("space_id", spaceId).eq("age", "").eq("gender", ""),
-        supabase.from("brand_ads").select("id, ad_name, ad_id, brand_ad_set_id, amount_spent, impressions, clicks, ctr, frequency, reach, link_clicks, post_reactions, post_comments, post_shares, post_saves, date_start, thumbnail_url, publisher_platform, video_3s_plays, thruplays, thruplay_rate, view_rate_3s, cost_per_3s_play, cost_per_thruplay, cpm, cpc").eq("space_id", spaceId).eq("age", "").eq("gender", ""),
+        supabase.from("brand_campaigns").select("id, campaign_name, campaign_id").eq("space_id", spaceId).eq("publisher_platform", "unknown").or("age.is.null,age.eq.").or("gender.is.null,gender.eq.").order("campaign_name"),
+        supabase.from("brand_campaigns").select("id, campaign_name, campaign_id").eq("space_id", spaceId).neq("publisher_platform", "unknown").or("age.is.null,age.eq.").or("gender.is.null,gender.eq."),
+        supabase.from("brand_ad_sets" as any).select("id, adset_name, adset_id, brand_campaign_id, amount_spent, impressions, clicks, ctr, frequency, reach, date_start, publisher_platform, video_3s_plays, thruplays, thruplay_rate, view_rate_3s, cost_per_3s_play, cost_per_thruplay").eq("space_id", spaceId).or("age.is.null,age.eq.").or("gender.is.null,gender.eq."),
+        supabase.from("brand_ads").select("id, ad_name, ad_id, brand_ad_set_id, amount_spent, impressions, clicks, ctr, frequency, reach, link_clicks, post_reactions, post_comments, post_shares, post_saves, date_start, thumbnail_url, publisher_platform, video_3s_plays, thruplays, thruplay_rate, view_rate_3s, cost_per_3s_play, cost_per_thruplay, cpm, cpc").eq("space_id", spaceId).or("age.is.null,age.eq.").or("gender.is.null,gender.eq."),
         supabase.from("brand_ads").select("ad_id, thumbnail_url").eq("space_id", spaceId).not("thumbnail_url", "is", null),
       ]);
 
@@ -108,7 +108,7 @@ const BrandAdsDashboard = ({ spaceId, filters }: BrandAdsDashboardProps) => {
 
       // Fetch TikTok data
       const [ttCampaigns, ttAdGroups, ttAds] = await Promise.all([
-        supabase.from("tiktok_campaigns").select("id, campaign_name, campaign_id").eq("space_id", spaceId).eq("age", "").eq("gender", "").eq("location", "").order("campaign_name"),
+        supabase.from("tiktok_campaigns").select("id, campaign_name, campaign_id").eq("space_id", spaceId).or("age.is.null,age.eq.").or("gender.is.null,gender.eq.").or("location.is.null,location.eq.").order("campaign_name"),
         supabase.from("tiktok_ad_groups").select("id, adgroup_name, adgroup_id, tiktok_campaign_id, amount_spent, impressions, clicks, ctr, frequency, reach, video_watched_2s, average_video_play, cpm, cpc").eq("space_id", spaceId),
         supabase.from("tiktok_ads").select("id, ad_name, ad_id, tiktok_ad_group_id, amount_spent, impressions, clicks, ctr, frequency, reach, link_clicks, likes, comments, shares, thumbnail_url, video_watched_2s, average_video_play, cpm, cpc").eq("space_id", spaceId),
       ]);

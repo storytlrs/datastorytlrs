@@ -410,14 +410,20 @@ Deno.serve(async (req) => {
     );
 
     const token = authHeader.replace("Bearer ", "");
-    const isServiceRole = token === Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    if (!isServiceRole) {
+    // Check JWT role claim for service_role, or verify as regular user
+    let isAuthorized = false;
+    try {
+      const payload = JSON.parse(atob(token.split(".")[1]));
+      if (payload.role === "service_role") isAuthorized = true;
+    } catch { /* not a valid JWT, try user auth */ }
+    if (!isAuthorized) {
       const { data: userData, error: authError } = await authClient.auth.getUser(token);
-      if (authError || !userData?.user) {
-        return new Response(JSON.stringify({ error: "Unauthorized" }), {
-          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
+      if (!authError && userData?.user) isAuthorized = true;
+    }
+    if (!isAuthorized) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     // Service role client for DB operations (bypasses RLS)

@@ -8,6 +8,28 @@ function safeJsonParse(raw: string): any {
   return JSON.parse(sanitized);
 }
 
+// Normalize an AI field that should be a string[] — handles AI returning a string instead of array
+function toArr(val: any): string[] {
+  if (Array.isArray(val)) {
+    const items = val.filter((v: any) => typeof v === "string" && v.trim());
+    // If array has 1 item that's very long, try to split it into sentences
+    if (items.length === 1 && items[0].length > 120) {
+      const split = items[0].split(/(?<=[.!?])\s+/).filter(Boolean);
+      return split.length > 1 ? split : items;
+    }
+    return items;
+  }
+  if (typeof val === "string" && val.trim()) {
+    // Split on newlines/bullets first
+    const byLine = val.split(/\n+/).map((s: string) => s.replace(/^[-•*\d.]\s*/, "").trim()).filter(Boolean);
+    if (byLine.length > 1) return byLine;
+    // Fall back to sentence splitting
+    const bySentence = val.split(/(?<=[.!?])\s+/).filter(Boolean);
+    return bySentence.length > 1 ? bySentence : [val.trim()];
+  }
+  return [];
+}
+
 // Anthropic API helper - converts OpenAI-style system+user to Anthropic format
 async function callAnthropicAI(
   apiKey: string,
@@ -385,9 +407,11 @@ serve(async (req) => {
     });
   } catch (error) {
     console.error("Error generating Ads AI insights:", error);
+    const message = error instanceof Error ? error.message : "Unknown error";
+    const isExpectedError = message.includes("Rate limit") || message.includes("Payment required");
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({ error: message }),
+      { status: isExpectedError ? 200 : 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });
@@ -895,13 +919,13 @@ KONTEXT OD UŽIVATELE:
 {
   "executive_summary": {
     "intro": "Úvodní shrnutí kampaně v 2-3 větách – stručný přehled co se dělo, jaké byly výsledky a hlavní závěr",
-    "media_insight": ["3-4 krátké věty o klíčovém media poznatku kampaně, každá s konkrétním číslem nebo závěrem"],
-    "top_result": ["3-4 krátké věty o nejlepších výsledcích kampaně, každá s konkrétními daty"],
-    "recommendation": ["3-4 konkrétní a akční doporučení pro příští kampaň"]
+    "media_insight": ["Krátká věta s konkrétním číslem.", "Druhá krátká věta s číslem.", "Třetí věta se závěrem."],
+    "top_result": ["Nejlepší výsledek s konkrétní hodnotou.", "Druhý výsledek s číslem.", "Třetí výsledek s daty."],
+    "recommendation": ["Konkrétní akční doporučení č. 1.", "Konkrétní akční doporučení č. 2.", "Konkrétní akční doporučení č. 3."]
   },
   "goal_fulfillment": {
-    "goals_set": "Popis stanovených cílů kampaně (max 200 slov)",
-    "results": "Vyhodnocení plnění cílů s čísly (max 200 slov)"
+    "goals_set": ["Cíl č. 1 kampaně.", "Cíl č. 2 kampaně.", "Cíl č. 3 kampaně."],
+    "results": ["Výsledek č. 1 s konkrétním číslem.", "Výsledek č. 2 s daty.", "Výsledek č. 3 se závěrem."]
   },
   "metric_commentary": {
     "meta_key": "2-3 krátké věty hodnotící klíčové Meta metriky (spend, reach, frequency) – jak si kampaň vedla",
@@ -1048,12 +1072,15 @@ KONTEXT OD UŽIVATELE:
     report_period: "campaign",
     executive_summary: {
       intro: typeof aiContent.executive_summary?.intro === "string" ? aiContent.executive_summary.intro.trim() : "",
-      media_insight: Array.isArray(aiContent.executive_summary?.media_insight) ? aiContent.executive_summary.media_insight : [],
-      top_result: Array.isArray(aiContent.executive_summary?.top_result) ? aiContent.executive_summary.top_result : [],
-      recommendation: Array.isArray(aiContent.executive_summary?.recommendation) ? aiContent.executive_summary.recommendation : [],
+      media_insight: toArr(aiContent.executive_summary?.media_insight),
+      top_result: toArr(aiContent.executive_summary?.top_result),
+      recommendation: toArr(aiContent.executive_summary?.recommendation),
     },
     campaign_context,
-    goal_fulfillment: aiContent.goal_fulfillment,
+    goal_fulfillment: {
+      goals_set: toArr(aiContent.goal_fulfillment?.goals_set),
+      results: toArr(aiContent.goal_fulfillment?.results),
+    },
     metric_commentary: aiContent.metric_commentary || {},
     media_plan_comparison: mediaPlanComparison,
     meta_key_metrics: { spend: metaSpend, reach: metaReach, frequency: metaFreq, currency: "CZK" },
@@ -1866,8 +1893,8 @@ KONTEXT OD UŽIVATELE:
     "recommendation": ["3-4 konkrétní a akční doporučení pro zlepšení"]
   },
   "goal_fulfillment": {
-    "goals_set": "Popis stanovených cílů za rok (max 200 slov)",
-    "results": "Vyhodnocení plnění cílů s čísly (max 200 slov)"
+    "goals_set": ["Cíl č. 1 za rok.", "Cíl č. 2 za rok.", "Cíl č. 3 za rok."],
+    "results": ["Výsledek č. 1 s konkrétním číslem.", "Výsledek č. 2 s daty.", "Výsledek č. 3 se závěrem."]
   },
   "metrics_over_time": "Vývoj klíčových metrik za rok (max 200 slov)",
   "metric_commentary": {
@@ -2067,12 +2094,15 @@ KONTEXT OD UŽIVATELE:
     report_period: "yearly",
     executive_summary: {
       intro: typeof aiContent.executive_summary?.intro === "string" ? aiContent.executive_summary.intro.trim() : "",
-      media_insight: Array.isArray(aiContent.executive_summary?.media_insight) ? aiContent.executive_summary.media_insight : [],
-      top_result: Array.isArray(aiContent.executive_summary?.top_result) ? aiContent.executive_summary.top_result : [],
-      recommendation: Array.isArray(aiContent.executive_summary?.recommendation) ? aiContent.executive_summary.recommendation : [],
+      media_insight: toArr(aiContent.executive_summary?.media_insight),
+      top_result: toArr(aiContent.executive_summary?.top_result),
+      recommendation: toArr(aiContent.executive_summary?.recommendation),
     },
     campaign_context,
-    goal_fulfillment: aiContent.goal_fulfillment,
+    goal_fulfillment: {
+      goals_set: toArr(aiContent.goal_fulfillment?.goals_set),
+      results: toArr(aiContent.goal_fulfillment?.results),
+    },
     key_metrics: { spend: totalSpend, reach: totalReach, frequency: avgFrequency, currency: "CZK" },
     detail_metrics: { cpm, cpe, cpv: costPerThruplay, currency: "CZK" },
     metrics_over_time: aiContent.metrics_over_time,

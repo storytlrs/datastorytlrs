@@ -489,7 +489,7 @@ export const AIInsightsContent = forwardRef<HTMLDivElement, AIInsightsContentPro
   const kpiTargets = insights.kpi_targets;
 
   return (
-    <div ref={ref} className="space-y-8 pdf-export-container" style={{ backgroundColor: '#E9E9E9' }}>
+    <div ref={ref} className="space-y-8 pdf-export-container" style={{ backgroundColor: '#E9E9E9', padding: '32px' }}>
       {/* Executive Summary Block - Page 1 */}
       <Card className="p-6 rounded-[20px] border-foreground" style={{ backgroundColor: '#E9E9E9' }}>
         <h2 className="text-xl font-bold mb-4">

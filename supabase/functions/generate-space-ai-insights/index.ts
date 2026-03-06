@@ -23,7 +23,12 @@ serve(async (req) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const anthropicApiKey = Deno.env.get("ANTHROPIC_API_KEY")!;
+    const anthropicApiKey = Deno.env.get("ANTHROPIC_API_KEY");
+    if (!anthropicApiKey) {
+      return new Response(JSON.stringify({ error: "ANTHROPIC_API_KEY is not configured" }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
@@ -474,9 +479,11 @@ Používej český jazyk. Používej standardní zkratky (CPM, CPC, CTR, ER, TSW
     );
   } catch (e) {
     console.error("Error:", e);
+    const message = e instanceof Error ? e.message : "Unknown error";
+    const isExpectedError = message.includes("Rate limit") || message.includes("Payment required");
     return new Response(
-      JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({ error: message }),
+      { status: isExpectedError ? 200 : 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });

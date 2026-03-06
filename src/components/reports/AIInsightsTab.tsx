@@ -128,10 +128,12 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
   }>({});
 
   useEffect(() => {
-    fetchReportData();
+    let cancelled = false;
+    fetchReportData(cancelled);
+    return () => { cancelled = true; };
   }, [reportId]);
 
-  const fetchReportData = async () => {
+  const fetchReportData = async (cancelled: boolean) => {
     setIsLoading(true);
     try {
       const { data, error } = await supabase
@@ -141,9 +143,10 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
         .single();
 
       if (error) throw error;
+      if (cancelled) return;
 
       setAiInsights(data.ai_insights || "");
-      
+
       setSpaceId(data.space_id || "");
 
       // Fetch brand/space name
@@ -153,9 +156,9 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
           .select("name")
           .eq("id", data.space_id)
           .single();
-        if (spaceData) setBrandName(spaceData.name);
+        if (!cancelled && spaceData) setBrandName(spaceData.name);
       }
-      
+
       if (data.ai_insights_structured) {
         const structured = data.ai_insights_structured as unknown as StructuredInsights;
         setStructuredData(structured);
@@ -163,7 +166,7 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
           setSentimentParagraph(structured.sentiment_analysis.summary);
         }
       }
-      
+
       setReportMetadata({
         name: data.name,
         type: data.type,
@@ -172,10 +175,11 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
         end_date: data.end_date,
       });
     } catch (error) {
+      if (cancelled) return;
       console.error("Error fetching report data:", error);
       toast.error(t("Nepodařilo se načíst data"));
     } finally {
-      setIsLoading(false);
+      if (!cancelled) setIsLoading(false);
     }
   };
 
@@ -195,7 +199,7 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
         } else if (data.error.includes("Payment required")) {
           toast.error(t("Nedostatek kreditů. Doplňte prosím kredity ve workspace."));
         } else {
-          throw new Error(data.error);
+          toast.error(`${t("Nepodařilo se vygenerovat AI Insights")}: ${data.error}`);
         }
         return;
       }
@@ -208,9 +212,19 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
       
       toast.success(t("AI Insights vygenerovány úspěšně!"));
       setIsInputDialogOpen(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error generating AI insights:", error);
-      toast.error(t("Nepodařilo se vygenerovat AI Insights"));
+      let msg = "";
+      try {
+        if (error?.context?.json) {
+          const ctx = await error.context.json();
+          msg = ctx?.error || ctx?.message || JSON.stringify(ctx);
+        } else if (error?.context?.text) {
+          msg = await error.context.text();
+        }
+      } catch {}
+      if (!msg) msg = error?.message || "";
+      toast.error(`${t("Nepodařilo se vygenerovat AI Insights")}${msg ? `: ${msg}` : ""}`);
     } finally {
       setIsGenerating(false);
     }
@@ -248,7 +262,7 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
       await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(() => r(null))));
       
       // Wait a bit more for DOM to settle
-      await new Promise(r => setTimeout(r, 200));
+      await new Promise(r => setTimeout(r, 2000));
       
       if (!pdfRef.current) {
         throw new Error("PDF container not ready");
@@ -257,36 +271,63 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
       // Wait for images to load
       await waitForImages(pdfRef.current);
       
-      // Step 1: Render to canvas
+      // Step 1: Render to canvas (windowHeight ensures full content captured, not just viewport)
+      const elementHeight = pdfRef.current.scrollHeight;
       const canvas = await html2canvas(pdfRef.current, {
         scale: 2,
         useCORS: true,
         logging: false,
         backgroundColor: '#E9E9E9',
         width: 1100,
+        windowHeight: elementHeight,
+        height: elementHeight,
       });
       
-      // Step 2: Get canvas dimensions
-      const imgWidth = canvas.width;
-      const imgHeight = canvas.height;
-      
-      // Step 3: Convert to mm (96 DPI * scale factor)
-      const pxToMm = 25.4 / (96 * 2); // 2 is the scale factor
-      const pdfWidth = imgWidth * pxToMm;
-      const pdfHeight = imgHeight * pxToMm;
-      
-      // Step 4: Create PDF with custom dimensions (single page)
-      const pdf = new jsPDF({
-        orientation: pdfWidth > pdfHeight ? 'landscape' : 'portrait',
-        unit: 'mm',
-        format: [pdfWidth, pdfHeight], // Custom size = one continuous page
-      });
-      
-      // Step 5: Add image to fill entire page
-      const imgData = canvas.toDataURL('image/jpeg', 0.95);
-      pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
-      
-      // Step 6: Save
+      const scale = 2;
+      const pxToMm = 25.4 / (96 * scale);
+      const pageWidthPx = canvas.width;
+      const pageWidthMm = pageWidthPx * pxToMm;
+      const pageHeightMm = pageWidthMm * (297 / 210);
+      const pageHeightPx = Math.round(pageWidthPx * (297 / 210));
+
+      const pdf = new jsPDF({ unit: "mm", format: [pageWidthMm, pageHeightMm] });
+
+      // Find break points at section boundaries; include gap above section for breathing room
+      const containerRect = pdfRef.current.getBoundingClientRect();
+      const breakPoints: number[] = [0];
+      let currentPageStart = 0;
+      const GAP = Math.round(32 * scale); // space-y-8 gap between sections
+      for (const section of Array.from(pdfRef.current.children) as HTMLElement[]) {
+        const rect = section.getBoundingClientRect();
+        const sectionTop = (rect.top - containerRect.top) * scale;
+        const sectionBottom = (rect.bottom - containerRect.top) * scale;
+        if (sectionBottom > currentPageStart + pageHeightPx && sectionTop > currentPageStart) {
+          const breakY = sectionTop - GAP > currentPageStart ? sectionTop - GAP : sectionTop;
+          breakPoints.push(breakY);
+          currentPageStart = breakY;
+        }
+        while (sectionBottom > currentPageStart + pageHeightPx) {
+          currentPageStart += pageHeightPx;
+          breakPoints.push(currentPageStart);
+        }
+      }
+      breakPoints.push(canvas.height);
+
+      // Render each page: draw only up to the next break point to prevent content duplication
+      for (let i = 0; i < breakPoints.length - 1; i++) {
+        if (i > 0) pdf.addPage();
+        const sourceY = breakPoints[i];
+        const pageContentHeight = Math.min(breakPoints[i + 1] - sourceY, pageHeightPx, canvas.height - sourceY);
+        const pageCanvas = document.createElement("canvas");
+        pageCanvas.width = pageWidthPx;
+        pageCanvas.height = pageHeightPx;
+        const ctx = pageCanvas.getContext("2d")!;
+        ctx.fillStyle = "#E9E9E9";
+        ctx.fillRect(0, 0, pageWidthPx, pageHeightPx);
+        ctx.drawImage(canvas, 0, sourceY, pageWidthPx, pageContentHeight, 0, 0, pageWidthPx, pageContentHeight);
+        pdf.addImage(pageCanvas.toDataURL("image/jpeg", 0.95), "JPEG", 0, 0, pageWidthMm, pageHeightMm);
+      }
+
       pdf.save(`insights-report-${new Date().toISOString().split('T')[0]}.pdf`);
       
       toast.success(t("PDF exportováno úspěšně!"));
@@ -396,7 +437,7 @@ export const AIInsightsTab = ({ reportId }: AIInsightsTabProps) => {
 
         {/* Hidden off-screen PDF render container */}
         {isPdfMode && structuredData && (
-          <div style={{ position: 'fixed', left: '-10000px', top: 0 }}>
+          <div style={{ position: 'fixed', left: '-10000px', top: 0, width: '1100px' }}>
             <AIInsightsContentPDF
               ref={pdfRef}
               insights={structuredData}

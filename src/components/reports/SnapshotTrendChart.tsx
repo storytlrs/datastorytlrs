@@ -11,6 +11,7 @@ interface SnapshotTrendChartProps {
   campaignIds?: string[]; // entity_ids to filter (campaign_id not DB id)
   entityType?: string;
   entityTypes?: string[]; // support multiple entity types (e.g. meta + tiktok)
+  pdfMode?: boolean;
 }
 
 const METRIC_OPTIONS = [
@@ -70,7 +71,7 @@ const formatAxisValue = (value: number, format: string) => {
   }
 };
 
-export const SnapshotTrendChart = ({ spaceId, campaignIds, entityType = "meta_campaign", entityTypes }: SnapshotTrendChartProps) => {
+export const SnapshotTrendChart = ({ spaceId, campaignIds, entityType = "meta_campaign", entityTypes, pdfMode }: SnapshotTrendChartProps) => {
   const [snapshots, setSnapshots] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedMetric, setSelectedMetric] = useState("amount_spent");
@@ -124,7 +125,10 @@ export const SnapshotTrendChart = ({ spaceId, campaignIds, entityType = "meta_ca
       if (!dateMap.has(date)) {
         dateMap.set(date, {});
       }
-      const metrics = typeof snap.metrics === "string" ? JSON.parse(snap.metrics) : snap.metrics;
+      let metrics = snap.metrics;
+      if (typeof snap.metrics === "string") {
+        try { metrics = JSON.parse(snap.metrics); } catch { continue; }
+      }
       const value = metrics?.[selectedMetric];
       if (value !== undefined && value !== null) {
         dateMap.get(date)![entityId] = Number(value);
@@ -172,6 +176,51 @@ export const SnapshotTrendChart = ({ spaceId, campaignIds, entityType = "meta_ca
     );
   }
 
+  const chartChildren = [
+    <CartesianGrid key="grid" strokeDasharray="3 3" className="stroke-border/30" />,
+    <XAxis key="xaxis" dataKey="date" className="text-xs" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} />,
+    <YAxis
+      key="yaxis"
+      width={80}
+      tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
+      tickFormatter={(val) => formatAxisValue(val, metricConfig?.format || "number")}
+    />,
+    <Tooltip
+      key="tooltip"
+      contentStyle={{
+        backgroundColor: "hsl(var(--background))",
+        border: "1px solid hsl(var(--border))",
+        borderRadius: "8px",
+        fontSize: "12px",
+      }}
+      formatter={(value: number, name: string) => {
+        const campaignName = campaignNames.get(name) || name;
+        return [formatValue(value, metricConfig?.format || "number"), campaignName];
+      }}
+      labelStyle={{ color: "hsl(var(--foreground))" }}
+    />,
+    <Legend
+      key="legend"
+      formatter={(value) => {
+        const name = campaignNames.get(value) || value;
+        return name.length > 30 ? name.substring(0, 30) + "…" : name;
+      }}
+    />,
+    ...entityIds.map((entityId, i) => (
+      <Line
+        key={entityId}
+        type="monotone"
+        dataKey={entityId}
+        name={entityId}
+        stroke={COLORS[i % COLORS.length]}
+        strokeWidth={3}
+        dot={{ r: 5, fill: COLORS[i % COLORS.length] }}
+        activeDot={{ r: 7 }}
+        connectNulls
+      />
+    )),
+  ];
+
   return (
     <Card className="p-6 rounded-[35px] border-foreground">
       <div className="flex items-center justify-between mb-6">
@@ -194,49 +243,17 @@ export const SnapshotTrendChart = ({ spaceId, campaignIds, entityType = "meta_ca
       </div>
 
       <div className="h-[350px]">
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={chartData} margin={{ top: 20, right: 30, left: 10, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" className="stroke-border/30" />
-            <XAxis dataKey="date" className="text-xs" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} />
-            <YAxis
-              width={80}
-              tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
-              tickFormatter={(val) => formatAxisValue(val, metricConfig?.format || "number")}
-            />
-            <Tooltip
-              contentStyle={{
-                backgroundColor: "hsl(var(--background))",
-                border: "1px solid hsl(var(--border))",
-                borderRadius: "8px",
-                fontSize: "12px",
-              }}
-              formatter={(value: number, name: string) => {
-                const campaignName = campaignNames.get(name) || name;
-                return [formatValue(value, metricConfig?.format || "number"), campaignName];
-              }}
-              labelStyle={{ color: "hsl(var(--foreground))" }}
-            />
-            <Legend
-              formatter={(value) => {
-                const name = campaignNames.get(value) || value;
-                return name.length > 30 ? name.substring(0, 30) + "…" : name;
-              }}
-            />
-            {entityIds.map((entityId, i) => (
-              <Line
-                key={entityId}
-                type="monotone"
-                dataKey={entityId}
-                name={entityId}
-                stroke={COLORS[i % COLORS.length]}
-                strokeWidth={3}
-                dot={{ r: 5, fill: COLORS[i % COLORS.length] }}
-                activeDot={{ r: 7 }}
-                connectNulls
-              />
-            ))}
+        {pdfMode ? (
+          <LineChart width={980} height={350} data={chartData} margin={{ top: 20, right: 30, left: 10, bottom: 5 }}>
+            {chartChildren}
           </LineChart>
-        </ResponsiveContainer>
+        ) : (
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={chartData} margin={{ top: 20, right: 30, left: 10, bottom: 5 }}>
+              {chartChildren}
+            </LineChart>
+          </ResponsiveContainer>
+        )}
       </div>
 
       {/* Delta table */}

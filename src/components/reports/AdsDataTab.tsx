@@ -241,7 +241,7 @@ export const AdsDataTab = ({ reportId, spaceId, onImportSuccess, embedded = fals
         .select("*")
         .eq("space_id", spaceId)
         .in("id", tiktokIds)
-        .eq("age", "").eq("gender", "").eq("location", "")
+        .or("age.is.null,age.eq.").or("gender.is.null,gender.eq.").or("location.is.null,location.eq.")
         .order("created_at", { ascending: false });
       if (!error && data) {
         allCampaigns.push(...data.map((c: any) => ({

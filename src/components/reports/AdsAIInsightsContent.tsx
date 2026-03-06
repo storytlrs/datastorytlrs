@@ -339,7 +339,7 @@ export const AdsAIInsightsContent = forwardRef<HTMLDivElement, AdsAIInsightsCont
     const cur = insights.effectiveness_metrics.currency || "CZK";
 
     return (
-      <div ref={ref} className="space-y-8" style={{ backgroundColor: "#E9E9E9" }}>
+      <div ref={ref} className="space-y-8" style={{ backgroundColor: "#E9E9E9", padding: "32px" }}>
         {/* Executive Summary */}
         <Card className="p-6 rounded-[20px] border-foreground" style={{ backgroundColor: "#E9E9E9" }}>
           <h2 className="text-xl font-bold mb-4">Executive Summary</h2>
@@ -421,7 +421,7 @@ export const AdsAIInsightsContent = forwardRef<HTMLDivElement, AdsAIInsightsCont
             <MetricTile title="Impressions" value={formatNumber(insights.awareness_metrics.impressions)} icon={Eye} accentColor="blue" />
             <MetricTile title="ThruPlays" value={formatNumber(insights.awareness_metrics.thruplays)} icon={Play} accentColor="blue" />
             <MetricTile title="3s Views" value={formatNumber(insights.awareness_metrics.video3sPlays)} icon={Play} accentColor="blue" />
-            <MetricTile title="Frequency" value={insights.awareness_metrics.frequency.toFixed(2)} icon={BarChart3} accentColor="blue" />
+            <MetricTile title="Frequency" value={(insights.awareness_metrics.frequency ?? 0).toFixed(2)} icon={BarChart3} accentColor="blue" />
           </div>
         </Card>
 

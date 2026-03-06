@@ -610,10 +610,12 @@ Pro creator_insights vytvoř entry pro každého z těchto creatorů: ${creatorP
     );
   } catch (error) {
     console.error("Error generating AI insights:", error);
+    const message = error instanceof Error ? error.message : "Unknown error";
+    const isExpectedError = message.includes("Rate limit") || message.includes("Payment required");
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
+      JSON.stringify({ error: message }),
       {
-        status: 200,
+        status: isExpectedError ? 200 : 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       }
     );

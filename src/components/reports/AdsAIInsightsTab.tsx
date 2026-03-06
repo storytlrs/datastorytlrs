@@ -154,25 +154,63 @@ export const AdsAIInsightsTab = ({ reportId }: AdsAIInsightsTabProps) => {
 
     try {
       await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => r(null))));
-      await new Promise((r) => setTimeout(r, 200));
+      await new Promise((r) => setTimeout(r, 2000));
 
       if (!pdfRef.current) throw new Error("PDF container not ready");
 
+      const scale = 2;
+      const elementHeight = pdfRef.current.scrollHeight;
       const canvas = await html2canvas(pdfRef.current, {
-        scale: 2, useCORS: true, logging: false, backgroundColor: "#E9E9E9", width: 1100,
+        scale, useCORS: true, logging: false, backgroundColor: "#E9E9E9",
+        width: 1100, windowHeight: elementHeight, height: elementHeight,
       });
 
-      const pxToMm = 25.4 / (96 * 2);
-      const pdfWidth = canvas.width * pxToMm;
-      const pdfHeight = canvas.height * pxToMm;
+      // Keep native content width, use A4 proportions for page height
+      const pxToMm = 25.4 / (96 * scale);
+      const pageWidthPx = canvas.width;
+      const pageWidthMm = pageWidthPx * pxToMm;
+      const pageHeightMm = pageWidthMm * (297 / 210); // A4 aspect ratio
+      const pageHeightPx = Math.round(pageWidthPx * (297 / 210));
 
-      const pdf = new jsPDF({
-        orientation: pdfWidth > pdfHeight ? "landscape" : "portrait",
-        unit: "mm", format: [pdfWidth, pdfHeight],
-      });
+      const pdf = new jsPDF({ unit: "mm", format: [pageWidthMm, pageHeightMm] });
 
-      const imgData = canvas.toDataURL("image/jpeg", 0.95);
-      pdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, pdfHeight);
+      // Find break points at section boundaries; include gap above section for breathing room
+      const containerRect = pdfRef.current.getBoundingClientRect();
+      const breakPoints: number[] = [0];
+      let currentPageStart = 0;
+      const GAP = Math.round(32 * scale); // space-y-8 gap between sections
+      for (const section of Array.from(pdfRef.current.children) as HTMLElement[]) {
+        const rect = section.getBoundingClientRect();
+        const sectionTop = (rect.top - containerRect.top) * scale;
+        const sectionBottom = (rect.bottom - containerRect.top) * scale;
+        if (sectionBottom > currentPageStart + pageHeightPx && sectionTop > currentPageStart) {
+          // Start page at the gap before the section so the card isn't flush against the page edge
+          const breakY = sectionTop - GAP > currentPageStart ? sectionTop - GAP : sectionTop;
+          breakPoints.push(breakY);
+          currentPageStart = breakY;
+        }
+        while (sectionBottom > currentPageStart + pageHeightPx) {
+          currentPageStart += pageHeightPx;
+          breakPoints.push(currentPageStart);
+        }
+      }
+      breakPoints.push(canvas.height);
+
+      // Render each page: draw only up to the next break point to prevent content duplication
+      for (let i = 0; i < breakPoints.length - 1; i++) {
+        if (i > 0) pdf.addPage();
+        const sourceY = breakPoints[i];
+        const pageContentHeight = Math.min(breakPoints[i + 1] - sourceY, pageHeightPx, canvas.height - sourceY);
+        const pageCanvas = document.createElement("canvas");
+        pageCanvas.width = pageWidthPx;
+        pageCanvas.height = pageHeightPx;
+        const ctx = pageCanvas.getContext("2d")!;
+        ctx.fillStyle = "#E9E9E9";
+        ctx.fillRect(0, 0, pageWidthPx, pageHeightPx);
+        ctx.drawImage(canvas, 0, sourceY, pageWidthPx, pageContentHeight, 0, 0, pageWidthPx, pageContentHeight);
+        pdf.addImage(pageCanvas.toDataURL("image/jpeg", 0.95), "JPEG", 0, 0, pageWidthMm, pageHeightMm);
+      }
+
       pdf.save(`ads-insights-${new Date().toISOString().split("T")[0]}.pdf`);
 
       toast.success(t("PDF exportováno úspěšně!"));
@@ -309,7 +347,7 @@ export const AdsAIInsightsTab = ({ reportId }: AdsAIInsightsTabProps) => {
         </div>
 
         {isPdfMode && structuredData && (
-          <div style={{ position: "fixed", left: "-10000px", top: 0 }}>
+          <div style={{ position: "fixed", left: "-10000px", top: 0, width: "1100px" }}>
             {isCampaign ? (
               <CampaignAdsInsightsContent
                 ref={pdfRef}
@@ -324,6 +362,7 @@ export const AdsAIInsightsTab = ({ reportId }: AdsAIInsightsTabProps) => {
                 hasMetaPlatform={hasMetaCampaigns}
                 hasTiktokPlatform={hasTiktokCampaigns}
                 reportId={reportId}
+                pdfMode
               />
             ) : isQuarterly ? (
               <QuarterlyAdsInsightsContent
@@ -332,6 +371,7 @@ export const AdsAIInsightsTab = ({ reportId }: AdsAIInsightsTabProps) => {
                 hasMetaPlatform={hasMetaCampaigns}
                 hasTiktokPlatform={hasTiktokCampaigns}
                 reportId={reportId}
+                pdfMode
               />
             ) : isYearly ? (
               <YearlyAdsInsightsContent
@@ -340,6 +380,7 @@ export const AdsAIInsightsTab = ({ reportId }: AdsAIInsightsTabProps) => {
                 hasMetaPlatform={hasMetaCampaigns}
                 hasTiktokPlatform={hasTiktokCampaigns}
                 reportId={reportId}
+                pdfMode
               />
             ) : (
               <AdsAIInsightsContent

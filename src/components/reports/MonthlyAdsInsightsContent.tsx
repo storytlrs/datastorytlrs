@@ -34,9 +34,9 @@ import {
 export interface MonthlyStructuredInsights {
   executive_summary: string;
   campaign_context: {
-    mainGoal: string;
-    actions: string;
-    highlights: string;
+    mainGoal: string[];
+    actions: string[];
+    highlights: string[];
   };
   goal_fulfillment: string;
   key_metrics: {
@@ -122,6 +122,7 @@ interface MonthlyAdsInsightsContentProps {
   hasMetaPlatform?: boolean;
   hasTiktokPlatform?: boolean;
   reportId?: string;
+  pdfMode?: boolean;
 }
 
 const formatNumber = (num: number): string => {
@@ -265,7 +266,7 @@ const EditableNumberField = ({
 const proxyThumbnailUrl = (url?: string): string | undefined => {
   if (!url) return undefined;
   if (/tiktokcdn/i.test(url)) {
-    const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID || 'rzetgajncoedibmlfyvl';
+    const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID || 'rltxqoupobfohrkrbtib';
     return `https://${projectId}.supabase.co/functions/v1/proxy-image?url=${encodeURIComponent(url)}`;
   }
   return url;
@@ -284,7 +285,7 @@ const PostCard = ({ post }: { post: { name: string; spend: number; impressions: 
           referrerPolicy="no-referrer"
           onError={(e) => {
             (e.target as HTMLImageElement).style.display = 'none';
-            (e.target as HTMLImageElement).parentElement!.querySelector('.placeholder')?.classList.remove('hidden');
+            (e.target as HTMLImageElement).parentElement?.querySelector('.placeholder')?.classList.remove('hidden');
           }}
         />
       ) : null}
@@ -331,11 +332,24 @@ const TiktokIcon = () => (
   <svg viewBox="0 0 24 24" className="w-8 h-8" fill="currentColor"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/></svg>
 );
 
+const toStringArray = (val: any): string[] => {
+  if (Array.isArray(val)) return val.filter(Boolean);
+  if (typeof val === "string" && val.trim()) {
+    if (val.includes("\n") || val.startsWith("- ")) return val.split("\n").map((l: string) => l.replace(/^[-•]\s*/, "").trim()).filter(Boolean);
+    return val.split(/(?<=[.!?])\s+/).filter((s: string) => s.trim());
+  }
+  return [];
+};
+
 export const MonthlyAdsInsightsContent = forwardRef<HTMLDivElement, MonthlyAdsInsightsContentProps>(
-  ({ insights: raw, canEdit = false, onSaveInsights, hasMetaPlatform, hasTiktokPlatform, reportId }, ref) => {
+  ({ insights: raw, canEdit = false, onSaveInsights, hasMetaPlatform, hasTiktokPlatform, reportId, pdfMode }, ref) => {
     const insights: MonthlyStructuredInsights = {
       executive_summary: raw.executive_summary || "",
-      campaign_context: raw.campaign_context || { mainGoal: "", actions: "", highlights: "" },
+      campaign_context: {
+        mainGoal: toStringArray(raw.campaign_context?.mainGoal),
+        actions: toStringArray(raw.campaign_context?.actions),
+        highlights: toStringArray(raw.campaign_context?.highlights),
+      },
       goal_fulfillment: raw.goal_fulfillment || "",
       key_metrics: { spend: 0, reach: 0, frequency: 0, currency: "CZK", ...raw.key_metrics },
       metrics_over_time: raw.metrics_over_time || "",
@@ -357,9 +371,9 @@ export const MonthlyAdsInsightsContent = forwardRef<HTMLDivElement, MonthlyAdsIn
     const [goalFulfillment, setGoalFulfillment] = useState(insights.goal_fulfillment);
     const [metricsOverTime, setMetricsOverTime] = useState(insights.metrics_over_time);
     const [brandAwareness, setBrandAwareness] = useState(insights.brand_awareness);
-    const [mainGoal, setMainGoal] = useState(insights.campaign_context.mainGoal);
-    const [actions, setActions] = useState(insights.campaign_context.actions);
-    const [highlights, setHighlights] = useState(insights.campaign_context.highlights);
+    const [mainGoal, setMainGoal] = useState<string[]>(insights.campaign_context.mainGoal);
+    const [actions, setActions] = useState<string[]>(insights.campaign_context.actions);
+    const [highlights, setHighlights] = useState<string[]>(insights.campaign_context.highlights);
     const [worksItems, setWorksItems] = useState(insights.learnings.works);
     const [threatsItems, setThreatsItems] = useState(insights.learnings.threats_opportunities);
     const [improvementsItems, setImprovementsItems] = useState(insights.learnings.improvements);
@@ -433,9 +447,6 @@ export const MonthlyAdsInsightsContent = forwardRef<HTMLDivElement, MonthlyAdsIn
         goal_fulfillment: setGoalFulfillment,
         metrics_over_time: setMetricsOverTime,
         brand_awareness: setBrandAwareness,
-        mainGoal: setMainGoal,
-        actions: setActions,
-        highlights: setHighlights,
       };
       setters[section]?.(value);
       stopEditing(section);
@@ -446,31 +457,37 @@ export const MonthlyAdsInsightsContent = forwardRef<HTMLDivElement, MonthlyAdsIn
         else if (section === "goal_fulfillment") updates.goal_fulfillment = value;
         else if (section === "metrics_over_time") updates.metrics_over_time = value;
         else if (section === "brand_awareness") updates.brand_awareness = value;
-        else if (["mainGoal", "actions", "highlights"].includes(section)) {
-          updates.campaign_context = {
-            mainGoal: section === "mainGoal" ? value : mainGoal,
-            actions: section === "actions" ? value : actions,
-            highlights: section === "highlights" ? value : highlights,
-          };
-        }
         await onSaveInsights(updates);
       }
     };
 
     const handleSaveListSection = async (section: string, items: string[]) => {
+      if (section === "mainGoal") setMainGoal(items);
+      if (section === "actions") setActions(items);
+      if (section === "highlights") setHighlights(items);
       if (section === "learnings_works") setWorksItems(items);
       if (section === "learnings_threats") setThreatsItems(items);
       if (section === "learnings_improvements") setImprovementsItems(items);
       stopEditing(section);
 
       if (onSaveInsights) {
-        await onSaveInsights({
-          learnings: {
-            works: section === "learnings_works" ? items : worksItems,
-            threats_opportunities: section === "learnings_threats" ? items : threatsItems,
-            improvements: section === "learnings_improvements" ? items : improvementsItems,
-          },
-        });
+        if (["mainGoal", "actions", "highlights"].includes(section)) {
+          await onSaveInsights({
+            campaign_context: {
+              mainGoal: section === "mainGoal" ? items : mainGoal,
+              actions: section === "actions" ? items : actions,
+              highlights: section === "highlights" ? items : highlights,
+            },
+          });
+        } else {
+          await onSaveInsights({
+            learnings: {
+              works: section === "learnings_works" ? items : worksItems,
+              threats_opportunities: section === "learnings_threats" ? items : threatsItems,
+              improvements: section === "learnings_improvements" ? items : improvementsItems,
+            },
+          });
+        }
       }
     };
 
@@ -495,7 +512,7 @@ export const MonthlyAdsInsightsContent = forwardRef<HTMLDivElement, MonthlyAdsIn
     const hasTiktok = hasTiktokPlatform ?? ((insights.tiktok_metrics?.spend > 0) || (insights.tiktok_metrics?.reach > 0) || (insights.tiktok_top_posts?.length > 0));
 
     return (
-      <div ref={ref} className="space-y-8" style={{ backgroundColor: "#E9E9E9" }}>
+      <div ref={ref} className="space-y-8" style={{ backgroundColor: "#E9E9E9", padding: "32px" }}>
         {/* 1. Executive Summary */}
         <Card className="p-6 rounded-[20px] border-foreground" style={{ backgroundColor: "#E9E9E9" }}>
           <h2 className="text-xl font-bold mb-4">Executive Summary</h2>
@@ -512,15 +529,15 @@ export const MonthlyAdsInsightsContent = forwardRef<HTMLDivElement, MonthlyAdsIn
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
             <Card className="p-4 rounded-[15px] border-border bg-muted/30">
               <div className="flex items-center gap-2 mb-2"><Target className="w-5 h-5 text-accent-orange" /><span className="font-bold text-sm uppercase">Hlavní cíl</span></div>
-              <EditableSection value={mainGoal} isEditing={editingSections.has("mainGoal")} onStartEdit={() => startEditing("mainGoal")} onSave={(v) => handleSaveSection("mainGoal", v)} onCancel={() => stopEditing("mainGoal")} canEdit={canEdit} />
+              <EditableListSection items={mainGoal} isEditing={editingSections.has("mainGoal")} onStartEdit={() => startEditing("mainGoal")} onSave={(items) => handleSaveListSection("mainGoal", items)} onCancel={() => stopEditing("mainGoal")} canEdit={canEdit} bulletColor="text-accent-orange" placeholder="Hlavní cíl..." />
             </Card>
             <Card className="p-4 rounded-[15px] border-border bg-muted/30">
               <div className="flex items-center gap-2 mb-2"><Rocket className="w-5 h-5 text-accent-blue" /><span className="font-bold text-sm uppercase">Co jsme udělali</span></div>
-              <EditableSection value={actions} isEditing={editingSections.has("actions")} onStartEdit={() => startEditing("actions")} onSave={(v) => handleSaveSection("actions", v)} onCancel={() => stopEditing("actions")} canEdit={canEdit} />
+              <EditableListSection items={actions} isEditing={editingSections.has("actions")} onStartEdit={() => startEditing("actions")} onSave={(items) => handleSaveListSection("actions", items)} onCancel={() => stopEditing("actions")} canEdit={canEdit} bulletColor="text-accent-blue" placeholder="Co jsme udělali..." />
             </Card>
             <Card className="p-4 rounded-[15px] border-border bg-muted/30">
               <div className="flex items-center gap-2 mb-2"><Star className="w-5 h-5 text-accent-green" /><span className="font-bold text-sm uppercase">Highlights</span></div>
-              <EditableSection value={highlights} isEditing={editingSections.has("highlights")} onStartEdit={() => startEditing("highlights")} onSave={(v) => handleSaveSection("highlights", v)} onCancel={() => stopEditing("highlights")} canEdit={canEdit} />
+              <EditableListSection items={highlights} isEditing={editingSections.has("highlights")} onStartEdit={() => startEditing("highlights")} onSave={(items) => handleSaveListSection("highlights", items)} onCancel={() => stopEditing("highlights")} canEdit={canEdit} bulletColor="text-accent-green" placeholder="Highlights..." />
             </Card>
           </div>
         </Card>
@@ -552,7 +569,7 @@ export const MonthlyAdsInsightsContent = forwardRef<HTMLDivElement, MonthlyAdsIn
           <div className="grid grid-cols-3 gap-4">
             <MetricTile title="Spend" value={formatCurrency(insights.key_metrics.spend, cur)} icon={Wallet} accentColor="orange" />
             <MetricTile title="Reach" value={formatNumber(insights.key_metrics.reach)} icon={Users} accentColor="blue" />
-            <MetricTile title="Frequency" value={insights.key_metrics.frequency.toFixed(2)} icon={BarChart3} accentColor="blue" />
+            <MetricTile title="Frequency" value={(insights.key_metrics.frequency ?? 0).toFixed(2)} icon={BarChart3} accentColor="blue" />
           </div>
         </Card>
 
@@ -574,6 +591,7 @@ export const MonthlyAdsInsightsContent = forwardRef<HTMLDivElement, MonthlyAdsIn
                 spaceId={chartSpaceId}
                 campaignIds={chartCampaignIds}
                 entityTypes={chartEntityTypes}
+                pdfMode={pdfMode}
               />
             </div>
           )}
@@ -622,7 +640,7 @@ export const MonthlyAdsInsightsContent = forwardRef<HTMLDivElement, MonthlyAdsIn
             <div className="grid grid-cols-3 gap-4 mb-6">
               <MetricTile title="Spend" value={formatCurrency(insights.facebook_metrics.spend, cur)} icon={Wallet} accentColor="orange" />
               <MetricTile title="Reach" value={formatNumber(insights.facebook_metrics.reach)} icon={Users} accentColor="blue" />
-              <MetricTile title="Frequency" value={insights.facebook_metrics.frequency.toFixed(2)} icon={BarChart3} accentColor="blue" />
+              <MetricTile title="Frequency" value={(insights.facebook_metrics.frequency ?? 0).toFixed(2)} icon={BarChart3} accentColor="blue" />
             </div>
             {insights.facebook_top_posts.length > 0 && (
               <>
@@ -651,7 +669,7 @@ export const MonthlyAdsInsightsContent = forwardRef<HTMLDivElement, MonthlyAdsIn
             <div className="grid grid-cols-3 gap-4 mb-6">
               <MetricTile title="Spend" value={formatCurrency(insights.instagram_metrics.spend, cur)} icon={Wallet} accentColor="orange" />
               <MetricTile title="Reach" value={formatNumber(insights.instagram_metrics.reach)} icon={Users} accentColor="blue" />
-              <MetricTile title="Frequency" value={insights.instagram_metrics.frequency.toFixed(2)} icon={BarChart3} accentColor="blue" />
+              <MetricTile title="Frequency" value={(insights.instagram_metrics.frequency ?? 0).toFixed(2)} icon={BarChart3} accentColor="blue" />
             </div>
             {insights.instagram_top_posts.length > 0 && (
               <>
@@ -680,7 +698,7 @@ export const MonthlyAdsInsightsContent = forwardRef<HTMLDivElement, MonthlyAdsIn
             <div className="grid grid-cols-3 gap-4 mb-6">
               <MetricTile title="Spend" value={formatCurrency(insights.tiktok_metrics.spend, cur)} icon={Wallet} accentColor="orange" />
               <MetricTile title="Reach" value={formatNumber(insights.tiktok_metrics.reach)} icon={Users} accentColor="blue" />
-              <MetricTile title="Frequency" value={insights.tiktok_metrics.frequency.toFixed(2)} icon={BarChart3} accentColor="blue" />
+              <MetricTile title="Frequency" value={(insights.tiktok_metrics.frequency ?? 0).toFixed(2)} icon={BarChart3} accentColor="blue" />
             </div>
             {insights.tiktok_top_posts.length > 0 && (
               <>

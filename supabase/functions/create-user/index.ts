@@ -78,7 +78,7 @@ serve(async (req) => {
       );
     }
 
-    // Update the user's role if it's not the default 'client'
+    // Set the user's role (always update since trigger assigns 'client' by default)
     if (role !== 'client') {
       const { error: roleUpdateError } = await supabaseAdmin
         .from('user_roles')

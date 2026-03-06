@@ -31,7 +31,7 @@ interface PostData {
 
 export interface CampaignStructuredInsights {
   executive_summary: { intro?: string; media_insight: string[]; top_result: string[]; recommendation: string[] };
-  goal_fulfillment: { goals_set: string; results: string };
+  goal_fulfillment: { goals_set: string[]; results: string[] };
   metric_commentary?: { meta_key?: string; meta_detail?: string; tiktok_key?: string; tiktok_detail?: string };
   media_plan_comparison?: {
     budget?: { planned: number; actual: number };
@@ -177,7 +177,7 @@ const PostCard = ({ post }: { post: PostData }) => (
     <div className="relative aspect-[9/12.8] bg-muted overflow-hidden">
       {post.thumbnail_url ? (
         <img src={post.thumbnail_url} alt={post.name} className="w-full h-full object-cover" referrerPolicy="no-referrer"
-          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).parentElement!.querySelector('.placeholder')?.classList.remove('hidden'); }}
+          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).parentElement?.querySelector('.placeholder')?.classList.remove('hidden'); }}
         />
       ) : null}
       <div className={`w-full h-full flex flex-col items-center justify-center gap-2 placeholder ${post.thumbnail_url ? "hidden absolute inset-0" : ""}`}>
@@ -277,7 +277,10 @@ export const CampaignAdsInsightsContent = forwardRef<HTMLDivElement, CampaignAds
         top_result: toStringArray(raw.executive_summary?.top_result),
         recommendation: toStringArray(raw.executive_summary?.recommendation),
       },
-      goal_fulfillment: d(raw.goal_fulfillment, { goals_set: "", results: "" }),
+      goal_fulfillment: {
+        goals_set: toStringArray(raw.goal_fulfillment?.goals_set),
+        results: toStringArray(raw.goal_fulfillment?.results),
+      },
       metric_commentary: raw.metric_commentary || {},
       media_plan_comparison: raw.media_plan_comparison || null,
       meta_key_metrics: d(metaKeySource, { spend: 0, reach: 0, frequency: 0, currency: "CZK" }),
@@ -300,8 +303,8 @@ export const CampaignAdsInsightsContent = forwardRef<HTMLDivElement, CampaignAds
     const [mediaInsight, setMediaInsight] = useState<string[]>(insights.executive_summary.media_insight);
     const [topResult, setTopResult] = useState<string[]>(insights.executive_summary.top_result);
     const [recommendation, setRecommendation] = useState<string[]>(insights.executive_summary.recommendation);
-    const [goalsSet, setGoalsSet] = useState(insights.goal_fulfillment.goals_set);
-    const [results, setResults] = useState(insights.goal_fulfillment.results);
+    const [goalsSet, setGoalsSet] = useState<string[]>(insights.goal_fulfillment.goals_set);
+    const [results, setResults] = useState<string[]>(insights.goal_fulfillment.results);
     const [targetAudience, setTargetAudience] = useState(insights.target_audience);
     const [brandAwareness, setBrandAwareness] = useState(insights.brand_awareness);
 
@@ -316,7 +319,6 @@ export const CampaignAdsInsightsContent = forwardRef<HTMLDivElement, CampaignAds
     const handleSaveSection = async (section: string, value: string) => {
       const setters: Record<string, (v: string) => void> = {
         intro: setIntroSummary,
-        goals_set: setGoalsSet, results: setResults,
         target_audience: setTargetAudience, brand_awareness: setBrandAwareness,
       };
       setters[section]?.(value);
@@ -331,11 +333,6 @@ export const CampaignAdsInsightsContent = forwardRef<HTMLDivElement, CampaignAds
             top_result: topResult,
             recommendation: recommendation,
           };
-        } else if (["goals_set", "results"].includes(section)) {
-          updates.goal_fulfillment = {
-            goals_set: section === "goals_set" ? value : goalsSet,
-            results: section === "results" ? value : results,
-          };
         } else {
           (updates as any)[section] = value;
         }
@@ -346,6 +343,7 @@ export const CampaignAdsInsightsContent = forwardRef<HTMLDivElement, CampaignAds
     const handleSaveListSection = async (section: string, items: string[]) => {
       const setters: Record<string, (v: string[]) => void> = {
         media_insight: setMediaInsight, top_result: setTopResult, recommendation: setRecommendation,
+        goals_set: setGoalsSet, results: setResults,
         what_worked: setWhatWorked, what_to_improve: setWhatToImprove, what_to_test: setWhatToTest,
       };
       setters[section]?.(items);
@@ -359,6 +357,11 @@ export const CampaignAdsInsightsContent = forwardRef<HTMLDivElement, CampaignAds
             media_insight: section === "media_insight" ? items : mediaInsight,
             top_result: section === "top_result" ? items : topResult,
             recommendation: section === "recommendation" ? items : recommendation,
+          };
+        } else if (["goals_set", "results"].includes(section)) {
+          updates.goal_fulfillment = {
+            goals_set: section === "goals_set" ? items : goalsSet,
+            results: section === "results" ? items : results,
           };
         } else {
           updates.learnings = {
@@ -420,7 +423,7 @@ export const CampaignAdsInsightsContent = forwardRef<HTMLDivElement, CampaignAds
     } : undefined;
 
     return (
-      <div ref={ref} className="space-y-8" style={{ backgroundColor: "#E9E9E9" }}>
+      <div ref={ref} className="space-y-8" style={{ backgroundColor: "#E9E9E9", padding: "32px" }}>
         {/* 1. Executive Summary */}
         <Card className="p-6 rounded-[20px] border-foreground" style={{ backgroundColor: "#E9E9E9" }}>
           <h2 className="text-xl font-bold mb-4">Executive Summary</h2>
@@ -451,11 +454,11 @@ export const CampaignAdsInsightsContent = forwardRef<HTMLDivElement, CampaignAds
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Card className="p-4 rounded-[15px] border-border bg-muted/30">
               <div className="flex items-center gap-2 mb-2"><Target className="w-5 h-5 text-accent-orange" /><span className="font-bold text-sm uppercase">Stanovené cíle</span></div>
-              <EditableSection value={goalsSet} isEditing={editingSections.has("goals_set")} onStartEdit={() => startEditing("goals_set")} onSave={(v) => handleSaveSection("goals_set", v)} onCancel={() => stopEditing("goals_set")} canEdit={canEdit} placeholder="Stanovené cíle kampaně..." />
+              <EditableListSection items={goalsSet} isEditing={editingSections.has("goals_set")} onStartEdit={() => startEditing("goals_set")} onSave={(items) => handleSaveListSection("goals_set", items)} onCancel={() => stopEditing("goals_set")} canEdit={canEdit} bulletColor="text-accent-orange" placeholder="Stanovené cíle kampaně..." />
             </Card>
             <Card className="p-4 rounded-[15px] border-border bg-muted/30">
               <div className="flex items-center gap-2 mb-2"><CheckCircle className="w-5 h-5 text-accent-green" /><span className="font-bold text-sm uppercase">Plnění cílů</span></div>
-              <EditableSection value={results} isEditing={editingSections.has("results")} onStartEdit={() => startEditing("results")} onSave={(v) => handleSaveSection("results", v)} onCancel={() => stopEditing("results")} canEdit={canEdit} placeholder="Výsledky a plnění..." />
+              <EditableListSection items={results} isEditing={editingSections.has("results")} onStartEdit={() => startEditing("results")} onSave={(items) => handleSaveListSection("results", items)} onCancel={() => stopEditing("results")} canEdit={canEdit} bulletColor="text-accent-green" placeholder="Výsledky a plnění..." />
             </Card>
           </div>
         </Card>
@@ -475,7 +478,7 @@ export const CampaignAdsInsightsContent = forwardRef<HTMLDivElement, CampaignAds
             <div className="grid grid-cols-3 gap-4">
               <MetricTile title="Spend" value={formatCurrency(insights.meta_key_metrics.spend, cur)} icon={Wallet} accentColor="orange" planComparison={getSpendPlan(metaSpendRatio)} />
               <MetricTile title="Reach" value={formatNumber(insights.meta_key_metrics.reach)} icon={Users} accentColor="blue" planComparison={getReachPlan(metaReachRatio)} />
-              <MetricTile title="Frequency" value={insights.meta_key_metrics.frequency.toFixed(2)} icon={BarChart3} accentColor="blue" planComparison={getFrequencyPlan()} />
+              <MetricTile title="Frequency" value={(insights.meta_key_metrics.frequency ?? 0).toFixed(2)} icon={BarChart3} accentColor="blue" planComparison={getFrequencyPlan()} />
             </div>
           </Card>
         )}
@@ -491,10 +494,10 @@ export const CampaignAdsInsightsContent = forwardRef<HTMLDivElement, CampaignAds
             <MetricCommentary text={insights.metric_commentary?.meta_detail} />
             <div className="grid grid-cols-3 md:grid-cols-5 gap-4">
               <MetricTile title="Impressions" value={formatNumber(insights.meta_key_metrics.reach * insights.meta_key_metrics.frequency)} icon={Eye} accentColor="blue" planComparison={getImpressionsPlan(metaReachRatio)} />
-              <MetricTile title="CPM" value={formatCurrencySimple(insights.meta_key_metrics.spend / (insights.meta_key_metrics.reach * insights.meta_key_metrics.frequency) * 1000 || 0, cur)} icon={Wallet} accentColor="orange" planComparison={getCpmPlan()} />
+              <MetricTile title="CPM" value={formatCurrencySimple(insights.meta_key_metrics.reach && insights.meta_key_metrics.frequency ? (insights.meta_key_metrics.spend / (insights.meta_key_metrics.reach * insights.meta_key_metrics.frequency) * 1000) : 0, cur)} icon={Wallet} accentColor="orange" planComparison={getCpmPlan()} />
               <MetricTile title="ThruPlay Rate" value={formatPercent(insights.meta_detail_metrics.thruplay_rate)} icon={Play} accentColor="blue" />
               <MetricTile title="VV 3s Rate" value={formatPercent(insights.meta_detail_metrics.view_rate_3s)} icon={Eye} accentColor="blue" />
-              <MetricTile title="Avg. Watch Time" value={`${insights.meta_detail_metrics.avg_watch_time.toFixed(1)}s`} icon={Clock} accentColor="blue" />
+              <MetricTile title="Avg. Watch Time" value={`${(insights.meta_detail_metrics.avg_watch_time ?? 0).toFixed(1)}s`} icon={Clock} accentColor="blue" />
             </div>
           </Card>
         )}
@@ -510,7 +513,7 @@ export const CampaignAdsInsightsContent = forwardRef<HTMLDivElement, CampaignAds
             <div className="grid grid-cols-3 gap-4">
               <MetricTile title="Spend" value={formatCurrency(insights.tiktok_key_metrics.spend, cur)} icon={Wallet} accentColor="orange" planComparison={getSpendPlan(tiktokSpendRatio)} />
               <MetricTile title="Reach" value={formatNumber(insights.tiktok_key_metrics.reach)} icon={Users} accentColor="blue" planComparison={getReachPlan(tiktokReachRatio)} />
-              <MetricTile title="Frequency" value={insights.tiktok_key_metrics.frequency.toFixed(2)} icon={BarChart3} accentColor="blue" planComparison={getFrequencyPlan()} />
+              <MetricTile title="Frequency" value={(insights.tiktok_key_metrics.frequency ?? 0).toFixed(2)} icon={BarChart3} accentColor="blue" planComparison={getFrequencyPlan()} />
             </div>
           </Card>
         )}
@@ -525,10 +528,10 @@ export const CampaignAdsInsightsContent = forwardRef<HTMLDivElement, CampaignAds
             <MetricCommentary text={insights.metric_commentary?.tiktok_detail} />
             <div className="grid grid-cols-3 md:grid-cols-5 gap-4">
               <MetricTile title="Impressions" value={formatNumber(insights.tiktok_key_metrics.reach * insights.tiktok_key_metrics.frequency)} icon={Eye} accentColor="blue" planComparison={getImpressionsPlan(tiktokReachRatio)} />
-              <MetricTile title="CPM" value={formatCurrencySimple(insights.tiktok_key_metrics.spend / (insights.tiktok_key_metrics.reach * insights.tiktok_key_metrics.frequency) * 1000 || 0, cur)} icon={Wallet} accentColor="orange" planComparison={getCpmPlan()} />
+              <MetricTile title="CPM" value={formatCurrencySimple(insights.tiktok_key_metrics.reach && insights.tiktok_key_metrics.frequency ? (insights.tiktok_key_metrics.spend / (insights.tiktok_key_metrics.reach * insights.tiktok_key_metrics.frequency) * 1000) : 0, cur)} icon={Wallet} accentColor="orange" planComparison={getCpmPlan()} />
               <MetricTile title="ThruPlay Rate" value={formatPercent(insights.tiktok_detail_metrics.thruplay_rate)} icon={Play} accentColor="blue" />
               <MetricTile title="VV 3s Rate" value={formatPercent(insights.tiktok_detail_metrics.view_rate_3s)} icon={Eye} accentColor="blue" />
-              <MetricTile title="Avg. Watch Time" value={`${insights.tiktok_detail_metrics.avg_watch_time.toFixed(1)}s`} icon={Clock} accentColor="blue" />
+              <MetricTile title="Avg. Watch Time" value={`${(insights.tiktok_detail_metrics.avg_watch_time ?? 0).toFixed(1)}s`} icon={Clock} accentColor="blue" />
             </div>
           </Card>
         )}

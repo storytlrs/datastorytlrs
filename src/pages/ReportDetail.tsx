@@ -325,7 +325,7 @@ const ReportDetail = () => {
           {isAlwaysOn && (
             <>
               <TabsContent value="content">
-                <ContentTab key={refreshKey} reportId={reportId!} />
+                <AdCreativesTab key={refreshKey} reportId={reportId!} spaceId={report.space_id} />
               </TabsContent>
 
               <TabsContent value="data">

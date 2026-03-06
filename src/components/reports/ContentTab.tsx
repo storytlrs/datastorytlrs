@@ -123,12 +123,13 @@ export const ContentTab = ({ reportId }: ContentTabProps) => {
       if (thumbnailUrl) {
         setFetchedPreviews(prev => ({ ...prev, [contentId]: thumbnailUrl }));
         
-        // Cache the thumbnail in the database (fire and forget, ignore errors)
+        // Cache the thumbnail in the database (fire and forget)
         supabase
           .from("content")
           .update({ thumbnail_url: thumbnailUrl })
           .eq("id", contentId)
-          .then(() => {});
+          .then(() => {})
+          .catch((err) => console.error("Failed to cache thumbnail:", err));
       } else {
         setFetchedPreviews(prev => ({ ...prev, [contentId]: null }));
       }

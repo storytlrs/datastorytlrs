@@ -352,14 +352,14 @@ export const AdsOverviewTab = ({ reportId, spaceId }: AdsOverviewTabProps) => {
               .select("*")
               .eq("space_id", spaceId)
               .in("brand_campaign_id", allCampaignIdsForAdSets)
-              .eq("age", "")
-              .eq("gender", "");
+              .or("age.is.null,age.eq.")
+              .or("gender.is.null,gender.eq.");
             metaAdSets = (adSetsRes.data || []).map((as: any) => ({ ...as, platform: "meta" }));
           }
 
           const adSetIds = metaAdSets.map((as: any) => as.id);
           if (adSetIds.length > 0) {
-            const adsRes = await supabase.from("brand_ads" as any).select("*").eq("space_id", spaceId).in("brand_ad_set_id", adSetIds).eq("age", "").eq("gender", "");
+            const adsRes = await supabase.from("brand_ads" as any).select("*").eq("space_id", spaceId).in("brand_ad_set_id", adSetIds).or("age.is.null,age.eq.").or("gender.is.null,gender.eq.");
             metaAds = (adsRes.data || []).map((a: any) => ({ ...a, platform: "meta" }));
           }
         }
@@ -372,7 +372,7 @@ export const AdsOverviewTab = ({ reportId, spaceId }: AdsOverviewTabProps) => {
 
       if (tiktokLinkedIds.length > 0) {
         const [tiktokCampaignsRes, tiktokAdGroupsRes] = await Promise.all([
-          supabase.from("tiktok_campaigns").select("*").eq("space_id", spaceId).in("id", tiktokLinkedIds).eq("age", "").eq("gender", "").eq("location", ""),
+          supabase.from("tiktok_campaigns").select("*").eq("space_id", spaceId).in("id", tiktokLinkedIds).or("age.is.null,age.eq.").or("gender.is.null,gender.eq.").or("location.is.null,location.eq."),
           supabase.from("tiktok_ad_groups").select("*").eq("space_id", spaceId).in("tiktok_campaign_id", tiktokLinkedIds),
         ]);
 

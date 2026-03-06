@@ -51,6 +51,7 @@ interface AdCreative {
 
 export const AdCreativesTab = ({ reportId, spaceId }: AdCreativesTabProps) => {
   const [adCreatives, setAdCreatives] = useState<AdCreative[]>([]);
+  const [campaignKpis, setCampaignKpis] = useState<{ totalSpend: number; totalImpressions: number; total3sViews: number; totalEngagement: number; totalLinkClicks: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [selectedCampaign, setSelectedCampaign] = useState<string>("all");
@@ -80,35 +81,60 @@ export const AdCreativesTab = ({ reportId, spaceId }: AdCreativesTabProps) => {
     }
 
     let allCreatives: AdCreative[] = [];
+    let fallbackKpis: typeof campaignKpis = null;
 
     // Fetch Meta ads
     if (metaLinkedIds.length > 0) {
       const { data: campaignsData } = await supabase
         .from("brand_campaigns")
-        .select("id, campaign_name")
-        .in("id", metaLinkedIds);
+        .select("id, campaign_name, amount_spent, impressions, video_3s_plays, link_clicks, post_reactions, post_comments, post_shares, post_saves")
+        .in("id", metaLinkedIds)
+        .or("age.is.null,age.eq.")
+        .or("gender.is.null,gender.eq.");
       const metaCampaignMap = Object.fromEntries((campaignsData || []).map((c: any) => [c.id, c.campaign_name]));
 
       const { data: adSetsData } = await supabase
         .from("brand_ad_sets" as any)
-        .select("id, adset_name, brand_campaign_id")
+        .select("id, adset_name, brand_campaign_id, age, gender")
         .eq("space_id", spaceId)
-        .in("brand_campaign_id", metaLinkedIds)
-        .eq("age", "")
-        .eq("gender", "");
+        .in("brand_campaign_id", metaLinkedIds);
 
-      const adSetIds = (adSetsData || []).map((a: any) => a.id);
-      const adSetMap = Object.fromEntries((adSetsData || []).map((a: any) => [a.id, { adset_name: a.adset_name, campaign_id: a.brand_campaign_id }]));
+      // Deduplicate ad sets by id, keep summary rows (empty/null age+gender)
+      const adSetsSeen = new Set<string>();
+      const adSetsDeduped = (adSetsData || []).filter((a: any) => {
+        const isAgeEmpty = !a.age || a.age === "";
+        const isGenderEmpty = !a.gender || a.gender === "";
+        if (!isAgeEmpty || !isGenderEmpty) return false;
+        if (adSetsSeen.has(a.id)) return false;
+        adSetsSeen.add(a.id);
+        return true;
+      });
+
+      const adSetIds = adSetsDeduped.map((a: any) => a.id);
+      const adSetMap = Object.fromEntries(adSetsDeduped.map((a: any) => [a.id, { adset_name: a.adset_name, campaign_id: a.brand_campaign_id }]));
+
+      // If no ad sets, aggregate campaign-level data as fallback KPIs
+      if (adSetIds.length === 0 && (campaignsData || []).length > 0) {
+        const kpiTotals = (campaignsData || []).reduce((acc: any, c: any) => ({
+          totalSpend: acc.totalSpend + (c.amount_spent || 0),
+          totalImpressions: acc.totalImpressions + (c.impressions || 0),
+          total3sViews: acc.total3sViews + (c.video_3s_plays || 0),
+          totalEngagement: acc.totalEngagement + (c.post_reactions || 0) + (c.post_comments || 0) + (c.post_shares || 0) + (c.post_saves || 0),
+          totalLinkClicks: acc.totalLinkClicks + (c.link_clicks || 0),
+        }), { totalSpend: 0, totalImpressions: 0, total3sViews: 0, totalEngagement: 0, totalLinkClicks: 0 });
+        fallbackKpis = kpiTotals;
+      }
 
       if (adSetIds.length > 0) {
-        const { data, error } = await supabase
+        const { data: adsRaw, error } = await supabase
           .from("brand_ads")
-          .select("id, ad_id, ad_name, brand_ad_set_id, amount_spent, impressions, clicks, ctr, frequency, date_start, thumbnail_url, video_3s_plays, post_reactions, post_comments, post_shares, post_saves, link_clicks")
+          .select("id, ad_id, ad_name, brand_ad_set_id, amount_spent, impressions, clicks, ctr, frequency, date_start, thumbnail_url, video_3s_plays, post_reactions, post_comments, post_shares, post_saves, link_clicks, age, gender")
           .eq("space_id", spaceId)
           .in("brand_ad_set_id", adSetIds)
-          .eq("age", "")
-          .eq("gender", "")
           .order("amount_spent", { ascending: false });
+
+        // Keep only summary rows (no demographic breakdown)
+        const data = (adsRaw || []).filter((r: any) => (!r.age || r.age === "") && (!r.gender || r.gender === ""));
 
         if (!error && data) {
           allCreatives.push(...data.map((row: any) => {
@@ -197,6 +223,7 @@ export const AdCreativesTab = ({ reportId, spaceId }: AdCreativesTabProps) => {
 
     allCreatives.sort((a, b) => (b.spend || 0) - (a.spend || 0));
     setAdCreatives(allCreatives);
+    setCampaignKpis(allCreatives.length === 0 ? fallbackKpis : null);
     setLoading(false);
   };
 
@@ -260,8 +287,12 @@ export const AdCreativesTab = ({ reportId, spaceId }: AdCreativesTabProps) => {
     });
   }, [adCreatives, dateRange, selectedCampaign, selectedPlatform, selectedAdType, sortBy]);
 
-  // Calculate KPIs
+  // Calculate KPIs (use campaign-level fallback when no individual ads available)
   const kpis = useMemo(() => {
+    if (campaignKpis && filteredCreatives.length === 0) {
+      const avgCpm = campaignKpis.totalImpressions > 0 ? (campaignKpis.totalSpend / campaignKpis.totalImpressions) * 1000 : 0;
+      return { ...campaignKpis, avgCpm };
+    }
     const totalSpend = filteredCreatives.reduce((sum, item) => sum + (item.spend || 0), 0);
     const totalImpressions = filteredCreatives.reduce((sum, item) => sum + (item.impressions || 0), 0);
     const avgCpm = totalImpressions > 0 ? (totalSpend / totalImpressions) * 1000 : 0;
@@ -270,7 +301,7 @@ export const AdCreativesTab = ({ reportId, spaceId }: AdCreativesTabProps) => {
     const totalLinkClicks = filteredCreatives.reduce((sum, item) => sum + (item.link_clicks || 0), 0);
 
     return { totalSpend, totalImpressions, avgCpm, total3sViews, totalEngagement, totalLinkClicks };
-  }, [filteredCreatives]);
+  }, [filteredCreatives, campaignKpis]);
 
   const hasActiveFilters = dateRange || selectedCampaign !== "all" || selectedPlatform !== "all" || selectedAdType !== "all";
 
@@ -284,7 +315,7 @@ export const AdCreativesTab = ({ reportId, spaceId }: AdCreativesTabProps) => {
   const getPreviewIframeUrl = (item: AdCreative): string | null => {
     if (!item.thumbnail_url) return null;
     if (/tiktokcdn/i.test(item.thumbnail_url)) {
-      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID || 'rzetgajncoedibmlfyvl';
+      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID || 'rltxqoupobfohrkrbtib';
       return `https://${projectId}.supabase.co/functions/v1/proxy-image?url=${encodeURIComponent(item.thumbnail_url)}`;
     }
     return item.thumbnail_url;
@@ -439,7 +470,9 @@ export const AdCreativesTab = ({ reportId, spaceId }: AdCreativesTabProps) => {
 
         {filteredCreatives.length === 0 ? (
           <p className="text-muted-foreground text-center py-8">
-            {adCreatives.length === 0 
+            {adCreatives.length === 0 && campaignKpis
+              ? "Individual ad data is not available — data was imported at campaign level only. KPI totals above reflect campaign-level aggregates."
+              : adCreatives.length === 0
               ? "No ad creatives yet. Add ads in the Data tab."
               : "No ads match your filters."}
           </p>
@@ -464,7 +497,7 @@ export const AdCreativesTab = ({ reportId, spaceId }: AdCreativesTabProps) => {
                         className="w-full h-full object-cover"
                         onError={(e) => {
                           (e.target as HTMLImageElement).style.display = 'none';
-                          (e.target as HTMLImageElement).parentElement!.querySelector('.placeholder')?.classList.remove('hidden');
+                          (e.target as HTMLImageElement).parentElement?.querySelector('.placeholder')?.classList.remove('hidden');
                         }}
                       />
                     ) : null}

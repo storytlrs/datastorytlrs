@@ -201,6 +201,7 @@ interface QuarterlyAdsInsightsContentProps {
   hasMetaPlatform?: boolean;
   hasTiktokPlatform?: boolean;
   reportId?: string;
+  pdfMode?: boolean;
 }
 
 // ── Helpers ──
@@ -348,7 +349,7 @@ const PostCard = ({ post }: { post: { name: string; spend: number; impressions: 
     <div className="relative aspect-[9/12.8] bg-muted overflow-hidden">
       {post.thumbnail_url ? (
         <img src={post.thumbnail_url} alt={post.name} className="w-full h-full object-cover" referrerPolicy="no-referrer"
-          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).parentElement!.querySelector('.placeholder')?.classList.remove('hidden'); }}
+          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).parentElement?.querySelector('.placeholder')?.classList.remove('hidden'); }}
         />
       ) : null}
       <div className={`w-full h-full flex flex-col items-center justify-center gap-2 placeholder ${post.thumbnail_url ? "hidden absolute inset-0" : ""}`}>
@@ -414,6 +415,7 @@ interface PlatformSectionProps {
   chartSpaceId?: string | null;
   chartCampaignIds?: string[];
   chartEntityTypes?: string[];
+  pdfMode?: boolean;
 }
 
 const PlatformSection = ({
@@ -422,7 +424,7 @@ const PlatformSection = ({
   topPostsAnalysis, improvePostsAnalysis,
   topPosts, improvePosts, cur, canEdit, editingSections, startEditing, stopEditing, onSaveSection, sectionPrefix,
   getSpendPlan, getReachPlan, getFrequencyPlan,
-  chartSpaceId, chartCampaignIds, chartEntityTypes,
+  chartSpaceId, chartCampaignIds, chartEntityTypes, pdfMode,
 }: PlatformSectionProps) => {
   const hasData = metrics.spend > 0 || metrics.reach > 0 || topPosts.length > 0;
   if (!hasData) return null;
@@ -462,6 +464,7 @@ const PlatformSection = ({
               spaceId={chartSpaceId}
               campaignIds={chartCampaignIds}
               entityTypes={chartEntityTypes}
+              pdfMode={pdfMode}
             />
           </div>
         )}
@@ -549,7 +552,7 @@ const PlatformSection = ({
 // ── Main Component ──
 
 export const QuarterlyAdsInsightsContent = forwardRef<HTMLDivElement, QuarterlyAdsInsightsContentProps>(
-  ({ insights: raw, canEdit = false, onSaveInsights, hasMetaPlatform, hasTiktokPlatform, reportId }, ref) => {
+  ({ insights: raw, canEdit = false, onSaveInsights, hasMetaPlatform, hasTiktokPlatform, reportId, pdfMode }, ref) => {
     const toStringArray = (val: any): string[] => {
       if (Array.isArray(val)) return val.filter(Boolean);
       if (typeof val === "string" && val.trim()) {
@@ -826,7 +829,7 @@ export const QuarterlyAdsInsightsContent = forwardRef<HTMLDivElement, QuarterlyA
     } : undefined;
 
     return (
-      <div ref={ref} className="space-y-8" style={{ backgroundColor: "#E9E9E9" }}>
+      <div ref={ref} className="space-y-8" style={{ backgroundColor: "#E9E9E9", padding: "32px" }}>
         {/* 1. Executive Summary */}
         <Card className="p-6 rounded-[20px] border-foreground" style={{ backgroundColor: "#E9E9E9" }}>
           <h2 className="text-xl font-bold mb-4">Executive Summary</h2>
@@ -879,7 +882,7 @@ export const QuarterlyAdsInsightsContent = forwardRef<HTMLDivElement, QuarterlyA
           <div className="grid grid-cols-3 gap-4">
             <MetricTile title="Spend" value={formatCurrency(insights.key_metrics.spend, cur)} icon={Wallet} accentColor="orange" />
             <MetricTile title="Reach" value={formatNumber(insights.key_metrics.reach)} icon={Users} accentColor="blue" />
-            <MetricTile title="Frequency" value={insights.key_metrics.frequency.toFixed(2)} icon={BarChart3} accentColor="blue" />
+            <MetricTile title="Frequency" value={(insights.key_metrics.frequency ?? 0).toFixed(2)} icon={BarChart3} accentColor="blue" />
           </div>
         </Card>
 
@@ -973,6 +976,7 @@ export const QuarterlyAdsInsightsContent = forwardRef<HTMLDivElement, QuarterlyA
           chartSpaceId={chartSpaceId}
           chartCampaignIds={chartCampaignIds}
           chartEntityTypes={chartEntityTypes}
+          pdfMode={pdfMode}
         />
 
         <PlatformSection
@@ -1000,6 +1004,7 @@ export const QuarterlyAdsInsightsContent = forwardRef<HTMLDivElement, QuarterlyA
           chartSpaceId={chartSpaceId}
           chartCampaignIds={chartCampaignIds}
           chartEntityTypes={chartEntityTypes}
+          pdfMode={pdfMode}
         />
 
         <PlatformSection
@@ -1027,6 +1032,7 @@ export const QuarterlyAdsInsightsContent = forwardRef<HTMLDivElement, QuarterlyA
           chartSpaceId={chartSpaceId}
           chartCampaignIds={chartCampaignIds}
           chartEntityTypes={chartEntityTypes}
+          pdfMode={pdfMode}
         />
 
         {/* Followers */}

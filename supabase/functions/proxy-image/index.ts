@@ -11,37 +11,30 @@ const ALLOWED_IMAGE_DOMAINS = [
   'cdninstagram.com',
   'fbcdn.net',
   'instagram.com',
-  'scontent.cdninstagram.com',
-  'scontent-',  // Instagram CDN pattern like scontent-iad3-1.cdninstagram.com
-  'p16-sign-sg.tiktokcdn.com',
-  'p16-sign-va.tiktokcdn.com',
-  'p16-sign.tiktokcdn-us.com',
   'tiktokcdn.com',
   'tiktokcdn-us.com',
   'tiktokcdn-eu.com',
   'muscdn.com',
   'ytimg.com',
-  'i.ytimg.com',
-  'yt3.ggpht.com',
-  'pbs.twimg.com',
-  'abs.twimg.com',
-  'platform-lookaside.fbsbx.com',
+  'ggpht.com',
+  'twimg.com',
+  'fbsbx.com',
 ];
 
 // Validate image URL to prevent SSRF
 const validateImageUrl = (url: string): { valid: boolean; error?: string } => {
   try {
     const parsed = new URL(url);
-    
+
     // Only allow HTTPS
     if (parsed.protocol !== 'https:') {
       return { valid: false, error: 'Only HTTPS URLs are allowed' };
     }
-    
+
     const hostname = parsed.hostname.toLowerCase();
-    
+
     // Block private/internal IP ranges
-    if (hostname === 'localhost' || 
+    if (hostname === 'localhost' ||
         hostname === '127.0.0.1' ||
         hostname.match(/^127\./) ||
         hostname.match(/^10\./) ||
@@ -53,16 +46,16 @@ const validateImageUrl = (url: string): { valid: boolean; error?: string } => {
         hostname.endsWith('.internal')) {
       return { valid: false, error: 'Internal/private URLs are not allowed' };
     }
-    
-    // Check against whitelist
-    const isAllowed = ALLOWED_IMAGE_DOMAINS.some(domain => 
-      hostname === domain || hostname.endsWith('.' + domain) || hostname.includes(domain)
+
+    // Check against whitelist using exact match or subdomain match only
+    const isAllowed = ALLOWED_IMAGE_DOMAINS.some(domain =>
+      hostname === domain || hostname.endsWith('.' + domain)
     );
-    
+
     if (!isAllowed) {
       return { valid: false, error: 'Image domain is not in the allowed list' };
     }
-    
+
     return { valid: true };
   } catch {
     return { valid: false, error: 'Invalid URL format' };
